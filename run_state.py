@@ -261,8 +261,8 @@ if __name__ =="__main__":
                 accept[n] = param_dict['metric']>=0.8
                 cases_after[n] = param_dict['cases_after']
                 ps[n] =param_dict['ps']
-                travel_seeds[:,n] = param_dict['travel_seeds']
-                travel_induced_cases[:,n] = param_dict['travel_induced_cases'+str(XBstate)]
+                # travel_seeds[:,n] = param_dict['travel_seeds']
+                # travel_induced_cases[:,n] = param_dict['travel_induced_cases'+str(XBstate)]
 
 
             
@@ -305,8 +305,8 @@ if __name__ =="__main__":
         'alpha_a':alpha_a,
         'alpha_s':alpha_s,
         'cases_after':cases_after,
-        'travel_seeds': travel_seeds,
-        'travel_induced_cases'+str(item.cross_border_state): travel_induced_cases,
+        # 'travel_seeds': travel_seeds,
+        # 'travel_induced_cases'+str(item.cross_border_state): travel_induced_cases,
         'ps':ps,
     }
     print("Number of bad sims is %i" % sum(bad_sim))

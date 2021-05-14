@@ -353,7 +353,7 @@ class Forecast:
 
         return symp_cases
 
-    def generate_new_cases(self,parent_key, Reff,k,travel=True):
+    def generate_new_cases(self,parent_key, Reff,k,travel=False):
         """
         Generate offspring for each parent, check if they travel
         """
@@ -489,47 +489,48 @@ class Forecast:
                     #add person to tracked people
                     self.people[len(self.people)] = Person(parent_key, inf_time, detect_time,recovery_time, category)
 
-            if travel:
-                #for parent, check their cross border travel
-                if self.cross_border_state is not None:
-                    #Run cross border sim across children
-                    inf_time = self.people[parent_key].infection_time
+            # Cross border travel is deprecated
+            # if travel:
+            #     #for parent, check their cross border travel
+            #     if self.cross_border_state is not None:
+            #         #Run cross border sim across children
+            #         inf_time = self.people[parent_key].infection_time
 
-                    detect_time = self.people[parent_key].detection_time
+            #         detect_time = self.people[parent_key].detection_time
 
-                    if self.people[parent_key].infection_time>self.forecast_date:
-                        #check it is after forecast date but before
-                        #end date
-                        if ceil(inf_time)-1 < self.cases.shape[0]:
-                            #check if travel
-                            #symptomatic people here
-                            pre_symp_time = inf_time
-                            while pre_symp_time < detect_time:
-                                travel_rv = random()
-                                if travel_rv<self.travel_prob:
-                                    #travelled
-                                    ## did they infect?
-                                    #symptomatic
-                                    self.cross_border_sim(parent_key,ceil(pre_symp_time))
+            #         if self.people[parent_key].infection_time>self.forecast_date:
+            #             #check it is after forecast date but before
+            #             #end date
+            #             if ceil(inf_time)-1 < self.cases.shape[0]:
+            #                 #check if travel
+            #                 #symptomatic people here
+            #                 pre_symp_time = inf_time
+            #                 while pre_symp_time < detect_time:
+            #                     travel_rv = random()
+            #                     if travel_rv<self.travel_prob:
+            #                         #travelled
+            #                         ## did they infect?
+            #                         #symptomatic
+            #                         self.cross_border_sim(parent_key,ceil(pre_symp_time))
 
-                                #can travel more than once
-                                pre_symp_time +=1 #move forward a day
-                                if pre_symp_time>self.cases.shape[0]:
-                                    break
-                            if detect_time==0:
-                                #asymptomatics
-                                if self.people[parent_key].category=='A':
-                                    for pre_symp_time in child_times:
-                                        if pre_symp_time< self.cases.shape[0] -1:
-                                            #only care if still within forecast time
-                                            travel_rv = random()
-                                            if travel_rv<self.travel_prob:
-                                            #travelled
-                                            ## did they infect?
-                                                self.cross_border_sim(parent_key,ceil(pre_symp_time))
+            #                     #can travel more than once
+            #                     pre_symp_time +=1 #move forward a day
+            #                     if pre_symp_time>self.cases.shape[0]:
+            #                         break
+            #                 if detect_time==0:
+            #                     #asymptomatics
+            #                     if self.people[parent_key].category=='A':
+            #                         for pre_symp_time in child_times:
+            #                             if pre_symp_time< self.cases.shape[0] -1:
+            #                                 #only care if still within forecast time
+            #                                 travel_rv = random()
+            #                                 if travel_rv<self.travel_prob:
+            #                                 #travelled
+            #                                 ## did they infect?
+            #                                     self.cross_border_sim(parent_key,ceil(pre_symp_time))
 
-                                            #remove case from original state?
-        return None
+            #                                 #remove case from original state?
+        # return None
 
     # Deprecated: this function is never called when the model run.
     # def cases_detected(self,new_cases):
@@ -707,7 +708,7 @@ class Forecast:
                 #generate new cases with times
                 parent_key = self.infected_queue.popleft()
                 #recorded within generate new cases
-                self.generate_new_cases(parent_key,Reff=Reff,k = self.k,travel=False)
+                self.generate_new_cases(parent_key,Reff=Reff,k = self.k)
         #self.people.clear()
         if self.bad_sim ==False:
             #Check simulation for discrepancies
@@ -820,7 +821,7 @@ class Forecast:
                                 break
                         #generate new cases with times
                         parent_key = self.infected_queue.popleft()
-                        self.generate_new_cases(parent_key,Reff=Reff,k=self.k,travel=False)
+                        self.generate_new_cases(parent_key,Reff=Reff,k=self.k)
                         #missed_outbreak = max(1,missed_outbreak*0.9)
                 else:
                     #pass in here if while queue loop completes
@@ -845,8 +846,8 @@ class Forecast:
                 'ps':self.ps,
                 'bad_sim':self.bad_sim,
                 'cases_after':self.cases_after,
-                'travel_seeds': self.cross_border_seeds[:,self.num_of_sim],
-                'travel_induced_cases'+str(self.cross_border_state):self.cross_border_state_cases,
+                # 'travel_seeds': self.cross_border_seeds[:,self.num_of_sim],
+                # 'travel_induced_cases'+str(self.cross_border_state):self.cross_border_state_cases,
                 'num_of_sim':self.num_of_sim,
             }
             )
@@ -869,8 +870,8 @@ class Forecast:
                 'ps':self.ps,
                 'bad_sim':self.bad_sim,
                 'cases_after':self.cases_after,
-                'travel_seeds': self.cross_border_seeds[:,self.num_of_sim],
-                'travel_induced_cases'+str(self.cross_border_state):self.cross_border_state_cases[:,self.num_of_sim],
+                # 'travel_seeds': self.cross_border_seeds[:,self.num_of_sim],
+                # 'travel_induced_cases'+str(self.cross_border_state):self.cross_border_state_cases[:,self.num_of_sim],
                 'num_of_sim':self.num_of_sim,
             }
             )
@@ -1226,218 +1227,222 @@ class Forecast:
         # Set all betas to prior plus effective period size of 1
         self.b_dict = {i:prior_beta+1 for i in range(self.end_time)} 
 
+    # Deprecated
+    # def p_travel(self):
+    #     """
+    #     given a state to go to, what it probability of travel?
+    #     """
+    #     ##Pop from Rob's work
+    #     pop = {
+    #         'NSW': 5730000,
+    #         'VIC': 5191000,
+    #         'SA': 1408000,
+    #         'WA': 2385000,
+    #         'TAS': 240342,
+    #         'NT': 154280,
+    #         'ACT': 410199,
+    #         'QLD': 2560000,
+    #     }
+    #     T_volume_ij = {
+    #         'NSW':{
+    #             'ACT':3000,
+    #             #'NT':?,
+    #             'SA':5300,
+    #             'VIC':26700,
+    #             'QLD':14000,
+    #             'TAS':2500,
+    #             'WA':5000,
+    #         },
+    #         'VIC':{
+    #             'ACT':3600,
+    #             'NSW':26700,
+    #             'SA':12700,
+    #             'QLD':11000,
+    #             'TAS':5000,
+    #             'WA':6000,
+    #             #'NT':,
+    #         },
+    #         'SA':{
+    #             'ACT':1200,
+    #             'NSW':5300,
+    #             'QLD':2500,
+    #             #'TAS':,
+    #             'VIC':12700,
+    #             'WA':2000,
+    #         },
 
-    def p_travel(self):
-        """
-        given a state to go to, what it probability of travel?
-        """
-        ##Pop from Rob's work
-        pop = {
-            'NSW': 5730000,
-            'VIC': 5191000,
-            'SA': 1408000,
-            'WA': 2385000,
-            'TAS': 240342,
-            'NT': 154280,
-            'ACT': 410199,
-            'QLD': 2560000,
-        }
-        T_volume_ij = {
-            'NSW':{
-                'ACT':3000,
-                #'NT':?,
-                'SA':5300,
-                'VIC':26700,
-                'QLD':14000,
-                'TAS':2500,
-                'WA':5000,
-            },
-            'VIC':{
-                'ACT':3600,
-                'NSW':26700,
-                'SA':12700,
-                'QLD':11000,
-                'TAS':5000,
-                'WA':6000,
-                #'NT':,
-            },
-            'SA':{
-                'ACT':1200,
-                'NSW':5300,
-                'QLD':2500,
-                #'TAS':,
-                'VIC':12700,
-                'WA':2000,
-            },
+    #     }
+    #     #air and car travel from VIC to SA divided by pop of VIC
+    #     try:
+    #         p = T_volume_ij[
+    #                 self.state][self.cross_border_state
+    #                 ]/(pop[self.state]+pop[self.cross_border_state])
+    #     except KeyError:
+    #         print("Cross border state not implemented yet")
+    #         raise KeyError
+    #     return p
 
-        }
-        #air and car travel from VIC to SA divided by pop of VIC
-        try:
-            p = T_volume_ij[
-                    self.state][self.cross_border_state
-                    ]/(pop[self.state]+pop[self.cross_border_state])
-        except KeyError:
-            print("Cross border state not implemented yet")
-            raise KeyError
-        return p
-    def cross_border_sim(self,parent_key,day:int):
-        """
-        Simulate a cross border interaction between two states, where
-        export_state is the state in which a case is coming from.
+    # Deprecated
+    
+    # def cross_border_sim(self,parent_key,day:int):
+    #     """
+    #     Simulate a cross border interaction between two states, where
+    #     export_state is the state in which a case is coming from.
 
-        Need to feed in people, can be blank in attributes
+    #     Need to feed in people, can be blank in attributes
 
-        Feed in a time series of cases? Read in the timeseries?
-        """
-        import pandas as pd
-        import numpy as np
-        from math import ceil
+    #     Feed in a time series of cases? Read in the timeseries?
+    #     """
+    #     import pandas as pd
+    #     import numpy as np
+    #     from math import ceil
 
-        from collections import deque
-        Reff = self.choose_random_item(self.Reff_travel[day])
-        self.travel_infected_queue = deque()
-        self.travel_people = {}
-        #check parent category
-        if self.people[parent_key].category=='S':
-            num_offspring = nbinom.rvs(self.k, 1- self.alpha_s*Reff/(self.alpha_s*Reff + self.k))
-        elif self.people[parent_key].category=='A':
-            num_offspring = nbinom.rvs(n=self.k, p = 1- self.alpha_a*Reff/(self.alpha_a*Reff + self.k))
-        else:
-            #Is imported
-            if self.R_I is not None:
-                #if splitting imported from local, change Reff to R_I
-                Reff = self.choose_random_item(self.R_I)
-            if self.people[parent_key].infection_time < self.quarantine_change_date:
-                #factor of 3 times infectiousness prequarantine changes
+    #     from collections import deque
+    #     Reff = self.choose_random_item(self.Reff_travel[day])
+    #     self.travel_infected_queue = deque()
+    #     self.travel_people = {}
+    #     #check parent category
+    #     if self.people[parent_key].category=='S':
+    #         num_offspring = nbinom.rvs(self.k, 1- self.alpha_s*Reff/(self.alpha_s*Reff + self.k))
+    #     elif self.people[parent_key].category=='A':
+    #         num_offspring = nbinom.rvs(n=self.k, p = 1- self.alpha_a*Reff/(self.alpha_a*Reff + self.k))
+    #     else:
+    #         #Is imported
+    #         if self.R_I is not None:
+    #             #if splitting imported from local, change Reff to R_I
+    #             Reff = self.choose_random_item(self.R_I)
+    #         if self.people[parent_key].infection_time < self.quarantine_change_date:
+    #             #factor of 3 times infectiousness prequarantine changes
 
-                num_offspring = nbinom.rvs(n=self.k, p = 1- self.qua_ai*Reff/(self.qua_ai*Reff + self.k))
-            else:
-                num_offspring = nbinom.rvs(n=self.k, p = 1- self.alpha_i*Reff/(self.alpha_i*Reff + self.k))
-        if num_offspring >0:
-            #import was successful, generate first gen offspring
-            num_sympcases = self.new_symp_cases(num_offspring)
-            for new_case in range(num_offspring):
-                inf_time = next(self.get_inf_time) + self.people[parent_key].infection_time
-                if inf_time < day +1:
-                    #record seeded
-                    if ceil(inf_time) > self.cases.shape[0]:
-                        #new infection exceeds the simulation time, not recorded
-                        self.travel_cases_after = self.travel_cases_after + 1
-                    else:
-                        self.cross_border_seeds[day-1,self.num_of_sim] += 1
-                        #successful only if day trip
-                        detection_rv = 1 #random() zeroed to just see all travel for now
-                        detect_time = 0 #give 0 by default, fill in if passes
+    #             num_offspring = nbinom.rvs(n=self.k, p = 1- self.qua_ai*Reff/(self.qua_ai*Reff + self.k))
+    #         else:
+    #             num_offspring = nbinom.rvs(n=self.k, p = 1- self.alpha_i*Reff/(self.alpha_i*Reff + self.k))
+    #     if num_offspring >0:
+    #         #import was successful, generate first gen offspring
+    #         num_sympcases = self.new_symp_cases(num_offspring)
+    #         for new_case in range(num_offspring):
+    #             inf_time = next(self.get_inf_time) + self.people[parent_key].infection_time
+    #             if inf_time < day +1:
+    #                 #record seeded
+    #                 if ceil(inf_time) > self.cases.shape[0]:
+    #                     #new infection exceeds the simulation time, not recorded
+    #                     self.travel_cases_after = self.travel_cases_after + 1
+    #                 else:
+    #                     self.cross_border_seeds[day-1,self.num_of_sim] += 1
+    #                     #successful only if day trip
+    #                     detection_rv = 1 #random() zeroed to just see all travel for now
+    #                     detect_time = 0 #give 0 by default, fill in if passes
 
-                        recovery_time = 0 #for now not tracking recoveries
+    #                     recovery_time = 0 #for now not tracking recoveries
 
-                        if new_case <= num_sympcases-1: #minus 1 as new_case ranges from 0 to num_offspring-1
-                            #first num_sympcases are symnptomatic, rest are asymptomatic
-                            category = 'S'
-                            #record all cases the same for now
-                            self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] += 1
+    #                     if new_case <= num_sympcases-1: #minus 1 as new_case ranges from 0 to num_offspring-1
+    #                         #first num_sympcases are symnptomatic, rest are asymptomatic
+    #                         category = 'S'
+    #                         #record all cases the same for now
+    #                         self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] += 1
 
-                            if detection_rv < self.qs:
-                                #case detected
-                                detect_time = inf_time + next(self.get_detect_time)
-                                if detect_time < self.cases.shape[0]:
-                                    print("placeholder")
-                                    #self.observed_cases[max(0,ceil(detect_time)-1),2] += 1
+    #                         if detection_rv < self.qs:
+    #                             #case detected
+    #                             detect_time = inf_time + next(self.get_detect_time)
+    #                             if detect_time < self.cases.shape[0]:
+    #                                 print("placeholder")
+    #                                 #self.observed_cases[max(0,ceil(detect_time)-1),2] += 1
 
-                        else:
-                            category = 'A'
-                            self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] +=1
-                            detect_time = 0
-                            if detection_rv < self.qa:
-                                #case detected
-                                detect_time = inf_time + next(self.get_detect_time)
-                                if detect_time < self.cases.shape[0]:
-                                    print("placeholder")
-                                    #self.observed_cases[max(0,ceil(detect_time)-1),1] += 1
+    #                     else:
+    #                         category = 'A'
+    #                         self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] +=1
+    #                         detect_time = 0
+    #                         if detection_rv < self.qa:
+    #                             #case detected
+    #                             detect_time = inf_time + next(self.get_detect_time)
+    #                             if detect_time < self.cases.shape[0]:
+    #                                 print("placeholder")
+    #                                 #self.observed_cases[max(0,ceil(detect_time)-1),1] += 1
 
-                        #add new infected to queue
-                        self.travel_infected_queue.append(len(self.people))
+    #                     #add new infected to queue
+    #                     self.travel_infected_queue.append(len(self.people))
 
-                        #add person to tracked people
-                        self.travel_people[len(self.people)] = Person(parent_key, inf_time, detect_time,recovery_time, category)
-
-
-
-
-
-        while len(self.travel_infected_queue) >0:
-            parent_key = self.travel_infected_queue.popleft()
-            inf_day = ceil(self.travel_people[parent_key].infection_time)
-            Reff = self.choose_random_item(self.Reff_travel[inf_day])
-            self.generate_travel_cases(parent_key, Reff)
-
-        return None
-
-
-    def generate_travel_cases(self,parent_key,Reff):
-        """
-        Generate and record cases in cross border state
-        """
-        from math import ceil
-        #check parent category
-        if self.travel_people[parent_key].category=='S':
-            num_offspring = nbinom.rvs(self.k, 1- self.alpha_s*Reff/(self.alpha_s*Reff + self.k))
-        elif self.travel_people[parent_key].category=='A':
-            num_offspring = nbinom.rvs(n=self.k, p = 1- self.alpha_a*Reff/(self.alpha_a*Reff + self.k))
-        else:
-            #Is imported
-            if self.R_I is not None:
-                #if splitting imported from local, change Reff to R_I
-                Reff = self.choose_random_item(self.R_I)
-                num_offspring = nbinom.rvs(n=self.k, p = 1- self.alpha_i*Reff/(self.alpha_i*Reff + self.k))
-
-        if num_offspring >0:
-            num_sympcases = self.new_symp_cases(num_offspring)
-            for new_case in range(num_offspring):
-                inf_time = next(self.get_inf_time) + self.travel_people[parent_key].infection_time
-                if inf_time < self.cases.shape[0]:
-                    #record case
-                    self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] += 1
-                    detection_rv = 1 #random() zeroed to just see all travel for now
-                    detect_time = 0 #give 0 by default, fill in if passes
-
-                    recovery_time = 0 #for now not tracking recoveries
-
-                    if new_case <= num_sympcases-1: #minus 1 as new_case ranges from 0 to num_offspring-1
-                        #first num_sympcases are symnptomatic, rest are asymptomatic
-                        category = 'S'
-                        #record all cases the same for now
-                        self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] += 1
-
-                        if detection_rv < self.qs:
-                            #case detected
-                            detect_time = inf_time + next(self.get_detect_time)
-                            if detect_time < self.cases.shape[0]:
-                                print("placeholder")
-                                #self.observed_cases[max(0,ceil(detect_time)-1),2] += 1
-
-                    else:
-                        category = 'A'
-                        self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] +=1
-                        detect_time = 0
-                        if detection_rv < self.qa:
-                            #case detected
-                            detect_time = inf_time + next(self.get_detect_time)
-                            if detect_time < self.cases.shape[0]:
-                                print("placeholder")
-                                #self.observed_cases[max(0,ceil(detect_time)-1),1] += 1
-
-
-                    #add new infected to queue
-                    self.travel_infected_queue.append(len(self.people))
-
-                    #add person to tracked people
-                    self.travel_people[len(self.people)] = Person(parent_key, inf_time, detect_time,recovery_time, category)
-                else:
-                    #new infection exceeds the simulation time, not recorded
-                    #not added to queue
-                    self.travel_cases_after = self.travel_cases_after + 1
+    #                     #add person to tracked people
+    #                     self.travel_people[len(self.people)] = Person(parent_key, inf_time, detect_time,recovery_time, category)
 
 
 
-        return None
+
+
+    #     while len(self.travel_infected_queue) >0:
+    #         parent_key = self.travel_infected_queue.popleft()
+    #         inf_day = ceil(self.travel_people[parent_key].infection_time)
+    #         Reff = self.choose_random_item(self.Reff_travel[inf_day])
+    #         self.generate_travel_cases(parent_key, Reff)
+
+    #     return None
+
+    # Deprecated
+
+    # def generate_travel_cases(self,parent_key,Reff):
+    #     """
+    #     Generate and record cases in cross border state
+    #     """
+    #     from math import ceil
+    #     #check parent category
+    #     if self.travel_people[parent_key].category=='S':
+    #         num_offspring = nbinom.rvs(self.k, 1- self.alpha_s*Reff/(self.alpha_s*Reff + self.k))
+    #     elif self.travel_people[parent_key].category=='A':
+    #         num_offspring = nbinom.rvs(n=self.k, p = 1- self.alpha_a*Reff/(self.alpha_a*Reff + self.k))
+    #     else:
+    #         #Is imported
+    #         if self.R_I is not None:
+    #             #if splitting imported from local, change Reff to R_I
+    #             Reff = self.choose_random_item(self.R_I)
+    #             num_offspring = nbinom.rvs(n=self.k, p = 1- self.alpha_i*Reff/(self.alpha_i*Reff + self.k))
+
+    #     if num_offspring >0:
+    #         num_sympcases = self.new_symp_cases(num_offspring)
+    #         for new_case in range(num_offspring):
+    #             inf_time = next(self.get_inf_time) + self.travel_people[parent_key].infection_time
+    #             if inf_time < self.cases.shape[0]:
+    #                 #record case
+    #                 self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] += 1
+    #                 detection_rv = 1 #random() zeroed to just see all travel for now
+    #                 detect_time = 0 #give 0 by default, fill in if passes
+
+    #                 recovery_time = 0 #for now not tracking recoveries
+
+    #                 if new_case <= num_sympcases-1: #minus 1 as new_case ranges from 0 to num_offspring-1
+    #                     #first num_sympcases are symnptomatic, rest are asymptomatic
+    #                     category = 'S'
+    #                     #record all cases the same for now
+    #                     self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] += 1
+
+    #                     if detection_rv < self.qs:
+    #                         #case detected
+    #                         detect_time = inf_time + next(self.get_detect_time)
+    #                         if detect_time < self.cases.shape[0]:
+    #                             print("placeholder")
+    #                             #self.observed_cases[max(0,ceil(detect_time)-1),2] += 1
+
+    #                 else:
+    #                     category = 'A'
+    #                     self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] +=1
+    #                     detect_time = 0
+    #                     if detection_rv < self.qa:
+    #                         #case detected
+    #                         detect_time = inf_time + next(self.get_detect_time)
+    #                         if detect_time < self.cases.shape[0]:
+    #                             print("placeholder")
+    #                             #self.observed_cases[max(0,ceil(detect_time)-1),1] += 1
+
+
+    #                 #add new infected to queue
+    #                 self.travel_infected_queue.append(len(self.people))
+
+    #                 #add person to tracked people
+    #                 self.travel_people[len(self.people)] = Person(parent_key, inf_time, detect_time,recovery_time, category)
+    #             else:
+    #                 #new infection exceeds the simulation time, not recorded
+    #                 #not added to queue
+    #                 self.travel_cases_after = self.travel_cases_after + 1
+
+
+
+    #     return None
