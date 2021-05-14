@@ -323,7 +323,7 @@ def plot_Reff(Reff:dict, dates=None, ax_arg=None, truncate=None, **kwargs):
     ax.set_yticks([0,2,3],minor=False)
     ax.set_yticklabels([0,2,3],minor=False)
     ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
-    ax.tick_params(axis='x', rotation = 45)
+    ax.tick_params(axis='x', rotation = 90)
     
     return fig, ax
 

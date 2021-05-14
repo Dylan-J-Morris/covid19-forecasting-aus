@@ -554,9 +554,32 @@ for data_date in cprs_dates:
     ax.set_xticklabels(['R_I','R_L0 mean',
     'R_L0 NSW','R_L0 QLD','R_L0 SA','R_L0 TAS','R_L0 VIC','R_L0 WA',#'R_temp',
     'R_L0 prior','R_I prior','R_L0 national'])
-    ax.tick_params('x',rotation=45)
+    ax.tick_params('x',rotation=90)
     ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
+    plt.tight_layout()
     plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png",dpi = 144)
+
+    # Making a new figure that doesn't include the priors
+    fig,ax = plt.subplots(figsize=(12,9))
+
+    small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 'R_I']
+
+    sns.violinplot(x='variable',y='value',
+                data=pd.melt(samples_mov_gamma[small_plot_cols]),
+                ax=ax,
+                cut=0)
+
+    ax.set_yticks([1],minor=True,)
+    ax.set_yticks([0,2,3],minor=False)
+    ax.set_yticklabels([0,2,3],minor=False)
+    ax.set_ylim((0,4))
+    #state labels in alphabetical
+    ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$',])
+    ax.tick_params('x',rotation=90)
+    ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
+    plt.tight_layout()
+    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors).png",dpi = 288)
+
 
     posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]
                                 ]
@@ -581,12 +604,15 @@ for data_date in cprs_dates:
 
     #ax =plot_posterior_violin(posterior)
 
-    #ax2.set_title('Coefficients of mobility indices')
+    ax2.set_title('Coefficients of mobility indices')
     ax2.set_xlabel('Social mobility index')
     ax2.set_xticklabels([var[:-6] for var in predictors])
+    ax2.set_xticklabels(['Retail and Recreation','Grocery and Pharmacy', 'Parks', 'Transit Stations', 'Workplaces'])
     ax2.tick_params('x',rotation=15)
+    plt.tight_layout()
+
     plt.savefig(
-        results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi =144)
+        results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi =288)
 
 
     RL_by_state = { state: samples_mov_gamma[
