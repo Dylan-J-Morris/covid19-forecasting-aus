@@ -32,6 +32,7 @@ def read_in_cases(cases_file_date=None):
 
         if len(glob.glob(path)) >1:
             print("Using an arbritary file")
+    print(path)
     
     df.PLACE_OF_ACQUISITION.fillna('00038888',inplace=True) #Fill blanks with simply unknown
 
@@ -42,7 +43,7 @@ def read_in_cases(cases_file_date=None):
     df.loc[df.TRUE_ONSET_DATE.isna(),'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
     df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
 
-    df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[-4:]=='8888' and x != '00038888' else 0)
+    df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4]!='1101' else 0)
     df['local'] = 1 - df.imported
     
     
@@ -174,7 +175,7 @@ for i, state in enumerate(states):
     str_output.extend(crps_scores)
 
     os.makedirs("./analysis/comparison_models/results/", exist_ok=True)
-    with open("./analysis/comparison_models/results/scores.csv", 'a') as file:
+    with open("./analysis/comparison_models/results/scores"+data_date.strftime("%d%b")+".csv", 'a') as file:
         writer = csv.writer(file)
         writer.writerow(str_output)
 
