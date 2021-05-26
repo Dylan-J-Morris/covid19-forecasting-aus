@@ -303,16 +303,9 @@ class Forecast:
                             VoC_multiplier = beta.rvs(14, 20) + 1
                             Reff_lookupstate[newkey] = Reff_lookupstate[newkey]*VoC_multiplier
             else:
-                #R_L0
+                #R_L0 (not used in usual forecasting)
                 for day in range(num_days):
                     Reff_lookupstate[day] = df.loc[state, [i for i in range(1000)]].values[0]
-
-                    # Apply increased Reff from variant of concern if start date is passed
-                    if self.variant_of_concern_start_date:
-                        if day > self.variant_of_concern_start_date:
-                            VoC_multiplier  = beta.rvs(14,20) + 1
-                            Reff_lookupstate[day] = Reff_lookupstate[day]*VoC_multiplier 
-
 
 
             #Nested dict with key to state, then key to date
