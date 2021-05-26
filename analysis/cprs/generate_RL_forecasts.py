@@ -178,7 +178,7 @@ for data_date in cprs_dates:
                 p_force = (n_forecast-i)/n_forecast
 
                 trend_force = np.random.multivariate_normal(mu, cov) # Generate a single forward realisation of trend
-                regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov) # Generate a single forward realisation of baseline regression
+                regression_to_baseline_force = np.random.multivariate_normal(0.01*(R_baseline_mean - current), cov) # Generate a single forward realisation of baseline regression
                     
                 new_forcast_points = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Find overall simulation step
             
@@ -212,7 +212,7 @@ for data_date in cprs_dates:
             for i in range(n_forecast + extra_days_md):
                 p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md) # Proportion of trend_force to regression_to_baseline_force
                 trend_force = np.random.normal(mu_diffs, std_diffs, size=1000) # Generate step realisations in training trend direction
-                regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)  # Generate realisations that draw closer to baseline
+                regression_to_baseline_force = np.random.normal(0.01*(mu_overall - current), std_diffs)  # Generate realisations that draw closer to baseline
                 current = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Balance forces
                 new_md_forecast.append(current)
             md_sims = np.vstack(new_md_forecast) # Put forecast days together
