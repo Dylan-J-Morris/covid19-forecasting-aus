@@ -170,7 +170,12 @@ for data_date in cprs_dates:
             # Forecast mobility forward sequentially by day.
             current  = np.mean(Rmed[-7:,:],axis=0) # Start from last valid day
             for i in range(n_forecast):
-                p_force = (n_forecast-i)/n_forecast # Proportion of trend_force to regression_to_baseline_force
+
+                # Proportion of trend_force to regression_to_baseline_force
+                # if state == 'WA':  # Force return to baseline immediately
+                #     p_force = 0 
+                # else:
+                p_force = (n_forecast-i)/n_forecast
 
                 trend_force = np.random.multivariate_normal(mu, cov) # Generate a single forward realisation of trend
                 regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov) # Generate a single forward realisation of baseline regression

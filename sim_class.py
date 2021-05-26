@@ -38,6 +38,8 @@ class Forecast:
         self.start_date = pd.to_datetime(start_date,format='%Y-%m-%d')
         self.quarantine_change_date = pd.to_datetime(
             '2020-04-15',format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
+
+        self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01",format='%Y-%m-%d') - self.start_date).days # Day from which to reduce imported cases escapes
         self.initial_people = people.copy() #detected people only
         self.Reff = Reff
         self.alpha_i = alpha_i
@@ -372,6 +374,13 @@ class Forecast:
             if self.R_I is not None:
                 #if splitting imported from local, change Reff to R_I
                 Reff = self.choose_random_item(self.R_I)
+            
+            # Apply vaccine reduction for hotel quarantine workers
+            if self.people[parent_key].infection_time >= self.hotel_quarantine_vaccine_start:
+                p_vh = 0.9+beta.rvs(2,4)*9/100 # p_{v,h} is the proportion of hotel quarantine workers vaccinated 
+                v_eh =  0.83+beta.rvs(2,2)*14/100 #  v_{e,h} is the overall vaccine effectiveness
+                Reff *= (1-p_vh*v_eh)
+
             if self.people[parent_key].infection_time < self.quarantine_change_date:
                 #factor of 3 times infectiousness prequarantine changes
 
