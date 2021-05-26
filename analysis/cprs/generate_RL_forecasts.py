@@ -162,7 +162,7 @@ for data_date in cprs_dates:
             minRmed = minRmed_array[:,n]
             maxRmed = maxRmed_array[:,n]
 
-            R_baseline_mean = np.mean(Rmed[-182:-n_training,:])
+            R_baseline_mean = np.mean(Rmed[-91:,:])
             R_diffs = np.diff(Rmed[-n_training:,:], axis=0)
             mu = np.mean(R_diffs, axis=0)
             cov = np.cov(R_diffs, rowvar=False) #columns are vars, rows are obs
