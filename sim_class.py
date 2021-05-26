@@ -96,8 +96,6 @@ class Forecast:
         self.inf_times =  np.random.gamma(i/j, j, size =size) #shape and scale
         self.detect_times = np.random.gamma(m/n,n, size = size)
 
-        return None
-
 
     def iter_inf_time(self):
         """
@@ -238,8 +236,6 @@ class Forecast:
                 self.people[len(self.people)] = new_person
                 self.cases[max(0,ceil(new_person.infection_time)),2] +=1
 
-        return None
-
     def read_in_Reff(self):
         """
         Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
@@ -326,7 +322,6 @@ class Forecast:
             self.Reff_travel = Reff_lookupdist[self.cross_border_state]
 
         self.Reff = Reff_lookupdist[self.state]
-        return None
 
     def choose_random_item(self, items,weights=None):
         from numpy.random import random
@@ -1115,7 +1110,7 @@ class Forecast:
 
         self.metric = self.metric/(end_time-window) #max is end_time
 
-        return None
+
     def read_in_cases(self):
         """
         Read in NNDSS case data to measure incidence against simulation
@@ -1197,7 +1192,6 @@ class Forecast:
 
         self.actual = df.local.to_dict()
 
-        return None
 
     def import_cases_model(self, df):
         """
