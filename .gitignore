@@ -7,6 +7,8 @@
 /data/Dennis*/*
 /data/LSHTM_Reff_estimates/*/*
 /analysis/UoA_*local_obs*.csv
+*.png
+*.csv
 
 # VScode
 .vscode
