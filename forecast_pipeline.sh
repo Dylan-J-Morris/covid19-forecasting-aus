@@ -1,6 +1,6 @@
 #!/bin/bash
 
-STARTDATE=$1
+STARTDATE=$1 # Start date of forecast
 DATADATE=$2 # Date of NNDSS data file
 NDAYS=$3 # Number of day from start date to forecast
 NSIMS=$4 # Total number of simulations to run
