@@ -13,7 +13,7 @@ module load Python/3.6.1-foss-2016b
 source ../virtualenvs/bin/activate
 
 
-DATADATE = $1
+DATADATE=$1
 python model/cprs/generate_posterior.py $DATADATE #comment out argument for cprs
 python model/cprs/generate_RL_forecasts.py $DATADATE #as above
 

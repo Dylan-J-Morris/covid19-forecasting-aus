@@ -13,7 +13,7 @@ module load arch/haswell
 module load Python/3.6.1-foss-2016b
 source ../virtualenvs/bin/activate
 
-DATADATE = $1
+DATADATE=$1
 python model/EpyReff/run_estimator.py $DATADATE
 
 deactivate

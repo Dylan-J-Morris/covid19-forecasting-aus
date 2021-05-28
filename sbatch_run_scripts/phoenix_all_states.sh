@@ -16,11 +16,11 @@ source ../virtualenvs/bin/activate
 
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 
-NSIMS = $1
-NDAYS = $2
-DATADATE = $3
-STARTDATE = $4
-VOCFLAG =$5
+NSIMS=$1
+NDAYS=$2
+DATADATE=$3
+STARTDATE=$4
+VOCFLAG=$5
 
 python model/run_state.py $NSIMS $NDAYS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $STARTDATE $VOCFLAG 
 
