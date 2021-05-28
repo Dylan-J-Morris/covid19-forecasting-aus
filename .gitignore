@@ -1,11 +1,10 @@
-#results from other branch
-/model/contact_tracing/results/*
 #sensitive data
-*.xlsx
 /data/*
 /results/*
+/figs/*
 *.png
 *.csv
+*.xlsx
 
 # VScode
 .vscode
