@@ -1,84 +1,82 @@
-# covid19-forecasting-aus
-Code used to forecast COVID-19 cases in Australia.
+# COVID-19 Forecasting for Australia
+University of Adelaide model used to forecast COVID-19 cases in Australia for the Australian Health Protection Principal Committee (AHPPC). This model uses a hierarchical bayesian approach to state level to inference of effective reproductions numbers over time using marco and micro social distancing data. These inferred temporal $R_{eff}$ values are then used in a branching process model to select valid $R_{eff}$ trajectories and produce a forecast distribution of cases over an arbitrary forecast period.
 
 ## Quickstart: Using HPC and slurm
 If you have access to HPC (High performance cluster) that uses slurm, then you can use the following bash script to run the full pipeline, provided your data is stored correctly.
 
+### Data needed
 In the `data` folder, ensure you have the latest:
 * Case data (NNDSS)
 * [Google mobility indices](https://www.google.com/covid19/mobility/); use the Global CSV with the file named `Global_Mobility_Report.csv`
+* Up to date microdistancing survey files titled `Barometer wave XX compliance.csv` saved in the `data/md/` folder. All files up to current wave need to be included.
 
-and in the `data/md/` folder:
-* Up to date microdistancing survey files titled `Barometer wave XX compliance.csv`. All files up to current wave need to be included.
+These will need to be updated every week. 
 
-Once all the data is in their corresponding folders, you can run this command to run the full pipeline on HPC
+### Running model on slurm
+Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
+
 ```
-bash forecast_pipeline.sh /longdate/ /num-of-days/
-```
+STARTDATE='2020-12-01' # Start date of forecast
+DATADATE='2021-05-27'  # Date of NNDSS data file
+NDAYS=35 # Number of days after data date to forecast (usually 35)
+NSIMS=20000 # Total number of simulations to run
 
-### Number of days to simulate
-To help calculate the number of days to simulate, you can first run `num_days.py` and that will calculate the number of days to simulate and print it to the `terminal`, assuming a 2020-12-01 start date and a 35 day forecast from TODAY's date.
-
-You can optionally specify exactly how many days (as an integer) you want to forecast into the future and give you the number of days to simulate.
-```
-python num_days.py 
+bash forecast_pipeline.sh ${STARTDATE} ${DATADATE} ${NDAYS} ${NSIMS}
 ```
 
 ## Step-by-step workflow and relevant scripts
-Below is a breakdown of the pipeline from case line list data to producing forecasts using this repository.
+Below is a breakdown of the pipeline from case line list data to producing forecasts using this repository. This can be used if you don't have access to a slurm HPC.
 
 1. Cori et al. (2013) and Thompson et al. (2019) method to infer an effective reproduction number $R_{eff}$ from case data. Requires:
     * case data in data folder
-    * /longdate/ i.e. 2020-08-05
    ```
-   python model/EpyReff/run_estimator.py /longdate/
+   python model/EpyReff/run_estimator.py $DATADATE
    ```
 2. Inference of parameters to produce an effective reproduction number locally $R_L$ from $R_{eff}$ and case data. Requires:
     * Google mobility indices
     * Micro-distancing surveys
     * Cori et al. (2013) $R_{eff}$ estimates from 1.
     * case data
-    * /longdate/ i.e 2020-08-05
    ```
-    python analysis/cprs/generate_posterior.py /longdate/
+    python model/cprs/generate_posterior.py $DATADATE 
    ```
 3. Forecasting Google mobility indices and microdistancing trends. Requires:
    * Google mobility indices
    * Micro-distancing surveys
    * Posterior samples from 2.
-
     ```
-    python analysis/cprs/generate_RL_forecasts.py /longdate/
+    python model/cprs/generate_RL_forecasts.py $DATADATE
     ```
-4.  Simulate cases from $R_L$. Code base lives in `sim_class.py`, but executed by scripts listed below. /num-of-days/ is the number of days since 01/03/2020. Requires:
+4.  Simulate cases from $R_L$. Code base lives in `sim_class.py`, but executed by scripts listed below. Requires:
     * case data
     * $R_L$ distribution file from 3.
-    
-  * For all states
     ```
-    bash all_states.sh /num-of-simulations/ /num-of-days/ /longdate/
+    states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+    for state in "${states[@]}"
+    do
+        python model/run_state.py $NSIMS $NDAYS $DATADATE $state $STARTDATE $VOCFLAG 
+    done
     ```
 
 * For a single state (eg. VIC)
     ```
-    python run_state.py /num-of-simulations/ /num-of-days/ /longdate/ /state-initials/
+    python model/run_state.py $NSIMS $NDAYS $DATADATE <state-initials> $STARTDATE $VOCFLAG  
     ```
 
 5.  Examine simulation of cases and generate figures. 
-    * If `all_states.sh` used, plots already generated, skip this step.
-Requires:
     * case data
     * simulation files of all states from 4, saved in `results/`.
     
-```
-python collate_states.py /num-of-simulations/ /num-of-days/ /longdate/
-```
-
-6.  Record results into csv file for UoM.
-
     ```
-    analysis/record_to_csv.py /num-of-sims/ /num-days/ R_L /longdate/
+    python model/collate_states.py $NSIMS $NDAYS $DATADATE $STARTDATE $VOCFLAG 
     ```
 
-## Variant of Concern Changes
-The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. Currently only the B117 (UK) variant is implemented. This increased model is enabled by passing `UK` as the final parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh` after first running the normal model.
+6.  Record results into csv file for UoM ensemble model.
+    ```
+    python model/record_to_csv.py $NSIMS $NDAYS R_L $DATADATE $STARTDATE $VOCFLAG 
+    ```
+
+### Variant of Concern Changes
+The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. Currently only the B117 (UK) variant is implemented. This increased model is enabled by passing `UK` as the final parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh`.
+
+
