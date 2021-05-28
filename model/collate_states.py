@@ -3,15 +3,15 @@ from sys import argv
 import json
 
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
-start_date = '2020-12-01'
+start_date = argv[4]
 
 n_sims=int(argv[1]) #number of sims
 days = int(argv[2])
 
 # Add flag to create plots for VoCs
 VoC_name_flag = '' # Default value
-if len(argv)>4:
-    if argv[4] == 'UK':
+if len(argv)>5:
+    if argv[5] == 'UK':
         VoC_name_flag = 'VoC'
         print('VoC being used in collate_states.py')
 
@@ -73,4 +73,4 @@ with open(
     "./results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_name_flag+".json",'w' ) as file:
     json.dump(good_sims_by_state, file)
 
-import analysis.forecast_plots
+import forecast_plots

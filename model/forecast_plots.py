@@ -218,8 +218,8 @@ def read_in_cases(cases_file_date=None):
 
 # Add flag to create plots for VoCs
 VoC_name_flag = '' # Default value
-if len(argv)>4:
-    if argv[4] == 'UK':
+if len(argv)>5:
+    if argv[5] == 'UK':
         VoC_name_flag = 'VoC'
         print(VoC_name_flag, 'running.')
 
@@ -229,7 +229,7 @@ df_cases_state_time = read_in_cases(cases_file_date=data_date.strftime("%d%b"))
 Reff = read_in_Reff( forecast_R=forecast_type, file_date= argv[3], VoC_flag = VoC_name_flag)
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 n_sims = int(argv[1])
-start_date = '2020-12-01'
+start_date = argv[4]
 days = int(argv[2])
 
 

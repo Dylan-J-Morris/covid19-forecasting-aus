@@ -13,22 +13,14 @@ def worker(arg):
 
 n_sims=int(argv[1]) #number of sims
 end_time = int(argv[2]) 
-if len(argv)>=3:
-    forecast_type = 'R_L'#argv[3]
-    states = [argv[4]]
-    print("Simulating state " +states[0])
-    if len(argv)>5:
-        if argv[5]=='None':
-            progress = True
-        else:
-            progress = False
-    else:
-        progress =True
-else:
-    forecast_type = None
-    states =['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
+progress = True # Used to be argv[5] but was always None
+forecast_type = 'R_L'# used to be argv[3]
+states = [argv[4]] 
+# states =['NSW','QLD','SA','TAS','VIC','WA','ACT','NT'] # old code ran all states but parallel HPC code run separate
+print("Simulating state " +states[0])
+
 XBstate = None
-start_date = '2020-12-01'
+start_date = argv[5] 
 case_file_date = pd.to_datetime(argv[3]).strftime("%d%b")#None #'24Jul'
 Reff_file_date = argv[3]#'2020-08-25'
 forecast_date = argv[3]#'2020-08-25'
@@ -45,8 +37,8 @@ abc =False
 
 # If no VoC specified, code will run without alterations.
 variant_of_concern_start_date = None
-if len(argv)>7:
-    if argv[7] == 'UK':
+if len(argv)>6:
+    if argv[6] == 'UK':
         # The date from which to increase Reff due to VoC. This date is expressed as the number of days from the start of simulation.
         variant_of_concern_start_date = (pd.to_datetime(forecast_date,format='%Y-%m-%d') - pd.to_datetime(start_date,format='%Y-%m-%d')).days
             

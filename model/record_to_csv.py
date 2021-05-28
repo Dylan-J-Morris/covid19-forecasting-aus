@@ -6,7 +6,7 @@ from sys import argv
 
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 n_sims = int(argv[1])
-start_date = '2020-12-01'
+start_date = argv[5]
 days = int(argv[2])
 forecast_type = argv[3] #default None
 
@@ -22,8 +22,8 @@ sims_dict={
 
 # If no VoC specified, code will run without alterations.
 VoC_name_flag = ''
-if len(argv)>5:
-    if argv[5] == 'UK':
+if len(argv)>6:
+    if argv[6] == 'UK':
         VoC_name_flag = 'VoC'
         print('VoC being used in record_to_csv.py')
 

@@ -13,7 +13,13 @@ module load arch/haswell
 module load Python/3.6.1-foss-2016b
 source ../virtualenvs/bin/activate
 
-python model/collate_states.py $1 $2 $3 $4
-python model/record_to_csv.py $1 $2 R_L $3 $4
+NSIMS = $1
+NDAYS = $2
+DATADATE = $3
+STARTDATE = $4
+VOCFLAG = $5
+
+python model/collate_states.py $NSIMS $NDAYS $DATADATE $STARTDATE $VOCFLAG 
+python model/record_to_csv.py $NSIMS $NDAYS R_L $DATADATE $STARTDATE $VOCFLAG 
 
 deactivate
