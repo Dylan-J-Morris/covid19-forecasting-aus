@@ -3,18 +3,15 @@
 DATE=$1
 NDAYS=$2
 
-jid1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au phoenix_run_estimator.sh ${DATE})
+jid1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au sbatch_run_scripts/phoenix_run_estimator.sh ${DATE})
+jid2=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid1 sbatch_run_scripts/run_posteriors.sh ${DATE})
 
-jid2=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid1 analysis/cprs/run_posteriors.sh ${DATE})
 
-
-jid4=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid1,$jid2 phoenix_all_states.sh 20000 ${NDAYS} ${DATE})
-
-jid5=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid4 phoenix_final_plots_csv.sh 20000 ${NDAYS} ${DATE})
+jid4=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid1,$jid2 sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATE})
+jid5=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid4 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATE})
 echo "Normal Run:", $jid4, $jid5
 
+jid6=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid5 sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATE} None UK)
 
-jid6=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid5 phoenix_all_states.sh 20000 ${NDAYS} ${DATE} None UK)
-
-jid7=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid6 phoenix_final_plots_csv.sh 20000 ${NDAYS} ${DATE} UK)
+jid7=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid6 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATE} UK)
 echo "VoC Run:", $jid6, $jid7
