@@ -181,7 +181,7 @@ model {
 
     R_L ~ gamma(1.8*1.8/0.05,1.8/0.05); //hyper-prior
     R_I ~ gamma(0.5*0.5/.2,0.5/.2);
-    sig ~ exponential(200); //mean is 1/50=0.02
+    sig ~ exponential(20); //mean is 1/50=0.02
     R_Li ~ gamma( R_L*R_L/sig, R_L/sig); //partial pooling of state level estimates
     for (i in 1:j) {
         for (n in 1:N){
