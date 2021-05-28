@@ -3,10 +3,7 @@
 #sensitive data
 *.xlsx
 /data/*
-/data/md/*
-/data/Dennis*/*
-/data/LSHTM_Reff_estimates/*/*
-/analysis/UoA_*local_obs*.csv
+/results/*
 *.png
 *.csv
 

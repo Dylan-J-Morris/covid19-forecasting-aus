@@ -119,11 +119,11 @@ if plot_time:
     ax[2].bar(xmids[:-1], height=ws, width=1)
     ax[2].set_title("Generation Interval")
 
-    plt.savefig(results_path+'/Time_distributions'+file_date+"tau_"+str(tau)+".png",dpi=144)
+    plt.savefig('../../../figs/Time_distributions'+file_date+"tau_"+str(tau)+".png",dpi=144)
 
 
 
-df.to_csv(results_path+'/Reff'+file_date+"tau_"+str(tau)+".csv",index=False)
+df.to_csv(results_path+'Reff'+file_date+"tau_"+str(tau)+".csv",index=False)
 
 #plot all the estimates
 fig,ax = plot_all_states(R_summary_states,df_interim, dates, 

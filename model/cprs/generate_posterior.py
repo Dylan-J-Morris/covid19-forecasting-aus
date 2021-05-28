@@ -443,7 +443,7 @@ for data_date in cprs_dates:
     )
 
     #make results dir
-    results_dir ="results/soc_mob_posterior/"
+    results_dir ="figs/soc_mob_posterior/"
     os.makedirs(results_dir,exist_ok=True)
 
     filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
