@@ -73,4 +73,4 @@ df["data date"] = forecast_date
 
 key ='local_obs'
 df[df.select_dtypes(float).columns] = df.select_dtypes(float).astype(int)
-df.to_csv('./analysis/UoA_'+forecast_date+str(key)+VoC_name_flag+'.csv')
+df.to_csv('./results/UoA_'+forecast_date+str(key)+VoC_name_flag+'.csv')
