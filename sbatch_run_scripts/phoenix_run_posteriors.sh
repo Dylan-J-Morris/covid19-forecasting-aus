@@ -14,7 +14,7 @@ source ../virtualenvs/bin/activate
 
 
 
-python analysis/cprs/generate_posterior.py $1 #comment out argument for cprs
-python analysis/cprs/generate_RL_forecasts.py $1 #as above
+python model/cprs/generate_posterior.py $1 #comment out argument for cprs
+python model/cprs/generate_RL_forecasts.py $1 #as above
 
 deactivate
