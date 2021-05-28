@@ -7,13 +7,17 @@ from sys import argv
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 n_sims = int(argv[1])
 start_date = argv[5]
-days = int(argv[2])
 forecast_type = argv[3] #default None
 
 try:
     forecast_date = argv[4] #format should be '%Y-%m-%d'
 except:
     forecast_date = datetime.strftime(datetime.today(),format='%Y-%m-%d')
+
+num_forecast_days = argv[2]
+end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
+days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
+
 end_date = pd.to_datetime(start_date,format='%Y-%m-%d') + timedelta(days=days-1)
 sims_dict={
     'state': [],

@@ -2,7 +2,7 @@
 
 STARTDATE=$1 # Start date of forecast
 DATADATE=$2 # Date of NNDSS data file
-NDAYS=$3 # Number of day from start date to forecast
+NDAYS=$3 # Number of days after data date to forecast
 NSIMS=$4 # Total number of simulations to run
 
 jid1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})

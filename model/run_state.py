@@ -12,20 +12,26 @@ def worker(arg):
     return getattr(obj,methname)(*arg[2:])
 
 n_sims=int(argv[1]) #number of sims
-end_time = int(argv[2]) 
+start_date = argv[5] 
+Reff_file_date = argv[3]#'2020-08-25'
+forecast_date = argv[3]#'2020-08-25'
+case_file_date = pd.to_datetime(argv[3]).strftime("%d%b%Y")#None #'24Jul'
+XBstate = None
+test_campaign_date = '2020-06-01'
+test_campaign_factor = 1.5
+
+# Get total number of simulation days
+num_forecast_days = argv[2]
+end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
+end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is record as a number of days
+
 progress = True # Used to be argv[5] but was always None
 forecast_type = 'R_L'# used to be argv[3]
 states = [argv[4]] 
 # states =['NSW','QLD','SA','TAS','VIC','WA','ACT','NT'] # old code ran all states but parallel HPC code run separate
 print("Simulating state " +states[0])
 
-XBstate = None
-start_date = argv[5] 
-case_file_date = pd.to_datetime(argv[3]).strftime("%d%b")#None #'24Jul'
-Reff_file_date = argv[3]#'2020-08-25'
-forecast_date = argv[3]#'2020-08-25'
-test_campaign_date = '2020-06-01'
-test_campaign_factor = 1.5
+
 
 if pd.to_datetime(argv[3]) < pd.to_datetime('2020-06-02'):
     if pd.to_datetime(argv[3]).day <10:

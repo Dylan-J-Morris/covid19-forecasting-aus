@@ -8,6 +8,10 @@ start_date = argv[4]
 n_sims=int(argv[1]) #number of sims
 days = int(argv[2])
 
+num_forecast_days = argv[2]
+end_date = pd.to_datetime(argv[3],format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
+days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
+
 # Add flag to create plots for VoCs
 VoC_name_flag = '' # Default value
 if len(argv)>5:

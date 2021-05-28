@@ -230,7 +230,11 @@ Reff = read_in_Reff( forecast_R=forecast_type, file_date= argv[3], VoC_flag = Vo
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 n_sims = int(argv[1])
 start_date = argv[4]
-days = int(argv[2])
+
+num_forecast_days = argv[2]
+end_date = pd.to_datetime(argv[3],format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
+days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
+
 
 
 
