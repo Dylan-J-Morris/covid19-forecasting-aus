@@ -11,7 +11,7 @@ jid4=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:
 jid5=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid4 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATADATE})
 echo "Normal Run:", $jid4, $jid5
 
-jid6=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid5 sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATE} None UK)
+jid6=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid5 sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATADATE} None UK)
 
 jid7=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid6 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATADATE} UK)
 echo "VoC Run:", $jid6, $jid7
