@@ -4,6 +4,8 @@ from scipy.stats import nbinom, erlang, beta, binom, gamma, poisson, beta
 from math import floor
 import matplotlib.pyplot as plt
 import os
+from helper_functions import read_in_NNDSS
+
 class Person:
     """
     Individuals in the forecast
