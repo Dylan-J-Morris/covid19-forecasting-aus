@@ -48,6 +48,9 @@ def read_in_NNDSS(date_string):
         for file in glob.glob(path): # Allows us to use the * option
             df = pd.read_csv(file)
 
+        df['date_onset']= pd.to_datetime(df['date_onset'], errors='coerce') 
+        df['date_detection'] = pd.to_datetime(df['date_detection'], errors='coerce')
+
         df['date_inferred'] = df['date_onset']
         df.loc[df['date_onset'].isna(),'date_inferred'] = df.loc[df['date_onset'].isna()]['date_detection'] - timedelta(days=3) # Fill missing days
 
