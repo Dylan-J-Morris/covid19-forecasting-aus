@@ -5,6 +5,7 @@
 *.png
 *.csv
 *.xlsx
+slurm*
 
 # VScode
 .vscode
