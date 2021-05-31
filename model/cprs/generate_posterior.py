@@ -237,19 +237,6 @@ cprs_dates = cprs_all_dates[cprs_all_dates!='2020-09-09']
 for data_date in cprs_dates:
     print(data_date)
     print(data_date.strftime('%d%b%Y'))
-    #data_date =  pd.to_datetime('2020-08-17')
-
-    ## also filter Reff by 10 days!
-    ## need to truncate most recent days of Reff
-    #########
-    ### here is where I can loop over to perform inference##
-    #######
-
-    # Reff estimates from Price et al 2020
-    #df_Reff = read_in_Reff() #estimates up to 14th April
-
-    #df_Reff = read_in_LSHTM()#read_in_Reff()
-    #df_Reff = df_Reff.loc[df_Reff.date_of_analysis==data_date.strftime("%Y-%m-%d")]
 
     df_Reff = pd.read_csv("results/EpyReff/Reff"+
                 data_date.strftime("%Y-%m-%d")+"tau_4.csv",parse_dates=['INFECTION_DATES'])

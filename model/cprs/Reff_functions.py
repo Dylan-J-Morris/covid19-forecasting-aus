@@ -52,61 +52,61 @@ def read_in_google(Aus_only=True,local=False,moving=False):
     return df
     
     
-def read_in_apple(Aus_only=True,local=False,moving=False):
-    """
-    Read in Apple mobility dataset
-    """
-    if local:
-        if type(local)==str:
-            df = pd.read_csv(local)
-        elif type(local)==bool:
-            local = '../data/applemobilitytrends-2020-05-02.csv'
-            df = pd.read_csv(local)
-    else:
-        df = pd.read_csv('https://covid19-static.cdn-apple.com/covid19-mobility-data/2007HotfixDev46/v2/en-us/applemobilitytrends-2020-05-02.csv')
+# def read_in_apple(Aus_only=True,local=False,moving=False):
+#     """
+#     Read in Apple mobility dataset
+#     """
+#     if local:
+#         if type(local)==str:
+#             df = pd.read_csv(local)
+#         elif type(local)==bool:
+#             local = '../data/applemobilitytrends-2020-05-02.csv'
+#             df = pd.read_csv(local)
+#     else:
+#         df = pd.read_csv('https://covid19-static.cdn-apple.com/covid19-mobility-data/2007HotfixDev46/v2/en-us/applemobilitytrends-2020-05-02.csv')
     
-    if Aus_only:
-    #filter out non-Australian locations. NOTE only Mel, Syd, BNE and PER in apple dataset
-        cities = ['Melbourne','Sydney','Brisbane','Adelaide','Canberra','Perth','Hobart','Australia']
-        df = df.loc[df.region.isin(cities)]
-    dates = [col for col in df.columns if '2020' in col]
-    df = pd.melt(df,value_vars=dates,id_vars=['region','transportation_type'],var_name='date')
-    df['date'] = pd.to_datetime(df.date,format='%Y-%m-%d')
-    df = df.pivot_table(index=['region','date'],columns=['transportation_type'],values=['value'])
+#     if Aus_only:
+#     #filter out non-Australian locations. NOTE only Mel, Syd, BNE and PER in apple dataset
+#         cities = ['Melbourne','Sydney','Brisbane','Adelaide','Canberra','Perth','Hobart','Australia']
+#         df = df.loc[df.region.isin(cities)]
+#     dates = [col for col in df.columns if '2020' in col]
+#     df = pd.melt(df,value_vars=dates,id_vars=['region','transportation_type'],var_name='date')
+#     df['date'] = pd.to_datetime(df.date,format='%Y-%m-%d')
+#     df = df.pivot_table(index=['region','date'],columns=['transportation_type'],values=['value'])
     
-    apple_cols = ['driving','transit','walking']
-    df.columns = apple_cols
+#     apple_cols = ['driving','transit','walking']
+#     df.columns = apple_cols
     
-    df = df.reset_index()
-    city_state = {
-    'Sydney':'NSW',
-    'Melbourne':'VIC',
-    'Perth':'WA',
-    'Brisbane':'QLD',
-    'Australia':'AUS',#hack
-    }
-    df['state'] = df.region.apply(lambda x: city_state[x])
-    df[apple_cols] = df[apple_cols] -100
+#     df = df.reset_index()
+#     city_state = {
+#     'Sydney':'NSW',
+#     'Melbourne':'VIC',
+#     'Perth':'WA',
+#     'Brisbane':'QLD',
+#     'Australia':'AUS',#hack
+#     }
+#     df['state'] = df.region.apply(lambda x: city_state[x])
+#     df[apple_cols] = df[apple_cols] -100
     
-    if moving:
-    # generate moving average columns in reverse
-        df = df.sort_values(by='date')
-        for val in apple_cols:
-            df[val+'_7days']=df.groupby(['state'])[val].transform(lambda x: x[::-1].rolling(7,1).mean()[::-1]) #minimum number of 1
+#     if moving:
+#     # generate moving average columns in reverse
+#         df = df.sort_values(by='date')
+#         for val in apple_cols:
+#             df[val+'_7days']=df.groupby(['state'])[val].transform(lambda x: x[::-1].rolling(7,1).mean()[::-1]) #minimum number of 1
     
-    return df
+#     return df
 
-def read_in_FB():
-    """
-    Read in Lewis' FB data
-    """
+# def read_in_FB():
+#     """
+#     Read in Lewis' FB data
+#     """
     
-    df = pd.read_csv('../data/av_contacts_state_pc.csv', parse_dates=['date'], index_col=[0])
-    df['state'] = df.state.apply(lambda x: states_initials[x])
+#     df = pd.read_csv('../data/av_contacts_state_pc.csv', parse_dates=['date'], index_col=[0])
+#     df['state'] = df.state.apply(lambda x: states_initials[x])
     
-    return df
+#     return df
 
-def read_in_Reff(path='../data/Dennis_2020_04_23/'):
+def read_in_Reff(path='../data/'):
     """
     Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
     """
@@ -114,42 +114,43 @@ def read_in_Reff(path='../data/Dennis_2020_04_23/'):
     Reff = pd.read_csv(path+'R_eff_2020_04_23.csv', parse_dates=['date'])
     return Reff
     
-def read_AddInsight():
-    """
-    Read in the geogson files from local directory and collate into 
-    """
-    import os
-    from datetime import datetime as dt
-    import geopandas as gpd
-    years = (2018,2019,2020)
-    df_json = pd.DataFrame()
-    for year in years:
-        start ="{}-01-01".format(year)
-        end = "{}-04-26".format(year)
-        dates = [ dt.strftime(date, '%Y_%m_%dT00_00') 
-                 for date in 
-                 pd.date_range(start=start, end=end).to_pydatetime()]
+# def read_AddInsight():
+#     """
+#     Read in the geogson files from local directory and collate into 
+#     """
+#     import os
+#     from datetime import datetime as dt
+#     import geopandas as gpd
+#     years = (2018,2019,2020)
+#     df_json = pd.DataFrame()
+#     for year in years:
+#         start ="{}-01-01".format(year)
+#         end = "{}-04-26".format(year)
+#         dates = [ dt.strftime(date, '%Y_%m_%dT00_00') 
+#                  for date in 
+#                  pd.date_range(start=start, end=end).to_pydatetime()]
 
 
 
-        jsons_list = []
+#         jsons_list = []
 
-        for date in dates:
-        #    try:
-            df_json1 = gpd.read_file(
-                    os.getcwd()+'/../jcoxwrapper/geojson/od_trips_by_destination_allday{}_geo.json'.format(date))
-            df_json1['date'] = date
-            df_json = df_json.append(df_json1, ignore_index=True)
-            jsons_list.append(df_json1)
-    #            except:
-            #    print(date,"data for this day is not downloaded")
-               # continue
-    df_json['date'] = df_json.date.apply(lambda x: pd.to_datetime(x.replace('_','').replace('T','+'), format='%Y%m%d%z'))
-    df_json['day'] = df_json.date.dt.dayofweek # Monday =0, Sunday = 6
-    df_json['week'] = df_json.date.dt.weekofyear
-    df_json['year'] = df_json.date.dt.year
+#         for date in dates:
+#         #    try:
+#             df_json1 = gpd.read_file(
+#                     os.getcwd()+'/../jcoxwrapper/geojson/od_trips_by_destination_allday{}_geo.json'.format(date))
+#             df_json1['date'] = date
+#             df_json = df_json.append(df_json1, ignore_index=True)
+#             jsons_list.append(df_json1)
+#     #            except:
+#             #    print(date,"data for this day is not downloaded")
+#                # continue
+#     df_json['date'] = df_json.date.apply(lambda x: pd.to_datetime(x.replace('_','').replace('T','+'), format='%Y%m%d%z'))
+#     df_json['day'] = df_json.date.dt.dayofweek # Monday =0, Sunday = 6
+#     df_json['week'] = df_json.date.dt.weekofyear
+#     df_json['year'] = df_json.date.dt.year
     
-    return df_json
+#     return df_json
+
 def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True, 
                  delta=1.0,R=2.2,sigma=1, md_arg=None,
                  ban='2020-03-16',single=False,var=None,
@@ -399,7 +400,6 @@ def read_in_cases(case_file_date='29Jun'):
     """
     Read in NNDSS data
     """
-    #from data, find rho
     from datetime import timedelta
     import glob
     
@@ -427,10 +427,10 @@ def read_in_cases(case_file_date='29Jun'):
     return df_state
 
 
-def read_in_LSHTM():
-    """
-    Read in new LSHTM Reff csv from David Price et al
-    """
-    import pandas as pd
-    path = "../data/LSHTM_Reff_estimates/Reff_LSHTM.csv"
-    return pd.read_csv(path,parse_dates=['date','date_of_analysis'])
+# def read_in_LSHTM():
+#     """
+#     Read in new LSHTM Reff csv from David Price et al
+#     """
+#     import pandas as pd
+#     path = "../data/LSHTM_Reff_estimates/Reff_LSHTM.csv"
+#     return pd.read_csv(path,parse_dates=['date','date_of_analysis'])
