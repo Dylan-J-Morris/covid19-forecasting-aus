@@ -38,4 +38,6 @@ def read_in_NNDSS(date_string):
     df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4]!='1101' else 0)
     df['local'] = 1 - df.imported
 
+    return df
+
 
