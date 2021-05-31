@@ -11,6 +11,8 @@ import json
 from sys import argv
 from scipy.stats import beta
 
+from helper_functions import read_in_NNDSS
+
 plt.style.use("seaborn-poster")
 
 def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=None,
@@ -167,7 +169,7 @@ def read_in_Reff(forecast_R=None,R_I=None,file_date = "2020-04-01", VoC_flag = '
                 
         return df
     
-def read_in_cases(cases_file_date=None):
+def read_in_cases(cases_file_date):
     """
     Read in NNDSS case file data
         
@@ -176,38 +178,8 @@ def read_in_cases(cases_file_date=None):
     from datetime import timedelta
     import glob
 
-    if cases_file_date is None:
-        import glob, os
+    df_NNDSS = read_in_NNDSS(cases_file_date)
 
-        list_of_files = glob.glob("data/"+'COVID-19 UoM*.xlsx') 
-        path = max(list_of_files, key=os.path.getctime)
-        print("Using file "+path)
-    else:
-        path = "data/"+"COVID-19 UoM "+cases_file_date+"*.xlsx"
-
-    for file in glob.glob(path):
-        df = pd.read_excel(file,
-                   parse_dates=['SPECIMEN_DATE','NOTIFICATION_DATE','NOTIFICATION_RECEIVE_DATE','TRUE_ONSET_DATE'],
-                   dtype= {'PLACE_OF_ACQUISITION':str})
-    if len(glob.glob(path))!=1:
-        print("There are %i files with the same date" %len(glob.glob(path)))
-
-        if len(glob.glob(path)) >1:
-            print("Using an arbritary file")
-    
-    df.PLACE_OF_ACQUISITION.fillna('00038888',inplace=True) #Fill blanks with simply unknown
-
-    df['date_inferred'] = df.TRUE_ONSET_DATE
-    #missing_cases = df.groupby('STATE').TRUE_ONSET_DATE.agg(lambda x: sum(x.isna()))
-    #print("Unknown Symptom onset dates")
-    #display(missing_cases)
-    df.loc[df.TRUE_ONSET_DATE.isna(),'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
-    df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
-
-    df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4]!='1101' else 0)
-    df['local'] = 1 - df.imported
-    
-    
     df_cases_state_time = df.groupby(['STATE','date_inferred'])[['imported','local']].sum()
     df_cases_state_time.reset_index(inplace=True)
     

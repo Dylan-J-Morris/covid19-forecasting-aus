@@ -9,38 +9,20 @@ from datetime import datetime as dt
 from datetime import timedelta
 import glob
     
-#from Reff_functions import *
-#from Reff_constants import *
 from scipy.stats import gamma
+
+import sys
+sys.path.insert(0,'model') # I hate this too but it allows everything to use the same helper functions.
+from helper_functions import read_in_NNDSS
 
 #Code taken from read_in_cases from Reff_functions. Preprocessing was not helpful for this situation.
 def read_cases_lambda(case_file_date):
     """
     Read in NNDSS data
     """
-    import os
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    path = os.path.join(dir_path,"../../data/COVID-19 UoM "+case_file_date+"*.xlsx")
-    print("Reading file from:")
-
-    for file in glob.glob(path):
-        print(file)
-        df_NNDSS = pd.read_excel(file,
-                           parse_dates=['SPECIMEN_DATE','NOTIFICATION_DATE','NOTIFICATION_RECEIVE_DATE','TRUE_ONSET_DATE'],
-                           dtype= {'PLACE_OF_ACQUISITION':str})
-        df_NNDSS.PLACE_OF_ACQUISITION.fillna('00038888',inplace=True) #Fill blanks with simply unknown
-
-       # df_NNDSS['date_inferred'] = df_NNDSS.TRUE_ONSET_DATE
-      #  df_NNDSS.loc[df_NNDSS.TRUE_ONSET_DATE.isna(),'date_inferred'] = df_NNDSS.loc[df_NNDSS.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
-      #  df_NNDSS.loc[df_NNDSS.date_inferred.isna(),'date_inferred'] = df_NNDSS.loc[df_NNDSS.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)    
-    df_NNDSS['imported'] = df_NNDSS.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4]!='1101' else 0)
-    df_NNDSS['local'] = 1 - df_NNDSS.imported
+    df_NNDSS = read_in_NNDSS(case_file_date)
 
     df_interim = df_NNDSS[['NOTIFICATION_RECEIVE_DATE','STATE','imported','local']] 
-    #df_interim = df_interim[~np.isnat(df_interim.NOTIFICATION_DATE)] #Get rid of non-existent dates.
-    # Importantly, imported and local are indicator variables in df_interim.
-
-    #df_state = df_NNDSS[['NOTIFICATION_DATE','STATE','imported','local']].groupby(['STATE','NOTIFICATION_DATE']).sum()
     return(df_interim)
 
 def tidy_cases_lambda(interim_data, remove_territories=True):

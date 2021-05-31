@@ -26,7 +26,7 @@ class Forecast:
     def __init__(self,current, state,start_date, people,
         Reff=2.2,k=0.1,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
         qua_ai= 1, qua_qi_factor=1, qua_qs_factor=1,forecast_R=None,R_I=None,
-        forecast_date='2020-07-01', cross_border_state=None,cases_file_date=('25Jun','0835'),
+        forecast_date='2020-07-01', cross_border_state=None,cases_file_date=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
         Reff_file_date=None, variant_of_concern_start_date = None
         ):
@@ -82,9 +82,7 @@ class Forecast:
         else:
             self.test_campaign_date = None
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.datapath = os.path.join(dir_path,'data/')
-
+        self.datapath = os.path.join('data/')
 
         assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
 
@@ -925,6 +923,7 @@ class Forecast:
         self.metric = self.metric/(end_time-window) #max is end_time
 
 
+    
     def read_in_cases(self):
         """
         Read in NNDSS case data to measure incidence against simulation
@@ -933,36 +932,7 @@ class Forecast:
         from datetime import timedelta
         import glob
 
-        if self.cases_file_date is None:
-            import glob, os
-
-            list_of_files = glob.glob(self.datapath+'COVID-19 UoM*.xlsx')
-            path = max(list_of_files, key=os.path.getctime)
-            print("Using file "+path)
-        else:
-            path = self.datapath+"COVID-19 UoM "+self.cases_file_date+"*.xlsx"
-
-        for file in glob.glob(path):
-            df = pd.read_excel(file,
-                       parse_dates=['SPECIMEN_DATE','NOTIFICATION_DATE','NOTIFICATION_RECEIVE_DATE','TRUE_ONSET_DATE'],
-                       dtype= {'PLACE_OF_ACQUISITION':str})
-        if len(glob.glob(path))!=1:
-            print("There are %i files with the same date" %len(glob.glob(path)))
-
-            if len(glob.glob(path)) >1:
-                print("Using an arbritary file")
-
-        # Fixes errors in updated python versions
-        df.TRUE_ONSET_DATE = pd.to_datetime(df.TRUE_ONSET_DATE, errors='coerce') 
-        df.NOTIFICATION_DATE = pd.to_datetime(df.NOTIFICATION_DATE, errors='coerce') 
-        df['date_inferred'] = df.TRUE_ONSET_DATE
-        df.loc[df.TRUE_ONSET_DATE.isna(),'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
-        df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
-
-        #Set imported cases, local cases have 1101 as first 4 digits
-        df.PLACE_OF_ACQUISITION.fillna('00038888',inplace=True) #Fill blanks with simply unknown
-        df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4]!='1101' else 0)
-        df['local'] = 1 - df.imported
+        df = read_in_NNDSS(self.cases_file_date) # Call helper_function
 
         self.import_cases_model(df)
 

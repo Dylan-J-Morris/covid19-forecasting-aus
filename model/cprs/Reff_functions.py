@@ -6,6 +6,10 @@ import seaborn as sns
 from Reff_constants import *
 plt.style.use('seaborn-poster')
 
+import sys
+sys.path.insert(0,'model') # I hate this too but it allows everything to use the same helper functions.
+from helper_functions import read_in_NNDSS
+
 def read_in_posterior(date='2020-07-30'):
     """
     read in samples from posterior from inference
@@ -396,30 +400,14 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
     plt.legend()
     return ax
 
-def read_in_cases(case_file_date='29Jun'):
+def read_in_cases(case_file_date):
     """
-    Read in NNDSS data
+    Read in NNDSS data and from data, find rho
     """
     from datetime import timedelta
     import glob
     
-    path = "data/COVID-19 UoM "+case_file_date+"*.xlsx"
-    for file in glob.glob(path):
-        df_NNDSS = pd.read_excel(file,
-                       parse_dates=['SPECIMEN_DATE','NOTIFICATION_DATE','NOTIFICATION_RECEIVE_DATE','TRUE_ONSET_DATE'],
-                       dtype= {'PLACE_OF_ACQUISITION':str})
-    if glob.glob(path) is None:
-        print("No file found for ")
-        print(path)
-    df_NNDSS.PLACE_OF_ACQUISITION.fillna('00038888',inplace=True) #Fill blanks with simply unknown
-
-    df_NNDSS['date_inferred'] = df_NNDSS.TRUE_ONSET_DATE
-    df_NNDSS.loc[df_NNDSS.TRUE_ONSET_DATE.isna(),'date_inferred'] = df_NNDSS.loc[df_NNDSS.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
-    df_NNDSS.loc[df_NNDSS.date_inferred.isna(),'date_inferred'] = df_NNDSS.loc[df_NNDSS.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
-
-    df_NNDSS['imported'] = df_NNDSS.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4]!='1101' else 0)
-    df_NNDSS['local'] = 1 - df_NNDSS.imported
-
+    df_NNDSS = read_in_NNDSS(case_file_date)
 
     df_state = df_NNDSS[['date_inferred','STATE','imported','local']].groupby(['STATE','date_inferred']).sum()
 
