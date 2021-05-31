@@ -17,7 +17,7 @@ Once all the data are in their corresponding folders, you can run this command t
 
 ```
 STARTDATE='2020-12-01' # Start date of forecast
-DATADATE='2021-05-27'  # Date of NNDSS data file
+DATADATE='2021-05-31'  # Date of NNDSS data file
 NDAYS=35 # Number of days after data date to forecast (usually 35)
 NSIMS=20000 # Total number of simulations to run
 
@@ -80,3 +80,9 @@ Below is a breakdown of the pipeline from case line list data to producing forec
 The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. Currently only the B117 (UK) variant is implemented. This increased model is enabled by passing `UK` as the final parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh`.
 
 
+### Internal options
+Some things don't quite deserve to being a bash params, but you may still want to change. Here are some notes in case they are important.
+- In the `read_in_NNDSS` data inside `model/helper_functions.py` you can set the `use_linelist` option to True to replace the NNDSS data with the imputed linelist of cases used elsewhere in the Aus forecasting pipeline.
+
+### Original Code
+An earlier version of this code is available at [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
