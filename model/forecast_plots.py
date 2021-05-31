@@ -180,7 +180,7 @@ def read_in_cases(cases_file_date):
 
     df_NNDSS = read_in_NNDSS(cases_file_date)
 
-    df_cases_state_time = df.groupby(['STATE','date_inferred'])[['imported','local']].sum()
+    df_cases_state_time = df_NNDSS.groupby(['STATE','date_inferred'])[['imported','local']].sum()
     df_cases_state_time.reset_index(inplace=True)
     
     df_cases_state_time['cum_imported'] = df_cases_state_time.groupby('STATE').imported.transform(pd.Series.cumsum)
@@ -195,17 +195,20 @@ if len(argv)>5:
         VoC_name_flag = 'VoC'
         print(VoC_name_flag, 'running.')
 
-data_date = pd.to_datetime(argv[3])
+data_date = argv[3]
 forecast_type = 'R_L' #default None
-df_cases_state_time = read_in_cases(cases_file_date=data_date.strftime("%d%b"))
-Reff = read_in_Reff( forecast_R=forecast_type, file_date= argv[3], VoC_flag = VoC_name_flag)
+df_cases_state_time = read_in_cases(data_date)
+Reff = read_in_Reff( forecast_R=forecast_type, file_date= data_date, VoC_flag = VoC_name_flag)
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 n_sims = int(argv[1])
 start_date = argv[4]
 
 num_forecast_days = int(argv[2])
-end_date = pd.to_datetime(argv[3],format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
+data_date = pd.to_datetime(data_date,format="%Y-%m-%d")
+end_date = data_date + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
+
+
 
 
 
