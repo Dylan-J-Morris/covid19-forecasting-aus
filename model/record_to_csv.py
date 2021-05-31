@@ -14,7 +14,7 @@ try:
 except:
     forecast_date = datetime.strftime(datetime.today(),format='%Y-%m-%d')
 
-num_forecast_days = argv[2]
+num_forecast_days = int(argv[2])
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
 

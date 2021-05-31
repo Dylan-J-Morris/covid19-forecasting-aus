@@ -21,7 +21,7 @@ test_campaign_date = '2020-06-01'
 test_campaign_factor = 1.5
 
 # Get total number of simulation days
-num_forecast_days = argv[2]
+num_forecast_days = int(argv[2])
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is record as a number of days
 
