@@ -1,5 +1,7 @@
 # A collection of helper functions that are used throughout. This file is aimed to avoid replication of code.
 
+import pandas as pd
+
 def read_in_NNDSS(date_string):
     """
     A general function to read in the NNDSS data. Alternatively this can be manually set to read in the linelist instead.
@@ -10,7 +12,6 @@ def read_in_NNDSS(date_string):
         A dataframe of all NNDSS data.
     """
 
-    import pandas as pd
     from datetime import timedelta
     import glob
 
@@ -59,3 +60,31 @@ def read_in_NNDSS(date_string):
         df['STATE'] = df['state']
         df['NOTIFICATION_RECEIVE_DATE'] = df['date_detection'] # Only used by EpyReff. Possible improvement here.
         return df
+
+
+def read_in_Reff_file(file_date, VoC_flag=None):
+    """
+    Read in Reff h5 file produced by generate_RL_forecast. 
+    Args:
+        file_date: (date as string) date of data file
+        VoC_date: (date as string) date from which to increase Reff by VoC
+    """
+    from scipy.stats import beta
+    
+    if file_date is None:
+        raise Exception('Need to provide file date to Reff read.')
+
+    df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5', key='Reff')
+
+    if (VoC_flag != '') and (VoC_flag is not None):
+        VoC_start_date  = pd.to_datetime('2021-05-01')
+        print('Applying VoC increase to Reff start from ', VoC_start_date)
+        # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
+        # We do so by editing a slice of the data frame. Forgive me for my sins.
+        row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
+        index_map = df_forecast.index[row_bool_to_apply_VoC]
+        # Index 9 and onwards are the 2000 Reff samples.
+        df_slice_after_VoC = df_forecast.iloc[index_map, 8:] 
+        df_forecast.iloc[index_map , 8:] = df_slice_after_VoC*(beta.rvs(6,14, size = df_slice_after_VoC.shape) + 1)
+
+    return df_forecast

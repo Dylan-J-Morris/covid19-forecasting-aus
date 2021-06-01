@@ -4,7 +4,7 @@ from scipy.stats import nbinom, erlang, beta, binom, gamma, poisson, beta
 from math import floor
 import matplotlib.pyplot as plt
 import os
-from helper_functions import read_in_NNDSS
+from helper_functions import read_in_NNDSS, read_in_Reff_file
 
 class Person:
     """
@@ -56,7 +56,7 @@ class Forecast:
         self.qua_qs_factor=qua_qs_factor
 
         # The number of days into simulation at which to begin increasing Reff due to VoC
-        self.variant_of_concern_start_date = variant_of_concern_start_date 
+        self.VoC_flag = VoC_flag 
 
         self.forecast_R = forecast_R
         self.R_I = R_I
@@ -241,80 +241,32 @@ class Forecast:
         Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
         """
         import pandas as pd
-        #df= pd.read_csv(self.datapath+'R_eff_2020_04_23.csv', parse_dates=['date'])
-        if self.cross_border_state is not None:
-            states = [self.state,self.cross_border_state]
-        else:
-            states=[self.state]
+
+        df_forecast = read_in_Reff_file(self.cases_file_date,  self.VoC_flag)
+
+        # Get R_I values and store in object.
+        if self.R_I is not None:
+            self.R_I = df_forecast.loc[
+                (df_forecast.type=='R_I')&
+                (df_forecast.state==self.state),
+                self.num_of_sim%2000].values
 
 
-        if self.forecast_R is not None:
-            if self.Reff_file_date is None:
-                import glob, os
+        if self.forecast_R !='R_L':
+            raise Exception('Non-R_L forecasts no longer supported. See previous versions of code.')
 
-                list_of_files = glob.glob('results/soc_mob_R*.h5')
-                latest_file = max(list_of_files, key=os.path.getctime)
-                print("Using file "+latest_file)
-                df_forecast = pd.read_hdf(latest_file,
-            key='Reff')
-            else:
-                df_forecast = pd.read_hdf('results/soc_mob_R'+self.Reff_file_date+'.h5',
-            key='Reff')
-            num_days = df_forecast.loc[
-                (df_forecast.type=='R_L')&(df_forecast.state==self.state)].shape[0]
-            if self.R_I is not None:
-                self.R_I = df_forecast.loc[
-                    (df_forecast.type=='R_I')&
-                    (df_forecast.state==self.state),
-                    self.num_of_sim%2000].values
+        df_forecast = df_forecast.loc[df_forecast.type=='R_L'] # Get only R_L forecasts
+        df_forecast = df_forecast.set_index(['state','date'])
 
-            #R_L here
-            df_forecast = df_forecast.loc[df_forecast.type==self.forecast_R]
+        dfReff_dict = df_forecast.loc[self.state,[0,1]].to_dict(orient='index')
 
-            #df = pd.concat([
-            #            df.drop(['type','date_onset','confidence',
-            #                 'bottom','top','mean_window','prob_control',
-            #                'sd_window'],axis=1),
-            #            df_forecast.drop(['type'],axis=1)
-            #                ])
+        Reff_lookupstate = {}
+        for key, stats in dfReff_dict.items():
+            #instead of mean and std, take all columns as samples of Reff
+            newkey = (key - self.start_date).days #convert key to days since start date for easier indexing
+            Reff_lookupstate[newkey] = df_forecast.loc[(self.state,key),self.num_of_sim%2000] 
 
-           #df = df.drop_duplicates(['state','date'],keep='last')
-            df = df_forecast
-            df = df.set_index(['state','date'])
-
-        Reff_lookupdist ={}
-
-        for state in states:
-            Reff_lookupstate = {}
-            if self.forecast_R =='R_L':
-                dfReff_dict = df.loc[state,[0,1]].to_dict(orient='index')
-
-                for key, stats in dfReff_dict.items():
-                    #instead of mean and std, take all columns as samples of Reff
-                    #convert key to days since start date for easier indexing
-                    newkey = (key - self.start_date).days
-
-                    Reff_lookupstate[newkey] = df.loc[(state,key),
-                    self.num_of_sim%2000] #[i for i in range(1000)]
-
-                    # Apply increased Reff from variant of concern if start date is passed
-                    if self.variant_of_concern_start_date:
-                        if newkey > self.variant_of_concern_start_date:
-                            VoC_multiplier = beta.rvs(14, 20) + 1
-                            Reff_lookupstate[newkey] = Reff_lookupstate[newkey]*VoC_multiplier
-            else:
-                #R_L0 (not used in usual forecasting)
-                for day in range(num_days):
-                    Reff_lookupstate[day] = df.loc[state, [i for i in range(1000)]].values[0]
-
-
-            #Nested dict with key to state, then key to date
-            Reff_lookupdist[state] = Reff_lookupstate
-
-        if self.cross_border_state is not None:
-            self.Reff_travel = Reff_lookupdist[self.cross_border_state]
-
-        self.Reff = Reff_lookupdist[self.state]
+        self.Reff = Reff_lookupstate
 
     def choose_random_item(self, items,weights=None):
         from numpy.random import random
@@ -837,9 +789,8 @@ class Forecast:
             df_results[var] = [results[var][sim] for cat,sim in df_results.index]
 
         #Adding a flag to filename for the VoC runs
-        VoC_name_flag = "VoC" if self.variant_of_concern_start_date else ''
-
-        print('VoC_name_flag is', VoC_name_flag, self.variant_of_concern_start_date)
+        VoC_name_flag = "VoC" if self.VoC_flag else ''
+        print('VoC_name_flag is', VoC_name_flag, self.VoC_flag)
 
         print("Saving results for state "+self.state)
         if self.forecast_R is None:
@@ -923,7 +874,6 @@ class Forecast:
             )
 
         self.metric = self.metric/(end_time-window) #max is end_time
-
 
     
     def read_in_cases(self):

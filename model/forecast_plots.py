@@ -11,7 +11,7 @@ import json
 from sys import argv
 from scipy.stats import beta
 
-from helper_functions import read_in_NNDSS
+from helper_functions import read_in_NNDSS, read_in_Reff_file
 
 plt.style.use("seaborn-poster")
 
@@ -117,55 +117,18 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
     else:
         return ax
 
-def read_in_Reff(forecast_R=None,R_I=None,file_date = "2020-04-01", VoC_flag = ''):
+def read_in_Reff(file_date, forecast_R=None, VoC_flag = ''):
         """
         Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
         """
         import pandas as pd
-        import os
         
-        dir_path = os.getcwd()
-        #df= pd.read_csv(datapath+'R_eff_2020_04_23.csv', parse_dates=['date'])
-        #df = df.loc[df.date>= self.start_date]
-        
-        #df = df.set_index(['state','date'])
-        
-        
-        if forecast_R is not None:
-            df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5',
-            key='Reff')
+        df_forecast = read_in_Reff_file(file_date, VoC_flag)
             
-            if R_I is not None:
-                mean = df_forecast.loc[df_forecast.type=='R_I','mean'].values[0]
-                std = df_forecast.loc[df_forecast.type=='R_I','std'].values[0]
-                R_I = np.random.gamma(mean**2/std**2, std**2/mean, size=100)
-
-            #R_L here 
-   
-
-            df_forecast = df_forecast.loc[df_forecast.type==forecast_R]
-
-            if VoC_flag != '':
-                print('Applying VoC increase to Reff in forecast_plots.py')
-                # Here we apply the same beta(6,14)+1 scaling from VoC to the Reff data for plotting
-                # We do so by editing a slice of the data frame. Forgive me for my sins.
-                VoC_dates_to_apply_idx = df_forecast.index[pd.to_datetime(df_forecast.date, format='%Y-%m-%d') > (pd.to_datetime(file_date) - pd.Timedelta(days=30))]
-                # The 8: columns have the random samples of Reff which we increase
-                df_slice_after_VoC = df_forecast.iloc[VoC_dates_to_apply_idx, 8:] 
-                df_forecast.iloc[VoC_dates_to_apply_idx , 8:] = df_slice_after_VoC*(beta.rvs(6,14, size = df_slice_after_VoC.shape) + 1)
-
-            df_forecast.set_index(['state','date'],inplace=True)
-            df = df_forecast
-            #df = pd.concat([
-            #            df.drop(['type','date_onset','confidence',
-            #                 'mean_window','prob_control',
-            #                'sd_window'],axis=1),
-            #            df_forecast.drop(['type'],axis=1)
-            #                ])
-            #df = df.reset_index().drop_duplicates(['state','date'],keep='last')
-            #df = df.set_index(['state','date'])
+        df_forecast = df_forecast.loc[df_forecast.type==forecast_R]
+        df_forecast.set_index(['state','date'],inplace=True)
                 
-        return df
+        return df_forecast
     
 def read_in_cases(cases_file_date):
     """
@@ -189,14 +152,13 @@ def read_in_cases(cases_file_date):
 # Add flag to create plots for VoCs
 VoC_flag = '' # Default value
 if len(argv)>5:
-    if argv[5] == 'UK':
-        VoC_flag = 'VoC'
-        print(VoC_flag, 'running.')
+    VoC_flag = argv[5]
+    print(VoC_flag, 'running.')
 
 data_date = argv[3]
-forecast_type = 'R_L' #default None
+forecast_type = 'R_L'
 df_cases_state_time = read_in_cases(data_date)
-Reff = read_in_Reff( forecast_R=forecast_type, file_date= data_date, VoC_flag = VoC_flag)
+Reff = read_in_Reff(forecast_R=forecast_type, file_date= data_date, VoC_flag = VoC_flag)
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 n_sims = int(argv[1])
 start_date = argv[4]
