@@ -10,7 +10,7 @@ import sys
 sys.path.insert(0,'model') # I hate this too but it allows everything to use the same helper functions.
 from helper_functions import read_in_NNDSS
 
-def read_in_posterior(date='2020-07-30'):
+def read_in_posterior(date):
     """
     read in samples from posterior from inference
     """
