@@ -252,13 +252,13 @@ class Forecast:
             if self.Reff_file_date is None:
                 import glob, os
 
-                list_of_files = glob.glob(self.datapath+'soc_mob_R*.h5')
+                list_of_files = glob.glob('results/soc_mob_R*.h5')
                 latest_file = max(list_of_files, key=os.path.getctime)
                 print("Using file "+latest_file)
                 df_forecast = pd.read_hdf(latest_file,
             key='Reff')
             else:
-                df_forecast = pd.read_hdf(self.datapath+'soc_mob_R'+self.Reff_file_date+'.h5',
+                df_forecast = pd.read_hdf('results/soc_mob_R'+self.Reff_file_date+'.h5',
             key='Reff')
             num_days = df_forecast.loc[
                 (df_forecast.type=='R_L')&(df_forecast.state==self.state)].shape[0]
