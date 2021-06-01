@@ -125,8 +125,6 @@ def read_in_Reff(forecast_R=None,R_I=None,file_date = "2020-04-01", VoC_flag = '
         import os
         
         dir_path = os.getcwd()
-        
-        datapath = os.path.join(dir_path,'data/')
         #df= pd.read_csv(datapath+'R_eff_2020_04_23.csv', parse_dates=['date'])
         #df = df.loc[df.date>= self.start_date]
         
@@ -134,7 +132,7 @@ def read_in_Reff(forecast_R=None,R_I=None,file_date = "2020-04-01", VoC_flag = '
         
         
         if forecast_R is not None:
-            df_forecast = pd.read_hdf(datapath+'soc_mob_R'+file_date+'.h5',
+            df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5',
             key='Reff')
             
             if R_I is not None:
@@ -151,7 +149,7 @@ def read_in_Reff(forecast_R=None,R_I=None,file_date = "2020-04-01", VoC_flag = '
                 print('Applying VoC increase to Reff in forecast_plots.py')
                 # Here we apply the same beta(6,14)+1 scaling from VoC to the Reff data for plotting
                 # We do so by editing a slice of the data frame. Forgive me for my sins.
-                VoC_dates_to_apply_idx = df_forecast.index[pd.to_datetime(df_forecast.date, format='%Y-%m-%d') > pd.to_datetime(file_date)]
+                VoC_dates_to_apply_idx = df_forecast.index[pd.to_datetime(df_forecast.date, format='%Y-%m-%d') > (pd.to_datetime(file_date) - pd.Timedelta(days=30))]
                 # The 8: columns have the random samples of Reff which we increase
                 df_slice_after_VoC = df_forecast.iloc[VoC_dates_to_apply_idx, 8:] 
                 df_forecast.iloc[VoC_dates_to_apply_idx , 8:] = df_slice_after_VoC*(beta.rvs(6,14, size = df_slice_after_VoC.shape) + 1)
