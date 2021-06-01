@@ -650,4 +650,4 @@ for data_date in cprs_dates:
         ]
 
 
-    samples_mov_gamma[var_to_csv].to_hdf('data/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')
+    samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')

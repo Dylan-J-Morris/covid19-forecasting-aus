@@ -714,4 +714,4 @@ for data_date in cprs_dates:
     df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_I')&(df_Rhats.date=='2020-03-01')])
     df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_L0')&(df_Rhats.date=='2020-03-01')])
     #df_Rhats.to_csv('./soc_mob_R'+today+'.csv')
-    df_hdf.to_hdf('data/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5',key='Reff')
+    df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5',key='Reff')
