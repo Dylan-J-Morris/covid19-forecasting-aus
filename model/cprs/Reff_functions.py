@@ -14,7 +14,7 @@ def read_in_posterior(date='2020-07-30'):
     """
     read in samples from posterior from inference
     """
-    df = pd.read_hdf("data/soc_mob_posterior"+date+".h5", key='samples')
+    df = pd.read_hdf("results/soc_mob_posterior"+date+".h5", key='samples')
     
     return df
 
@@ -110,13 +110,13 @@ def read_in_google(Aus_only=True,local=False,moving=False):
     
 #     return df
 
-def read_in_Reff(path='../data/'):
-    """
-    Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
-    """
-    import pandas as pd
-    Reff = pd.read_csv(path+'R_eff_2020_04_23.csv', parse_dates=['date'])
-    return Reff
+# def read_in_Reff(path='../data/'):
+#     """
+#     Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
+#     """
+#     import pandas as pd
+#     Reff = pd.read_csv(path+'R_eff_2020_04_23.csv', parse_dates=['date'])
+#     return Reff
     
 # def read_AddInsight():
 #     """
