@@ -74,6 +74,7 @@ def read_in_Reff_file(file_date, VoC_flag=None):
     if file_date is None:
         raise Exception('Need to provide file date to Reff read.')
 
+    file_date = pd.to_datetime(file_date).strftime("%Y-%m-%d")
     df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5', key='Reff')
 
     if (VoC_flag != '') and (VoC_flag is not None):
