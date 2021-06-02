@@ -187,29 +187,28 @@ for i,state in enumerate(states):
 
 
     ##forecast mircodistancing
-    if state!='AUS':
-        mu_overall = np.mean(prop[state].values[:-n_training]) # Get a baseline value of microdistancing
-        md_diffs = np.diff(prop[state].values[-n_training:])
-        mu_diffs = np.mean(md_diffs)
-        std_diffs = np.std(md_diffs)
+    mu_overall = np.mean(prop[state].values[:-n_training]) # Get a baseline value of microdistancing
+    md_diffs = np.diff(prop[state].values[-n_training:])
+    mu_diffs = np.mean(md_diffs)
+    std_diffs = np.std(md_diffs)
 
-        extra_days_md = pd.to_datetime(df_google.date.values[-1]).dayofyear - pd.to_datetime(
-            prop[state].index.values[-1]).dayofyear
+    extra_days_md = pd.to_datetime(df_google.date.values[-1]).dayofyear - pd.to_datetime(
+        prop[state].index.values[-1]).dayofyear
 
-        current = [prop[state].values[-1]] * 1000 # Set all values to current value.
-        new_md_forecast = []
-        # Forecast mobility forward sequentially by day.
-        for i in range(n_forecast + extra_days_md):
-            p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md) # Proportion of trend_force to regression_to_baseline_force
-            trend_force = np.random.normal(mu_diffs, std_diffs, size=1000) # Generate step realisations in training trend direction
-            regression_to_baseline_force = np.random.normal(0.01*(mu_overall - current), std_diffs)  # Generate realisations that draw closer to baseline
-            current = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Balance forces
-            new_md_forecast.append(current)
-        md_sims = np.vstack(new_md_forecast) # Put forecast days together
-        md_sims = np.minimum(1, md_sims)
-        md_sims = np.maximum(0, md_sims)
-        #get dates
-        dd_md = [prop[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_md+1)]
+    current = [prop[state].values[-1]] * 1000 # Set all values to current value.
+    new_md_forecast = []
+    # Forecast mobility forward sequentially by day.
+    for i in range(n_forecast + extra_days_md):
+        p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md) # Proportion of trend_force to regression_to_baseline_force
+        trend_force = np.random.normal(mu_diffs, std_diffs, size=1000) # Generate step realisations in training trend direction
+        regression_to_baseline_force = np.random.normal(0.01*(mu_overall - current), std_diffs)  # Generate realisations that draw closer to baseline
+        current = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Balance forces
+        new_md_forecast.append(current)
+    md_sims = np.vstack(new_md_forecast) # Put forecast days together
+    md_sims = np.minimum(1, md_sims)
+    md_sims = np.maximum(0, md_sims)
+    #get dates
+    dd_md = [prop[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_md+1)]
 
 
     for j, var in enumerate(predictors+['md_prop']):
