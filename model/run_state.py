@@ -154,7 +154,7 @@ for state in states:
         cross_border_state=XBstate,cases_file_date=case_file_date,
         ps_list = ps_prior, test_campaign_date=test_campaign_date, 
         test_campaign_factor=test_campaign_factor,Reff_file_date=Reff_file_date,
-        variant_of_concern_start_date = variant_of_concern_start_date
+        VoC_flag = VoC_flag
         )
     elif state in ['NSW']:
         forecast_dict[state] = Forecast(current[state],
@@ -165,7 +165,7 @@ for state in states:
         forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
         cross_border_state=None,cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        variant_of_concern_start_date = variant_of_concern_start_date
+        VoC_flag = VoC_flag
         )
     elif state in ['ACT','NT','SA','WA','QLD']:
         forecast_dict[state] = Forecast(current[state],
@@ -176,7 +176,7 @@ for state in states:
         forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
         cross_border_state=None,cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        variant_of_concern_start_date = variant_of_concern_start_date
+        VoC_flag = VoC_flag
         )
     else:
         forecast_dict[state] = Forecast(current[state],state,
@@ -187,7 +187,7 @@ for state in states:
         forecast_R = forecast_type , R_I = R_I,forecast_date=forecast_date,
         cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        variant_of_concern_start_date = variant_of_concern_start_date
+        VoC_flag = VoC_flag
         )
 
 
