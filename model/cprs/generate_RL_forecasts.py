@@ -63,7 +63,9 @@ survey_X = pd.pivot_table(data=always,
                           index='date',columns='state',values='proportion')
 prop_all = survey_X
 
-###Create dates
+
+
+
 data_date = pd.to_datetime(argv[1])
 print(data_date)
 df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
@@ -82,7 +84,6 @@ df_google = df_google_all.loc[df_google_all.date<=data_date]
 df_google = df_google.interpolate(method='linear',axis=0)
 
 #forecast time parameters
-n_training =28
 today = data_date.strftime('%Y-%m-%d')
 if df_google.date.values[-1] < data_date:
     #check if google has dates up to now
@@ -112,7 +113,6 @@ mob_samples = 1000
 axes = []
 figs = []
 for var in predictors:
-
     fig, ax_states = plt.subplots(figsize=(7,8),nrows=4, ncols=2, sharex=True)
     axes.append(ax_states)
     #fig.suptitle(var)
@@ -190,13 +190,12 @@ for i,state in enumerate(states):
 
 
     ##forecast mircodistancing
-    mu_overall = np.mean(prop[state].values[:-n_training]) # Get a baseline value of microdistancing
+    mu_overall = np.mean(prop[state].values[-n_baseline:]) # Get a baseline value of microdistancing
     md_diffs = np.diff(prop[state].values[-n_training:])
     mu_diffs = np.mean(md_diffs)
     std_diffs = np.std(md_diffs)
 
-    extra_days_md = pd.to_datetime(df_google.date.values[-1]).dayofyear - pd.to_datetime(
-        prop[state].index.values[-1]).dayofyear
+    extra_days_md = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(prop[state].index.values[-1])).days
 
     current = [prop[state].values[-1]] * 1000 # Set all values to current value.
     new_md_forecast = []
@@ -207,6 +206,7 @@ for i,state in enumerate(states):
         regression_to_baseline_force = np.random.normal(0.01*(mu_overall - current), std_diffs)  # Generate realisations that draw closer to baseline
         current = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Balance forces
         new_md_forecast.append(current)
+        
     md_sims = np.vstack(new_md_forecast) # Put forecast days together
     md_sims = np.minimum(1, md_sims)
     md_sims = np.maximum(0, md_sims)
