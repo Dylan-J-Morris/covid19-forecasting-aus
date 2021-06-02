@@ -95,8 +95,7 @@ else:
 #cap = 0 #10?
 training_start_date = datetime(2020,3,1,0,0)
 print("Forecast ends at {} days after 1st March".format(
-    pd.to_datetime(today).dayofyear + 42 - pd.to_datetime(training_start_date).dayofyear)
-    )
+    (pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + 42))
 print("Final date is {}".format(pd.to_datetime(today) + timedelta(days=42)))
 df_google = df_google.loc[df_google.date>= training_start_date]
 outdata = {'date': [],
