@@ -164,10 +164,10 @@ for i,state in enumerate(states):
             # if state == 'WA':  # Force return to baseline immediately
             #     p_force = 0 
             # else:
-            p_force = (n_forecast-i)/n_forecast
+            p_force = max((n_forecast-i-5)/(n_forecast), 0)
 
             trend_force = np.random.multivariate_normal(mu, cov) # Generate a single forward realisation of trend
-            regression_to_baseline_force = np.random.multivariate_normal(0.01*(R_baseline_mean - current), cov) # Generate a single forward realisation of baseline regression
+            regression_to_baseline_force = np.random.multivariate_normal(0.1*(R_baseline_mean - current), cov) # Generate a single forward realisation of baseline regression
                 
             new_forcast_points = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Find overall simulation step
             current = new_forcast_points
