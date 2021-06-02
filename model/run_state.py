@@ -42,11 +42,9 @@ R_I='R_I'
 abc =False
 
 # If no VoC specified, code will run without alterations.
-variant_of_concern_start_date = None
+VoC_flag = None
 if len(argv)>6:
-    if argv[6] == 'UK':
-        # The date from which to increase Reff due to VoC. This date is expressed as the number of days from the start of simulation.
-        variant_of_concern_start_date = (pd.to_datetime(forecast_date,format='%Y-%m-%d') - pd.Timedelta(days=30) - pd.to_datetime(start_date,format='%Y-%m-%d')).days
+    VoC_flag =  argv[6]
             
 local_detection = {
             'NSW':0.9,#0.556,#0.65,

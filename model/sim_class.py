@@ -30,7 +30,7 @@ class Forecast:
         qua_ai= 1, qua_qi_factor=1, qua_qs_factor=1,forecast_R=None,R_I=None,
         forecast_date='2020-07-01', cross_border_state=None,cases_file_date=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
-        Reff_file_date=None, variant_of_concern_start_date = None
+        Reff_file_date=None, VoC_flag = None
         ):
         import numpy as np
         self.initial_state = current.copy() #Observed cases on start day
