@@ -187,20 +187,23 @@ for i,state in enumerate(states):
                 mu_current = Rmed[-1,:]
 
                 # Constant Lockdown
-                if argv[2] == "constant":
+                if argv[2] == "no reversion":
                     new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
 
                 # No Lockdown
-                elif argv[2] == "reversion":  
-                    # Revert to values the week before lockdown started
-                    new_forcast_points = np.random.multivariate_normal(mu_baseline, cov_baseline) 
-
-                # Temporary Lockdown
-                elif argv[2] == "half":  # No Lockdown
-                    if i < 13:
+                elif argv[2] == "full reversion":  
+                    if i < 9:
                         new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
                     else:
+                        # Revert to values the week before lockdown started
                         new_forcast_points = np.random.multivariate_normal(mu_baseline, cov_baseline) 
+
+                # Temporary Lockdown
+                elif argv[2] == "half reversion":  # No Lockdown
+                    if i < 9:
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
+                    else:
+                        new_forcast_points = np.random.multivariate_normal((mu_current + mu_baseline)/2, cov_baseline) 
 
             sims[i,:,n] = new_forcast_points # Set this day in this simulation to the forecast realisation
 
@@ -237,20 +240,24 @@ for i,state in enumerate(states):
             mu_current =prop[state].values[-1]
 
             # Constant Lockdown
-            if argv[2] == "constant":
+            if argv[2] == "no reversion":
                 current = np.random.normal(mu_current, std_baseline) 
 
             # No Lockdown
-            elif argv[2] == "reversion":  
-                # Revert to values the week before lockdown started
-                current = np.random.normal(mu_baseline, std_baseline) 
-
-            # Temporary Lockdown
-            elif argv[2] == "half":  # No Lockdown
+            elif argv[2] == "full reversion":  
                 if i < 9:
                     current = np.random.normal(mu_current, std_baseline) 
                 else:
+                    # Revert to values the week before lockdown started
                     current = np.random.normal(mu_baseline, std_baseline) 
+
+            # Temporary Lockdown
+            elif argv[2] == "half reversion":  # No Lockdown
+                if i < 9:
+                    current = np.random.normal(mu_current, std_baseline) 
+                else:
+                     # Revert to values halfway between the before and after
+                    current = np.random.normal((mu_current + mu_baseline)/2, std_baseline) 
 
 
         new_md_forecast.append(current)
