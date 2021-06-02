@@ -124,6 +124,9 @@ axes.append(ax_states)
 #fig.suptitle(var)
 figs.append(fig)
 
+n_training = 14 #  Period to examine trend
+n_baseline = 91 # Period to create baseline
+
 state_Rmed = {}
 state_sims = {}
 for i,state in enumerate(states):
@@ -151,13 +154,13 @@ for i,state in enumerate(states):
         minRmed = minRmed_array[:,n]
         maxRmed = maxRmed_array[:,n]
 
-        R_baseline_mean = np.mean(Rmed[-91:,:])
+        R_baseline_mean = np.mean(Rmed[-n_baseline:,:], axis=0)
         R_diffs = np.diff(Rmed[-n_training:,:], axis=0)
         mu = np.mean(R_diffs, axis=0)
         cov = np.cov(R_diffs, rowvar=False) #columns are vars, rows are obs
 
         # Forecast mobility forward sequentially by day.
-        current  = np.mean(Rmed[-7:,:],axis=0) # Start from last valid day
+        current  = np.mean(Rmed[-5:,:],axis=0) # Start from last valid days
         for i in range(n_forecast):
 
             # Proportion of trend_force to regression_to_baseline_force
