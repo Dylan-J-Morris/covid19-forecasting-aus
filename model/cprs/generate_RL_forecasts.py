@@ -170,7 +170,8 @@ for i,state in enumerate(states):
             regression_to_baseline_force = np.random.multivariate_normal(0.01*(R_baseline_mean - current), cov) # Generate a single forward realisation of baseline regression
                 
             new_forcast_points = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Find overall simulation step
-        
+            current = new_forcast_points
+
             # Apply minimum and maximum
             new_forcast_points = np.maximum(minRmed, new_forcast_points)
             new_forcast_points = np.minimum(maxRmed, new_forcast_points)
