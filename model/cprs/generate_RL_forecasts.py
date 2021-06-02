@@ -179,6 +179,29 @@ for i,state in enumerate(states):
             new_forcast_points = np.maximum(minRmed, new_forcast_points)
             new_forcast_points = np.minimum(maxRmed, new_forcast_points)
 
+            ## SIMULATION MODELLING
+            # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
+            if (state == "VIC") and len(argv)>2:
+                cov_baseline = np.cov(Rmed[-14:-7,:], rowvar=False) # Make baseline cov for generating points
+                mu_baseline = np.mean(Rmed[-14:-7,:], axis =0)
+                mu_current = Rmed[-1,:]
+
+                # Constant Lockdown
+                if argv[2] == "constant":
+                    new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
+
+                # No Lockdown
+                elif argv[2] == "reversion":  
+                    # Revert to values the week before lockdown started
+                    new_forcast_points = np.random.multivariate_normal(mu_baseline, cov_baseline) 
+
+                # Temporary Lockdown
+                elif argv[2] == "half":  # No Lockdown
+                    if i < 13:
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
+                    else:
+                        new_forcast_points = np.random.multivariate_normal(mu_baseline, cov_baseline) 
+
             sims[i,:,n] = new_forcast_points # Set this day in this simulation to the forecast realisation
 
     dd = [dates.tolist()[-1] + timedelta(days=x) for x in range(1,n_forecast+1)]
@@ -205,8 +228,33 @@ for i,state in enumerate(states):
         trend_force = np.random.normal(mu_diffs, std_diffs, size=1000) # Generate step realisations in training trend direction
         regression_to_baseline_force = np.random.normal(0.01*(mu_overall - current), std_diffs)  # Generate realisations that draw closer to baseline
         current = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Balance forces
+
+        ## SIMULATION MODELLING
+        # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
+        if (state == "VIC") and len(argv)>2:
+            std_baseline = np.std(prop[state].values[-14:-7]) # Make baseline cov for generating points
+            mu_baseline = np.mean(prop[state].values[-14:-7], axis =0)
+            mu_current =prop[state].values[-1]
+
+            # Constant Lockdown
+            if argv[2] == "constant":
+                current = np.random.normal(mu_current, std_baseline) 
+
+            # No Lockdown
+            elif argv[2] == "reversion":  
+                # Revert to values the week before lockdown started
+                current = np.random.normal(mu_baseline, std_baseline) 
+
+            # Temporary Lockdown
+            elif argv[2] == "half":  # No Lockdown
+                if i < 9:
+                    current = np.random.normal(mu_current, std_baseline) 
+                else:
+                    current = np.random.normal(mu_baseline, std_baseline) 
+
+
         new_md_forecast.append(current)
-        
+
     md_sims = np.vstack(new_md_forecast) # Put forecast days together
     md_sims = np.minimum(1, md_sims)
     md_sims = np.maximum(0, md_sims)

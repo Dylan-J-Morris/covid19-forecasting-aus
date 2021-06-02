@@ -83,6 +83,7 @@ The model can run with a optional Variant of Concern (VoC) flag, which increases
 ### Internal options
 Some things don't quite deserve to being a bash params, but you may still want to change. Here are some notes in case they are important.
 - In the `read_in_NNDSS` data inside `model/helper_functions.py` you can set the `use_linelist` option to True to replace the NNDSS data with the imputed linelist of cases used elsewhere in the Aus forecasting pipeline.
+- In `generate_RL_forecasts.py` there is a optional second argument that can be passed to allow for modelling of spread in different outbreak simulations during a lockdown (e.g. one could compare the outbreak if lockdown was stopped vs when a lockdown continues at a constant rate). This is not used or called during the normal forecasting (and the code snippet may be commented out when not in use).
 
 ### Original Code
 An earlier version of this code is available at [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
