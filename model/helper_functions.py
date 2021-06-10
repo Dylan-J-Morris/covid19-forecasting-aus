@@ -46,7 +46,7 @@ def read_in_NNDSS(date_string):
         return df
 
     else:
-        case_file_date = pd.to_datetime(date_string).strftime("%Y%m%d")
+        case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
         path = "data/*linelist_"+case_file_date+"*.csv"
         for file in glob.glob(path): # Allows us to use the * option
             df = pd.read_csv(file)
