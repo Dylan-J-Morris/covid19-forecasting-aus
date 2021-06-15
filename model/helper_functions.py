@@ -15,7 +15,7 @@ def read_in_NNDSS(date_string):
     from datetime import timedelta
     import glob
 
-    use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
+    use_linelist = False # If something goes wrong on a day you can set this to True to use the linelist
 
     if not use_linelist: 
         case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y")
