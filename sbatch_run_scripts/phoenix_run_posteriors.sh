@@ -14,7 +14,8 @@ source ../virtualenvs/bin/activate
 
 
 DATADATE=$1
-python model/cprs/generate_posterior.py $DATADATE #comment out argument for cprs
-python model/cprs/generate_RL_forecasts.py $DATADATE #as above
+SCENARIO=$2 # Optional flag to allow for scenario modelling. Not used in normal forecast.
+python model/cprs/generate_posterior.py $DATADATE
+python model/cprs/generate_RL_forecasts.py $DATADATE $SCENARIO 
 
 deactivate

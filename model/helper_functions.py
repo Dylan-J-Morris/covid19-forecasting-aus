@@ -62,7 +62,7 @@ def read_in_NNDSS(date_string):
         return df
 
 
-def read_in_Reff_file(file_date, VoC_flag=None):
+def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
     """
     Read in Reff h5 file produced by generate_RL_forecast. 
     Args:
@@ -75,7 +75,7 @@ def read_in_Reff_file(file_date, VoC_flag=None):
         raise Exception('Need to provide file date to Reff read.')
 
     file_date = pd.to_datetime(file_date).strftime("%Y-%m-%d")
-    df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5', key='Reff')
+    df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+scenario+'.h5', key='Reff')
 
     if (VoC_flag != '') and (VoC_flag is not None):
         VoC_start_date  = pd.to_datetime('2021-05-01')

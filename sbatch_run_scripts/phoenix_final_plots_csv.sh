@@ -18,8 +18,9 @@ NDAYS=$2
 DATADATE=$3
 STARTDATE=$4
 VOCFLAG=$5
+SCENARIO=$6
 
-python model/collate_states.py $NSIMS $NDAYS $DATADATE $STARTDATE $VOCFLAG 
-python model/record_to_csv.py $NSIMS $NDAYS R_L $DATADATE $STARTDATE $VOCFLAG 
+python model/collate_states.py $NSIMS $NDAYS $DATADATE $STARTDATE $VOCFLAG $SCENARIO
+python model/record_to_csv.py $NSIMS $NDAYS R_L $DATADATE $STARTDATE $VOCFLAG $SCENARIO
 
 deactivate

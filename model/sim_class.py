@@ -30,7 +30,7 @@ class Forecast:
         qua_ai= 1, qua_qi_factor=1, qua_qs_factor=1,forecast_R=None,R_I=None,
         forecast_date='2020-07-01', cross_border_state=None,cases_file_date=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
-        Reff_file_date=None, VoC_flag = None
+        Reff_file_date=None, VoC_flag = None, scenario=''
         ):
         import numpy as np
         self.initial_state = current.copy() #Observed cases on start day
@@ -57,6 +57,9 @@ class Forecast:
 
         # The number of days into simulation at which to begin increasing Reff due to VoC
         self.VoC_flag = VoC_flag 
+
+        # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
+        self.scenario = scenario
 
         self.forecast_R = forecast_R
         self.R_I = R_I
@@ -242,7 +245,7 @@ class Forecast:
         """
         import pandas as pd
 
-        df_forecast = read_in_Reff_file(self.cases_file_date,  self.VoC_flag)
+        df_forecast = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
 
         # Get R_I values and store in object.
         if self.R_I is not None:
@@ -796,12 +799,12 @@ class Forecast:
         if self.forecast_R is None:
             df_results.to_parquet(
                 "./results/"+self.state+self.start_date.strftime(
-                    format='%Y-%m-%d')+"sim_results"+str(n_sims)+"days_"+str(days)+VoC_name_flag+".parquet",
+                    format='%Y-%m-%d')+"sim_results"+str(n_sims)+"days_"+str(days)+VoC_name_flag+self.scenario+".parquet",
                     )
         else:
             df_results.to_parquet(
                 "./results/"+self.state+self.start_date.strftime(
-                    format='%Y-%m-%d')+"sim_"+self.forecast_R+str(n_sims)+"days_"+str(days)+VoC_name_flag+".parquet",
+                    format='%Y-%m-%d')+"sim_"+self.forecast_R+str(n_sims)+"days_"+str(days)+VoC_name_flag+self.scenario+".parquet",
                     )
 
         return df_results
