@@ -84,7 +84,6 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
 
     if (VoC_flag != '') and (VoC_flag is not None):
         VoC_start_date  = pd.to_datetime('2021-05-01')
-        print('Applying VoC increase to Reff start from ', VoC_start_date)
         # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
         # We do so by editing a slice of the data frame. Forgive me for my sins.
         row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
