@@ -189,6 +189,7 @@ for i,state in enumerate(states):
             # ## SIMULATION MODELLING
             # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
             if (state == "VIC") and len(argv)>2:
+                print('Scenario modelling being used for', state)
                 cov_baseline = np.cov(Rmed[-21:-14,:], rowvar=False) # Make baseline cov for generating points
                 mu_baseline = np.mean(Rmed[-21:-14,:], axis =0)
                 mu_current = Rmed[-1,:]
@@ -242,6 +243,7 @@ for i,state in enumerate(states):
         ## SIMULATION MODELLING
         # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
         if (state == "VIC") and len(argv)>2:
+            print('Scenario modelling being used for', state)
             std_baseline = np.std(prop[state].values[-21:-14]) # Make baseline cov for generating points
             mu_baseline = np.mean(prop[state].values[-21:-14], axis =0)
             mu_current =prop[state].values[-1]
