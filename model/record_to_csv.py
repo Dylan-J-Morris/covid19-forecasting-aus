@@ -25,11 +25,10 @@ sims_dict={
 }
 
 # If no VoC specified, code will run without alterations.
-VoC_name_flag = ''
+VoC_flag = ''
 if len(argv)>6:
-    if argv[6] == 'UK':
-        VoC_name_flag = 'VoC'
-        print('VoC being used in record_to_csv.py')
+    VoC_flag = argv[6]
+    print('VoC %s being used in record_to_csv.py' % VoC_flag)
 
 if len(argv) > 7:
     # Add an optional scenario flag to load in specific Reff scenarios.
@@ -46,7 +45,7 @@ date_col = [day.strftime('%Y-%m-%d') for day in pd.date_range(start_date,end_dat
 
 for i,state in enumerate(states):
     
-    df_results = pd.read_parquet("./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"days_"+str(days)+VoC_name_flag+scenario+".parquet",columns=date_col)
+    df_results = pd.read_parquet("./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet",columns=date_col)
     
     df_local = df_results.loc['total_inci_obs']
 
@@ -83,4 +82,4 @@ df["data date"] = forecast_date
 
 key ='local_obs'
 df[df.select_dtypes(float).columns] = df.select_dtypes(float).astype(int)
-df.to_csv('./results/UoA_'+forecast_date+str(key)+VoC_name_flag+scenario+'.csv')
+df.to_csv('./results/UoA_'+forecast_date+str(key)+VoC_flag+scenario+'.csv')

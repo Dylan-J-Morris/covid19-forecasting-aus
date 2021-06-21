@@ -791,20 +791,17 @@ class Forecast:
         for var in sim_vars:
             df_results[var] = [results[var][sim] for cat,sim in df_results.index]
 
-        #Adding a flag to filename for the VoC runs
-        VoC_name_flag = "VoC" if self.VoC_flag else ''
-        print('VoC_name_flag is', VoC_name_flag, self.VoC_flag)
-
+        print('VoC_flag is', self.VoC_flag)
         print("Saving results for state "+self.state)
         if self.forecast_R is None:
             df_results.to_parquet(
                 "./results/"+self.state+self.start_date.strftime(
-                    format='%Y-%m-%d')+"sim_results"+str(n_sims)+"days_"+str(days)+VoC_name_flag+self.scenario+".parquet",
+                    format='%Y-%m-%d')+"sim_results"+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet",
                     )
         else:
             df_results.to_parquet(
                 "./results/"+self.state+self.start_date.strftime(
-                    format='%Y-%m-%d')+"sim_"+self.forecast_R+str(n_sims)+"days_"+str(days)+VoC_name_flag+self.scenario+".parquet",
+                    format='%Y-%m-%d')+"sim_"+self.forecast_R+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet",
                     )
 
         return df_results
