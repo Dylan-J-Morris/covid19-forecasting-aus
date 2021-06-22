@@ -42,7 +42,7 @@ R_I='R_I'
 abc =False
 
 # If no VoC specified, code will run without alterations.
-VoC_flag = None
+VoC_flag = ''
 if len(argv)>6:
     VoC_flag =  argv[6]
 
