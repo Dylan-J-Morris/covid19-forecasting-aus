@@ -69,7 +69,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
                     
                     ax.plot(df.columns, df.loc[(var,good_sims[n])], label=var,alpha=0.8,color='C0', linewidth=0.5)
                     n +=1
-                    if n>15:
+                    if n>200:
                         break
             else:
                 ax.plot(df.columns, df.transpose()[var].quantile(0.5,axis=1), label=var)
