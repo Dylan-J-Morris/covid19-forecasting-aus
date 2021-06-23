@@ -118,17 +118,17 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         return ax
 
 def read_in_Reff(file_date, forecast_R=None, VoC_flag = ''):
-        """
-        Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
-        """
-        import pandas as pd
+    """
+    Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
+    """
+    import pandas as pd
+    
+    df_forecast = read_in_Reff_file(file_date, VoC_flag)
         
-        df_forecast = read_in_Reff_file(file_date, VoC_flag)
+    df_forecast = df_forecast.loc[df_forecast.type==forecast_R]
+    df_forecast.set_index(['state','date'],inplace=True)
             
-        df_forecast = df_forecast.loc[df_forecast.type==forecast_R]
-        df_forecast.set_index(['state','date'],inplace=True)
-                
-        return df_forecast
+    return df_forecast
     
 def read_in_cases(cases_file_date):
     """
@@ -155,15 +155,16 @@ if len(argv)>5:
     VoC_flag = argv[5]
     print(VoC_flag, 'running.')
 
+n_sims = int(argv[1])
+start_date = argv[4]
 data_date = argv[3]
+num_forecast_days = int(argv[2])
+
 forecast_type = 'R_L'
 df_cases_state_time = read_in_cases(data_date)
 Reff = read_in_Reff(forecast_R=forecast_type, file_date= data_date, VoC_flag = VoC_flag)
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
-n_sims = int(argv[1])
-start_date = argv[4]
 
-num_forecast_days = int(argv[2])
 data_date = pd.to_datetime(data_date,format="%Y-%m-%d")
 end_date = data_date + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
