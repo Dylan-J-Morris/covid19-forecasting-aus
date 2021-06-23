@@ -15,7 +15,7 @@ def read_in_NNDSS(date_string):
     from datetime import timedelta
     import glob
 
-    use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
+    use_linelist = False # If something goes wrong on a day you can set this to True to use the linelist
 
     if not use_linelist: 
         case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y")
@@ -67,7 +67,7 @@ def read_in_NNDSS(date_string):
         return df
 
 
-def read_in_Reff_file(file_date, VoC_flag=None):
+def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
     """
     Read in Reff h5 file produced by generate_RL_forecast. 
     Args:
@@ -79,18 +79,20 @@ def read_in_Reff_file(file_date, VoC_flag=None):
     if file_date is None:
         raise Exception('Need to provide file date to Reff read.')
 
-    file_date = pd.to_datetime(file_date).strftime("%Y-%m-%d") # Ensures correct date formatting
-    df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5', key='Reff')
+    file_date = pd.to_datetime(file_date).strftime("%Y-%m-%d")
+    df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+scenario+'.h5', key='Reff')
 
     if (VoC_flag != '') and (VoC_flag is not None):
         VoC_start_date  = pd.to_datetime('2021-05-01')
-        print('Applying VoC increase to Reff start from ', VoC_start_date)
         # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
         # We do so by editing a slice of the data frame. Forgive me for my sins.
         row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
         index_map = df_forecast.index[row_bool_to_apply_VoC]
         # Index 9 and onwards are the 2000 Reff samples.
         df_slice_after_VoC = df_forecast.iloc[index_map, 8:] 
-        df_forecast.iloc[index_map , 8:] = df_slice_after_VoC*(beta.rvs(6,14, size = df_slice_after_VoC.shape) + 1)
+        multiplier = beta.rvs(6,14, size = df_slice_after_VoC.shape) + 1
+        if VoC_flag == 'Delta':
+            multiplier *= 1.39
+        df_forecast.iloc[index_map , 8:] = df_slice_after_VoC*multiplier
 
     return df_forecast

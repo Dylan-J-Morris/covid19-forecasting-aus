@@ -21,7 +21,6 @@ locator = mdates.MonthLocator()
 df_google_all = read_in_google(Aus_only=True,moving=True,local=True)
 
 
-
 # Get survey data
 surveys = pd.DataFrame()
 path = "data/md/Barometer wave*.csv"
@@ -60,6 +59,13 @@ prop_all = survey_X
 data_date = pd.to_datetime(argv[1])
 print("Using data from", data_date)
 start_date = '2020-03-01'
+
+# Scenario modelling
+if len(argv) > 2:
+    scenario = argv[2]
+    scenario_change_point = 5
+else:
+    scenario = ''
 
 # Get posterior
 df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
@@ -175,28 +181,29 @@ for i,state in enumerate(states):
             new_forcast_points = np.maximum(minRmed, new_forcast_points)
             new_forcast_points = np.minimum(maxRmed, new_forcast_points)
 
-            ## SIMULATION MODELLING
+            # ## SIMULATION MODELLING
             # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
             if (state == "VIC") and len(argv)>2:
-                cov_baseline = np.cov(Rmed[-14:-7,:], rowvar=False) # Make baseline cov for generating points
-                mu_baseline = np.mean(Rmed[-14:-7,:], axis =0)
+                print('Scenario modelling being used for', state)
+                cov_baseline = np.cov(Rmed[-21:-14,:], rowvar=False) # Make baseline cov for generating points
+                mu_baseline = np.mean(Rmed[-21:-14,:], axis =0)
                 mu_current = Rmed[-1,:]
 
                 # Constant Lockdown
-                if argv[2] == "no reversion":
+                if scenario == "no_reversion":
                     new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
 
                 # No Lockdown
-                elif argv[2] == "full reversion":  
-                    if i < 9:
+                elif scenario == "full_reversion":  
+                    if i < scenario_change_point:
                         new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
                     else:
                         # Revert to values the week before lockdown started
                         new_forcast_points = np.random.multivariate_normal(mu_baseline, cov_baseline) 
 
                 # Temporary Lockdown
-                elif argv[2] == "half reversion":  # No Lockdown
-                    if i < 9:
+                elif scenario[:14] == "half_reversion":  # No Lockdown
+                    if i < scenario_change_point:
                         new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
                     else:
                         new_forcast_points = np.random.multivariate_normal((mu_current + mu_baseline)/2, cov_baseline) 
@@ -231,25 +238,26 @@ for i,state in enumerate(states):
         ## SIMULATION MODELLING
         # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
         if (state == "VIC") and len(argv)>2:
-            std_baseline = np.std(prop[state].values[-14:-7]) # Make baseline cov for generating points
-            mu_baseline = np.mean(prop[state].values[-14:-7], axis =0)
+            print('Scenario modelling being used for', state)
+            std_baseline = np.std(prop[state].values[-21:-14]) # Make baseline cov for generating points
+            mu_baseline = np.mean(prop[state].values[-21:-14], axis =0)
             mu_current =prop[state].values[-1]
 
             # Constant Lockdown
-            if argv[2] == "no reversion":
+            if scenario == "no_reversion":
                 current = np.random.normal(mu_current, std_baseline) 
 
             # No Lockdown
-            elif argv[2] == "full reversion":  
-                if i < 9:
+            elif scenario == "full_reversion":  
+                if i < scenario_change_point:
                     current = np.random.normal(mu_current, std_baseline) 
                 else:
                     # Revert to values the week before lockdown started
                     current = np.random.normal(mu_baseline, std_baseline) 
 
             # Temporary Lockdown
-            elif argv[2] == "half reversion":  # No Lockdown
-                if i < 9:
+            elif scenario == "half_reversion":  # No Lockdown
+                if i < scenario_change_point:
                     current = np.random.normal(mu_current, std_baseline) 
                 else:
                      # Revert to values halfway between the before and after
@@ -316,7 +324,7 @@ for i,state in enumerate(states):
 
     state_Rmed[state] = Rmed_array
     state_sims[state] = sims
-os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d"), exist_ok=True)
+os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario, exist_ok=True)
 for i,fig in enumerate(figs):
     fig.text(0.5, 0.02, 
     'Date', 
@@ -333,7 +341,7 @@ for i,fig in enumerate(figs):
         fontsize=15)
         fig.tight_layout(rect=[0.02,0.04,1,1])
         fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/"+str(predictors[i])+".png",dpi=144)
+            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+"/"+str(predictors[i])+scenario+".png",dpi=144)
 
 
     else:
@@ -344,7 +352,7 @@ for i,fig in enumerate(figs):
         fontsize=15)
         fig.tight_layout(rect=[0.02,0.04,1,1])
         fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/micro_dist.png",dpi=144)
+            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+"/micro_dist.png",dpi=144)
 
 df_out = pd.DataFrame.from_dict(outdata)
 
@@ -437,7 +445,7 @@ fig.text(0.5, 0.04,
     ha='center', va='center',
     fontsize=20)
 plt.tight_layout(rect=[0.05,0.04,1,1])
-fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/md_factor.png",dpi=144)
+fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+"/md_factor.png",dpi=144)
 
 
 df_R = df_R.sort_values('date')
@@ -743,8 +751,8 @@ fig.text(
     fontsize=20
 )
 plt.tight_layout(rect=[0.04,0.04,1,1])
-os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d"), exist_ok=True)
-plt.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/soc_mob_R_L_hats"+data_date.strftime('%Y-%m-%d')+".png",dpi=102)
+os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario, exist_ok=True)
+plt.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+"/soc_mob_R_L_hats"+data_date.strftime('%Y-%m-%d')+".png",dpi=102)
 
 df_Rhats = df_Rhats[['state','date','type','median',
 'bottom','lower','upper','top']+[i for i in range(2000)] ]
@@ -757,4 +765,4 @@ df_hdf = df_Rhats.loc[df_Rhats.type=='R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_I')&(df_Rhats.date=='2020-03-01')])
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_L0')&(df_Rhats.date=='2020-03-01')])
 #df_Rhats.to_csv('./soc_mob_R'+today+'.csv')
-df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5',key='Reff')
+df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+scenario+'.h5',key='Reff')

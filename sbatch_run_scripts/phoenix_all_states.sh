@@ -20,8 +20,9 @@ NSIMS=$1
 NDAYS=$2
 DATADATE=$3
 STARTDATE=$4
-VOCFLAG=$5
+VOCFLAG=$5 # Optional VoC Name
+SCENARIO=$6 # Optional scenario modelling flag
 
-python model/run_state.py $NSIMS $NDAYS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $STARTDATE $VOCFLAG 
+python model/run_state.py $NSIMS $NDAYS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $STARTDATE $VOCFLAG $SCENARIO
 
 deactivate

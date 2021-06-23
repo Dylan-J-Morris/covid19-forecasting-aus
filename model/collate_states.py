@@ -12,11 +12,16 @@ end_date = pd.to_datetime(argv[3],format="%Y-%m-%d") + pd.Timedelta(days=num_for
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
 
 # Add flag to create plots for VoCs
-VoC_name_flag = '' # Default value
+VoC_flag = '' # Default value
 if len(argv)>5:
-    if argv[5] == 'UK':
-        VoC_name_flag = 'VoC'
-        print('VoC being used in collate_states.py')
+    VoC_flag = argv[5]
+    print('VoC %s being used in collate_states.py' % VoC_flag)
+
+if len(argv) > 6:
+    # Add an optional scenario flag to load in specific Reff scenarios.
+    scenario = argv[6]
+else:
+    scenario = ''
 
 forecast_type= 'R_L' #formerly argv[3]
 
@@ -43,7 +48,7 @@ vars_l = ['symp_inci_obs','imports_inci_obs','asymp_inci_obs','symp_inci','asymp
 good_sims_by_state ={}
 for state in states:
     df_file = pd.read_parquet(
-            "./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"days_"+str(days)+VoC_name_flag+".parquet")
+            "./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
     df = df_file.loc[df_file.bad_sim==0] #take only the good sims for plotting
     df = df_file[[col.strftime('%Y-%m-%d') for 
                     col in dates]]
@@ -70,10 +75,10 @@ for state in states:
     good_sims_by_state[state] = df_file.loc[
         df_file.bad_sim==0].index.get_level_values("sim").unique().tolist()
 plots =pd.DataFrame.from_dict(dic_states)
-plots.to_parquet('./results/quantiles'+forecast_type+start_date+"sim_"+str(n_sims)+"days_"+str(days)+VoC_name_flag+".parquet")
+plots.to_parquet('./results/quantiles'+forecast_type+start_date+"sim_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
         
 with open( 
-    "./results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_name_flag+".json",'w' ) as file:
+    "./results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".json",'w' ) as file:
     json.dump(good_sims_by_state, file)
 
 import forecast_plots

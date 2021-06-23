@@ -42,9 +42,15 @@ R_I='R_I'
 abc =False
 
 # If no VoC specified, code will run without alterations.
-VoC_flag = None
+VoC_flag = ''
 if len(argv)>6:
     VoC_flag =  argv[6]
+
+if len(argv) > 7:
+    # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
+    scenario = argv[7]
+else:
+    scenario = ''
             
 local_detection = {
             'NSW':0.9,#0.556,#0.65,
@@ -154,7 +160,7 @@ for state in states:
         cross_border_state=XBstate,cases_file_date=case_file_date,
         ps_list = ps_prior, test_campaign_date=test_campaign_date, 
         test_campaign_factor=test_campaign_factor,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag
+        VoC_flag = VoC_flag, scenario=scenario
         )
     elif state in ['NSW']:
         forecast_dict[state] = Forecast(current[state],
@@ -165,7 +171,7 @@ for state in states:
         forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
         cross_border_state=None,cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag
+        VoC_flag = VoC_flag, scenario=scenario
         )
     elif state in ['ACT','NT','SA','WA','QLD']:
         forecast_dict[state] = Forecast(current[state],
@@ -176,7 +182,7 @@ for state in states:
         forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
         cross_border_state=None,cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag
+        VoC_flag = VoC_flag, scenario=scenario
         )
     else:
         forecast_dict[state] = Forecast(current[state],state,
@@ -187,7 +193,7 @@ for state in states:
         forecast_R = forecast_type , R_I = R_I,forecast_date=forecast_date,
         cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag
+        VoC_flag = VoC_flag, scenario=scenario
         )
 
 
