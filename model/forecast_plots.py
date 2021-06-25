@@ -124,7 +124,8 @@ def read_in_Reff(file_date, forecast_R=None, VoC_flag = '', scenario=''):
     import pandas as pd
     
     df_forecast = read_in_Reff_file(file_date, VoC_flag, scenario=scenario)
-        
+    df_forecast = df_forecast.loc[df_forecast.type==forecast_R]
+    df_forecast.set_index(['state','date'],inplace=True)
     return df_forecast
     
 def read_in_cases(cases_file_date):
