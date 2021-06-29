@@ -169,10 +169,10 @@ for i,state in enumerate(states):
             # if state == 'WA':  # Force return to baseline immediately
             #     p_force = 0 
             # else:
-            p_force = max((n_forecast-i-5)/(n_forecast), 0)
+            p_force = (n_forecast-i)/(n_forecast)
 
             trend_force = np.random.multivariate_normal(mu, cov) # Generate a single forward realisation of trend
-            regression_to_baseline_force = np.random.multivariate_normal(0.1*(R_baseline_mean - current), cov) # Generate a single forward realisation of baseline regression
+            regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov) # Generate a single forward realisation of baseline regression
                 
             new_forcast_points = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Find overall simulation step
             current = new_forcast_points
@@ -232,7 +232,7 @@ for i,state in enumerate(states):
     for i in range(n_forecast + extra_days_md):
         p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md) # Proportion of trend_force to regression_to_baseline_force
         trend_force = np.random.normal(mu_diffs, std_diffs, size=1000) # Generate step realisations in training trend direction
-        regression_to_baseline_force = np.random.normal(0.01*(mu_overall - current), std_diffs)  # Generate realisations that draw closer to baseline
+        regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)  # Generate realisations that draw closer to baseline
         current = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Balance forces
 
         ## SIMULATION MODELLING
