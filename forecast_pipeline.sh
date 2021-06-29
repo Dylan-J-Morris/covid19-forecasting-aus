@@ -17,7 +17,7 @@ echo "Alpha", $jid_alpha1, $jid_alpha2
 
 
 # Delta simulations
-jid_delta1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_posteriors,$jid_alpha1 sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Delta)
+jid_delta1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_posteriors sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Delta)
 jid_delta2=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_delta1 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Delta)
 echo "Delta", $jid_delta1, $jid_delta2
 
