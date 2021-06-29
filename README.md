@@ -17,7 +17,7 @@ Once all the data are in their corresponding folders, you can run this command t
 
 ```
 STARTDATE='2020-12-01' # Start date of forecast
-DATADATE='2021-06-21'  # Date of NNDSS data file
+DATADATE='2021-06-28'  # Date of NNDSS data file
 NDAYS=35 # Number of days after data date to forecast (usually 35)
 NSIMS=20000 # Total number of simulations to run
 
