@@ -918,7 +918,7 @@ class Forecast:
             self.cases_to_subtract = 0
             self.cases_to_subtract_now = 0
         #self.imported_total = sum(df.imported.values)
-        self.max_cases = max(10000,sum(df.local.values) + sum(df.imported.values))
+        self.max_cases = max(500000,sum(df.local.values) + sum(df.imported.values))
         self.max_backcast_cases = max(100,4*(sum(df.local.values) - self.cases_to_subtract))
 
         self.max_nowcast_cases = max(10, 1.5*(sum(df.local.values) - self.cases_to_subtract_now))
