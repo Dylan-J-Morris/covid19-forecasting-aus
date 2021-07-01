@@ -26,4 +26,5 @@ jid_base1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=aft
 jid_base2=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_base1 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE})
 echo "Base", $jid_base1, $jid_base2
 
-
+# Single state run (example)
+# jid_single=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_posteriors sbatch_run_scripts/phoenix_one_state.sh "TAS" ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE})
