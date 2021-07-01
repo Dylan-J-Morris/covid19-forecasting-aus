@@ -9,17 +9,16 @@ jid_estimator=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au sbatch_run_s
 jid_posteriors=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE})
 echo "Fitting", $jid_estimator, $jid_posteriors
 
+# Delta simulations
+jid_delta1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_posteriors sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Delta)
+jid_delta2=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_delta1 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Delta)
+echo "Delta", $jid_delta1, $jid_delta2
+
 
 # Alpha simulations
 jid_alpha1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_posteriors sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Alpha)
 jid_alpha2=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_alpha1 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Alpha)
 echo "Alpha", $jid_alpha1, $jid_alpha2
-
-
-# Delta simulations
-jid_delta1=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_posteriors sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Delta)
-jid_delta2=$(sbatch --parsable --mail-user=$USER@adelaide.edu.au --dependency=afterok:$jid_delta1 sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${NDAYS} ${DATADATE} ${STARTDATE} Delta)
-echo "Delta", $jid_delta1, $jid_delta2
 
 
 # Base simulations
