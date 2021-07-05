@@ -215,432 +215,422 @@ sm_pol_gamma = pystan.StanModel(
     model_name ='gamma_pol_state'
 )
 
-###Create dates
-try:
-    cprs_start_date = pd.to_datetime(argv[1])#2020-04-01')
-    cprs_end_date = pd.to_datetime(argv[1])#'2020-07-22')
-except:
-    print("Running full validation dates")
-    cprs_start_date = pd.to_datetime('2020-04-01')
-    cprs_end_date = pd.to_datetime('2020-10-07')
-cprs_all_dates = pd.date_range(cprs_start_date, cprs_end_date, freq='7D')
-cprs_dates = cprs_all_dates[cprs_all_dates!='2020-09-09']
+data_date = pd.to_datetime(argv[1]) # Define data date
+# note: 2020-09-09 won't work (for some reason)
 
+print(data_date)
+print(data_date.strftime('%d%b%Y'))
 
-for data_date in cprs_dates:
-    print(data_date)
-    print(data_date.strftime('%d%b%Y'))
-
-    df_Reff = pd.read_csv("results/EpyReff/Reff"+
-                data_date.strftime("%Y-%m-%d")+"tau_4.csv",parse_dates=['INFECTION_DATES'])
-    df_Reff['date'] = df_Reff.INFECTION_DATES
-    df_Reff['state'] = df_Reff.STATE
-    print('data loaded')
-    if data_date < pd.to_datetime('2020-06-02'):
-        #no leading zero on early dates
-        if data_date.day <10:
-            df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y')[1:])
-        else:
-            df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'))
+df_Reff = pd.read_csv("results/EpyReff/Reff"+
+            data_date.strftime("%Y-%m-%d")+"tau_4.csv",parse_dates=['INFECTION_DATES'])
+df_Reff['date'] = df_Reff.INFECTION_DATES
+df_Reff['state'] = df_Reff.STATE
+print('data loaded')
+if data_date < pd.to_datetime('2020-06-02'):
+    #no leading zero on early dates
+    if data_date.day <10:
+        df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y')[1:])
     else:
         df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'))
+else:
+    df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'))
 
-    print('cases loaded')
-    df_Reff = df_Reff.merge(df_state,how='left',left_on=['state','date'], right_on=['STATE','date_inferred']) #how = left to use Reff days, NNDSS missing dates
-    df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.rolling(7,1).mean()) #minimum number of 1
+print('cases loaded')
+df_Reff = df_Reff.merge(df_state,how='left',left_on=['state','date'], right_on=['STATE','date_inferred']) #how = left to use Reff days, NNDSS missing dates
+df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.rolling(7,1).mean()) #minimum number of 1
 
-    #some days have no cases, so need to fillna
-    df_Reff['rho_moving'] = df_Reff.rho_moving.fillna(method='bfill')
-
-
-    #shift counts to align with infection date not symptom date
-    # dates should be complete at this point, no days skipped
-    # will be some end days with NaN, but that should be fine since
-    # we don't use the most recent 10 days
-    df_Reff['local'] = df_Reff.local.shift(periods=-5)
-    df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
-    df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
-    df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
-    df_Reff['local'] = df_Reff.local.fillna(0)
-    df_Reff['imported'] = df_Reff.imported.fillna(0)
-    #Add Insight traffic
-    #df_ai = read_AddInsight()
-
-    df_google = read_in_google(local=True,moving=True)
-
-    df= df_google.merge(df_Reff[['date','state','mean','lower','upper',
-                                'top','bottom','std','rho','rho_moving','local','imported']], on=['date','state'],how='inner')
-
-    ##### Create useable dataset
-    ## ACT and NT not in original estimates, need to extrapolated
-    states_to_fit = sorted(['NSW','VIC','QLD','SA','WA','TAS']) #sorting keeps consistent with sort in data_by_state
-    fit_post_March = True
-    ban = '2020-03-20'
-    start_date = '2020-03-01'
-    end_date = '2020-03-31'
-
-    ##Second wave inputs
-    sec_states=sorted(['NSW'])
-    sec_start_date = '2020-06-01'
-    sec_end_date = '2021-01-19'
-
-    # Setting a fixed end date to the second wave
-    # if data_date > pd.to_datetime("2020-06-12"):
-    #     possible_end_date = data_date - timedelta(10)#subtract 10 days to aovid right truncation
-    # else:
-    #     possible_end_date = pd.to_datetime("2020-06-01")
-    # sec_end_date = possible_end_date.strftime('%Y-%m-%d')
-    #min('2020-08-14',possible_end_date.strftime('%Y-%m-%d')) #all we have for now
-
-    fit_mask = df.state.isin(states_to_fit)
-    if fit_post_March:
-        fit_mask = (fit_mask) & (df.date >= start_date)
-
-    fit_mask = (fit_mask) & (df.date <= end_date )
-
-    second_wave_mask = df.state.isin(sec_states)
-    second_wave_mask = (second_wave_mask) & (df.date >= sec_start_date)
-    second_wave_mask = (second_wave_mask) & (df.date <= sec_end_date)
+#some days have no cases, so need to fillna
+df_Reff['rho_moving'] = df_Reff.rho_moving.fillna(method='bfill')
 
 
-    predictors = mov_values.copy()
-    #predictors.extend(['driving_7days','transit_7days','walking_7days','pc'])
+#shift counts to align with infection date not symptom date
+# dates should be complete at this point, no days skipped
+# will be some end days with NaN, but that should be fine since
+# we don't use the most recent 10 days
+df_Reff['local'] = df_Reff.local.shift(periods=-5)
+df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
+df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
+df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
+df_Reff['local'] = df_Reff.local.fillna(0)
+df_Reff['imported'] = df_Reff.imported.fillna(0)
+#Add Insight traffic
+#df_ai = read_AddInsight()
 
-    #remove residential to see if it improves fit
-    predictors.remove('residential_7days')
+df_google = read_in_google(local=True,moving=True)
 
-    df['post_policy'] = (df.date >= ban).astype(int)
+df= df_google.merge(df_Reff[['date','state','mean','lower','upper',
+                            'top','bottom','std','rho','rho_moving','local','imported']], on=['date','state'],how='inner')
 
-    dfX = df.loc[fit_mask].sort_values('date')
-    df2X = df.loc[second_wave_mask].sort_values('date')
+##### Create useable dataset
+## ACT and NT not in original estimates, need to extrapolated
+states_to_fit = sorted(['NSW','VIC','QLD','SA','WA','TAS']) #sorting keeps consistent with sort in data_by_state
+fit_post_March = True
+ban = '2020-03-20'
+start_date = '2020-03-01'
+end_date = '2020-03-31'
 
-    #filter out the surveys we don't have
-    if df2X.shape[0]>0:
-        survey_respond = survey_respond_base.loc[:df2X.date.values[-1]]
-        survey_counts = survey_counts_base.loc[:df2X.date.values[-1]]
+##Second wave inputs
+sec_states=sorted(['NSW'])
+sec_start_date = '2020-06-01'
+sec_end_date = '2021-01-19'
+
+# Setting a fixed end date to the second wave
+# if data_date > pd.to_datetime("2020-06-12"):
+#     possible_end_date = data_date - timedelta(10)#subtract 10 days to aovid right truncation
+# else:
+#     possible_end_date = pd.to_datetime("2020-06-01")
+# sec_end_date = possible_end_date.strftime('%Y-%m-%d')
+#min('2020-08-14',possible_end_date.strftime('%Y-%m-%d')) #all we have for now
+
+fit_mask = df.state.isin(states_to_fit)
+if fit_post_March:
+    fit_mask = (fit_mask) & (df.date >= start_date)
+
+fit_mask = (fit_mask) & (df.date <= end_date )
+
+second_wave_mask = df.state.isin(sec_states)
+second_wave_mask = (second_wave_mask) & (df.date >= sec_start_date)
+second_wave_mask = (second_wave_mask) & (df.date <= sec_end_date)
+
+
+predictors = mov_values.copy()
+#predictors.extend(['driving_7days','transit_7days','walking_7days','pc'])
+
+#remove residential to see if it improves fit
+predictors.remove('residential_7days')
+
+df['post_policy'] = (df.date >= ban).astype(int)
+
+dfX = df.loc[fit_mask].sort_values('date')
+df2X = df.loc[second_wave_mask].sort_values('date')
+
+#filter out the surveys we don't have
+if df2X.shape[0]>0:
+    survey_respond = survey_respond_base.loc[:df2X.date.values[-1]]
+    survey_counts = survey_counts_base.loc[:df2X.date.values[-1]]
+else:
+    survey_respond = survey_respond_base.loc[:dfX.date.values[-1]]
+    survey_counts = survey_counts_base.loc[:dfX.date.values[-1]]
+
+#choose dates for each state for sec wave
+sec_date_range = {
+    'NSW':pd.date_range(start=sec_start_date,end=sec_end_date).values,
+    # 'VIC':pd.date_range(start=sec_start_date,end='2020-10-28').values
+}
+df2X['is_sec_wave'] =0
+for state in sec_states:
+    df2X.loc[df2X.state==state,'is_sec_wave'] = df2X.loc[df2X.state==state].date.isin(
+        sec_date_range[state]
+        ).astype(int).values
+        
+data_by_state= {}
+sec_data_by_state={}
+for value in ['mean','std','local','imported']:
+    data_by_state[value] = pd.pivot(dfX[['state',value,'date']],
+                        index='date',columns='state',values=value).sort_index(
+        axis='columns')
+    sec_data_by_state[value] = pd.pivot(df2X[['state',value,'date']],
+                        index='date',columns='state',values=value).sort_index(
+        axis='columns')
+        #account for dates pre second wave
+    if df2X.loc[df2X.state==sec_states[0]].shape[0]==0:
+        print("making empty")
+        sec_data_by_state[value] = pd.DataFrame(columns=sec_states).astype(float)
+
+mobility_by_state =[]
+mobility_std_by_state=[]
+count_by_state =[]
+respond_by_state=[]
+
+#FIRST PHASE
+for state in states_to_fit:
+
+    mobility_by_state.append(dfX.loc[dfX.state==state, predictors].values/100)
+    mobility_std_by_state.append(
+        dfX.loc[dfX.state==state,[val+'_std' for val in predictors]].values/100
+    )
+    count_by_state.append(survey_counts.loc[start_date:end_date,state].values)
+    respond_by_state.append(survey_respond.loc[start_date:end_date,state].values)
+
+sec_mobility_by_state =[]
+sec_mobility_std_by_state=[]
+sec_count_by_state=[]
+sec_respond_by_state=[]
+include_in_sec_wave=[]
+#SECOND PHASE
+for state in sec_states:
+
+    sec_mobility_by_state.append(df2X.loc[df2X.state==state, predictors].values/100)
+    sec_mobility_std_by_state.append(
+        df2X.loc[df2X.state==state,[val+'_std' for val in predictors]].values/100
+    )
+    sec_count_by_state.append(survey_counts.loc[sec_start_date:sec_end_date,state].values)
+    sec_respond_by_state.append(survey_respond.loc[sec_start_date:sec_end_date,state].values)
+    include_in_sec_wave.append(df2X.loc[df2X.state==state,'is_sec_wave'].values)
+policy_v = [1]*df2X.loc[df2X.state==sec_states[0]].shape[0]
+policy = dfX.loc[dfX.state==states_to_fit[0],'post_policy']
+
+
+state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
+##Make state by state arrays
+input_data ={
+    'N': dfX.loc[dfX.state==states_to_fit[0]].shape[0],
+    'K': len(predictors),
+    'j':len(states_to_fit),
+    'Reff': data_by_state['mean'].values,
+    'Mob': mobility_by_state,
+    'Mob_std':mobility_std_by_state,
+    'sigma2': data_by_state['std'].values**2,
+    'policy': policy.values,
+    'local':data_by_state['local'].values,
+    'imported':data_by_state['imported'].values,
+
+    'N_v': df2X.loc[df2X.state==sec_states[0]].shape[0],
+    'j_v': len(sec_states),
+    'Reff_v': sec_data_by_state['mean'].values,
+    'Mob_v': sec_mobility_by_state,
+    'Mob_v_std':sec_mobility_std_by_state,
+    'sigma2_v': sec_data_by_state['std'].values**2,
+    'policy_v': policy_v,
+    'local_v':sec_data_by_state['local'].values,
+    'imported_v':sec_data_by_state['imported'].values,
+
+    'count_md':count_by_state,
+    'respond_md':respond_by_state,
+    'count_md_v':sec_count_by_state,
+    'respond_md_v':sec_respond_by_state,
+    'map_to_state_index': [state_index[state] for state in sec_states],
+    'total_N_pv':sum( [sum(x) for x in include_in_sec_wave]),
+    'include_in_sec_wave': include_in_sec_wave,
+    'pos_starts': np.cumsum([sum(x) for x in include_in_sec_wave])
+}
+
+fit = sm_pol_gamma.sampling(
+    data=input_data,
+    iter=iterations,
+    chains=chains,
+    #control={'max_treedepth':15}
+)
+
+#make results dir
+results_dir ="figs/soc_mob_posterior/"
+os.makedirs(results_dir,exist_ok=True)
+
+filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
+with open(results_dir+filename, 'w') as f:
+    print(fit.stansummary(pars=['bet','R_I','R_L','R_Li','theta_md','sig']), file=f)
+samples_mov_gamma = fit.to_dataframe(pars=['bet','R_I','R_L','R_Li','sig','brho','theta_md','brho_v'])
+
+# Plot ratio of imported to total cases
+# First phase
+#rho calculated at data entry
+if isinstance(df_state.index, pd.MultiIndex):
+    df_state = df_state.reset_index()
+
+
+states=sorted(['NSW','QLD','VIC','TAS','SA','WA','ACT','NT'])
+fig,ax = plt.subplots(figsize=(24,9), ncols=len(states),sharey=True)
+states_to_fitd = {state: i+1 for i,state in enumerate(states_to_fit)      }
+
+for i, state in enumerate(states):
+    if state in states_to_fit:
+        dates = df_Reff.loc[(df_Reff.date>=start_date) &
+                            (df_Reff.state==state)&(df_Reff.date<=end_date)].date
+        rho_samples = samples_mov_gamma[['brho['+str(j+1)+','+str(states_to_fitd[state])+']' for j in range(dfX.loc[dfX.state==states_to_fit[0]].shape[0])]]
+        ax[i].plot(dates, rho_samples.median(),label='fit',color='C0')
+        ax[i].fill_between(dates, rho_samples.quantile(0.25),rho_samples.quantile(0.75),color='C0',alpha=0.4)
+
+        ax[i].fill_between(dates, rho_samples.quantile(0.05),rho_samples.quantile(0.95),color='C0',alpha=0.4)
     else:
-        survey_respond = survey_respond_base.loc[:dfX.date.values[-1]]
-        survey_counts = survey_counts_base.loc[:dfX.date.values[-1]]
+        sns.lineplot(x='date_inferred',y='rho',
+            data=df_state.loc[(df_state.date_inferred>=start_date) & (df_state.STATE==state)&(df_state.date_inferred<=end_date)], ax=ax[i],color='C1',label='data')
+    sns.lineplot(x='date',y='rho',
+            data=df_Reff.loc[(df_Reff.date>=start_date) & (df_Reff.state==state)&(df_Reff.date<=end_date)], ax=ax[i],color='C1',label='data')
+    sns.lineplot(x='date',y='rho_moving',
+            data=df_Reff.loc[(df_Reff.date>=start_date) & (df_Reff.state==state)&(df_Reff.date<=end_date)], ax=ax[i],color='C2',label='moving')
 
-    #choose dates for each state for sec wave
-    sec_date_range = {
-        'NSW':pd.date_range(start=sec_start_date,end=sec_end_date).values,
-        # 'VIC':pd.date_range(start=sec_start_date,end='2020-10-28').values
-    }
-    df2X['is_sec_wave'] =0
+    dates = dfX.loc[dfX.state==states_to_fit[0]].date
+
+    ax[i].tick_params('x',rotation=20)
+    ax[i].xaxis.set_major_locator(plt.MaxNLocator(4))
+    ax[i].set_title(state)
+ax[0].set_ylabel('Proportion of imported cases')
+plt.legend()
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"rho_first_phase.png",dpi = 144)
+
+# Second phase
+if df2X.shape[0]>0:
+    fig,ax = plt.subplots(figsize=(24,9), ncols=len(sec_states),sharey=True, squeeze=False)
+    states_to_fitd = {state: i+1 for i,state in enumerate(sec_states)      }
+    pos = 1
+    for i, state in enumerate(sec_states):
+        #Google mobility only up to a certain date, so take only up to that value
+        dates = df2X.loc[(df2X.state==state)&(
+            df2X.is_sec_wave==1
+        )].date.values
+        #df_Reff.loc[(df_Reff.date>=sec_start_date) &
+        #                    (df_Reff.state==state)&(df_Reff.date<=sec_end_date)].date
+        rho_samples = samples_mov_gamma[
+            ['brho_v['+str(j)+']'
+            for j in range(pos, pos+df2X.loc[df2X.state==state].is_sec_wave.sum() ) ]
+            ]
+        pos = pos + df2X.loc[df2X.state==state].is_sec_wave.sum()
+
+        ax[0,i].plot(dates, rho_samples.median(),label='fit',color='C0')
+        ax[0,i].fill_between(dates, rho_samples.quantile(0.25),rho_samples.quantile(0.75),color='C0',alpha=0.4)
+
+        ax[0,i].fill_between(dates, rho_samples.quantile(0.05),rho_samples.quantile(0.95),color='C0',alpha=0.4)
+
+        sns.lineplot(x='date_inferred',y='rho',
+            data=df_state.loc[(df_state.date_inferred>=sec_start_date) & (df_state.STATE==state)&(df_state.date_inferred<=sec_end_date)], ax=ax[0,i],color='C1',label='data')
+        sns.lineplot(x='date',y='rho',
+                data=df_Reff.loc[(df_Reff.date>=sec_start_date) & (df_Reff.state==state)&(df_Reff.date<=sec_end_date)], ax=ax[0,i],color='C1',label='data')
+        sns.lineplot(x='date',y='rho_moving',
+                data=df_Reff.loc[(df_Reff.date>=sec_start_date) & (df_Reff.state==state)&(df_Reff.date<=sec_end_date)], ax=ax[0,i],color='C2',label='moving')
+
+        dates = dfX.loc[dfX.state==sec_states[0]].date
+
+        ax[0,i].tick_params('x',rotation=20)
+        ax[0,i].xaxis.set_major_locator(plt.MaxNLocator(4))
+        ax[0,i].set_title(state)
+    ax[0,0].set_ylabel('Proportion of imported cases')
+    plt.legend()
+    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"rho_sec_phase.png",dpi = 144)
+
+#plot marginal distributions
+fig,ax = plt.subplots(figsize=(12,9))
+samples_mov_gamma['R_L_prior'] = np.random.gamma(
+1.8*1.8/0.05,0.05/1.8, size=samples_mov_gamma.shape[0])
+
+samples_mov_gamma['R_I_prior'] = np.random.gamma(
+0.5**2/0.2, .2/0.5, size=samples_mov_gamma.shape[0])
+
+samples_mov_gamma['R_L_national'] = np.random.gamma(
+    samples_mov_gamma.R_L.values **2/ samples_mov_gamma.sig.values,
+    samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values
+)
+df_R_values = pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]])
+print(df_R_values.variable.unique())
+sns.violinplot(x='variable',y='value',
+            data=pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]]),
+            ax=ax,
+            cut=0)
+
+ax.set_yticks([1],minor=True,)
+ax.set_yticks([0,2,3],minor=False)
+ax.set_yticklabels([0,2,3],minor=False)
+ax.set_ylim((0,3))
+#state labels in alphabetical
+ax.set_xticklabels(['R_I','R_L0 mean',
+'R_L0 NSW','R_L0 QLD','R_L0 SA','R_L0 TAS','R_L0 VIC','R_L0 WA',#'R_temp',
+'R_L0 prior','R_I prior','R_L0 national'])
+ax.set_xlabel('')
+ax.set_ylabel('Effective reproduction number')
+ax.tick_params('x',rotation=90)
+ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
+plt.tight_layout()
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png",dpi = 144)
+
+# Making a new figure that doesn't include the priors
+fig,ax = plt.subplots(figsize=(12,9))
+
+small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 'R_I']
+
+sns.violinplot(x='variable',y='value',
+            data=pd.melt(samples_mov_gamma[small_plot_cols]),
+            ax=ax,
+            cut=0)
+
+ax.set_yticks([1],minor=True,)
+ax.set_yticks([0,2,3],minor=False)
+ax.set_yticklabels([0,2,3],minor=False)
+ax.set_ylim((0,3))
+#state labels in alphabetical
+ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$',])
+ax.tick_params('x',rotation=90)
+ax.set_xlabel('')
+ax.set_ylabel('Effective reproduction number')
+ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
+plt.tight_layout()
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors).png",dpi = 288)
+
+
+posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]
+                            ]
+
+split=True
+md = 'power'#samples_mov_gamma.md.values
+
+posterior.columns = [val for val in predictors]
+long = pd.melt(posterior)
+
+fig,ax2 =plt.subplots(figsize=(12,9))
+
+ax2 = sns.violinplot(x='variable',y='value',#hue='policy',
+                    data=long,
+                    ax=ax2,
+                    color='C0'
+                )
+
+
+ax2.plot([0]*len(predictors), linestyle='dashed',alpha=0.6, color = 'grey')
+ax2.tick_params(axis='x',rotation=90)
+
+#ax =plot_posterior_violin(posterior)
+
+ax2.set_title('Coefficients of mobility indices')
+ax2.set_xlabel('Social mobility index')
+ax2.set_xticklabels([var[:-6] for var in predictors])
+ax2.set_xticklabels(['Retail and Recreation','Grocery and Pharmacy', 'Parks', 'Transit Stations', 'Workplaces'])
+ax2.tick_params('x',rotation=15)
+plt.tight_layout()
+
+plt.savefig(
+    results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi =288)
+
+
+RL_by_state = { state: samples_mov_gamma[
+    'R_Li['+str(i)+']'].values for state, i in state_index.items()
+}
+ax3 =predict_plot(samples_mov_gamma,df.loc[(df.date>=start_date)&(df.date<=end_date)],gamma=True,
+                moving=True,split=split,grocery=True,ban = ban,
+                R=RL_by_state, var= True, md_arg=md,
+                rho=states_to_fit, R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[start_date:end_date])#by states....
+for ax in ax3:
+    for a in ax:
+        a.set_ylim((0,3))
+        #a.set_xlim((start_date,end_date))
+plt.savefig(
+    results_dir+data_date.strftime("%Y-%m-%d")+"total_Reff_allstates.png", dpi=144)
+
+if df2X.shape[0]>0:
+    df['is_sec_wave'] =0
     for state in sec_states:
-        df2X.loc[df2X.state==state,'is_sec_wave'] = df2X.loc[df2X.state==state].date.isin(
+        df.loc[df.state==state,'is_sec_wave'] = df.loc[df.state==state].date.isin(
             sec_date_range[state]
             ).astype(int).values
-            
-    data_by_state= {}
-    sec_data_by_state={}
-    for value in ['mean','std','local','imported']:
-        data_by_state[value] = pd.pivot(dfX[['state',value,'date']],
-                            index='date',columns='state',values=value).sort_index(
-            axis='columns')
-        sec_data_by_state[value] = pd.pivot(df2X[['state',value,'date']],
-                            index='date',columns='state',values=value).sort_index(
-            axis='columns')
-            #account for dates pre second wave
-        if df2X.loc[df2X.state==sec_states[0]].shape[0]==0:
-            print("making empty")
-            sec_data_by_state[value] = pd.DataFrame(columns=sec_states).astype(float)
-
-    mobility_by_state =[]
-    mobility_std_by_state=[]
-    count_by_state =[]
-    respond_by_state=[]
-
-    #FIRST PHASE
-    for state in states_to_fit:
-
-        mobility_by_state.append(dfX.loc[dfX.state==state, predictors].values/100)
-        mobility_std_by_state.append(
-            dfX.loc[dfX.state==state,[val+'_std' for val in predictors]].values/100
-        )
-        count_by_state.append(survey_counts.loc[start_date:end_date,state].values)
-        respond_by_state.append(survey_respond.loc[start_date:end_date,state].values)
-
-    sec_mobility_by_state =[]
-    sec_mobility_std_by_state=[]
-    sec_count_by_state=[]
-    sec_respond_by_state=[]
-    include_in_sec_wave=[]
-    #SECOND PHASE
-    for state in sec_states:
-
-        sec_mobility_by_state.append(df2X.loc[df2X.state==state, predictors].values/100)
-        sec_mobility_std_by_state.append(
-            df2X.loc[df2X.state==state,[val+'_std' for val in predictors]].values/100
-        )
-        sec_count_by_state.append(survey_counts.loc[sec_start_date:sec_end_date,state].values)
-        sec_respond_by_state.append(survey_respond.loc[sec_start_date:sec_end_date,state].values)
-        include_in_sec_wave.append(df2X.loc[df2X.state==state,'is_sec_wave'].values)
-    policy_v = [1]*df2X.loc[df2X.state==sec_states[0]].shape[0]
-    policy = dfX.loc[dfX.state==states_to_fit[0],'post_policy']
-
-
-    state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
-    ##Make state by state arrays
-    input_data ={
-        'N': dfX.loc[dfX.state==states_to_fit[0]].shape[0],
-        'K': len(predictors),
-        'j':len(states_to_fit),
-        'Reff': data_by_state['mean'].values,
-        'Mob': mobility_by_state,
-        'Mob_std':mobility_std_by_state,
-        'sigma2': data_by_state['std'].values**2,
-        'policy': policy.values,
-        'local':data_by_state['local'].values,
-        'imported':data_by_state['imported'].values,
-
-        'N_v': df2X.loc[df2X.state==sec_states[0]].shape[0],
-        'j_v': len(sec_states),
-        'Reff_v': sec_data_by_state['mean'].values,
-        'Mob_v': sec_mobility_by_state,
-        'Mob_v_std':sec_mobility_std_by_state,
-        'sigma2_v': sec_data_by_state['std'].values**2,
-        'policy_v': policy_v,
-        'local_v':sec_data_by_state['local'].values,
-        'imported_v':sec_data_by_state['imported'].values,
-
-        'count_md':count_by_state,
-        'respond_md':respond_by_state,
-        'count_md_v':sec_count_by_state,
-        'respond_md_v':sec_respond_by_state,
-        'map_to_state_index': [state_index[state] for state in sec_states],
-        'total_N_pv':sum( [sum(x) for x in include_in_sec_wave]),
-        'include_in_sec_wave': include_in_sec_wave,
-        'pos_starts': np.cumsum([sum(x) for x in include_in_sec_wave])
-    }
-
-    fit = sm_pol_gamma.sampling(
-        data=input_data,
-        iter=iterations,
-        chains=chains,
-        #control={'max_treedepth':15}
-    )
-
-    #make results dir
-    results_dir ="figs/soc_mob_posterior/"
-    os.makedirs(results_dir,exist_ok=True)
-
-    filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
-    with open(results_dir+filename, 'w') as f:
-        print(fit.stansummary(pars=['bet','R_I','R_L','R_Li','theta_md','sig']), file=f)
-    samples_mov_gamma = fit.to_dataframe(pars=['bet','R_I','R_L','R_Li','sig','brho','theta_md','brho_v'])
-
-    # Plot ratio of imported to total cases
-    # First phase
-    #rho calculated at data entry
-    if isinstance(df_state.index, pd.MultiIndex):
-        df_state = df_state.reset_index()
-
-
-    states=sorted(['NSW','QLD','VIC','TAS','SA','WA','ACT','NT'])
-    fig,ax = plt.subplots(figsize=(24,9), ncols=len(states),sharey=True)
-    states_to_fitd = {state: i+1 for i,state in enumerate(states_to_fit)      }
-
-    for i, state in enumerate(states):
-        if state in states_to_fit:
-            dates = df_Reff.loc[(df_Reff.date>=start_date) &
-                                (df_Reff.state==state)&(df_Reff.date<=end_date)].date
-            rho_samples = samples_mov_gamma[['brho['+str(j+1)+','+str(states_to_fitd[state])+']' for j in range(dfX.loc[dfX.state==states_to_fit[0]].shape[0])]]
-            ax[i].plot(dates, rho_samples.median(),label='fit',color='C0')
-            ax[i].fill_between(dates, rho_samples.quantile(0.25),rho_samples.quantile(0.75),color='C0',alpha=0.4)
-
-            ax[i].fill_between(dates, rho_samples.quantile(0.05),rho_samples.quantile(0.95),color='C0',alpha=0.4)
-        else:
-            sns.lineplot(x='date_inferred',y='rho',
-                data=df_state.loc[(df_state.date_inferred>=start_date) & (df_state.STATE==state)&(df_state.date_inferred<=end_date)], ax=ax[i],color='C1',label='data')
-        sns.lineplot(x='date',y='rho',
-                data=df_Reff.loc[(df_Reff.date>=start_date) & (df_Reff.state==state)&(df_Reff.date<=end_date)], ax=ax[i],color='C1',label='data')
-        sns.lineplot(x='date',y='rho_moving',
-                data=df_Reff.loc[(df_Reff.date>=start_date) & (df_Reff.state==state)&(df_Reff.date<=end_date)], ax=ax[i],color='C2',label='moving')
-
-        dates = dfX.loc[dfX.state==states_to_fit[0]].date
-
-        ax[i].tick_params('x',rotation=20)
-        ax[i].xaxis.set_major_locator(plt.MaxNLocator(4))
-        ax[i].set_title(state)
-    ax[0].set_ylabel('Proportion of imported cases')
-    plt.legend()
-    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"rho_first_phase.png",dpi = 144)
-
-    # Second phase
-    if df2X.shape[0]>0:
-        fig,ax = plt.subplots(figsize=(24,9), ncols=len(sec_states),sharey=True, squeeze=False)
-        states_to_fitd = {state: i+1 for i,state in enumerate(sec_states)      }
-        pos = 1
-        for i, state in enumerate(sec_states):
-            #Google mobility only up to a certain date, so take only up to that value
-            dates = df2X.loc[(df2X.state==state)&(
-                df2X.is_sec_wave==1
-            )].date.values
-            #df_Reff.loc[(df_Reff.date>=sec_start_date) &
-            #                    (df_Reff.state==state)&(df_Reff.date<=sec_end_date)].date
-            rho_samples = samples_mov_gamma[
-                ['brho_v['+str(j)+']'
-                for j in range(pos, pos+df2X.loc[df2X.state==state].is_sec_wave.sum() ) ]
-                ]
-            pos = pos + df2X.loc[df2X.state==state].is_sec_wave.sum()
-
-            ax[0,i].plot(dates, rho_samples.median(),label='fit',color='C0')
-            ax[0,i].fill_between(dates, rho_samples.quantile(0.25),rho_samples.quantile(0.75),color='C0',alpha=0.4)
-
-            ax[0,i].fill_between(dates, rho_samples.quantile(0.05),rho_samples.quantile(0.95),color='C0',alpha=0.4)
-
-            sns.lineplot(x='date_inferred',y='rho',
-                data=df_state.loc[(df_state.date_inferred>=sec_start_date) & (df_state.STATE==state)&(df_state.date_inferred<=sec_end_date)], ax=ax[0,i],color='C1',label='data')
-            sns.lineplot(x='date',y='rho',
-                    data=df_Reff.loc[(df_Reff.date>=sec_start_date) & (df_Reff.state==state)&(df_Reff.date<=sec_end_date)], ax=ax[0,i],color='C1',label='data')
-            sns.lineplot(x='date',y='rho_moving',
-                    data=df_Reff.loc[(df_Reff.date>=sec_start_date) & (df_Reff.state==state)&(df_Reff.date<=sec_end_date)], ax=ax[0,i],color='C2',label='moving')
-
-            dates = dfX.loc[dfX.state==sec_states[0]].date
-
-            ax[0,i].tick_params('x',rotation=20)
-            ax[0,i].xaxis.set_major_locator(plt.MaxNLocator(4))
-            ax[0,i].set_title(state)
-        ax[0,0].set_ylabel('Proportion of imported cases')
-        plt.legend()
-        plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"rho_sec_phase.png",dpi = 144)
-
-    #plot marginal distributions
-    fig,ax = plt.subplots(figsize=(12,9))
-    samples_mov_gamma['R_L_prior'] = np.random.gamma(
-    1.8*1.8/0.05,0.05/1.8, size=samples_mov_gamma.shape[0])
-
-    samples_mov_gamma['R_I_prior'] = np.random.gamma(
-    0.5**2/0.2, .2/0.5, size=samples_mov_gamma.shape[0])
-
-    samples_mov_gamma['R_L_national'] = np.random.gamma(
-        samples_mov_gamma.R_L.values **2/ samples_mov_gamma.sig.values,
-        samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values
-    )
-    df_R_values = pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]])
-    print(df_R_values.variable.unique())
-    sns.violinplot(x='variable',y='value',
-                data=pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]]),
-                ax=ax,
-                cut=0)
-
-    ax.set_yticks([1],minor=True,)
-    ax.set_yticks([0,2,3],minor=False)
-    ax.set_yticklabels([0,2,3],minor=False)
-    ax.set_ylim((0,3))
-    #state labels in alphabetical
-    ax.set_xticklabels(['R_I','R_L0 mean',
-    'R_L0 NSW','R_L0 QLD','R_L0 SA','R_L0 TAS','R_L0 VIC','R_L0 WA',#'R_temp',
-    'R_L0 prior','R_I prior','R_L0 national'])
-    ax.set_xlabel('')
-    ax.set_ylabel('Effective reproduction number')
-    ax.tick_params('x',rotation=90)
-    ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
-    plt.tight_layout()
-    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png",dpi = 144)
-
-    # Making a new figure that doesn't include the priors
-    fig,ax = plt.subplots(figsize=(12,9))
-
-    small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 'R_I']
-
-    sns.violinplot(x='variable',y='value',
-                data=pd.melt(samples_mov_gamma[small_plot_cols]),
-                ax=ax,
-                cut=0)
-
-    ax.set_yticks([1],minor=True,)
-    ax.set_yticks([0,2,3],minor=False)
-    ax.set_yticklabels([0,2,3],minor=False)
-    ax.set_ylim((0,3))
-    #state labels in alphabetical
-    ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$',])
-    ax.tick_params('x',rotation=90)
-    ax.set_xlabel('')
-    ax.set_ylabel('Effective reproduction number')
-    ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
-    plt.tight_layout()
-    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors).png",dpi = 288)
-
-
-    posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]
-                                ]
-
-    split=True
-    md = 'power'#samples_mov_gamma.md.values
-
-    posterior.columns = [val for val in predictors]
-    long = pd.melt(posterior)
-
-    fig,ax2 =plt.subplots(figsize=(12,9))
-
-    ax2 = sns.violinplot(x='variable',y='value',#hue='policy',
-                        data=long,
-                        ax=ax2,
-                        color='C0'
-                    )
-
-
-    ax2.plot([0]*len(predictors), linestyle='dashed',alpha=0.6, color = 'grey')
-    ax2.tick_params(axis='x',rotation=90)
-
-    #ax =plot_posterior_violin(posterior)
-
-    ax2.set_title('Coefficients of mobility indices')
-    ax2.set_xlabel('Social mobility index')
-    ax2.set_xticklabels([var[:-6] for var in predictors])
-    ax2.set_xticklabels(['Retail and Recreation','Grocery and Pharmacy', 'Parks', 'Transit Stations', 'Workplaces'])
-    ax2.tick_params('x',rotation=15)
-    plt.tight_layout()
-
-    plt.savefig(
-        results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi =288)
-
-
-    RL_by_state = { state: samples_mov_gamma[
-        'R_Li['+str(i)+']'].values for state, i in state_index.items()
-    }
-    ax3 =predict_plot(samples_mov_gamma,df.loc[(df.date>=start_date)&(df.date<=end_date)],gamma=True,
-                    moving=True,split=split,grocery=True,ban = ban,
+    #plot only if there is second phase data
+    ax4 =predict_plot(samples_mov_gamma,df.loc[(df.date>=sec_start_date)&(df.date<=sec_end_date)],gamma=True, moving=True,split=split,grocery=True,ban = ban,
                     R=RL_by_state, var= True, md_arg=md,
-                    rho=states_to_fit, R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[start_date:end_date])#by states....
-    for ax in ax3:
+                    rho=sec_states, second_phase=True,
+                    R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[sec_start_date:sec_end_date])#by states....
+    for ax in ax4:
         for a in ax:
             a.set_ylim((0,3))
             #a.set_xlim((start_date,end_date))
     plt.savefig(
-        results_dir+data_date.strftime("%Y-%m-%d")+"total_Reff_allstates.png", dpi=144)
+        results_dir+data_date.strftime("%Y-%m-%d")+"Reff_sec_phase.png", dpi=144)
 
-    if df2X.shape[0]>0:
-        df['is_sec_wave'] =0
-        for state in sec_states:
-            df.loc[df.state==state,'is_sec_wave'] = df.loc[df.state==state].date.isin(
-                sec_date_range[state]
-                ).astype(int).values
-        #plot only if there is second phase data
-        ax4 =predict_plot(samples_mov_gamma,df.loc[(df.date>=sec_start_date)&(df.date<=sec_end_date)],gamma=True, moving=True,split=split,grocery=True,ban = ban,
-                        R=RL_by_state, var= True, md_arg=md,
-                        rho=sec_states, second_phase=True,
-                        R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[sec_start_date:sec_end_date])#by states....
-        for ax in ax4:
-            for a in ax:
-                a.set_ylim((0,3))
-                #a.set_xlim((start_date,end_date))
-        plt.savefig(
-            results_dir+data_date.strftime("%Y-%m-%d")+"Reff_sec_phase.png", dpi=144)
-
-        #remove plots from memory
-        fig.clear()
-        plt.close(fig)
+    #remove plots from memory
+    fig.clear()
+    plt.close(fig)
 
 
-    var_to_csv = predictors
-    samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
-    var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + [
-        'R_Li['+str(i+1)+']' for i in range(len(states_to_fit))
-        ]
+var_to_csv = predictors
+samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
+var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + [
+    'R_Li['+str(i+1)+']' for i in range(len(states_to_fit))
+    ]
 
 
-    samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')
+samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')
