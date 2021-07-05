@@ -453,7 +453,7 @@ for i, state in enumerate(states):
 
     dates = dfX.loc[dfX.state==states_to_fit[0]].date
 
-    ax[i].tick_params('x',rotation=20)
+    ax[i].tick_params('x',rotation=90)
     ax[i].xaxis.set_major_locator(plt.MaxNLocator(4))
     ax[i].set_title(state)
 ax[0].set_ylabel('Proportion of imported cases')
@@ -492,7 +492,7 @@ if df2X.shape[0]>0:
 
         dates = dfX.loc[dfX.state==sec_states[0]].date
 
-        ax[0,i].tick_params('x',rotation=20)
+        ax[0,i].tick_params('x',rotation=90)
         ax[0,i].xaxis.set_major_locator(plt.MaxNLocator(4))
         ax[0,i].set_title(state)
     ax[0,0].set_ylabel('Proportion of imported cases')
