@@ -39,13 +39,26 @@ def read_in_NNDSS(date_string):
         df.loc[df.TRUE_ONSET_DATE.isna(),'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
         df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
     
-        # Set imported cases, local cases have 1101 as first 4 digits. This is the country code. 
-        df.PLACE_OF_ACQUISITION.fillna('00038888',inplace=True) # Fill blanks with simply unknown
+        # The first 4 digits is the country code. We use this to determin if the cases is local or imported. We can choose which assumption we keep. This should be set to true during local outbreak waves.
+        assume_local_cases_if_unknown = True
+        if assume_local_cases_if_unknown:
+            # Fill blanks with local code
+            df.PLACE_OF_ACQUISITION.fillna('11019999',inplace=True)
+        else:
+            # Fill blanks with unknown international code
+            df.PLACE_OF_ACQUISITION.fillna('00038888',inplace=True) 
+
+        # NOTE: State of infection is determiend by the STATE column, not the PLACE_OF_ACQUISITION column
+
+        # Set imported cases, local cases have 1101 as first 4 digits.
         df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4]!='1101' else 0)
         df['local'] = 1 - df.imported
+
         return df
 
     else:
+        # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / imported status vetted by a human. This can be a lot more reliable during an outbreak.
+        
         case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
         path = "data/*linelist_"+case_file_date+"*.csv"
         for file in glob.glob(path): # Allows us to use the * option
