@@ -40,7 +40,7 @@ surveys.date = pd.to_datetime(surveys.date)
 
 always =surveys.loc[surveys.response=='Always'].set_index(["state",'date'])
 always = always.unstack(['state'])
-
+# If you get an error here saying 'cannot create a new series when the index is not unique', then you have a duplicated md file.
 
 idx = pd.date_range('2020-03-01',pd.to_datetime("today"))
 
