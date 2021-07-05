@@ -218,7 +218,6 @@ sm_pol_gamma = pystan.StanModel(
 data_date = pd.to_datetime(argv[1]) # Define data date
 # note: 2020-09-09 won't work (for some reason)
 
-print(data_date)
 print(data_date.strftime('%d%b%Y'))
 
 df_Reff = pd.read_csv("results/EpyReff/Reff"+
@@ -274,13 +273,11 @@ sec_states=sorted(['NSW'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
-# Setting a fixed end date to the second wave
-# if data_date > pd.to_datetime("2020-06-12"):
-#     possible_end_date = data_date - timedelta(10)#subtract 10 days to aovid right truncation
-# else:
-#     possible_end_date = pd.to_datetime("2020-06-01")
-# sec_end_date = possible_end_date.strftime('%Y-%m-%d')
-#min('2020-08-14',possible_end_date.strftime('%Y-%m-%d')) #all we have for now
+# TEMPLATE: Third wave inputs
+# third_states=sorted(['VIC','NSW','WA','TAS'])
+# third_start_date = '2020-06-02'
+# third_end_date = data_date - timedelta(10) # Subtract 10 days to avoid right truncation
+
 
 fit_mask = df.state.isin(states_to_fit)
 if fit_post_March:
@@ -337,12 +334,12 @@ for value in ['mean','std','local','imported']:
         print("making empty")
         sec_data_by_state[value] = pd.DataFrame(columns=sec_states).astype(float)
 
+#FIRST PHASE
 mobility_by_state =[]
 mobility_std_by_state=[]
 count_by_state =[]
 respond_by_state=[]
 
-#FIRST PHASE
 for state in states_to_fit:
 
     mobility_by_state.append(dfX.loc[dfX.state==state, predictors].values/100)
@@ -352,12 +349,13 @@ for state in states_to_fit:
     count_by_state.append(survey_counts.loc[start_date:end_date,state].values)
     respond_by_state.append(survey_respond.loc[start_date:end_date,state].values)
 
+#SECOND PHASE
 sec_mobility_by_state =[]
 sec_mobility_std_by_state=[]
 sec_count_by_state=[]
 sec_respond_by_state=[]
 include_in_sec_wave=[]
-#SECOND PHASE
+
 for state in sec_states:
 
     sec_mobility_by_state.append(df2X.loc[df2X.state==state, predictors].values/100)
@@ -370,6 +368,7 @@ for state in sec_states:
 policy_v = [1]*df2X.loc[df2X.state==sec_states[0]].shape[0]
 policy = dfX.loc[dfX.state==states_to_fit[0],'post_policy']
 
+# TEMPLATE: third wave fitting will go here.
 
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
@@ -411,6 +410,9 @@ fit = sm_pol_gamma.sampling(
     chains=chains,
     #control={'max_treedepth':15}
 )
+
+
+######## Plotting & Saving Output #########
 
 #make results dir
 results_dir ="figs/soc_mob_posterior/"
