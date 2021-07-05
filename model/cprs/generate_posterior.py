@@ -23,10 +23,7 @@ iterations=5000
 chains=2
 
 ### Read in md surveys
-
 surveys = pd.DataFrame()
-##Improve this to read by glob.glob and get all of them
-
 path = "data/md/Barometer wave*.csv"
 for file in glob.glob(path):
     surveys = surveys.append(pd.read_csv(file,parse_dates=['date']))
@@ -43,15 +40,12 @@ always = always.unstack(['state'])
 # If you get an error here saying 'cannot create a new series when the index is not unique', then you have a duplicated md file.
 
 idx = pd.date_range('2020-03-01',pd.to_datetime("today"))
-
 always = always.reindex(idx, fill_value=np.nan)
-
 always.index.name = 'date'
 
-#fill back to earlier and between weeks.
+# fill back to earlier and between weeks.
 # Assume survey on day x applies for all days up to x - 6
 always =always.fillna(method='bfill')
-
 #assume values continue forward if survey hasn't completed
 always = always.fillna(method='ffill')
 always = always.stack(['state'])
@@ -72,7 +66,9 @@ survey_counts_base =pd.pivot_table(data=always,
 survey_respond_base = pd.pivot_table(data=always,
                           index='date',columns='state',values='respondents').drop(['Australia','Other'],axis=1).astype(int)
 
-## Read in pystan model that is saved on disk
+
+
+## Define pystan model
 rho_model_gamma = """
 data {
     int N; //data length num days
@@ -218,7 +214,6 @@ sm_pol_gamma = pystan.StanModel(
     model_code = rho_model_gamma,
     model_name ='gamma_pol_state'
 )
-#sm_pol_gamma = pickle.load(open('model/sm_pol_gamma.pkl','rb'))
 
 ###Create dates
 try:
@@ -231,8 +226,6 @@ except:
 cprs_all_dates = pd.date_range(cprs_start_date, cprs_end_date, freq='7D')
 cprs_dates = cprs_all_dates[cprs_all_dates!='2020-09-09']
 
-#if argv[1]=='2020-09-09':
-#    print("This won't run due to cprs date definitions, please comment out line 215.")
 
 for data_date in cprs_dates:
     print(data_date)
