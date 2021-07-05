@@ -48,7 +48,7 @@ def read_in_NNDSS(date_string):
             # Fill blanks with unknown international code
             df.PLACE_OF_ACQUISITION.fillna('00038888',inplace=True) 
 
-        # NOTE: State of infection is determiend by the STATE column, not the PLACE_OF_ACQUISITION column
+        # IMPORTANT NOTE: State of infection is determined by the STATE column, not the PLACE_OF_ACQUISITION column
 
         # Set imported cases, local cases have 1101 as first 4 digits.
         df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4]!='1101' else 0)
