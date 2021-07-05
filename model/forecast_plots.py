@@ -96,7 +96,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         ax2.set_yticklabels([0,2],minor=False)
         ax2.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
         #ax2.set_ylabel("Reff")
-        ax2.tick_params('x',rotation=45)
+        ax2.tick_params('x',rotation=90)
         plt.setp(ax.get_xticklabels(), visible=False)
         #ax2.set_xlabel("Date")
         
@@ -106,7 +106,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         ax2.set_ylim((0,3))
     else:
         #ax.set_xlabel("Date")
-        ax.tick_params('x',rotation=45)
+        ax.tick_params('x',rotation=90)
     if ax_arg is None:
         if Reff is None:
             return fig,ax
@@ -262,6 +262,58 @@ for i,state in enumerate(states):
         ax.set_xlabel('')
     #ax.set_ylim((0,60))
 plt.savefig("figs/"+forecast_type+start_date+"local_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
+
+## Local cases
+fig = plt.figure(figsize=(12,18))
+gs = fig.add_gridspec(4,2)
+for i,state in enumerate(states):
+    
+    print("Number of sims not rejected for state " +state +" is %i"
+          % len(good_sims[state]) )
+    Reff_used = [r%2000 for r in good_sims[state]]
+    print("Number of unique Reff paths not rejected is %i " 
+          % len(set(Reff_used) ))
+
+    ##plots
+    gs0 = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[i])
+    ax = fig.add_subplot(gs0[:2,0])
+    ax2 = fig.add_subplot(gs0[2,0], sharex=ax)
+    
+    dfplot = df_cases_state_time.loc[
+        (df_cases_state_time.STATE==state) 
+        & (df_cases_state_time.date_inferred >=start_date) 
+        & (df_cases_state_time.date_inferred <=end_date)]
+    
+    ax.bar(dfplot.date_inferred,dfplot.local, label='Actual',color='grey', alpha=0.6)
+    R_plot = [r%2000 for r in good_sims[state]]
+    
+    if len(set(good_sims[state]))==0:
+        #no accepted sim, skip
+        continue
+    ax,ax2= plot_results(df_results.loc[state], ['total_inci_obs'],ax_arg = (ax,ax2),summary=True, Reff=Reff.loc[state,R_plot])
+    
+    try: 
+        print('max median', max(df_results.loc[state].loc[('total_inci_obs','median')])*1.5+10)
+        ax.set_ylim((0,max(df_results.loc[state].loc[('total_inci_obs','median')])*1.5+10))
+    except:
+        print('Axis setting failed')
+    #if state=='NSW':
+    #    ax.set_ylim((0,100))
+    #elif state=='VIC':
+    #    ax.set_ylim((0,600))
+    #ax.set_ylim(top=70)
+    # if (state=='VIC') or (state=='NSW'):
+    #    ax.set_ylim((0,100))
+    if i%2==0:
+        ax.set_ylabel("Observed \n local cases")
+        ax2.set_ylabel("Local Reff")
+    ax.set_title(state)
+    if i< len(states)-2:
+        ax.set_xticklabels([])
+        ax.set_xlabel('')
+    #ax.set_ylim((0,60))
+plt.savefig("figs/"+forecast_type+start_date+"local_inci_median_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
+
 
 ##TOtal cases
 fig = plt.figure(figsize=(12,18))
