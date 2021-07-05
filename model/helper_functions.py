@@ -104,8 +104,9 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
         # Index 9 and onwards are the 2000 Reff samples.
         df_slice_after_VoC = df_forecast.iloc[index_map, 8:] 
         multiplier = beta.rvs(6,14, size = df_slice_after_VoC.shape) + 1
-        if VoC_flag == 'Delta':
+
+        if VoC_flag == 'Delta': # Increase from Delta
             multiplier *= 1.39
         df_forecast.iloc[index_map , 8:] = df_slice_after_VoC*multiplier
-
+        
     return df_forecast
