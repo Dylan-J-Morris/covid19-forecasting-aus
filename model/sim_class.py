@@ -60,7 +60,7 @@ class Forecast:
         self.scenario = scenario
 
         self.forecast_R = forecast_R
-        self.R_I = None # Defined later by read_in_Reff
+        # self.R_I = None # Defined later by read_in_Reff
         np.random.seed(1)
         #self.max_cases = 100000
 
