@@ -13,16 +13,17 @@ def worker(arg):
 
 n_sims=int(argv[1]) #number of sims
 start_date = argv[5] 
-forecast_date = argv[3]#'2020-08-25'
-case_file_date = pd.to_datetime(argv[3]).strftime("%d%b%Y")#None #'24Jul'
 XBstate = None
 test_campaign_date = '2020-06-01'
 test_campaign_factor = 1.5
 
 # Get total number of simulation days
-num_forecast_days = int(argv[2])
+forecast_date = argv[3] # Date of forecast
+num_forecast_days = int(argv[2]) # Number of days to forecast forward
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
-end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is record as a number of days
+end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
+case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
+
 
 progress = True # Used to be argv[5] but was always None
 forecast_type = 'R_L'# used to be argv[3]
@@ -32,10 +33,6 @@ print("Simulating state " +state)
 
 
 
-if pd.to_datetime(argv[3]) < pd.to_datetime('2020-06-02'):
-    if pd.to_datetime(argv[3]).day <10:
-        #no leading zero on early dates
-        case_file_date=case_file_date[1:]
 
 R_I='R_I'
 abc =False

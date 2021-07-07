@@ -67,7 +67,7 @@ class Forecast:
         #self.max_cases = 100000
 
         self.forecast_date = (pd.to_datetime(
-            forecast_date,format='%Y-%m-%d') - self.start_date).days
+            forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
 
         self.cross_border_state = None # No long using cross border (interstate) transmission
         self.cases_file_date = cases_file_date
