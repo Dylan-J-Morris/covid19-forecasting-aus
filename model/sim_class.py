@@ -62,8 +62,11 @@ class Forecast:
         # Date from which quarantine was started
         self.quarantine_change_date = pd.to_datetime('2020-04-15',format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
 
-        # Day from which to reduce imported overseas cases escapes
+        # Day from which to reduce imported overseas cases escapes due to quarantine worker vaccination
         self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01",format='%Y-%m-%d') - self.start_date).days 
+
+        # Day from which to start treating imported cases as delta cases
+        self.VoC_on_imported_effect_start =  (pd.to_datetime("2021-05-01",format='%Y-%m-%d') - self.start_date).days 
 
         # This is a parameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
         if state == "VIC":
@@ -214,7 +217,7 @@ class Forecast:
                 Reff *= (1-p_vh*v_eh)
 
             # Apply increase escape rate due to Delta variant.
-            if self.people[parent_key].infection_time >= pd.to_datetime('2021-05-01'): # Hardcoded VoC increase
+            if self.people[parent_key].infection_time >= self.VoC_on_imported_effect_start: 
                     Reff = Reff*1.39*1.3
 
 
