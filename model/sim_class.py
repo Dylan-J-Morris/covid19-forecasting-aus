@@ -844,3 +844,13 @@ class Forecast:
         from itertools import cycle
         for time in cycle(self.detect_times):
             yield time
+
+        def new_symp_cases(self,num_new_cases:int):
+        """
+        Given number of new cases generated, assign them to symptomatic (S) with probability ps
+        """
+        #repeated Bernoulli trials is a Binomial (assuming independence of development of symptoms)
+
+        symp_cases = binom.rvs(n=num_new_cases, p=self.ps)
+
+        return symp_cases
