@@ -27,9 +27,9 @@ end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_
 
 progress = True # Used to be argv[5] but was always None
 forecast_type = 'R_L'# used to be argv[3]
-states = [argv[4]] 
+state = argv[4]
 # states =['NSW','QLD','SA','TAS','VIC','WA','ACT','NT'] # old code ran all states but parallel HPC code run separate
-print("Simulating state " +states[0])
+print("Simulating state " +state)
 
 
 
@@ -123,78 +123,77 @@ else:
     print("Start date not implemented") 
 
 forecast_dict = {}
-for state in states:
-    initial_people = ['I']*current[state][0] + \
-            ['A']*current[state][1] + \
-            ['S']*current[state][2]
-    people = {}
-    if abc:
-        qs_prior = beta(2,2,size=10000)
-        qi_prior = beta(2, 2, size=10000)
-        qa_prior = beta(2,2, size=10000)
-        #qi_prior = [qi_d[state]]
-        #qs_prior = [local_detection[state]]
-        #qa_prior = [a_local_detection[state]]
-        gam =0.1 + beta(2,2,size=10000) *0.9 #np.minimum(3,gamma(4,0.25, size=1000))
-        ps_prior = 0.1+beta(2,2,size=10000)*0.9
+initial_people = ['I']*current[state][0] + \
+        ['A']*current[state][1] + \
+        ['S']*current[state][2]
+people = {}
+if abc:
+    qs_prior = beta(2,2,size=10000)
+    qi_prior = beta(2, 2, size=10000)
+    qa_prior = beta(2,2, size=10000)
+    #qi_prior = [qi_d[state]]
+    #qs_prior = [local_detection[state]]
+    #qa_prior = [a_local_detection[state]]
+    gam =0.1 + beta(2,2,size=10000) *0.9 #np.minimum(3,gamma(4,0.25, size=1000))
+    ps_prior = 0.1+beta(2,2,size=10000)*0.9
 
-    else:
-        qi_prior = [qi_d[state]]
-        qs_prior = [local_detection[state]]
-        qa_prior = [a_local_detection[state]]
-        gam =[1/2]
-        ps_prior = 0.7
-        ps_prior= [ps_prior]
+else:
+    qi_prior = [qi_d[state]]
+    qs_prior = [local_detection[state]]
+    qa_prior = [a_local_detection[state]]
+    gam =[1/2]
+    ps_prior = 0.7
+    ps_prior= [ps_prior]
 
-    for i,cat in enumerate(initial_people):
-        people[i] = Person(0,0,0,0,cat)
-    
-    if state in ['VIC']:
-        #XBstate = 'SA'
-        forecast_dict[state] = Forecast(current[state],
-        state,start_date,people,
-        alpha_i= 1, k =0.1,gam_list=gam, #alpha_i is impact of importations after April 15th
-        qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-        qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
-        forecast_R =forecast_type, forecast_date=forecast_date,
-        cases_file_date=case_file_date,
-        ps_list = ps_prior, test_campaign_date=test_campaign_date, 
-        test_campaign_factor=test_campaign_factor,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag, scenario=scenario
-        )
-    elif state in ['NSW']:
-        forecast_dict[state] = Forecast(current[state],
-        state,start_date,people,
-        alpha_i= 1, k =0.1,gam_list=gam,
-        qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-        qua_ai=2,qua_qi_factor=1,qua_qs_factor=1, #qua_ai is impact of importations before April 15th
-        forecast_R =forecast_type, forecast_date=forecast_date,
-        cases_file_date=case_file_date,
-        ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag, scenario=scenario
-        )
-    elif state in ['ACT','NT','SA','WA','QLD']:
-        forecast_dict[state] = Forecast(current[state],
-        state,start_date,people,
-        alpha_i= 0.1, k =0.1,gam_list=gam,
-        qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-        qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
-        forecast_R =forecast_type, forecast_date=forecast_date,
-        cases_file_date=case_file_date,
-        ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag, scenario=scenario
-        )
-    else:
-        forecast_dict[state] = Forecast(current[state],state,
-        start_date,people,
-        alpha_i= 0.5, k =0.1,gam_list=gam,
-        qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-        qua_ai=1,qua_qi_factor=1,qua_qs_factor=1, 
-        forecast_R = forecast_type , forecast_date=forecast_date,
-        cases_file_date=case_file_date,
-        ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag, scenario=scenario
-        )
+for i,cat in enumerate(initial_people):
+    people[i] = Person(0,0,0,0,cat)
+
+if state in ['VIC']:
+    #XBstate = 'SA'
+    forecast_dict[state] = Forecast(current[state],
+    state,start_date,people,
+    alpha_i= 1, k =0.1,gam_list=gam, #alpha_i is impact of importations after April 15th
+    qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
+    qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
+    forecast_R =forecast_type, forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    ps_list = ps_prior, test_campaign_date=test_campaign_date, 
+    test_campaign_factor=test_campaign_factor,Reff_file_date=Reff_file_date,
+    VoC_flag = VoC_flag, scenario=scenario
+    )
+elif state in ['NSW']:
+    forecast_dict[state] = Forecast(current[state],
+    state,start_date,people,
+    alpha_i= 1, k =0.1,gam_list=gam,
+    qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
+    qua_ai=2,qua_qi_factor=1,qua_qs_factor=1, #qua_ai is impact of importations before April 15th
+    forecast_R =forecast_type, forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    ps_list = ps_prior,Reff_file_date=Reff_file_date,
+    VoC_flag = VoC_flag, scenario=scenario
+    )
+elif state in ['ACT','NT','SA','WA','QLD']:
+    forecast_dict[state] = Forecast(current[state],
+    state,start_date,people,
+    alpha_i= 0.1, k =0.1,gam_list=gam,
+    qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
+    qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
+    forecast_R =forecast_type, forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    ps_list = ps_prior,Reff_file_date=Reff_file_date,
+    VoC_flag = VoC_flag, scenario=scenario
+    )
+else:
+    forecast_dict[state] = Forecast(current[state],state,
+    start_date,people,
+    alpha_i= 0.5, k =0.1,gam_list=gam,
+    qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
+    qua_ai=1,qua_qi_factor=1,qua_qs_factor=1, 
+    forecast_R = forecast_type , forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    ps_list = ps_prior,Reff_file_date=Reff_file_date,
+    VoC_flag = VoC_flag, scenario=scenario
+    )
 
 
 
@@ -241,7 +240,7 @@ if __name__ =="__main__":
     pool = mp.Pool(12)
     with tqdm(total=n_sims, leave=False, smoothing=0, miniters=10) as pbar:
         for cases, obs_cases, param_dict in pool.imap_unordered(worker,
-        [(forecast_dict[states[0]],'simulate',end_time,n,n) 
+        [(forecast_dict[state],'simulate',end_time,n,n) 
         for n in range(n_sims)] #n is the seed
                         ):
             #cycle through all results and record into arrays 
