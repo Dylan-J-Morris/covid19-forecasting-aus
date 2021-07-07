@@ -73,7 +73,7 @@ class Forecast:
         self.cases_file_date = cases_file_date
 
 
-        # The test campaign refers to a reduction in the likelyhood of detetcion in NSW before '2020-06-01' 
+        # The test campaign refers to a reduction in the likelyhood of detetcion in VIC before '2020-06-01' 
         if test_campaign_date is not None:
             self.test_campaign_date = (pd.to_datetime(
                 test_campaign_date,format='%Y-%m-%d') - self.start_date).days
