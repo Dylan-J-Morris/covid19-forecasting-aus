@@ -27,8 +27,8 @@ class Forecast:
 
     def __init__(self,current, state,start_date, people,
         Reff=2.2,k=0.1,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
-        qua_ai= 1, qua_qi_factor=1, qua_qs_factor=1,forecast_R=None,R_I=None,
         forecast_date='2020-07-01', cross_border_state=None,cases_file_date=None,
+        qua_ai= 1, qua_qi_factor=1, qua_qs_factor=1,forecast_R=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
         Reff_file_date=None, VoC_flag = None, scenario=''
         ):
@@ -62,7 +62,7 @@ class Forecast:
         self.scenario = scenario
 
         self.forecast_R = forecast_R
-        self.R_I = R_I
+        self.R_I = None # Defined later by read_in_Reff
         np.random.seed(1)
         #self.max_cases = 100000
 
@@ -248,12 +248,10 @@ class Forecast:
         df_forecast = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
 
         # Get R_I values and store in object.
-        if self.R_I is not None:
-            self.R_I = df_forecast.loc[
-                (df_forecast.type=='R_I')&
-                (df_forecast.state==self.state),
-                self.num_of_sim%2000].values
-
+        self.R_I = df_forecast.loc[
+            (df_forecast.type=='R_I')&
+            (df_forecast.state==self.state),
+            self.num_of_sim%2000].values
 
         if self.forecast_R !='R_L':
             raise Exception('Non-R_L forecasts no longer supported. See previous versions of code.')
@@ -312,11 +310,9 @@ class Forecast:
             num_offspring = nbinom.rvs(n=k,p= 1- self.alpha_s*Reff/(self.alpha_s*Reff + k))
         elif self.people[parent_key].category=='A':
             num_offspring = nbinom.rvs(n=k, p = 1- self.alpha_a*Reff/(self.alpha_a*Reff + k))
-        else:
-            #Is imported
-            if self.R_I is not None:
-                #if splitting imported from local, change Reff to R_I
-                Reff = self.choose_random_item(self.R_I)
+        else: # Imported
+
+            Reff = self.choose_random_item(self.R_I)
             
             # Apply vaccine reduction for hotel quarantine workers
             if self.people[parent_key].infection_time >= self.hotel_quarantine_vaccine_start:
