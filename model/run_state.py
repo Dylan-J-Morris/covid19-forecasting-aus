@@ -126,7 +126,8 @@ elif state in ['NSW']:
     state,start_date,people,
     alpha_i= 1,
     qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=2, #qua_ai is impact of importations before April 15th forecast_date=forecast_date,
+    qua_ai=2, #qua_ai is impact of importations before April 15th 
+    forecast_date=forecast_date,
     cases_file_date=case_file_date,
     VoC_flag = VoC_flag, scenario=scenario
     )
