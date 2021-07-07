@@ -235,8 +235,6 @@ if __name__ =="__main__":
         #item.read_in_Reff() #now in simulate method
         item.end_time = end_time
         item.read_in_cases()
-        item.cross_border_seeds = np.zeros(shape=(end_time,n_sims),dtype=int)
-        item.cross_border_state_cases = np.zeros_like(item.cross_border_seeds)
 
         item.num_bad_sims = 0
         item.num_too_many = 0
