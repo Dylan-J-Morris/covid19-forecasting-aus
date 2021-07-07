@@ -845,7 +845,7 @@ class Forecast:
         for time in cycle(self.detect_times):
             yield time
 
-        def new_symp_cases(self,num_new_cases:int):
+    def new_symp_cases(self,num_new_cases:int):
         """
         Given number of new cases generated, assign them to symptomatic (S) with probability ps
         """
