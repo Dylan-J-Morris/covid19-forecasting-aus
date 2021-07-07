@@ -85,16 +85,15 @@ class Forecast:
 
     def generate_times(self,  i=3.64, j=3.07, m=5.505, n=0.948, size=10000):
         """
-        Generate large amount of gamma draws to save on simulation time later
+        Helper function. Generate large amount of gamma draws to save on simulation time later
         """
-
         self.inf_times =  np.random.gamma(i/j, j, size =size) #shape and scale
         self.detect_times = np.random.gamma(m/n,n, size = size)
 
 
     def iter_inf_time(self):
         """
-        access Next inf_time
+        Helper function. Access Next inf_time.
         """
         from itertools import cycle
         for time in cycle(self.inf_times):
@@ -102,7 +101,7 @@ class Forecast:
 
     def iter_detect_time(self):
         """
-        access Next detect_time
+        Helper function. Access Next detect_time.
         """
         from itertools import cycle
         for time in cycle(self.detect_times):
@@ -189,16 +188,8 @@ class Forecast:
             num_undetected_a = nbinom.rvs(total_s, self.ps)
 
         #simulate cases that will be detected within the next week
-        #for n in range(1,8):
-            #just symptomatic?
-            #self.people[len(self.people)] = Person(0, -1*next(self.get_inf_time) , n, 0, 'S')
         if curr_time==0:
             #Add each undetected case into people
-
-            # Init sim no longer produces more unobserved imports
-            # for n in range(num_undetected_i):
-            #     self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time) , 0, 0, 'I')
-            #     self.current[0] +=1
             for n in range(num_undetected_a):
                 self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time) , 0, 0, 'A')
                 self.current[1] +=1
@@ -208,13 +199,6 @@ class Forecast:
         else:
             #reinitialised, so add these cases back onto cases
              #Add each undetected case into people
-
-            # Init sim no longer produces more unobserved imports
-            # for n in range(num_undetected_i):
-            #     new_person = Person(-1, curr_time-1*next(self.get_inf_time) , 0, 0, 'I')
-            #     self.infected_queue.append(len(self.people))
-            #     self.people[len(self.people)] = new_person
-            #     self.cases[max(0,ceil(new_person.infection_time)),0] +=1
             for n in range(num_undetected_a):
                 new_person = Person(-1, curr_time-1*next(self.get_inf_time) , 0, 0, 'A')
                 self.infected_queue.append(len(self.people))
@@ -228,7 +212,7 @@ class Forecast:
 
     def read_in_Reff(self):
         """
-        Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
+        Read in Reff CSV that was produced by the generate_R_L_forecasts.py script.
         """
         import pandas as pd
 
@@ -257,6 +241,7 @@ class Forecast:
         self.Reff = Reff_lookupstate
 
     def choose_random_item(self, items,weights=None):
+        """A simple function to select a random item"""
         from numpy.random import random
         r = random()
         if weights is None:
@@ -285,7 +270,7 @@ class Forecast:
 
     def generate_new_cases(self,parent_key, Reff,k,travel=False):
         """
-        Generate offspring for each parent, check if they travel
+        Generate offspring for each parent, check if they travel. The parent_key parameter lets us find the parent from the array self.people containing the objects from the branching process.
         """
 
         from math import ceil
@@ -717,7 +702,7 @@ class Forecast:
 
     def to_df(self,results):
         """
-        Put results into a pandas dataframe and record as h5 format
+        Put results from the simulation into a pandas dataframe and record as h5 format. This is called externally by the run_state.py script.
         """
         import pandas as pd
 
@@ -791,10 +776,8 @@ class Forecast:
 
     def get_metric(self,end_time,omega=0.2):
         """
-        Calculate the value of the metric of the current sim compared
-        to NNDSS data
+        Calculate the value of the metric of the current sim compared to NNDSS data.
         """
-
 
         self.actual_array = np.array([self.actual[day]
         #if day not in missed_dates else 0
@@ -828,7 +811,7 @@ class Forecast:
     
     def read_in_cases(self):
         """
-        Read in NNDSS case data to measure incidence against simulation
+        Read in NNDSS case data to measure incidence against simulation. Nothing is returned as results are saved in object.
         """
         import pandas as pd
         from datetime import timedelta
@@ -881,7 +864,9 @@ class Forecast:
 
     def import_cases_model(self, df):
         """
-        Generate model for imports
+        This function takes the NNDSS/linelist data and creates a set of parameters to generate imported (overseas acquired) cases over time.
+
+        Resulting parameter dict is saved in self.a_dict and self.a_dict rather than being returned.
         """
         from datetime import timedelta
         def get_date_index(date):
