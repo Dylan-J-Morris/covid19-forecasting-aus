@@ -116,12 +116,6 @@ elif start_date == "2020-12-01":
 else:
     print("Start date not implemented") 
 
-forecast_dict = {}
-initial_people = ['I']*current[state][0] + \
-        ['A']*current[state][1] + \
-        ['S']*current[state][2]
-people = {}
-
 qi_prior = [qi_d[state]]
 qs_prior = [local_detection[state]]
 qa_prior = [a_local_detection[state]]
@@ -129,13 +123,20 @@ gam =[1/2]
 ps_prior = 0.7
 ps_prior= [ps_prior]
 
+
+initial_people = ['I']*current[state][0] + \
+        ['A']*current[state][1] + \
+        ['S']*current[state][2]
+
+people = {}
 for i,cat in enumerate(initial_people):
     people[i] = Person(0,0,0,0,cat)
 
 
 ####### Create simulation.py object ########
+
 if state in ['VIC']:
-    forecast_dict[state] = Forecast(current[state],
+    forecast_object = Forecast(current[state],
     state,start_date,people,
     alpha_i= 1, k =0.1,gam_list=gam, #alpha_i is impact of importations after April 15th
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
@@ -147,7 +148,7 @@ if state in ['VIC']:
     VoC_flag = VoC_flag, scenario=scenario
     )
 elif state in ['NSW']:
-    forecast_dict[state] = Forecast(current[state],
+    forecast_object = Forecast(current[state],
     state,start_date,people,
     alpha_i= 1, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
@@ -158,7 +159,7 @@ elif state in ['NSW']:
     VoC_flag = VoC_flag, scenario=scenario
     )
 elif state in ['ACT','NT','SA','WA','QLD']:
-    forecast_dict[state] = Forecast(current[state],
+    forecast_object = Forecast(current[state],
     state,start_date,people,
     alpha_i= 0.1, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
@@ -169,7 +170,7 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     VoC_flag = VoC_flag, scenario=scenario
     )
 else:
-    forecast_dict[state] = Forecast(current[state],state,
+    forecast_object = Forecast(current[state],state,
     start_date,people,
     alpha_i= 0.5, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
@@ -214,18 +215,16 @@ if __name__ =="__main__":
     ps = np.zeros_like(qs)
     cases_after = np.zeros_like(bad_sim)
 
+    forecast_object.end_time = end_time
+    forecast_object.read_in_cases()
 
-    for key,item in forecast_dict.items():
-        #item.read_in_Reff() #now in simulate method
-        item.end_time = end_time
-        item.read_in_cases()
-
-        item.num_bad_sims = 0
-        item.num_too_many = 0
+    forecast_object.num_bad_sims = 0
+    forecast_object.num_too_many = 0
+    
     pool = mp.Pool(12)
     with tqdm(total=n_sims, leave=False, smoothing=0, miniters=10) as pbar:
         for cases, obs_cases, param_dict in pool.imap_unordered(worker,
-        [(forecast_dict[state],'simulate',end_time,n,n) 
+        [(forecast_object,'simulate',end_time,n,n) 
         for n in range(n_sims)] #n is the seed
                         ):
             #cycle through all results and record into arrays 
