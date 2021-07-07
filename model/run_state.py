@@ -148,6 +148,8 @@ else:
 for i,cat in enumerate(initial_people):
     people[i] = Person(0,0,0,0,cat)
 
+
+####### Create simulation.py object ########
 if state in ['VIC']:
     #XBstate = 'SA'
     forecast_dict[state] = Forecast(current[state],
@@ -196,7 +198,7 @@ else:
     )
 
 
-
+############ Run Simulations in parallel and return ############
 if __name__ =="__main__":
     ##initialise arrays
 
