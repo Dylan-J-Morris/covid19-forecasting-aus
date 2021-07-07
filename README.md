@@ -17,12 +17,18 @@ Once all the data are in their corresponding folders, you can run this command t
 
 ```
 STARTDATE='2020-12-01' # Start date of forecast
-DATADATE='2021-06-02'  # Date of NNDSS data file
+DATADATE='2021-07-05'  # Date of NNDSS data file
 NDAYS=35 # Number of days after data date to forecast (usually 35)
 NSIMS=20000 # Total number of simulations to run
 
 bash forecast_pipeline.sh ${STARTDATE} ${DATADATE} ${NDAYS} ${NSIMS}
 ```
+
+### Internal options
+There are some options used within the model that are not passed as parameters.
+* `use_linelist` in `model/helper_functions.py` determines whether NNDSS data is used or an interum linelist from Telethon Kids. 
+* `assume_local_cases_if_unknown` in `model/helper_functions.py` determines if cases in NNDSS with no PLACE_OF_ACQUISITION field will be assumed to be local or imported cases.
+
 
 ## Step-by-step workflow and relevant scripts
 Below is a breakdown of the pipeline from case line list data to producing forecasts using this repository. This can be used if you don't have access to a slurm HPC.

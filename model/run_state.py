@@ -3,48 +3,33 @@ import pandas as pd
 from sys import argv
 from numpy.random import beta, gamma
 from tqdm import tqdm
-
-#from joblib import Parallel, delayed
 import multiprocessing as mp
 
-def worker(arg):
-    obj, methname = arg[:2]
-    return getattr(obj,methname)(*arg[2:])
 
 n_sims=int(argv[1]) #number of sims
 start_date = argv[5] 
-Reff_file_date = argv[3]#'2020-08-25'
-forecast_date = argv[3]#'2020-08-25'
-case_file_date = pd.to_datetime(argv[3]).strftime("%d%b%Y")#None #'24Jul'
-XBstate = None
-test_campaign_date = '2020-06-01'
-test_campaign_factor = 1.5
+state = argv[4]
+print("Simulating state " +state)
+
 
 # Get total number of simulation days
-num_forecast_days = int(argv[2])
+forecast_date = argv[3] # Date of forecast
+num_forecast_days = int(argv[2]) # Number of days to forecast forward
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
-end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is record as a number of days
+end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
+case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
 
-progress = True # Used to be argv[5] but was always None
-forecast_type = 'R_L'# used to be argv[3]
-states = [argv[4]] 
-# states =['NSW','QLD','SA','TAS','VIC','WA','ACT','NT'] # old code ran all states but parallel HPC code run separate
-print("Simulating state " +states[0])
-
-
-
-if pd.to_datetime(argv[3]) < pd.to_datetime('2020-06-02'):
-    if pd.to_datetime(argv[3]).day <10:
-        #no leading zero on early dates
-        case_file_date=case_file_date[1:]
-
-R_I='R_I'
-abc =False
 
 # If no VoC specified, code will run without alterations.
-VoC_flag = None
+VoC_flag = ''
 if len(argv)>6:
     VoC_flag =  argv[6]
+
+if len(argv) > 7:
+    # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
+    scenario = argv[7]
+else:
+    scenario = ''
             
 local_detection = {
             'NSW':0.9,#0.556,#0.65,
@@ -116,81 +101,61 @@ elif start_date == "2020-12-01":
 else:
     print("Start date not implemented") 
 
-forecast_dict = {}
-for state in states:
-    initial_people = ['I']*current[state][0] + \
-            ['A']*current[state][1] + \
-            ['S']*current[state][2]
-    people = {}
-    if abc:
-        qs_prior = beta(2,2,size=10000)
-        qi_prior = beta(2, 2, size=10000)
-        qa_prior = beta(2,2, size=10000)
-        #qi_prior = [qi_d[state]]
-        #qs_prior = [local_detection[state]]
-        #qa_prior = [a_local_detection[state]]
-        gam =0.1 + beta(2,2,size=10000) *0.9 #np.minimum(3,gamma(4,0.25, size=1000))
-        ps_prior = 0.1+beta(2,2,size=10000)*0.9
+initial_people = ['I']*current[state][0] + \
+        ['A']*current[state][1] + \
+        ['S']*current[state][2]
 
-    else:
-        qi_prior = [qi_d[state]]
-        qs_prior = [local_detection[state]]
-        qa_prior = [a_local_detection[state]]
-        gam =[1/2]
-        ps_prior = 0.7
-        ps_prior= [ps_prior]
-
-    for i,cat in enumerate(initial_people):
-        people[i] = Person(0,0,0,0,cat)
-    
-    if state in ['VIC']:
-        #XBstate = 'SA'
-        forecast_dict[state] = Forecast(current[state],
-        state,start_date,people,
-        alpha_i= 1, k =0.1,gam_list=gam, #alpha_i is impact of importations after April 15th
-        qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-        qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
-        forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
-        cross_border_state=XBstate,cases_file_date=case_file_date,
-        ps_list = ps_prior, test_campaign_date=test_campaign_date, 
-        test_campaign_factor=test_campaign_factor,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag
-        )
-    elif state in ['NSW']:
-        forecast_dict[state] = Forecast(current[state],
-        state,start_date,people,
-        alpha_i= 1, k =0.1,gam_list=gam,
-        qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-        qua_ai=2,qua_qi_factor=1,qua_qs_factor=1, #qua_ai is impact of importations before April 15th
-        forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
-        cross_border_state=None,cases_file_date=case_file_date,
-        ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag
-        )
-    elif state in ['ACT','NT','SA','WA','QLD']:
-        forecast_dict[state] = Forecast(current[state],
-        state,start_date,people,
-        alpha_i= 0.1, k =0.1,gam_list=gam,
-        qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-        qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
-        forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
-        cross_border_state=None,cases_file_date=case_file_date,
-        ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag
-        )
-    else:
-        forecast_dict[state] = Forecast(current[state],state,
-        start_date,people,
-        alpha_i= 0.5, k =0.1,gam_list=gam,
-        qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-        qua_ai=1,qua_qi_factor=1,qua_qs_factor=1, 
-        forecast_R = forecast_type , R_I = R_I,forecast_date=forecast_date,
-        cases_file_date=case_file_date,
-        ps_list = ps_prior,Reff_file_date=Reff_file_date,
-        VoC_flag = VoC_flag
-        )
+people = {}
+for i,cat in enumerate(initial_people):
+    people[i] = Person(0,0,0,0,cat)
 
 
+####### Create simulation.py object ########
+
+if state in ['VIC']:
+    forecast_object = Forecast(current[state],
+    state,start_date,people,
+    alpha_i= 1, #alpha_i is impact of importations after April 15th
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
+    qua_ai=1, forecast_date=forecast_date,
+    cases_file_date=case_file_date, 
+    VoC_flag = VoC_flag, scenario=scenario
+    )
+elif state in ['NSW']:
+    forecast_object = Forecast(current[state],
+    state,start_date,people,
+    alpha_i= 1,
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
+    qua_ai=2, #qua_ai is impact of importations before April 15th 
+    forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    VoC_flag = VoC_flag, scenario=scenario
+    )
+elif state in ['ACT','NT','SA','WA','QLD']:
+    forecast_object = Forecast(current[state],
+    state,start_date,people,
+    alpha_i= 0.1,
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
+    qua_ai=1, forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    VoC_flag = VoC_flag, scenario=scenario
+    )
+else:
+    forecast_object = Forecast(current[state],state,
+    start_date,people,
+    alpha_i= 0.5,
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
+    qua_ai=1,  forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    VoC_flag = VoC_flag, scenario=scenario
+    )
+
+
+############ Run Simulations in parallel and return ############
+
+def worker(arg):
+    obj, methname = arg[:2]
+    return getattr(obj,methname)(*arg[2:])
 
 if __name__ =="__main__":
     ##initialise arrays
@@ -224,20 +189,16 @@ if __name__ =="__main__":
     ps = np.zeros_like(qs)
     cases_after = np.zeros_like(bad_sim)
 
+    forecast_object.end_time = end_time
+    forecast_object.read_in_cases()
 
-    for key,item in forecast_dict.items():
-        #item.read_in_Reff() #now in simulate method
-        item.end_time = end_time
-        item.read_in_cases()
-        item.cross_border_seeds = np.zeros(shape=(end_time,n_sims),dtype=int)
-        item.cross_border_state_cases = np.zeros_like(item.cross_border_seeds)
+    forecast_object.num_bad_sims = 0
+    forecast_object.num_too_many = 0
 
-        item.num_bad_sims = 0
-        item.num_too_many = 0
     pool = mp.Pool(12)
-    with tqdm(total=n_sims) as pbar:
+    with tqdm(total=n_sims, leave=False, smoothing=0, miniters=500) as pbar:
         for cases, obs_cases, param_dict in pool.imap_unordered(worker,
-        [(forecast_dict[states[0]],'simulate',end_time,n,n) 
+        [(forecast_object,'simulate',end_time,n,n) 
         for n in range(n_sims)] #n is the seed
                         ):
             #cycle through all results and record into arrays 
@@ -257,9 +218,6 @@ if __name__ =="__main__":
                 accept[n] = param_dict['metric']>=0.8
                 cases_after[n] = param_dict['cases_after']
                 ps[n] =param_dict['ps']
-                # travel_seeds[:,n] = param_dict['travel_seeds']
-                # travel_induced_cases[:,n] = param_dict['travel_induced_cases'+str(XBstate)]
-
 
             
             #record cases appropriately
@@ -270,8 +228,7 @@ if __name__ =="__main__":
             import_inci_obs[:,n] = obs_cases[:,0]
             asymp_inci_obs[:,n] = obs_cases[:,1]
             symp_inci_obs[:,n] = obs_cases[:,2]
-            if progress:
-                pbar.update()
+            pbar.update()
         
     pool.close()
     pool.join()
@@ -310,6 +267,6 @@ if __name__ =="__main__":
     #        +" exceeding "+\
     #            "max cases is "+str(sum()) )
     #results recorded into parquet as dataframe
-    df = item.to_df(results)
+    df = forecast_object.to_df(results)
 
 

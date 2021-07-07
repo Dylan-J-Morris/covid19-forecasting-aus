@@ -9,6 +9,7 @@ import matplotlib.gridspec as gridspec
 from datetime import timedelta
 import json
 from sys import argv
+import os
 from scipy.stats import beta
 
 from helper_functions import read_in_NNDSS, read_in_Reff_file
@@ -69,7 +70,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
                     
                     ax.plot(df.columns, df.loc[(var,good_sims[n])], label=var,alpha=0.8,color='C0', linewidth=0.5)
                     n +=1
-                    if n>15:
+                    if n>200:
                         break
             else:
                 ax.plot(df.columns, df.transpose()[var].quantile(0.5,axis=1), label=var)
@@ -96,7 +97,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         ax2.set_yticklabels([0,2],minor=False)
         ax2.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
         #ax2.set_ylabel("Reff")
-        ax2.tick_params('x',rotation=45)
+        ax2.tick_params('x',rotation=90)
         plt.setp(ax.get_xticklabels(), visible=False)
         #ax2.set_xlabel("Date")
         
@@ -106,7 +107,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         ax2.set_ylim((0,3))
     else:
         #ax.set_xlabel("Date")
-        ax.tick_params('x',rotation=45)
+        ax.tick_params('x',rotation=90)
     if ax_arg is None:
         if Reff is None:
             return fig,ax
@@ -117,18 +118,16 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
     else:
         return ax
 
-def read_in_Reff(file_date, forecast_R=None, VoC_flag = ''):
-        """
-        Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
-        """
-        import pandas as pd
-        
-        df_forecast = read_in_Reff_file(file_date, VoC_flag)
-            
-        df_forecast = df_forecast.loc[df_forecast.type==forecast_R]
-        df_forecast.set_index(['state','date'],inplace=True)
-                
-        return df_forecast
+def read_in_Reff(file_date, forecast_R=None, VoC_flag = '', scenario=''):
+    """
+    Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
+    """
+    import pandas as pd
+    
+    df_forecast = read_in_Reff_file(file_date, VoC_flag, scenario=scenario)
+    df_forecast = df_forecast.loc[df_forecast.type==forecast_R]
+    df_forecast.set_index(['state','date'],inplace=True)
+    return df_forecast
     
 def read_in_cases(cases_file_date):
     """
@@ -150,20 +149,27 @@ def read_in_cases(cases_file_date):
     return df_cases_state_time
 
 # Add flag to create plots for VoCs
-VoC_flag = '' # Default value
 if len(argv)>5:
     VoC_flag = argv[5]
-    print(VoC_flag, 'running.')
+else:
+    VoC_flag = ''
 
-data_date = argv[3]
-forecast_type = 'R_L'
-df_cases_state_time = read_in_cases(data_date)
-Reff = read_in_Reff(forecast_R=forecast_type, file_date= data_date, VoC_flag = VoC_flag)
-states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
+if len(argv) > 6:
+    # Add an optional scenario flag to load in specific Reff scenarios.
+    scenario = argv[6]
+else:
+    scenario = ''
+
 n_sims = int(argv[1])
 start_date = argv[4]
-
+data_date = argv[3]
 num_forecast_days = int(argv[2])
+
+forecast_type = 'R_L'
+df_cases_state_time = read_in_cases(data_date)
+Reff = read_in_Reff(forecast_R=forecast_type, file_date= data_date, VoC_flag = VoC_flag, scenario=scenario)
+states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
+
 data_date = pd.to_datetime(data_date,format="%Y-%m-%d")
 end_date = data_date + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
@@ -190,7 +196,7 @@ print("forecast up to: {}".format(end_date))
 
 
 df_results = pd.read_parquet("results/quantiles"+forecast_type+start_date+"sim_"+str(
-    n_sims)+"days_"+str(days)+VoC_flag+".parquet")
+    n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
 
 
 df_cases_state_time = df_cases_state_time[df_cases_state_time.date_inferred != 'None']
@@ -208,25 +214,25 @@ df_results = pd.pivot_table(df_results,
                             columns='date',
                             values='value')
 
-with open("results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_flag+".json",'r') as file:
+with open("results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".json",'r') as file:
     good_sims = json.load(file)
     
 
-## Local cases
+###### Local cases plot
 fig = plt.figure(figsize=(12,18))
 gs = fig.add_gridspec(4,2)
+axes = []
 for i,state in enumerate(states):
     
-    print("Number of sims not rejected for state " +state +" is %i"
-          % len(good_sims[state]) )
+    print("Number of sims not rejected for state " +state +" is %i"% len(good_sims[state]) )
     Reff_used = [r%2000 for r in good_sims[state]]
-    print("Number of unique Reff paths not rejected is %i " 
-          % len(set(Reff_used) ))
+    print("Number of unique Reff paths not rejected is %i " % len(set(Reff_used) ))
 
-    ##plots
+    ## Plots
     gs0 = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[i])
     ax = fig.add_subplot(gs0[:2,0])
     ax2 = fig.add_subplot(gs0[2,0], sharex=ax)
+    axes.append(ax)
     
     dfplot = df_cases_state_time.loc[
         (df_cases_state_time.STATE==state) 
@@ -236,18 +242,8 @@ for i,state in enumerate(states):
     ax.bar(dfplot.date_inferred,dfplot.local, label='Actual',color='grey', alpha=0.6)
     R_plot = [r%2000 for r in good_sims[state]]
     
-    if len(set(good_sims[state]))==0:
-        #no accepted sim, skip
-        continue
     ax,ax2= plot_results(df_results.loc[state], ['total_inci_obs'],ax_arg = (ax,ax2),summary=True, Reff=Reff.loc[state,R_plot])
     
-    #if state=='NSW':
-    #    ax.set_ylim((0,100))
-    #elif state=='VIC':
-    #    ax.set_ylim((0,600))
-    #ax.set_ylim(top=70)
-    # if (state=='VIC') or (state=='NSW'):
-    #    ax.set_ylim((0,100))
     if i%2==0:
         ax.set_ylabel("Observed \n local cases")
         ax2.set_ylabel("Local Reff")
@@ -255,10 +251,42 @@ for i,state in enumerate(states):
     if i< len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
-    #ax.set_ylim((0,60))
-plt.savefig("figs/"+forecast_type+start_date+"local_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+'.png',dpi=300)
+plt.tight_layout()
+plt.savefig("figs/"+forecast_type+start_date+"local_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
 
-##TOtal cases
+# Also produce a plot that shows the median more clearly.
+# try:
+for i,state in enumerate(states):
+    ax = axes[i]
+    print('max median', max(df_results.loc[state].loc[('total_inci_obs','median')])*1.5+10)
+    ax.set_ylim((0,max(df_results.loc[state].loc[('total_inci_obs','median')])*1.5+10))
+plt.savefig("figs/"+forecast_type+start_date+"local_inci_median_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
+
+# Make a single plot for each state
+os.makedirs("figs/single_state_plots/", exist_ok=True)
+for i,state in enumerate(states):
+    fig = plt.figure(figsize=(8,6))
+    gs = fig.add_gridspec(3,1)
+    ax = fig.add_subplot(gs[:2,0])
+    ax2 = fig.add_subplot(gs[2,0], sharex=ax)
+    
+    dfplot = df_cases_state_time.loc[
+        (df_cases_state_time.STATE==state) 
+        & (df_cases_state_time.date_inferred >=start_date) 
+        & (df_cases_state_time.date_inferred <=end_date)]
+    
+    ax.bar(dfplot.date_inferred,dfplot.local, label='Actual',color='grey', alpha=0.6)
+    R_plot = [r%2000 for r in good_sims[state]]
+    ax,ax2= plot_results(df_results.loc[state], ['total_inci_obs'],ax_arg = (ax,ax2),summary=True, Reff=Reff.loc[state,R_plot])
+    
+    ax.set_ylabel("Observed \n local cases")
+    ax2.set_ylabel("Local Reff")
+    ax.set_title(state)
+    plt.tight_layout()
+    plt.savefig("figs/single_state_plots/"+state+"local_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
+
+
+##Total cases
 fig = plt.figure(figsize=(12,18))
 gs = fig.add_gridspec(4,2)
 for i,state in enumerate(states):
@@ -289,7 +317,8 @@ for i,state in enumerate(states):
     if i< len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
-plt.savefig("figs/"+forecast_type+start_date+"local_total_"+str(n_sims)+"days_"+str(days)+VoC_flag+'.png',dpi=300)
+plt.tight_layout()
+plt.savefig("figs/"+forecast_type+start_date+"local_total_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
 
 
 ##asymp cases
@@ -321,7 +350,8 @@ for i,state in enumerate(states):
     if i< len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
-plt.savefig("figs/"+forecast_type+"asymp_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+'.png',dpi=144)
+plt.tight_layout()
+plt.savefig("figs/"+forecast_type+"asymp_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=144)
 ## Imported cases
 fig = plt.figure(figsize=(12,18))
 gs = fig.add_gridspec(4,2)
@@ -353,7 +383,7 @@ for i,state in enumerate(states):
         ax.set_xlabel('')
                 
 plt.tight_layout()
-plt.savefig("figs/"+forecast_type+start_date+"imported_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+'.png',dpi=300)
+plt.savefig("figs/"+forecast_type+start_date+"imported_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
 
 ## unobserved Imported cases
 fig = plt.figure(figsize=(12,18))
@@ -384,7 +414,7 @@ for i,state in enumerate(states):
         ax.set_xlabel('')
                 
 plt.tight_layout()
-plt.savefig("figs/"+forecast_type+"imported_unobs_"+str(n_sims)+"days_"+str(days)+VoC_flag+'.png',dpi=144)
+plt.savefig("figs/"+forecast_type+"imported_unobs_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=144)
 
 ## Local cases, spaghetti plot
 fig = plt.figure(figsize=(12,18))
@@ -395,7 +425,7 @@ dates_plot = pd.date_range(start = plot_start, periods=89)
 for i,state in enumerate(states):
     
     df_raw = pd.read_parquet("results/"+state+start_date+"sim_"+forecast_type+str(
-    n_sims)+"days_"+str(days)+VoC_flag+".parquet", 
+    n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet", 
                              columns= [d.strftime("%Y-%m-%d") for d in dates_plot] )
     
 
@@ -436,4 +466,5 @@ for i,state in enumerate(states):
 
     ax.set_xticks([df_raw.columns.values[-1*31]],minor=True)
     ax.xaxis.grid(which='minor', linestyle='--',alpha=0.6, color='black')
-plt.savefig("figs/"+forecast_type+"spagh"+str(n_sims)+"days_"+str(days)+VoC_flag+'.png',dpi=300)
+plt.tight_layout()
+plt.savefig("figs/"+forecast_type+"spagh"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)

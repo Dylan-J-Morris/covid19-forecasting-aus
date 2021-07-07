@@ -6,6 +6,7 @@
 *.csv
 *.xlsx
 slurm*
+experiments
 
 # VScode
 .vscode
