@@ -26,7 +26,7 @@ class Forecast:
     """
 
     def __init__(self,current, state,start_date, people,
-        Reff=2.2,alpha_i=1,qi_list=[1], qa_list=[1/8], qs_list=[0.8],
+        alpha_i=1,qi=0.98, qa=1/8, qs=0.8,
         qua_ai= 1, 
         forecast_date='2020-07-01', cases_file_date=None,
         test_campaign_date=None, test_campaign_factor=1,
@@ -43,13 +43,14 @@ class Forecast:
 
         self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01",format='%Y-%m-%d') - self.start_date).days # Day from which to reduce imported cases escapes
         self.initial_people = people.copy() #detected people only
-        self.Reff = Reff
         self.alpha_i = alpha_i
-        self.qi_list = qi_list
-        self.qa_list = qa_list
-        self.qs_list = qs_list
+        self.qi = qi
+        self.qa = qa
+        self.qs = qs
         self.k = 0.1 # Hard coded
         self.qua_ai = qua_ai
+        self.gam = 1/2
+        self.ps = 0.7
 
         # The number of days into simulation at which to begin increasing Reff due to VoC
         self.VoC_flag = VoC_flag 
@@ -58,9 +59,6 @@ class Forecast:
         self.scenario = scenario
 
         self.forecast_R = 'R_L'
-        # self.R_I = None # Defined later by read_in_Reff
-        np.random.seed(1)
-        #self.max_cases = 100000
 
         self.forecast_date = (pd.to_datetime(
             forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
@@ -89,17 +87,6 @@ class Forecast:
         """
         from math import ceil
         if curr_time ==0:
-
-            #grab a sample from parameter lists
-            self.qs = self.choose_random_item(self.qs_list)
-            self.qa = self.choose_random_item(self.qa_list)
-            #resample qa until it is less than self.qs
-            while self.qa>=self.qs:
-                self.qa = self.choose_random_item(self.qa_list)
-            self.qi = self.choose_random_item(self.qi_list)
-            self.gam = 1/2
-
-            self.ps = 0.7
             self.alpha_s = 1/(self.ps + self.gam*(1-self.ps))
             self.alpha_a = self.gam * self.alpha_s
             self.current = self.initial_state.copy()
@@ -193,10 +180,7 @@ class Forecast:
         df_forecast = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
 
         # Get R_I values and store in object.
-        self.R_I = df_forecast.loc[
-            (df_forecast.type=='R_I')&
-            (df_forecast.state==self.state),
-            self.num_of_sim%2000].values
+        self.R_I = df_forecast.loc[(df_forecast.type=='R_I')&(df_forecast.state==self.state),self.num_of_sim%2000].values[0]
 
         if self.forecast_R !='R_L':
             raise Exception('Non-R_L forecasts no longer supported. See previous versions of code.')
@@ -214,23 +198,6 @@ class Forecast:
 
         self.Reff = Reff_lookupstate
 
-    def choose_random_item(self, items,weights=None):
-        """A simple function to select a random item"""
-        from numpy.random import random
-        r = random()
-        if weights is None:
-            #Create uniform weights
-            #weights = [1/len(items)] * len(items)
-            index = floor(r*len(items))
-
-            return items[index]
-
-        else:
-            for i,item in enumerate(items):
-                r-= weights[i]
-                if r <0:
-                    return item
-
 
     def generate_new_cases(self,parent_key, Reff,k,travel=False):
         """
@@ -247,9 +214,7 @@ class Forecast:
         elif self.people[parent_key].category=='A': # Asymptomatic
             num_offspring = nbinom.rvs(n=k, p = 1- self.alpha_a*Reff/(self.alpha_a*Reff + k))
         else: # Imported
-
-            Reff = self.choose_random_item(self.R_I)
-            
+            Reff = self.R_I
             # Apply vaccine reduction for hotel quarantine workers
             if self.people[parent_key].infection_time >= self.hotel_quarantine_vaccine_start:
                 p_vh = 0.9+beta.rvs(2,4)*9/100 # p_{v,h} is the proportion of hotel quarantine workers vaccinated 

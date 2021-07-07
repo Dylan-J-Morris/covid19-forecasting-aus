@@ -8,6 +8,8 @@ import multiprocessing as mp
 
 n_sims=int(argv[1]) #number of sims
 start_date = argv[5] 
+state = argv[4]
+print("Simulating state " +state)
 
 
 # Get total number of simulation days
@@ -16,10 +18,6 @@ num_forecast_days = int(argv[2]) # Number of days to forecast forward
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
-
-state = argv[4]
-# states =['NSW','QLD','SA','TAS','VIC','WA','ACT','NT'] # old code ran all states but parallel HPC code run separate
-print("Simulating state " +state)
 
 # This is a parameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
 test_campaign_date = '2020-06-01'
@@ -106,11 +104,6 @@ elif start_date == "2020-12-01":
 else:
     print("Start date not implemented") 
 
-qi_prior = [qi_d[state]]
-qs_prior = [local_detection[state]]
-qa_prior = [a_local_detection[state]]
-
-
 initial_people = ['I']*current[state][0] + \
         ['A']*current[state][1] + \
         ['S']*current[state][2]
@@ -126,7 +119,7 @@ if state in ['VIC']:
     forecast_object = Forecast(current[state],
     state,start_date,people,
     alpha_i= 1, #alpha_i is impact of importations after April 15th
-    qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
     qua_ai=1, forecast_date=forecast_date,
     cases_file_date=case_file_date, test_campaign_date=test_campaign_date, 
     test_campaign_factor=test_campaign_factor,
@@ -136,7 +129,7 @@ elif state in ['NSW']:
     forecast_object = Forecast(current[state],
     state,start_date,people,
     alpha_i= 1,
-    qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
+    qs=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=2, #qua_ai is impact of importations before April 15th forecast_date=forecast_date,
     cases_file_date=case_file_date,
     VoC_flag = VoC_flag, scenario=scenario
@@ -145,7 +138,7 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     forecast_object = Forecast(current[state],
     state,start_date,people,
     alpha_i= 0.1,
-    qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
+    qs=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=1, forecast_date=forecast_date,
     cases_file_date=case_file_date,
     VoC_flag = VoC_flag, scenario=scenario
@@ -154,7 +147,7 @@ else:
     forecast_object = Forecast(current[state],state,
     start_date,people,
     alpha_i= 0.5,
-    qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
+    qs=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=1,  forecast_date=forecast_date,
     cases_file_date=case_file_date,
     VoC_flag = VoC_flag, scenario=scenario
@@ -166,7 +159,7 @@ else:
 def worker(arg):
     obj, methname = arg[:2]
     return getattr(obj,methname)(*arg[2:])
-    
+
 if __name__ =="__main__":
     ##initialise arrays
 
