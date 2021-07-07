@@ -13,52 +13,6 @@ from Reff_functions import *
 from Reff_constants import *
 
 
-### Read in md surveys
-surveys = pd.DataFrame()
-path = "data/md/Barometer wave*.csv"
-for file in glob.glob(path):
-    surveys = surveys.append(pd.read_csv(file,parse_dates=['date']))
-
-surveys = surveys.sort_values(by='date')
-print("Latest Microdistancing survey is {}".format(surveys.date.values[-1]))
-
-surveys.loc[surveys.state!='ACT','state'] = surveys.loc[surveys.state!='ACT','state'].map(states_initials).fillna(surveys.loc[surveys.state!='ACT','state'])
-surveys['proportion'] = surveys['count']/surveys.respondents
-surveys.date = pd.to_datetime(surveys.date)
-
-always =surveys.loc[surveys.response=='Always'].set_index(["state",'date'])
-always = always.unstack(['state'])
-# If you get an error here saying 'cannot create a new series when the index is not unique', then you have a duplicated md file.
-
-idx = pd.date_range('2020-03-01',pd.to_datetime("today"))
-always = always.reindex(idx, fill_value=np.nan)
-always.index.name = 'date'
-
-# fill back to earlier and between weeks.
-# Assume survey on day x applies for all days up to x - 6
-always =always.fillna(method='bfill')
-#assume values continue forward if survey hasn't completed
-always = always.fillna(method='ffill')
-always = always.stack(['state'])
-
-#Zero out before first survey 20th March
-always = always.reset_index().set_index('date')
-always.loc[:'2020-03-20','count'] =0
-always.loc[:'2020-03-20','respondents'] =0
-always.loc[:'2020-03-20','proportion'] =0
-
-always = always.reset_index().set_index(['state','date'])
-
-survey_X = pd.pivot_table(data=always,
-                          index='date',columns='state',values='proportion')
-survey_counts_base =pd.pivot_table(data=always,
-                          index='date',columns='state',values='count').drop(['Australia','Other'],axis=1).astype(int)
-
-survey_respond_base = pd.pivot_table(data=always,
-                          index='date',columns='state',values='respondents').drop(['Australia','Other'],axis=1).astype(int)
-
-
-
 ## Define pystan model
 rho_model_gamma = """
 data {
@@ -207,25 +161,65 @@ sm_pol_gamma = pystan.StanModel(
 )
 
 data_date = pd.to_datetime(argv[1]) # Define data date
+print(data_date.strftime('%d%b%Y'))
 # note: 2020-09-09 won't work (for some reason)
 
-print(data_date.strftime('%d%b%Y'))
 
+######### Read in microdistancing (md) surveys #########
+surveys = pd.DataFrame()
+path = "data/md/Barometer wave*.csv"
+for file in glob.glob(path):
+    surveys = surveys.append(pd.read_csv(file,parse_dates=['date']))
+
+surveys = surveys.sort_values(by='date')
+print("Latest Microdistancing survey is {}".format(surveys.date.values[-1]))
+
+surveys.loc[surveys.state!='ACT','state'] = surveys.loc[surveys.state!='ACT','state'].map(states_initials).fillna(surveys.loc[surveys.state!='ACT','state'])
+surveys['proportion'] = surveys['count']/surveys.respondents
+surveys.date = pd.to_datetime(surveys.date)
+
+always =surveys.loc[surveys.response=='Always'].set_index(["state",'date'])
+always = always.unstack(['state'])
+# If you get an error here saying 'cannot create a new series when the index is not unique', then you have a duplicated md file.
+
+idx = pd.date_range('2020-03-01',pd.to_datetime("today"))
+always = always.reindex(idx, fill_value=np.nan)
+always.index.name = 'date'
+
+# fill back to earlier and between weeks.
+# Assume survey on day x applies for all days up to x - 6
+always =always.fillna(method='bfill')
+#assume values continue forward if survey hasn't completed
+always = always.fillna(method='ffill')
+always = always.stack(['state'])
+
+#Zero out before first survey 20th March
+always = always.reset_index().set_index('date')
+always.loc[:'2020-03-20','count'] =0
+always.loc[:'2020-03-20','respondents'] =0
+always.loc[:'2020-03-20','proportion'] =0
+
+always = always.reset_index().set_index(['state','date'])
+
+survey_X = pd.pivot_table(data=always,
+                          index='date',columns='state',values='proportion')
+survey_counts_base =pd.pivot_table(data=always,
+                          index='date',columns='state',values='count').drop(['Australia','Other'],axis=1).astype(int)
+
+survey_respond_base = pd.pivot_table(data=always,
+                          index='date',columns='state',values='respondents').drop(['Australia','Other'],axis=1).astype(int)
+
+
+######### Read in EpyReff results #########
 df_Reff = pd.read_csv("results/EpyReff/Reff"+
             data_date.strftime("%Y-%m-%d")+"tau_4.csv",parse_dates=['INFECTION_DATES'])
 df_Reff['date'] = df_Reff.INFECTION_DATES
 df_Reff['state'] = df_Reff.STATE
-print('data loaded')
-if data_date < pd.to_datetime('2020-06-02'):
-    #no leading zero on early dates
-    if data_date.day <10:
-        df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y')[1:])
-    else:
-        df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'))
-else:
-    df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'))
 
-print('cases loaded')
+
+######### Read in NNDSS/linelist data #########
+df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y')) # If this errors it may be missing a leading zero on the date.
+
 df_Reff = df_Reff.merge(df_state,how='left',left_on=['state','date'], right_on=['STATE','date_inferred']) #how = left to use Reff days, NNDSS missing dates
 df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.rolling(7,1).mean()) #minimum number of 1
 
@@ -243,9 +237,9 @@ df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
 df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
 df_Reff['local'] = df_Reff.local.fillna(0)
 df_Reff['imported'] = df_Reff.imported.fillna(0)
-#Add Insight traffic
-#df_ai = read_AddInsight()
 
+
+######### Read in Google mobility results #########
 df_google = read_in_google(local=True,moving=True)
 
 df= df_google.merge(df_Reff[['date','state','mean','lower','upper',
