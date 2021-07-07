@@ -28,7 +28,7 @@ class Forecast:
     def __init__(self,current, state,start_date, people,
         alpha_i=1,qi=0.98, qa=1/8, qs=0.8,
         qua_ai= 1, 
-        forecast_date='2020-07-01', cases_file_date=None,
+        forecast_date=None, cases_file_date=None,
         test_campaign_date=None, test_campaign_factor=1,
         VoC_flag = None, scenario=''
         ):
@@ -63,7 +63,6 @@ class Forecast:
         self.forecast_date = (pd.to_datetime(
             forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
 
-        self.cross_border_state = None # No long using cross border (interstate) transmission
         self.cases_file_date = cases_file_date
 
 
@@ -74,8 +73,6 @@ class Forecast:
             self.test_campaign_factor = test_campaign_factor
         else:
             self.test_campaign_date = None
-
-        self.datapath = os.path.join('data/')
 
         assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
 
@@ -599,8 +596,6 @@ class Forecast:
                 'ps':self.ps,
                 'bad_sim':self.bad_sim,
                 'cases_after':self.cases_after,
-                # 'travel_seeds': self.cross_border_seeds[:,self.num_of_sim],
-                # 'travel_induced_cases'+str(self.cross_border_state):self.cross_border_state_cases,
                 'num_of_sim':self.num_of_sim,
             }
             )
@@ -623,8 +618,6 @@ class Forecast:
                 'ps':self.ps,
                 'bad_sim':self.bad_sim,
                 'cases_after':self.cases_after,
-                # 'travel_seeds': self.cross_border_seeds[:,self.num_of_sim],
-                # 'travel_induced_cases'+str(self.cross_border_state):self.cross_border_state_cases[:,self.num_of_sim],
                 'num_of_sim':self.num_of_sim,
             }
             )
