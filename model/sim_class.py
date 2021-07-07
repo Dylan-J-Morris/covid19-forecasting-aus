@@ -83,30 +83,6 @@ class Forecast:
 
         assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
 
-    def generate_times(self,  i=3.64, j=3.07, m=5.505, n=0.948, size=10000):
-        """
-        Helper function. Generate large amount of gamma draws to save on simulation time later
-        """
-        self.inf_times =  np.random.gamma(i/j, j, size =size) #shape and scale
-        self.detect_times = np.random.gamma(m/n,n, size = size)
-
-
-    def iter_inf_time(self):
-        """
-        Helper function. Access Next inf_time.
-        """
-        from itertools import cycle
-        for time in cycle(self.inf_times):
-            yield time
-
-    def iter_detect_time(self):
-        """
-        Helper function. Access Next detect_time.
-        """
-        from itertools import cycle
-        for time in cycle(self.detect_times):
-            yield time
-
     def initialise_sim(self,curr_time=0):
         """
         Given some number of cases in self.initial_state (copied),
@@ -257,16 +233,6 @@ class Forecast:
                 if r <0:
                     return item
 
-
-    def new_symp_cases(self,num_new_cases:int):
-        """
-        Given number of new cases generated, assign them to symptomatic (S) with probability ps
-        """
-        #repeated Bernoulli trials is a Binomial (assuming independence of development of symptoms)
-
-        symp_cases = binom.rvs(n=num_new_cases, p=self.ps)
-
-        return symp_cases
 
     def generate_new_cases(self,parent_key, Reff,k,travel=False):
         """
@@ -900,3 +866,27 @@ class Forecast:
 
         # Set all betas to prior plus effective period size of 1
         self.b_dict = {i:prior_beta+1 for i in range(self.end_time)} 
+
+    def generate_times(self,  i=3.64, j=3.07, m=5.505, n=0.948, size=10000):
+        """
+        Helper function. Generate large amount of gamma draws to save on simulation time later
+        """
+        self.inf_times =  np.random.gamma(i/j, j, size =size) #shape and scale
+        self.detect_times = np.random.gamma(m/n,n, size = size)
+
+
+    def iter_inf_time(self):
+        """
+        Helper function. Access Next inf_time.
+        """
+        from itertools import cycle
+        for time in cycle(self.inf_times):
+            yield time
+
+    def iter_detect_time(self):
+        """
+        Helper function. Access Next detect_time.
+        """
+        from itertools import cycle
+        for time in cycle(self.detect_times):
+            yield time
