@@ -305,10 +305,10 @@ class Forecast:
         from numpy.random import random
 
 
-        #check parent category
-        if self.people[parent_key].category=='S':
+        # Check parent category
+        if self.people[parent_key].category=='S': # Symptomatic
             num_offspring = nbinom.rvs(n=k,p= 1- self.alpha_s*Reff/(self.alpha_s*Reff + k))
-        elif self.people[parent_key].category=='A':
+        elif self.people[parent_key].category=='A': # Asymptomatic
             num_offspring = nbinom.rvs(n=k, p = 1- self.alpha_a*Reff/(self.alpha_a*Reff + k))
         else: # Imported
 
