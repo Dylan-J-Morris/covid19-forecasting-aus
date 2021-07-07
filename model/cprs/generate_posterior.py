@@ -1,26 +1,17 @@
-####
 print('Performing inference on state level Reff')
 
-####
 import matplotlib
 matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import norm
-from scipy.special import expit
 from sys import argv
-from datetime import timedelta, datetime
 import pystan
-import pickle
 import os, glob
 from Reff_functions import *
 from Reff_constants import *
 
-
-iterations=5000
-chains=2
 
 ### Read in md surveys
 surveys = pd.DataFrame()
@@ -406,8 +397,8 @@ input_data ={
 
 fit = sm_pol_gamma.sampling(
     data=input_data,
-    iter=iterations,
-    chains=chains,
+    iter=5000,
+    chains=2,
     #control={'max_treedepth':15}
 )
 
