@@ -57,8 +57,6 @@ class Forecast:
         # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
         self.scenario = scenario
 
-        self.forecast_R = 'R_L'
-
         self.forecast_date = (pd.to_datetime(
             forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
 
@@ -176,9 +174,6 @@ class Forecast:
 
         # Get R_I values and store in object.
         self.R_I = df_forecast.loc[(df_forecast.type=='R_I')&(df_forecast.state==self.state),self.num_of_sim%2000].values[0]
-
-        if self.forecast_R !='R_L':
-            raise Exception('Non-R_L forecasts no longer supported. See previous versions of code.')
 
         df_forecast = df_forecast.loc[df_forecast.type=='R_L'] # Get only R_L forecasts
         df_forecast = df_forecast.set_index(['state','date'])
@@ -656,7 +651,7 @@ class Forecast:
         print("Saving results for state "+self.state)
         df_results.to_parquet(
             "./results/"+self.state+self.start_date.strftime(
-                format='%Y-%m-%d')+"sim_"+self.forecast_R+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet",
+                format='%Y-%m-%d')+"sim_R_L"+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet",
                 )
 
         return df_results
