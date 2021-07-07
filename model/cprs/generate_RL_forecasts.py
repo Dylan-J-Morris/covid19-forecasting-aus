@@ -63,7 +63,6 @@ start_date = '2020-03-01'
 # Scenario modelling
 if len(argv) > 2:
     scenario = argv[2]
-    scenario_change_point = 5
 else:
     scenario = ''
 
@@ -183,11 +182,10 @@ for i,state in enumerate(states):
 
             # ## SIMULATION MODELLING
             # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
-            if (state == "VIC") and len(argv)>2:
-                print('Scenario modelling being used for', state)
-                cov_baseline = np.cov(Rmed[-21:-14,:], rowvar=False) # Make baseline cov for generating points
-                mu_baseline = np.mean(Rmed[-21:-14,:], axis =0)
-                mu_current = Rmed[-1,:]
+            if (state == "NSW") and len(argv)>2:
+                cov_baseline = np.cov(Rmed[-42:-28,:], rowvar=False) # Make baseline cov for generating points
+                mu_baseline = np.mean(Rmed[-42:-28,:], axis =0)
+                mu_current = np.mean(Rmed[-3:-1,:], axis =0) 
 
                 # Constant Lockdown
                 if scenario == "no_reversion":
@@ -202,7 +200,16 @@ for i,state in enumerate(states):
                         new_forcast_points = np.random.multivariate_normal(mu_baseline, cov_baseline) 
 
                 # Temporary Lockdown
-                elif scenario[:14] == "half_reversion":  # No Lockdown
+                elif scenario == "half_reversion_thisweek": 
+                    scenario_change_point = (pd.to_datetime('2021-07-09') - data_date).days + n_forecast -42
+                    if i < scenario_change_point:
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
+                    else:
+                        new_forcast_points = np.random.multivariate_normal((mu_current + mu_baseline)/2, cov_baseline) 
+
+                 # Temporary Lockdown ending 
+                elif scenario == "half_reversion_nextweek":  
+                    scenario_change_point = (pd.to_datetime('2021-07-16') - data_date).days + n_forecast -42
                     if i < scenario_change_point:
                         new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
                     else:
@@ -237,10 +244,9 @@ for i,state in enumerate(states):
 
         ## SIMULATION MODELLING
         # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
-        if (state == "VIC") and len(argv)>2:
-            print('Scenario modelling being used for', state)
-            std_baseline = np.std(prop[state].values[-21:-14]) # Make baseline cov for generating points
-            mu_baseline = np.mean(prop[state].values[-21:-14], axis =0)
+        if (state == "NSW") and len(argv)>2:
+            std_baseline = np.std(prop[state].values[-42:-28]) # Make baseline cov for generating points
+            mu_baseline = np.mean(prop[state].values[-42:-28], axis =0)
             mu_current =prop[state].values[-1]
 
             # Constant Lockdown
@@ -249,6 +255,7 @@ for i,state in enumerate(states):
 
             # No Lockdown
             elif scenario == "full_reversion":  
+                scenario_change_point = (pd.to_datetime('2021-07-09') - data_date).days + extra_days_md
                 if i < scenario_change_point:
                     current = np.random.normal(mu_current, std_baseline) 
                 else:
@@ -256,7 +263,17 @@ for i,state in enumerate(states):
                     current = np.random.normal(mu_baseline, std_baseline) 
 
             # Temporary Lockdown
-            elif scenario == "half_reversion":  # No Lockdown
+            elif scenario == "half_reversion_thisweek":  # No Lockdown
+                scenario_change_point = (pd.to_datetime('2021-07-09') - data_date).days + extra_days_md
+                if i < scenario_change_point:
+                    current = np.random.normal(mu_current, std_baseline) 
+                else:
+                     # Revert to values halfway between the before and after
+                    current = np.random.normal((mu_current + mu_baseline)/2, std_baseline) 
+            
+            # Temporary Lockdown
+            elif scenario == "half_reversion_nextweek":  # No Lockdown
+                scenario_change_point = (pd.to_datetime('2021-07-16') - data_date).days + extra_days_md
                 if i < scenario_change_point:
                     current = np.random.normal(mu_current, std_baseline) 
                 else:
