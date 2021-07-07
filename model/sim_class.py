@@ -29,7 +29,7 @@ class Forecast:
         Reff=2.2,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
         qua_ai= 1, 
         forecast_date='2020-07-01', cases_file_date=None,
-        ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
+        test_campaign_date=None, test_campaign_factor=1,
         VoC_flag = None, scenario=''
         ):
         import numpy as np
@@ -46,7 +46,6 @@ class Forecast:
         self.Reff = Reff
         self.alpha_i = alpha_i
         self.gam_list = gam_list
-        self.ps_list = ps_list#beta.rvs(7,3,size=1000)
         self.qi_list = qi_list
         self.qa_list = qa_list
         self.qs_list = qs_list
@@ -101,7 +100,7 @@ class Forecast:
             self.qi = self.choose_random_item(self.qi_list)
             self.gam = self.choose_random_item(self.gam_list)
 
-            self.ps = self.choose_random_item(self.ps_list)
+            self.ps = 0.7
             self.alpha_s = 1/(self.ps + self.gam*(1-self.ps))
             self.alpha_a = self.gam * self.alpha_s
             self.current = self.initial_state.copy()

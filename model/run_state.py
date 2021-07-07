@@ -115,8 +115,6 @@ qi_prior = [qi_d[state]]
 qs_prior = [local_detection[state]]
 qa_prior = [a_local_detection[state]]
 gam =[1/2]
-ps_prior = 0.7
-ps_prior= [ps_prior]
 
 
 initial_people = ['I']*current[state][0] + \
@@ -136,8 +134,7 @@ if state in ['VIC']:
     alpha_i= 1,gam_list=gam, #alpha_i is impact of importations after April 15th
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=1, forecast_date=forecast_date,
-    cases_file_date=case_file_date,
-    ps_list = ps_prior, test_campaign_date=test_campaign_date, 
+    cases_file_date=case_file_date, test_campaign_date=test_campaign_date, 
     test_campaign_factor=test_campaign_factor,
     VoC_flag = VoC_flag, scenario=scenario
     )
@@ -148,7 +145,6 @@ elif state in ['NSW']:
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=2, #qua_ai is impact of importations before April 15th forecast_date=forecast_date,
     cases_file_date=case_file_date,
-    ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario
     )
 elif state in ['ACT','NT','SA','WA','QLD']:
@@ -158,7 +154,6 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=1, forecast_date=forecast_date,
     cases_file_date=case_file_date,
-    ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario
     )
 else:
@@ -168,7 +163,6 @@ else:
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=1,  forecast_date=forecast_date,
     cases_file_date=case_file_date,
-    ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario
     )
 
