@@ -26,7 +26,7 @@ class Forecast:
     """
 
     def __init__(self,current, state,start_date, people,
-        Reff=2.2,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
+        Reff=2.2,alpha_i=1,qi_list=[1], qa_list=[1/8], qs_list=[0.8],
         qua_ai= 1, 
         forecast_date='2020-07-01', cases_file_date=None,
         test_campaign_date=None, test_campaign_factor=1,
@@ -45,7 +45,6 @@ class Forecast:
         self.initial_people = people.copy() #detected people only
         self.Reff = Reff
         self.alpha_i = alpha_i
-        self.gam_list = gam_list
         self.qi_list = qi_list
         self.qa_list = qa_list
         self.qs_list = qs_list
@@ -98,7 +97,7 @@ class Forecast:
             while self.qa>=self.qs:
                 self.qa = self.choose_random_item(self.qa_list)
             self.qi = self.choose_random_item(self.qi_list)
-            self.gam = self.choose_random_item(self.gam_list)
+            self.gam = 1/2
 
             self.ps = 0.7
             self.alpha_s = 1/(self.ps + self.gam*(1-self.ps))
