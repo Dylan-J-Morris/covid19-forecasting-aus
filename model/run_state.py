@@ -13,8 +13,7 @@ def worker(arg):
 
 n_sims=int(argv[1]) #number of sims
 start_date = argv[5] 
-test_campaign_date = '2020-06-01'
-test_campaign_factor = 1.5
+
 
 # Get total number of simulation days
 forecast_date = argv[3] # Date of forecast
@@ -23,13 +22,14 @@ end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=n
 end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
 
-
-progress = True # Used to be argv[5] but was always None
 forecast_type = 'R_L'# used to be argv[3]
 state = argv[4]
 # states =['NSW','QLD','SA','TAS','VIC','WA','ACT','NT'] # old code ran all states but parallel HPC code run separate
 print("Simulating state " +state)
 
+# This is a parameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
+test_campaign_date = '2020-06-01'
+test_campaign_factor = 1.5
 
 # If no VoC specified, code will run without alterations.
 VoC_flag = ''
@@ -250,8 +250,7 @@ if __name__ =="__main__":
             import_inci_obs[:,n] = obs_cases[:,0]
             asymp_inci_obs[:,n] = obs_cases[:,1]
             symp_inci_obs[:,n] = obs_cases[:,2]
-            if progress:
-                pbar.update()
+            pbar.update()
         
     pool.close()
     pool.join()
