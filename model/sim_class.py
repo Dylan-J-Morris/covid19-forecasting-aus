@@ -450,7 +450,7 @@ class Forecast:
                         #sometimes initial cases infection time is pre
                         #Reff data, so take the earliest one
                         try:
-                            Reff =  self.Reff[ceil(curr_time)-1]#self.choose_random_item(self.Reff[ceil(curr_time)-1])
+                            Reff =  self.Reff[ceil(curr_time)-1]
                         except KeyError:
                             if curr_time>0:
                                 print("Unable to find Reff for this parent at time: %.2f" % curr_time)
@@ -564,7 +564,7 @@ class Forecast:
                                 #sometimes initial cases infection time is pre
                                 #Reff data, so take the earliest one
                                 try:
-                                    Reff = self.Reff[ceil(curr_time)-1]#self.choose_random_item(self.Reff[ceil(curr_time)-1])
+                                    Reff = self.Reff[ceil(curr_time)-1]
                                 except KeyError:
                                     if curr_time>0:
                                         print("Unable to find Reff for this parent at time: %.2f" % curr_time)
