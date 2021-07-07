@@ -3,13 +3,8 @@ import pandas as pd
 from sys import argv
 from numpy.random import beta, gamma
 from tqdm import tqdm
-
-#from joblib import Parallel, delayed
 import multiprocessing as mp
 
-def worker(arg):
-    obj, methname = arg[:2]
-    return getattr(obj,methname)(*arg[2:])
 
 n_sims=int(argv[1]) #number of sims
 start_date = argv[5] 
@@ -167,6 +162,11 @@ else:
 
 
 ############ Run Simulations in parallel and return ############
+
+def worker(arg):
+    obj, methname = arg[:2]
+    return getattr(obj,methname)(*arg[2:])
+    
 if __name__ =="__main__":
     ##initialise arrays
 
