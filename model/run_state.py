@@ -266,6 +266,6 @@ if __name__ =="__main__":
     #        +" exceeding "+\
     #            "max cases is "+str(sum()) )
     #results recorded into parquet as dataframe
-    df = item.to_df(results)
+    df = forecast_object.to_df(results)
 
 
