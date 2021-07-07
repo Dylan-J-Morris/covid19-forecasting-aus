@@ -133,7 +133,7 @@ for i,cat in enumerate(initial_people):
 if state in ['VIC']:
     forecast_object = Forecast(current[state],
     state,start_date,people,
-    alpha_i= 1, k =0.1,gam_list=gam, #alpha_i is impact of importations after April 15th
+    alpha_i= 1,gam_list=gam, #alpha_i is impact of importations after April 15th
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=1, forecast_date=forecast_date,
     cases_file_date=case_file_date,
@@ -144,7 +144,7 @@ if state in ['VIC']:
 elif state in ['NSW']:
     forecast_object = Forecast(current[state],
     state,start_date,people,
-    alpha_i= 1, k =0.1,gam_list=gam,
+    alpha_i= 1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=2, #qua_ai is impact of importations before April 15th forecast_date=forecast_date,
     cases_file_date=case_file_date,
@@ -154,7 +154,7 @@ elif state in ['NSW']:
 elif state in ['ACT','NT','SA','WA','QLD']:
     forecast_object = Forecast(current[state],
     state,start_date,people,
-    alpha_i= 0.1, k =0.1,gam_list=gam,
+    alpha_i= 0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=1, forecast_date=forecast_date,
     cases_file_date=case_file_date,
@@ -164,7 +164,7 @@ elif state in ['ACT','NT','SA','WA','QLD']:
 else:
     forecast_object = Forecast(current[state],state,
     start_date,people,
-    alpha_i= 0.5, k =0.1,gam_list=gam,
+    alpha_i= 0.5,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
     qua_ai=1,  forecast_date=forecast_date,
     cases_file_date=case_file_date,

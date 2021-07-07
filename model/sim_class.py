@@ -26,7 +26,7 @@ class Forecast:
     """
 
     def __init__(self,current, state,start_date, people,
-        Reff=2.2,k=0.1,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
+        Reff=2.2,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
         qua_ai= 1, 
         forecast_date='2020-07-01', cases_file_date=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
@@ -50,7 +50,7 @@ class Forecast:
         self.qi_list = qi_list
         self.qa_list = qa_list
         self.qs_list = qs_list
-        self.k = k
+        self.k = 0.1 # Hard coded
         self.qua_ai = qua_ai
 
         # The number of days into simulation at which to begin increasing Reff due to VoC
