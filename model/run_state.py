@@ -22,7 +22,6 @@ end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=n
 end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
 
-forecast_type = 'R_L'# used to be argv[3]
 state = argv[4]
 # states =['NSW','QLD','SA','TAS','VIC','WA','ACT','NT'] # old code ran all states but parallel HPC code run separate
 print("Simulating state " +state)
@@ -136,8 +135,7 @@ if state in ['VIC']:
     state,start_date,people,
     alpha_i= 1, k =0.1,gam_list=gam, #alpha_i is impact of importations after April 15th
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-    qua_ai=1,
-    forecast_R =forecast_type, forecast_date=forecast_date,
+    qua_ai=1, forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior, test_campaign_date=test_campaign_date, 
     test_campaign_factor=test_campaign_factor,
@@ -148,8 +146,7 @@ elif state in ['NSW']:
     state,start_date,people,
     alpha_i= 1, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-    qua_ai=2, #qua_ai is impact of importations before April 15th
-    forecast_R =forecast_type, forecast_date=forecast_date,
+    qua_ai=2, #qua_ai is impact of importations before April 15th forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario
@@ -159,8 +156,7 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     state,start_date,people,
     alpha_i= 0.1, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-    qua_ai=1,
-    forecast_R =forecast_type, forecast_date=forecast_date,
+    qua_ai=1, forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario
@@ -170,8 +166,7 @@ else:
     start_date,people,
     alpha_i= 0.5, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-    qua_ai=1, 
-    forecast_R = forecast_type , forecast_date=forecast_date,
+    qua_ai=1,  forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario

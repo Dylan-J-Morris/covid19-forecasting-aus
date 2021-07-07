@@ -27,7 +27,7 @@ class Forecast:
 
     def __init__(self,current, state,start_date, people,
         Reff=2.2,k=0.1,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
-        qua_ai= 1, forecast_R=None,
+        qua_ai= 1, 
         forecast_date='2020-07-01', cases_file_date=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
         VoC_flag = None, scenario=''
@@ -59,7 +59,7 @@ class Forecast:
         # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
         self.scenario = scenario
 
-        self.forecast_R = forecast_R
+        self.forecast_R = 'R_L'
         # self.R_I = None # Defined later by read_in_Reff
         np.random.seed(1)
         #self.max_cases = 100000
@@ -749,16 +749,10 @@ class Forecast:
 
         print('VoC_flag is', self.VoC_flag)
         print("Saving results for state "+self.state)
-        if self.forecast_R is None:
-            df_results.to_parquet(
-                "./results/"+self.state+self.start_date.strftime(
-                    format='%Y-%m-%d')+"sim_results"+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet",
-                    )
-        else:
-            df_results.to_parquet(
-                "./results/"+self.state+self.start_date.strftime(
-                    format='%Y-%m-%d')+"sim_"+self.forecast_R+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet",
-                    )
+        df_results.to_parquet(
+            "./results/"+self.state+self.start_date.strftime(
+                format='%Y-%m-%d')+"sim_"+self.forecast_R+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet",
+                )
 
         return df_results
 
