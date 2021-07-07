@@ -1,6 +1,9 @@
 ###
 # Run EpyReff on NNDSS data
 ###
+
+print('Running EpyReff on NNDSS data')
+
 import matplotlib
 matplotlib.use('Agg')
 import pandas as pd
