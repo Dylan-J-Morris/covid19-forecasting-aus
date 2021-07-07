@@ -27,8 +27,8 @@ class Forecast:
 
     def __init__(self,current, state,start_date, people,
         Reff=2.2,k=0.1,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
-        forecast_date='2020-07-01', cross_border_state=None,cases_file_date=None,
         qua_ai= 1, qua_qi_factor=1, qua_qs_factor=1,forecast_R=None,
+        forecast_date='2020-07-01', cases_file_date=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
         Reff_file_date=None, VoC_flag = None, scenario=''
         ):
@@ -70,15 +70,9 @@ class Forecast:
             forecast_date,format='%Y-%m-%d') - self.start_date).days
 
         self.Reff_file_date = Reff_file_date
-        self.cross_border_state = cross_border_state
+        self.cross_border_state = None # No long using cross border (interstate) transmission
         self.cases_file_date = cases_file_date
 
-        if self.cross_border_state is not None:
-            self.travel_prob = self.p_travel()
-            self.travel_cases_after = 0
-            #placeholders for run_state script
-            self.cross_border_seeds = np.zeros(shape=(1,2),dtype=int)
-            self.cross_border_state_cases = np.zeros_like(self.cross_border_seeds)
 
         if test_campaign_date is not None:
             self.test_campaign_date = (pd.to_datetime(
@@ -342,37 +336,6 @@ class Forecast:
                 inf_time = self.people[parent_key].infection_time + next(self.get_inf_time)
                 if inf_time > self.forecast_date:
                     self.inf_forecast_counter +=1
-                    if travel:
-                        if self.cross_border_state is not None:
-                        #check if SA person
-                            if random() < self.travel_prob:
-                                if ceil(inf_time) <= self.cases.shape[0]:
-                                    self.cross_border_state_cases[max(0,ceil(inf_time)-1),self.num_of_sim] += 1
-                                    detection_rv = random()
-                                    detect_time = 0 #give 0 by default, fill in if passes
-
-                                    recovery_time = 0 #for now not tracking recoveries
-
-                                    if new_case <= num_sympcases-1: #minus 1 as new_case ranges from 0 to num_offspring-1
-                                        #first num_sympcases are symnptomatic, rest are asymptomatic
-                                        category = 'S'
-                                        if detection_rv < self.qs:
-                                            #case detected
-                                            detect_time = inf_time + next(self.get_detect_time)
-
-                                    else:
-                                        category = 'A'
-                                        detect_time = 0
-                                        if detection_rv < self.qa:
-                                            #case detected
-                                            detect_time = inf_time + next(self.get_detect_time)
-                                    self.people[len(self.people)] = Person(parent_key, inf_time, detect_time,recovery_time, category)
-                                    self.cross_border_sim(len(self.people)-1,ceil(inf_time))
-                                    #skip simulating this offspring in VIC
-                                    #continue
-                                else:
-                                    #cross border seed happened after forecast
-                                    self.travel_cases_after +=1
 
                 #normal case within state
                 if self.people[parent_key].category=='A':
