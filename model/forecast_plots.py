@@ -9,6 +9,7 @@ import matplotlib.gridspec as gridspec
 from datetime import timedelta
 import json
 from sys import argv
+import os
 from scipy.stats import beta
 
 from helper_functions import read_in_NNDSS, read_in_Reff_file
@@ -217,21 +218,21 @@ with open("results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".
     good_sims = json.load(file)
     
 
-## Local cases
+###### Local cases plot
 fig = plt.figure(figsize=(12,18))
 gs = fig.add_gridspec(4,2)
+axes = []
 for i,state in enumerate(states):
     
-    print("Number of sims not rejected for state " +state +" is %i"
-          % len(good_sims[state]) )
+    print("Number of sims not rejected for state " +state +" is %i"% len(good_sims[state]) )
     Reff_used = [r%2000 for r in good_sims[state]]
-    print("Number of unique Reff paths not rejected is %i " 
-          % len(set(Reff_used) ))
+    print("Number of unique Reff paths not rejected is %i " % len(set(Reff_used) ))
 
-    ##plots
+    ## Plots
     gs0 = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[i])
     ax = fig.add_subplot(gs0[:2,0])
     ax2 = fig.add_subplot(gs0[2,0], sharex=ax)
+    axes.append(ax)
     
     dfplot = df_cases_state_time.loc[
         (df_cases_state_time.STATE==state) 
@@ -241,18 +242,8 @@ for i,state in enumerate(states):
     ax.bar(dfplot.date_inferred,dfplot.local, label='Actual',color='grey', alpha=0.6)
     R_plot = [r%2000 for r in good_sims[state]]
     
-    if len(set(good_sims[state]))==0:
-        #no accepted sim, skip
-        continue
     ax,ax2= plot_results(df_results.loc[state], ['total_inci_obs'],ax_arg = (ax,ax2),summary=True, Reff=Reff.loc[state,R_plot])
     
-    #if state=='NSW':
-    #    ax.set_ylim((0,100))
-    #elif state=='VIC':
-    #    ax.set_ylim((0,600))
-    #ax.set_ylim(top=70)
-    # if (state=='VIC') or (state=='NSW'):
-    #    ax.set_ylim((0,100))
     if i%2==0:
         ax.set_ylabel("Observed \n local cases")
         ax2.set_ylabel("Local Reff")
@@ -260,24 +251,24 @@ for i,state in enumerate(states):
     if i< len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
-    #ax.set_ylim((0,60))
+plt.tight_layout()
 plt.savefig("figs/"+forecast_type+start_date+"local_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
 
-## Local cases
-fig = plt.figure(figsize=(12,18))
-gs = fig.add_gridspec(4,2)
+# Also produce a plot that shows the median more clearly.
+# try:
 for i,state in enumerate(states):
-    
-    print("Number of sims not rejected for state " +state +" is %i"
-          % len(good_sims[state]) )
-    Reff_used = [r%2000 for r in good_sims[state]]
-    print("Number of unique Reff paths not rejected is %i " 
-          % len(set(Reff_used) ))
+    ax = axes[i]
+    print('max median', max(df_results.loc[state].loc[('total_inci_obs','median')])*1.5+10)
+    ax.set_ylim((0,max(df_results.loc[state].loc[('total_inci_obs','median')])*1.5+10))
+plt.savefig("figs/"+forecast_type+start_date+"local_inci_median_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
 
-    ##plots
-    gs0 = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[i])
-    ax = fig.add_subplot(gs0[:2,0])
-    ax2 = fig.add_subplot(gs0[2,0], sharex=ax)
+# Make a single plot for each state
+os.makedirs("figs/single_state_plots/", exist_ok=True)
+for i,state in enumerate(states):
+    fig = plt.figure(figsize=(8,6))
+    gs = fig.add_gridspec(3,1)
+    ax = fig.add_subplot(gs[:2,0])
+    ax2 = fig.add_subplot(gs[2,0], sharex=ax)
     
     dfplot = df_cases_state_time.loc[
         (df_cases_state_time.STATE==state) 
@@ -286,36 +277,16 @@ for i,state in enumerate(states):
     
     ax.bar(dfplot.date_inferred,dfplot.local, label='Actual',color='grey', alpha=0.6)
     R_plot = [r%2000 for r in good_sims[state]]
-    
-    if len(set(good_sims[state]))==0:
-        #no accepted sim, skip
-        continue
     ax,ax2= plot_results(df_results.loc[state], ['total_inci_obs'],ax_arg = (ax,ax2),summary=True, Reff=Reff.loc[state,R_plot])
     
-    try: 
-        print('max median', max(df_results.loc[state].loc[('total_inci_obs','median')])*1.5+10)
-        ax.set_ylim((0,max(df_results.loc[state].loc[('total_inci_obs','median')])*1.5+10))
-    except:
-        print('Axis setting failed')
-    #if state=='NSW':
-    #    ax.set_ylim((0,100))
-    #elif state=='VIC':
-    #    ax.set_ylim((0,600))
-    #ax.set_ylim(top=70)
-    # if (state=='VIC') or (state=='NSW'):
-    #    ax.set_ylim((0,100))
-    if i%2==0:
-        ax.set_ylabel("Observed \n local cases")
-        ax2.set_ylabel("Local Reff")
+    ax.set_ylabel("Observed \n local cases")
+    ax2.set_ylabel("Local Reff")
     ax.set_title(state)
-    if i< len(states)-2:
-        ax.set_xticklabels([])
-        ax.set_xlabel('')
-    #ax.set_ylim((0,60))
-plt.savefig("figs/"+forecast_type+start_date+"local_inci_median_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
+    plt.tight_layout()
+    plt.savefig("figs/single_state_plots/"+state+"local_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
 
 
-##TOtal cases
+##Total cases
 fig = plt.figure(figsize=(12,18))
 gs = fig.add_gridspec(4,2)
 for i,state in enumerate(states):
@@ -346,6 +317,7 @@ for i,state in enumerate(states):
     if i< len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
+plt.tight_layout()
 plt.savefig("figs/"+forecast_type+start_date+"local_total_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
 
 
@@ -378,6 +350,7 @@ for i,state in enumerate(states):
     if i< len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
+plt.tight_layout()
 plt.savefig("figs/"+forecast_type+"asymp_inci_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=144)
 ## Imported cases
 fig = plt.figure(figsize=(12,18))
@@ -493,4 +466,5 @@ for i,state in enumerate(states):
 
     ax.set_xticks([df_raw.columns.values[-1*31]],minor=True)
     ax.xaxis.grid(which='minor', linestyle='--',alpha=0.6, color='black')
+plt.tight_layout()
 plt.savefig("figs/"+forecast_type+"spagh"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png',dpi=300)
