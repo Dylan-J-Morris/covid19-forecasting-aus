@@ -13,7 +13,6 @@ def worker(arg):
 
 n_sims=int(argv[1]) #number of sims
 start_date = argv[5] 
-XBstate = None
 test_campaign_date = '2020-06-01'
 test_campaign_factor = 1.5
 
@@ -35,7 +34,6 @@ print("Simulating state " +state)
 
 
 R_I='R_I'
-abc =False
 
 # If no VoC specified, code will run without alterations.
 VoC_flag = ''
@@ -123,23 +121,13 @@ initial_people = ['I']*current[state][0] + \
         ['A']*current[state][1] + \
         ['S']*current[state][2]
 people = {}
-if abc:
-    qs_prior = beta(2,2,size=10000)
-    qi_prior = beta(2, 2, size=10000)
-    qa_prior = beta(2,2, size=10000)
-    #qi_prior = [qi_d[state]]
-    #qs_prior = [local_detection[state]]
-    #qa_prior = [a_local_detection[state]]
-    gam =0.1 + beta(2,2,size=10000) *0.9 #np.minimum(3,gamma(4,0.25, size=1000))
-    ps_prior = 0.1+beta(2,2,size=10000)*0.9
 
-else:
-    qi_prior = [qi_d[state]]
-    qs_prior = [local_detection[state]]
-    qa_prior = [a_local_detection[state]]
-    gam =[1/2]
-    ps_prior = 0.7
-    ps_prior= [ps_prior]
+qi_prior = [qi_d[state]]
+qs_prior = [local_detection[state]]
+qa_prior = [a_local_detection[state]]
+gam =[1/2]
+ps_prior = 0.7
+ps_prior= [ps_prior]
 
 for i,cat in enumerate(initial_people):
     people[i] = Person(0,0,0,0,cat)
@@ -147,12 +135,11 @@ for i,cat in enumerate(initial_people):
 
 ####### Create simulation.py object ########
 if state in ['VIC']:
-    #XBstate = 'SA'
     forecast_dict[state] = Forecast(current[state],
     state,start_date,people,
     alpha_i= 1, k =0.1,gam_list=gam, #alpha_i is impact of importations after April 15th
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-    qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
+    qua_ai=1,
     forecast_R =forecast_type, forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior, test_campaign_date=test_campaign_date, 
@@ -164,7 +151,7 @@ elif state in ['NSW']:
     state,start_date,people,
     alpha_i= 1, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-    qua_ai=2,qua_qi_factor=1,qua_qs_factor=1, #qua_ai is impact of importations before April 15th
+    qua_ai=2, #qua_ai is impact of importations before April 15th
     forecast_R =forecast_type, forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior,
@@ -175,7 +162,7 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     state,start_date,people,
     alpha_i= 0.1, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-    qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
+    qua_ai=1,
     forecast_R =forecast_type, forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior,
@@ -186,7 +173,7 @@ else:
     start_date,people,
     alpha_i= 0.5, k =0.1,gam_list=gam,
     qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
-    qua_ai=1,qua_qi_factor=1,qua_qs_factor=1, 
+    qua_ai=1, 
     forecast_R = forecast_type , forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior,
@@ -258,9 +245,6 @@ if __name__ =="__main__":
                 accept[n] = param_dict['metric']>=0.8
                 cases_after[n] = param_dict['cases_after']
                 ps[n] =param_dict['ps']
-                # travel_seeds[:,n] = param_dict['travel_seeds']
-                # travel_induced_cases[:,n] = param_dict['travel_induced_cases'+str(XBstate)]
-
 
             
             #record cases appropriately

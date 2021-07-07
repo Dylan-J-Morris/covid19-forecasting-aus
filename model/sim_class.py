@@ -27,7 +27,7 @@ class Forecast:
 
     def __init__(self,current, state,start_date, people,
         Reff=2.2,k=0.1,alpha_i=1,gam_list=[0.8],qi_list=[1], qa_list=[1/8], qs_list=[0.8],
-        qua_ai= 1, qua_qi_factor=1, qua_qs_factor=1,forecast_R=None,
+        qua_ai= 1, forecast_R=None,
         forecast_date='2020-07-01', cases_file_date=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
         VoC_flag = None, scenario=''
@@ -52,8 +52,6 @@ class Forecast:
         self.qs_list = qs_list
         self.k = k
         self.qua_ai = qua_ai
-        self.qua_qi_factor = qua_qi_factor
-        self.qua_qs_factor=qua_qs_factor
 
         # The number of days into simulation at which to begin increasing Reff due to VoC
         self.VoC_flag = VoC_flag 
@@ -177,15 +175,10 @@ class Forecast:
 
         #num undetected is nbinom (num failures given num detected)
         if self.current[2]==0:
-            num_undetected_s = nbinom.rvs(1,self.qs*self.qua_qs_factor)
+            num_undetected_s = nbinom.rvs(1,self.qs)
         else:
-            num_undetected_s = nbinom.rvs(self.current[2],self.qs*self.qua_qs_factor)
+            num_undetected_s = nbinom.rvs(self.current[2],self.qs)
 
-        # Init sim no longer produces more unobserved imports
-        # if self.current[0]==0:
-        #     num_undetected_i = nbinom.rvs(1,self.qs*self.qua_qs_factor)
-        # else:
-        #     num_undetected_i = nbinom.rvs(self.current[0], self.qi*self.qua_qi_factor)
 
         total_s = num_undetected_s + self.current[2]
 
