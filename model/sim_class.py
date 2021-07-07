@@ -37,10 +37,6 @@ class Forecast:
         self.state = state
         #start date sets day 0 in script to start_date
         self.start_date = pd.to_datetime(start_date,format='%Y-%m-%d')
-        self.quarantine_change_date = pd.to_datetime(
-            '2020-04-15',format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
-
-        self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01",format='%Y-%m-%d') - self.start_date).days # Day from which to reduce imported cases escapes
         self.initial_people = people.copy() #detected people only
         self.alpha_i = alpha_i
         self.qi = qi
@@ -57,11 +53,17 @@ class Forecast:
         # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
         self.scenario = scenario
 
-        self.forecast_date = (pd.to_datetime(
-            forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
-
+        # forecast_date and cases_file_date are usually the same.
+        self.forecast_date = (pd.to_datetime(forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
         self.cases_file_date = cases_file_date
 
+        ##### Assumption dates.
+
+        # Date from which quarantine was started
+        self.quarantine_change_date = pd.to_datetime('2020-04-15',format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
+
+        # Day from which to reduce imported overseas cases escapes
+        self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01",format='%Y-%m-%d') - self.start_date).days 
 
         # This is a parameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
         if state == "VIC":
