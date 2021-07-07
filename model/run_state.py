@@ -19,9 +19,6 @@ end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=n
 end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
 
-# This is a parameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
-test_campaign_date = '2020-06-01'
-test_campaign_factor = 1.5
 
 # If no VoC specified, code will run without alterations.
 VoC_flag = ''
@@ -121,8 +118,7 @@ if state in ['VIC']:
     alpha_i= 1, #alpha_i is impact of importations after April 15th
     qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
     qua_ai=1, forecast_date=forecast_date,
-    cases_file_date=case_file_date, test_campaign_date=test_campaign_date, 
-    test_campaign_factor=test_campaign_factor,
+    cases_file_date=case_file_date, 
     VoC_flag = VoC_flag, scenario=scenario
     )
 elif state in ['NSW']:

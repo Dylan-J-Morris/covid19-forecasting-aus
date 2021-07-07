@@ -29,7 +29,6 @@ class Forecast:
         alpha_i=1,qi=0.98, qa=1/8, qs=0.8,
         qua_ai= 1, 
         forecast_date=None, cases_file_date=None,
-        test_campaign_date=None, test_campaign_factor=1,
         VoC_flag = None, scenario=''
         ):
         import numpy as np
@@ -66,11 +65,10 @@ class Forecast:
         self.cases_file_date = cases_file_date
 
 
-        # The test campaign refers to a reduction in the likelyhood of detetcion in VIC before '2020-06-01' 
-        if test_campaign_date is not None:
-            self.test_campaign_date = (pd.to_datetime(
-                test_campaign_date,format='%Y-%m-%d') - self.start_date).days
-            self.test_campaign_factor = test_campaign_factor
+        # This is a parameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
+        if state == "VIC":
+            self.test_campaign_date = (pd.to_datetime('2020-06-01',format='%Y-%m-%d') - self.start_date).days
+            self.test_campaign_factor = 1.5
         else:
             self.test_campaign_date = None
 
