@@ -13,7 +13,6 @@ def worker(arg):
 
 n_sims=int(argv[1]) #number of sims
 start_date = argv[5] 
-Reff_file_date = argv[3]#'2020-08-25'
 forecast_date = argv[3]#'2020-08-25'
 case_file_date = pd.to_datetime(argv[3]).strftime("%d%b%Y")#None #'24Jul'
 XBstate = None
