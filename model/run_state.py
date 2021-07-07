@@ -160,7 +160,7 @@ if state in ['VIC']:
     forecast_R =forecast_type, forecast_date=forecast_date,
     cases_file_date=case_file_date,
     ps_list = ps_prior, test_campaign_date=test_campaign_date, 
-    test_campaign_factor=test_campaign_factor,Reff_file_date=Reff_file_date,
+    test_campaign_factor=test_campaign_factor,
     VoC_flag = VoC_flag, scenario=scenario
     )
 elif state in ['NSW']:
@@ -171,7 +171,7 @@ elif state in ['NSW']:
     qua_ai=2,qua_qi_factor=1,qua_qs_factor=1, #qua_ai is impact of importations before April 15th
     forecast_R =forecast_type, forecast_date=forecast_date,
     cases_file_date=case_file_date,
-    ps_list = ps_prior,Reff_file_date=Reff_file_date,
+    ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario
     )
 elif state in ['ACT','NT','SA','WA','QLD']:
@@ -182,7 +182,7 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
     forecast_R =forecast_type, forecast_date=forecast_date,
     cases_file_date=case_file_date,
-    ps_list = ps_prior,Reff_file_date=Reff_file_date,
+    ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario
     )
 else:
@@ -193,7 +193,7 @@ else:
     qua_ai=1,qua_qi_factor=1,qua_qs_factor=1, 
     forecast_R = forecast_type , forecast_date=forecast_date,
     cases_file_date=case_file_date,
-    ps_list = ps_prior,Reff_file_date=Reff_file_date,
+    ps_list = ps_prior,
     VoC_flag = VoC_flag, scenario=scenario
     )
 

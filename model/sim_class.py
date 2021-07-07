@@ -30,7 +30,7 @@ class Forecast:
         qua_ai= 1, qua_qi_factor=1, qua_qs_factor=1,forecast_R=None,
         forecast_date='2020-07-01', cases_file_date=None,
         ps_list=[0.7], test_campaign_date=None, test_campaign_factor=1,
-        Reff_file_date=None, VoC_flag = None, scenario=''
+        VoC_flag = None, scenario=''
         ):
         import numpy as np
         self.initial_state = current.copy() #Observed cases on start day
@@ -69,7 +69,6 @@ class Forecast:
         self.forecast_date = (pd.to_datetime(
             forecast_date,format='%Y-%m-%d') - self.start_date).days
 
-        self.Reff_file_date = Reff_file_date
         self.cross_border_state = None # No long using cross border (interstate) transmission
         self.cases_file_date = cases_file_date
 
