@@ -1,5 +1,5 @@
 ####
-# Read in LSHTM results and perform inference on
+print('Performing inference on state level Reff')
 
 ####
 import matplotlib

@@ -1,3 +1,4 @@
+print('Generating R_L forecasts using mobility data.')
 import matplotlib
 matplotlib.use('Agg')
 import pandas as pd
