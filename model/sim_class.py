@@ -320,9 +320,13 @@ class Forecast:
                 v_eh =  0.83+beta.rvs(2,2)*14/100 #  v_{e,h} is the overall vaccine effectiveness
                 Reff *= (1-p_vh*v_eh)
 
-            if self.people[parent_key].infection_time < self.quarantine_change_date:
-                #factor of 3 times infectiousness prequarantine changes
+            # Apply increase escape rate due to Delta variant.
+            if self.people[parent_key].infection_time >= pd.to_datetime('2021-05-01'): # Hardcoded VoC increase
+                    Reff = Reff*1.39*1.3
 
+
+            if self.people[parent_key].infection_time < self.quarantine_change_date:
+                # factor of 3 times infectiousness prequarantine changes
                 num_offspring = nbinom.rvs(n=k, p = 1- self.qua_ai*Reff/(self.qua_ai*Reff + k))
             else:
                 num_offspring = nbinom.rvs(n=k, p = 1- self.alpha_i*Reff/(self.alpha_i*Reff + k))
