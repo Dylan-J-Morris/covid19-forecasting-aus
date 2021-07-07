@@ -156,8 +156,8 @@ for state in states:
         alpha_i= 1, k =0.1,gam_list=gam, #alpha_i is impact of importations after April 15th
         qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
         qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
-        forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
-        cross_border_state=XBstate,cases_file_date=case_file_date,
+        forecast_R =forecast_type, forecast_date=forecast_date,
+        cases_file_date=case_file_date,
         ps_list = ps_prior, test_campaign_date=test_campaign_date, 
         test_campaign_factor=test_campaign_factor,Reff_file_date=Reff_file_date,
         VoC_flag = VoC_flag, scenario=scenario
@@ -168,8 +168,8 @@ for state in states:
         alpha_i= 1, k =0.1,gam_list=gam,
         qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
         qua_ai=2,qua_qi_factor=1,qua_qs_factor=1, #qua_ai is impact of importations before April 15th
-        forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
-        cross_border_state=None,cases_file_date=case_file_date,
+        forecast_R =forecast_type, forecast_date=forecast_date,
+        cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
         VoC_flag = VoC_flag, scenario=scenario
         )
@@ -179,8 +179,8 @@ for state in states:
         alpha_i= 0.1, k =0.1,gam_list=gam,
         qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
         qua_ai=1,qua_qi_factor=1,qua_qs_factor=1,
-        forecast_R =forecast_type, R_I = R_I,forecast_date=forecast_date,
-        cross_border_state=None,cases_file_date=case_file_date,
+        forecast_R =forecast_type, forecast_date=forecast_date,
+        cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
         VoC_flag = VoC_flag, scenario=scenario
         )
@@ -190,7 +190,7 @@ for state in states:
         alpha_i= 0.5, k =0.1,gam_list=gam,
         qs_list=qs_prior,qi_list=qi_prior,qa_list=qa_prior,
         qua_ai=1,qua_qi_factor=1,qua_qs_factor=1, 
-        forecast_R = forecast_type , R_I = R_I,forecast_date=forecast_date,
+        forecast_R = forecast_type , forecast_date=forecast_date,
         cases_file_date=case_file_date,
         ps_list = ps_prior,Reff_file_date=Reff_file_date,
         VoC_flag = VoC_flag, scenario=scenario
