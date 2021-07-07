@@ -125,7 +125,7 @@ elif state in ['NSW']:
     forecast_object = Forecast(current[state],
     state,start_date,people,
     alpha_i= 1,
-    qs=local_detection[state],qi_list=qi_d[state],qa_list=a_local_detection[state],
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
     qua_ai=2, #qua_ai is impact of importations before April 15th forecast_date=forecast_date,
     cases_file_date=case_file_date,
     VoC_flag = VoC_flag, scenario=scenario
@@ -134,7 +134,7 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     forecast_object = Forecast(current[state],
     state,start_date,people,
     alpha_i= 0.1,
-    qs=local_detection[state],qi_list=qi_d[state],qa_list=a_local_detection[state],
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
     qua_ai=1, forecast_date=forecast_date,
     cases_file_date=case_file_date,
     VoC_flag = VoC_flag, scenario=scenario
@@ -143,7 +143,7 @@ else:
     forecast_object = Forecast(current[state],state,
     start_date,people,
     alpha_i= 0.5,
-    qs=local_detection[state],qi_list=qi_d[state],qa_list=a_local_detection[state],
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
     qua_ai=1,  forecast_date=forecast_date,
     cases_file_date=case_file_date,
     VoC_flag = VoC_flag, scenario=scenario
