@@ -1,3 +1,4 @@
+print('Generating R_L forecasts using mobility data.')
 import matplotlib
 matplotlib.use('Agg')
 import pandas as pd
@@ -5,9 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os, glob
 
-from scipy.stats import norm
 from scipy.special import expit
-from datetime import date, timedelta, datetime
+from datetime import timedelta, datetime
 from sys import argv
 
 from Reff_constants import *
