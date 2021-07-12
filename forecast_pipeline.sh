@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATADATE=$1 # Date of NNDSS data file
-NSIMS=$3 # Total number of simulations to run
+NSIMS=$2 # Total number of simulations to run
 
 jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
 jid_posteriors=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE})

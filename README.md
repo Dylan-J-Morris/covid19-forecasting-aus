@@ -16,18 +16,14 @@ These will need to be updated every week.
 Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
 
 ```
-STARTDATE='2020-12-01' # Start date of forecast
 DATADATE='2021-07-12'  # Date of NNDSS data file
-NDAYS=35 # Number of days after data date to forecast (usually 35)
 NSIMS=20000 # Total number of simulations to run
 
-bash forecast_pipeline.sh ${STARTDATE} ${DATADATE} ${NDAYS} ${NSIMS}
+bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
 ```
 
-### Internal options
-There are some options used within the model that are not passed as parameters.
-* `use_linelist` in `model/helper_functions.py` determines whether NNDSS data is used or an interum linelist from Telethon Kids. 
-* `assume_local_cases_if_unknown` in `model/helper_functions.py` determines if cases in NNDSS with no PLACE_OF_ACQUISITION field will be assumed to be local or imported cases.
+#### Internal options
+There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, many options/assumptions have been made during the fitting in `model/cprs/generate_posterior.py`. 
 
 
 ## Step-by-step workflow and relevant scripts

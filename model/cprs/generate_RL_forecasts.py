@@ -18,8 +18,25 @@ locator = mdates.MonthLocator()
 
 import sys
 sys.path.insert(0, '../')
+
+# Define inputs
 from params import num_forecast_days
 num_forecast_days = num_forecast_days+3 # Add 3 days buffer to mobility forecast
+data_date = pd.to_datetime(argv[1])
+print("Using data from", data_date)
+start_date = '2020-03-01'
+
+# Scenario modelling
+scenario = '' # Assume no scenario
+scenario_date = '' 
+if len(argv) > 2:
+    scenario = argv[2]
+    if len(argv) > 3:
+        scenario_date = argv[3]
+    print('Using scenario', scenario, 'with date', 'None' if scenario_date=='' else scenario_date)
+
+
+
 
 # Get Google Data
 df_google_all = read_in_google(Aus_only=True,moving=True,local=True)
@@ -58,20 +75,6 @@ survey_X = pd.pivot_table(data=always,
                           index='date',columns='state',values='proportion')
 prop_all = survey_X
 
-
-# Define inputs
-data_date = pd.to_datetime(argv[1])
-print("Using data from", data_date)
-start_date = '2020-03-01'
-
-# Scenario modelling
-scenario = '' # Assume no scenario
-scenario_date = '' 
-if len(argv) > 2:
-    scenario = argv[2]
-    if len(argv) > 3:
-        scenario_date = argv[3]
-    print('Using scenario', scenario, 'with date', 'None' if scenario_date=='' else scenario_date)
 
 # Get posterior
 df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
