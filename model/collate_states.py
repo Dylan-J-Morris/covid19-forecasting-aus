@@ -13,13 +13,13 @@ days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
 
 # Add flag to create plots for VoCs
 VoC_flag = '' # Default value
-if len(argv)>5:
-    VoC_flag = argv[5]
+if len(argv)>4:
+    VoC_flag = argv[4]
     print('VoC %s being used in collate_states.py' % VoC_flag)
 
-if len(argv) > 6:
+if len(argv) > 5:
     # Add an optional scenario flag to load in specific Reff scenarios.
-    scenario = argv[6]
+    scenario = argv[5]
 else:
     scenario = ''
 

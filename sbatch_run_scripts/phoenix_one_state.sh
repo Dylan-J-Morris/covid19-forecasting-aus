@@ -16,11 +16,10 @@ STATE=$1 # Pre-pass the single state
 NSIMS=$2
 NDAYS=$3
 DATADATE=$4
-STARTDATE=$5
-VOCFLAG=$6 # Optional VoC Name
-SCENARIO=$7 # Optional scenario modelling flag
+VOCFLAG=$5 # Optional VoC Name
+SCENARIO=$6 # Optional scenario modelling flag
 
 
-python model/run_state.py $NSIMS $NDAYS $DATADATE $STATE $STARTDATE $VOCFLAG $SCENARIO
+python model/run_state.py $NSIMS $NDAYS $DATADATE $STATE $VOCFLAG $SCENARIO
 
 deactivate

@@ -7,7 +7,7 @@ from sys import argv
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 n_sims = int(argv[1])
 from params import start_date
-forecast_type = argv[3] #default None
+forecast_type = 'R_L' #default None
 
 try:
     forecast_date = argv[4] #format should be '%Y-%m-%d'
@@ -26,13 +26,13 @@ sims_dict={
 
 # If no VoC specified, code will run without alterations.
 VoC_flag = ''
-if len(argv)>6:
-    VoC_flag = argv[6]
+if len(argv)>4:
+    VoC_flag = argv[4]
     print('VoC %s being used in record_to_csv.py' % VoC_flag)
 
-if len(argv) > 7:
+if len(argv) > 5:
     # Add an optional scenario flag to load in specific Reff scenarios.
-    scenario = argv[7]
+    scenario = argv[5]
 else:
     scenario = ''
 

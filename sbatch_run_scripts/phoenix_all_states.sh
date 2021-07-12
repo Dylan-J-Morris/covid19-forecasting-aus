@@ -19,10 +19,9 @@ states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 NSIMS=$1
 NDAYS=$2
 DATADATE=$3
-STARTDATE=$4
-VOCFLAG=$5 # Optional VoC Name
-SCENARIO=$6 # Optional scenario modelling flag
+VOCFLAG=$4 # Optional VoC Name
+SCENARIO=$5 # Optional scenario modelling flag
 
-python model/run_state.py $NSIMS $NDAYS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $STARTDATE $VOCFLAG $SCENARIO
+python model/run_state.py $NSIMS $NDAYS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $VOCFLAG $SCENARIO
 
 deactivate

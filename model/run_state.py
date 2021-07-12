@@ -22,12 +22,12 @@ case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date
 
 # If no VoC specified, code will run without alterations.
 VoC_flag = ''
-if len(argv)>6:
-    VoC_flag =  argv[6]
+if len(argv)>5:
+    VoC_flag =  argv[5]
 
-if len(argv) > 7:
+if len(argv) > 6:
     # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
-    scenario = argv[7]
+    scenario = argv[6]
 else:
     scenario = ''
             

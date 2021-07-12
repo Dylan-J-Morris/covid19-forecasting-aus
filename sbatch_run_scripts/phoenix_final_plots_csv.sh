@@ -16,11 +16,10 @@ source ../virtualenvs/bin/activate
 NSIMS=$1
 NDAYS=$2
 DATADATE=$3
-STARTDATE=$4
-VOCFLAG=$5
-SCENARIO=$6
+VOCFLAG=$4
+SCENARIO=$5
 
-python model/collate_states.py $NSIMS $NDAYS $DATADATE $STARTDATE $VOCFLAG $SCENARIO
-python model/record_to_csv.py $NSIMS $NDAYS R_L $DATADATE $STARTDATE $VOCFLAG $SCENARIO
+python model/collate_states.py $NSIMS $NDAYS $DATADATE $VOCFLAG $SCENARIO
+python model/record_to_csv.py $NSIMS $NDAYS $DATADATE $VOCFLAG $SCENARIO
 
 deactivate
