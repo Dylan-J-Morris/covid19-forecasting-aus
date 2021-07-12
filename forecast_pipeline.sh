@@ -1,7 +1,6 @@
 #!/bin/bash
 
 DATADATE=$1 # Date of NNDSS data file
-NDAYS=$2 # Number of days after data date to forecast
 NSIMS=$3 # Total number of simulations to run
 
 jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
