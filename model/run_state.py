@@ -7,7 +7,7 @@ import multiprocessing as mp
 
 
 n_sims=int(argv[1]) #number of sims
-start_date = argv[5] 
+from params import start_date
 state = argv[4]
 print("Simulating state " +state)
 

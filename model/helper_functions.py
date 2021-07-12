@@ -14,8 +14,7 @@ def read_in_NNDSS(date_string):
 
     from datetime import timedelta
     import glob
-
-    use_linelist = False # If something goes wrong on a day you can set this to True to use the linelist
+    from params import use_linelist, assume_local_cases_if_unknown
 
     if not use_linelist: 
         case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y")
@@ -40,7 +39,6 @@ def read_in_NNDSS(date_string):
         df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
     
         # The first 4 digits is the country code. We use this to determin if the cases is local or imported. We can choose which assumption we keep. This should be set to true during local outbreak waves.
-        assume_local_cases_if_unknown = True
         if assume_local_cases_if_unknown:
             # Fill blanks with local code
             df.PLACE_OF_ACQUISITION.fillna('11019999',inplace=True)
@@ -88,6 +86,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
         VoC_date: (date as string) date from which to increase Reff by VoC
     """
     from scipy.stats import beta
+    from params import VoC_start_date
     
     if file_date is None:
         raise Exception('Need to provide file date to Reff read.')
@@ -96,7 +95,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
     df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+scenario+'.h5', key='Reff')
 
     if (VoC_flag != '') and (VoC_flag is not None):
-        VoC_start_date  = pd.to_datetime('2021-05-01')
+        VoC_start_date  = pd.to_datetime(VoC_start_date)
         # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
         # We do so by editing a slice of the data frame. Forgive me for my sins.
         row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)

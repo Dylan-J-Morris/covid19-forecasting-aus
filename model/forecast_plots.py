@@ -161,7 +161,7 @@ else:
     scenario = ''
 
 n_sims = int(argv[1])
-start_date = argv[4]
+from params import start_date
 data_date = argv[3]
 num_forecast_days = int(argv[2])
 
