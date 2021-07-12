@@ -187,9 +187,9 @@ for i,state in enumerate(states):
             if len(argv)>2:
                 cov_baseline = np.cov(Rmed[-42:-28,:], rowvar=False) # Make baseline cov for generating points
                 mu_baseline = np.mean(Rmed[-42:-28,:], axis =0)
-                mu_current = np.mean(Rmed[-3:-1,:], axis =0) 
+                mu_current = np.mean(Rmed[-7:-1,:], axis =0) 
 
-                scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
+                if scenario_date != '': scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
 
                 # Constant Lockdown
                 if scenario == "no_reversion":
@@ -244,7 +244,7 @@ for i,state in enumerate(states):
             mu_baseline = np.mean(prop[state].values[-42:-28], axis =0)
             mu_current =prop[state].values[-1]
 
-            scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + extra_days_md
+            if scenario_date != '': scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + extra_days_md
 
             # Constant Lockdown
             if scenario == "no_reversion":
