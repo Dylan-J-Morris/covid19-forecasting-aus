@@ -61,12 +61,13 @@ print("Using data from", data_date)
 start_date = '2020-03-01'
 
 # Scenario modelling
+scenario = '' # Assume no scenario
+scenario_date = '' 
 if len(argv) > 2:
     scenario = argv[2]
-    scenario_date = argv[3]
-else:
-    scenario = ''
-    scenario_date = ''
+    if len(argv) > 3:
+        scenario_date = argv[3]
+    print('Using scenario', scenario, 'with date', 'None' if scenario_date=='' else scenario_date)
 
 # Get posterior
 df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
@@ -244,7 +245,8 @@ for i,state in enumerate(states):
             mu_baseline = np.mean(prop[state].values[-42:-28], axis =0)
             mu_current =prop[state].values[-1]
 
-            if scenario_date != '': scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + extra_days_md
+            if scenario_date != '': 
+                scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + extra_days_md
 
             # Constant Lockdown
             if scenario == "no_reversion":
