@@ -14,12 +14,11 @@ source ../virtualenvs/bin/activate
 
 STATE=$1 # Pre-pass the single state
 NSIMS=$2
-NDAYS=$3
-DATADATE=$4
-VOCFLAG=$5 # Optional VoC Name
-SCENARIO=$6 # Optional scenario modelling flag
+DATADATE=$3
+VOCFLAG=$4 # Optional VoC Name
+SCENARIO=$5 # Optional scenario modelling flag
 
 
-python model/run_state.py $NSIMS $NDAYS $DATADATE $STATE $VOCFLAG $SCENARIO
+python model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG $SCENARIO
 
 deactivate

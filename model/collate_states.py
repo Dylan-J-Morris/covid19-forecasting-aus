@@ -3,27 +3,26 @@ from sys import argv
 import json
 
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
-from params import start_date
+from params import start_date, num_forecast_days
 
 n_sims=int(argv[1]) #number of sims
 
-num_forecast_days = int(argv[2])
-end_date = pd.to_datetime(argv[3],format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
+end_date = pd.to_datetime(argv[2],format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
 
 # Add flag to create plots for VoCs
 VoC_flag = '' # Default value
-if len(argv)>4:
-    VoC_flag = argv[4]
+if len(argv)>3:
+    VoC_flag = argv[3]
     print('VoC %s being used in collate_states.py' % VoC_flag)
 
-if len(argv) > 5:
+if len(argv) > 4:
     # Add an optional scenario flag to load in specific Reff scenarios.
-    scenario = argv[5]
+    scenario = argv[4]
 else:
     scenario = ''
 
-forecast_type= 'R_L' #formerly argv[3]
+forecast_type= 'R_L'
 
 dic_states={
     'state':[],
