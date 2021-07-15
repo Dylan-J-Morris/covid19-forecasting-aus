@@ -141,14 +141,7 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     VoC_flag = VoC_flag, scenario=scenario
     )
 else:
-    forecast_object = Forecast(current[state],state,
-    start_date,people,
-    alpha_i= 0.5,
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=1,  forecast_date=forecast_date,
-    cases_file_date=case_file_date,
-    VoC_flag = VoC_flag, scenario=scenario
-    )
+    raise Exception("State not supported")
 
 
 ############ Run Simulations in parallel and return ############
