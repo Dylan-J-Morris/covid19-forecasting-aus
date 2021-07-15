@@ -140,8 +140,16 @@ elif state in ['ACT','NT','SA','WA','QLD']:
     cases_file_date=case_file_date,
     VoC_flag = VoC_flag, scenario=scenario
     )
-else:
-    raise Exception("State not supported")
+else: #TAS
+    forecast_object = Forecast(current[state],state,
+    start_date,people,
+    alpha_i= 0.5,
+    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
+    qua_ai=1,  forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    VoC_flag = VoC_flag, scenario=scenario
+    )
+
 
 
 ############ Run Simulations in parallel and return ############
