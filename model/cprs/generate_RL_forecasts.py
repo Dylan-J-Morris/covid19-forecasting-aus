@@ -184,10 +184,11 @@ for i,state in enumerate(states):
             # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
             if len(argv)>2:
                 cov_baseline = np.cov(Rmed[-42:-28,:], rowvar=False) # Make baseline cov for generating points
-                mu_baseline = np.mean(Rmed[-42:-28,:], axis =0)
-                mu_current = np.mean(Rmed[-7:-1,:], axis =0) 
+                mu_current = Rmed[-1,:]
+                mu_victoria = np.array([-55.35057887, -22.80891056, -46.59531636, -75.99942378, -44.71119293])
 
-                if scenario_date != '': scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
+                if scenario_date != '': 
+                    scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
 
                 # Constant Lockdown
                 if scenario == "no_reversion":
@@ -207,6 +208,13 @@ for i,state in enumerate(states):
                         new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
                     else:
                         new_forcast_points = np.random.multivariate_normal((mu_current + mu_baseline)/2, cov_baseline) 
+
+                # Stage 4
+                if scenario == "stage4":
+                    if i < scenario_change_point:
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
+                    else:
+                        new_forcast_points = np.random.multivariate_normal(mu_victoria, cov_baseline) 
 
             sims[i,:,n] = new_forcast_points # Set this day in this simulation to the forecast realisation
 
@@ -264,6 +272,9 @@ for i,state in enumerate(states):
                 else:
                      # Revert to values halfway between the before and after
                     current = np.random.normal((mu_current + mu_baseline)/2, std_baseline) 
+
+            # # Stage 4
+            # Not yet implemented
 
         new_md_forecast.append(current)
 
@@ -724,8 +735,7 @@ for i,state in enumerate(plot_states):
     ax[row,col].fill_between( plot_df.date, plot_df['lower'],plot_df['upper'],alpha=0.4,color='C0')
     ax[row,col].fill_between( plot_df.date, plot_df['bottom'],plot_df['top'],alpha=0.4,color='C0')
 
-    ax[row,col].tick_params('x',rotation=45)
-    ax[row,col].xaxis.set_major_locator(locator)
+    ax[row,col].tick_params('x',rotation=90)
     ax[row,col].set_title(state)
     ax[row,col].set_yticks([1],minor=True,)
     ax[row,col].set_yticks([0,2,3],minor=False)
