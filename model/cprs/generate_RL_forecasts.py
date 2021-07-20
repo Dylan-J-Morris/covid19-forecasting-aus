@@ -13,9 +13,6 @@ from sys import argv
 from Reff_constants import *
 from Reff_functions import *
 
-import matplotlib.dates as mdates
-locator = mdates.MonthLocator()
-
 
 # Get Google Data
 df_google_all = read_in_google(Aus_only=True,moving=True,local=True)
@@ -299,33 +296,35 @@ for i,state in enumerate(states):
 
         if state in plot_states:
             if var != 'md_prop':
-                axs[rownum,colnum].plot(dates,df_google[df_google['state'] == state][var].values)
+                axs[rownum,colnum].plot(dates,df_google[df_google['state'] == state][var].values, lw=1)
                 axs[rownum,colnum].fill_between(dates,
                                                 np.percentile(Rmed_array[:,j,:], 25, axis =1),
                                                 np.percentile(Rmed_array[:,j,:], 75, axis =1),
                                             alpha=0.5)
 
-                axs[rownum,colnum].plot(dd,sims_med[:,j],'k')
+                axs[rownum,colnum].plot(dd,sims_med[:,j],'k', lw=1)
                 axs[rownum,colnum].fill_between(dd, sims_q25[:,j], sims_q75[:,j], color='k',alpha = 0.1)
             else:
                 ##md plot
-                axs[rownum,colnum].plot(prop[state].index,prop[state].values)
+                axs[rownum,colnum].plot(prop[state].index,prop[state].values, lw=1)
                 #axs[rownum,colnum].fill_between(dates,
                 #                                np.percentile(Rmed_array[:,j,:], 25, axis =1),
                 #                                np.percentile(Rmed_array[:,j,:], 75, axis =1),
                 #                               alpha=0.5)
 
-                axs[rownum,colnum].plot(dd_md,np.median(md_sims,axis=1),'k')
+                axs[rownum,colnum].plot(dd_md,np.median(md_sims,axis=1),'k', lw=1)
                 axs[rownum,colnum].fill_between(dd_md, np.quantile(md_sims,0.25, axis=1),
                                                 np.quantile(md_sims,0.75,axis=1), color='k',alpha = 0.1)
 
             axs[rownum,colnum].set_title(state)
-            axs[rownum,colnum].axhline(1,ls = '--', c = 'k')
+            axs[rownum,colnum].axhline(1,ls = '--', c = 'k', lw=1)
             axs[rownum,colnum].set_title(state)
-            axs[rownum,colnum].tick_params('x',rotation=45)
-            axs[rownum,colnum].xaxis.set_major_locator(locator)
-            #fig.autofmt_xdate()
-
+            axs[rownum,colnum].tick_params('x',rotation=90)
+            axs[rownum,colnum].tick_params('both',labelsize=8)
+            if j<len(predictors):
+                axs[rownum,colnum].set_ylabel(predictors[j].replace('_',' ')[:-5], fontsize=7)
+            else:
+                axs[rownum,colnum].set_ylabel('Proportion of respondents\n micro-distancing', fontsize=7)  
     state_Rmed[state] = Rmed_array
     state_sims[state] = sims
 os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date, exist_ok=True)
@@ -338,25 +337,25 @@ for i,fig in enumerate(figs):
     
     if i<len(predictors):
 
-        fig.text(0.03, 0.5, 
-        predictors[i].replace('_',' ')[:-5], 
-        ha='center', va='center',
-        rotation='vertical',
-        fontsize=15)
-        fig.tight_layout(rect=[0.02,0.04,1,1])
+        # fig.text(0.03, 0.5, 
+        # predictors[i].replace('_',' ')[:-5], 
+        # ha='center', va='center',
+        # rotation='vertical',
+        # fontsize=15)
+        fig.tight_layout()
         fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/"+str(predictors[i])+scenario+scenario_date+".png",dpi=144)
+            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/"+str(predictors[i])+scenario+scenario_date+".png",dpi=400)
 
 
     else:
-        fig.text(0.03, 0.5, 
-        'Proportion of respondents\n micro-distancing', 
-        ha='center', va='center',
-        rotation='vertical',
-        fontsize=15)
-        fig.tight_layout(rect=[0.02,0.04,1,1])
+        # fig.text(0.03, 0.5, 
+        # 'Proportion of respondents\n micro-distancing', 
+        # ha='center', va='center',
+        # rotation='vertical',
+        # fontsize=15)
+        fig.tight_layout()
         fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/micro_dist.png",dpi=144)
+            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/micro_dist.png",dpi=400)
 
 df_out = pd.DataFrame.from_dict(outdata)
 
@@ -410,8 +409,6 @@ theta_md = np.tile(df_samples['theta_md'].values, (df_md['NSW'].shape[0],1))
 
 fig, ax = plt.subplots(figsize=(12,9), nrows=4,ncols=2,sharex=True, sharey=True)
 
-plt.locator_params(axis='x',nbins=2)
-
 for i,state in enumerate(plot_states):
     prop_sim= df_md[state].values#np.random.normal(df_md[state].values, df_md_std.values)
     if expo_decay:
@@ -434,7 +431,6 @@ for i,state in enumerate(plot_states):
                             color='C0')
     ax[row,col].set_title(state)
     ax[row,col].tick_params('x',rotation=45)
-    ax[row,col].xaxis.set_major_locator(locator)
 
     ax[row,col].set_xticks([df_md[state].index.values[-n_forecast-extra_days_md]],minor=True,)
     ax[row,col].xaxis.grid(which='minor', linestyle='-.',color='grey', linewidth=1)
@@ -716,7 +712,6 @@ df_Rhats.type = df_Rhats.type.astype(str)
 
 fig, ax = plt.subplots(figsize=(12,9), nrows=4,ncols=2,sharex=True, sharey=True)
 
-plt.locator_params(axis='x',nbins=2)
 for i,state in enumerate(plot_states):
 
     row = i//2
