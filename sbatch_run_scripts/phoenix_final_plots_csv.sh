@@ -14,13 +14,11 @@ module load Python/3.6.1-foss-2016b
 source ../virtualenvs/bin/activate
 
 NSIMS=$1
-NDAYS=$2
-DATADATE=$3
-STARTDATE=$4
-VOCFLAG=$5
-SCENARIO=$6
+DATADATE=$2
+VOCFLAG=$3
+SCENARIO=$4
 
-python model/collate_states.py $NSIMS $NDAYS $DATADATE $STARTDATE $VOCFLAG $SCENARIO
-python model/record_to_csv.py $NSIMS $NDAYS R_L $DATADATE $STARTDATE $VOCFLAG $SCENARIO
+python model/collate_states.py $NSIMS $DATADATE $VOCFLAG $SCENARIO
+python model/record_to_csv.py $NSIMS $DATADATE $VOCFLAG $SCENARIO
 
 deactivate

@@ -7,29 +7,31 @@ import multiprocessing as mp
 
 
 n_sims=int(argv[1]) #number of sims
-from params import start_date
-state = argv[4]
+forecast_date = argv[2] # Date of forecast
+state = argv[3]
+
+# If no VoC specified, code will run without alterations.
+VoC_flag = ''
+if len(argv)>4:
+    VoC_flag =  argv[4]
+
+scenario = ''
+if len(argv) > 5: # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
+    scenario = argv[5]
+    
+
+from params import start_date, num_forecast_days # External parameters
+
 print("Simulating state " +state)
 
 
 # Get total number of simulation days
-forecast_date = argv[3] # Date of forecast
-num_forecast_days = int(argv[2]) # Number of days to forecast forward
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
 
 
-# If no VoC specified, code will run without alterations.
-VoC_flag = ''
-if len(argv)>6:
-    VoC_flag =  argv[6]
 
-if len(argv) > 7:
-    # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
-    scenario = argv[7]
-else:
-    scenario = ''
             
 local_detection = {
             'NSW':0.9,#0.556,#0.65,

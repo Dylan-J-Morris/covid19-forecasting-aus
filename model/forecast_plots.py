@@ -149,21 +149,20 @@ def read_in_cases(cases_file_date):
     return df_cases_state_time
 
 # Add flag to create plots for VoCs
-if len(argv)>5:
-    VoC_flag = argv[5]
+if len(argv)>3:
+    VoC_flag = argv[3]
 else:
     VoC_flag = ''
 
-if len(argv) > 6:
+if len(argv) > 4:
     # Add an optional scenario flag to load in specific Reff scenarios.
-    scenario = argv[6]
+    scenario = argv[4]
 else:
     scenario = ''
 
 n_sims = int(argv[1])
-from params import start_date
-data_date = argv[3]
-num_forecast_days = int(argv[2])
+from params import start_date, num_forecast_days
+data_date = argv[2]
 
 forecast_type = 'R_L'
 df_cases_state_time = read_in_cases(data_date)

@@ -31,6 +31,23 @@ class Forecast:
         forecast_date=None, cases_file_date=None,
         VoC_flag = None, scenario=''
         ):
+        """Create forecast object with parameters in preperation for running simulation.
+
+        Args:
+            current ([type]): [description]
+            state ([type]): [description]
+            start_date ([type]): [description]
+            people ([type]): [description]
+            alpha_i (int, optional): [description]. Defaults to 1.
+            qi (float, optional): [description]. Defaults to 0.98.
+            qa ([type], optional): Probability of detecting an asymptomatic case.
+            qs (float, optional):  Probability of detecting an asymptomatic case.
+            qua_ai (int, optional): Pre-march-quartine version of alpha_i. Usually only applies to NSW
+            forecast_date ([type], optional): [description]. Defaults to None.
+            cases_file_date ([type], optional): [description]. Defaults to None.
+            VoC_flag ([type], optional): [description]. Defaults to None.
+            scenario (str, optional): [description]. Defaults to ''.
+        """
         import numpy as np
         self.initial_state = current.copy() #Observed cases on start day
         #self.current=current
@@ -40,12 +57,12 @@ class Forecast:
         self.initial_people = people.copy() #detected people only
         self.alpha_i = alpha_i
         self.qi = qi
-        self.qa = qa
-        self.qs = qs
+        self.asymptomatic_detection_prob = qa
+        self.symptomatic_detection_prob = qs
         self.k = 0.1 # Hard coded
         self.qua_ai = qua_ai
         self.gam = 1/2
-        self.ps = 0.7
+        self.ps = 0.7 # Probability of being symptomatic
 
         # The number of days into simulation at which to begin increasing Reff due to VoC
         self.VoC_flag = VoC_flag 
@@ -108,8 +125,8 @@ class Forecast:
         else:
             #reinitialising, so actual people need times
             #assume all symptomatic
-            prob_symp_given_detect = self.qs*self.ps/(
-                self.qs*self.ps + self.qa*(1-self.ps)
+            prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
+                self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps)
             )
             num_symp = binom.rvs(n=int(self.current[2]), p=prob_symp_given_detect)
             for person in range(int(self.current[2])):
@@ -133,9 +150,9 @@ class Forecast:
 
         #num undetected is nbinom (num failures given num detected)
         if self.current[2]==0:
-            num_undetected_s = nbinom.rvs(1,self.qs)
+            num_undetected_s = nbinom.rvs(1,self.symptomatic_detection_prob)
         else:
-            num_undetected_s = nbinom.rvs(self.current[2],self.qs)
+            num_undetected_s = nbinom.rvs(self.current[2],self.symptomatic_detection_prob)
 
 
         total_s = num_undetected_s + self.current[2]
@@ -260,11 +277,11 @@ class Forecast:
                         if self.test_campaign_date is not None:
                             #see if case is during a testing campaign
                             if inf_time <self.test_campaign_date:
-                                detect_prob = self.qs
+                                detect_prob = self.symptomatic_detection_prob
                             else:
-                                detect_prob = min(0.95,self.qs*self.test_campaign_factor)
+                                detect_prob = min(0.95,self.symptomatic_detection_prob*self.test_campaign_factor)
                         else:
-                            detect_prob = self.qs
+                            detect_prob = self.symptomatic_detection_prob
                         if detection_rv < detect_prob:
                             #case detected
                             #only care about detected cases
@@ -283,11 +300,11 @@ class Forecast:
                         if self.test_campaign_date is not None:
                         #see if case is during a testing campaign
                             if inf_time <self.test_campaign_date:
-                                detect_prob = self.qa
+                                detect_prob = self.asymptomatic_detection_prob
                             else:
-                                detect_prob = min(0.95,self.qa*self.test_campaign_factor)
+                                detect_prob = min(0.95,self.asymptomatic_detection_prob*self.test_campaign_factor)
                         else:
-                            detect_prob=self.qa
+                            detect_prob=self.asymptomatic_detection_prob
                         if detection_rv < detect_prob:
                             #case detected
                             #detect_time = inf_time + next(self.get_detect_time)
@@ -476,8 +493,8 @@ class Forecast:
                         self.current[2] += max(0,self.actual[day-2] - sum(self.observed_cases[day-2,1:]))
 
                         #how many cases are symp to asymp
-                        prob_symp_given_detect = self.qs*self.ps/(
-                        self.qs*self.ps + self.qa*(1-self.ps)
+                        prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
+                        self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps)
                         )
                         num_symp = binom.rvs(n=int(self.current[2]),
                             p=prob_symp_given_detect)
@@ -584,9 +601,9 @@ class Forecast:
             self.cumulative_cases = np.empty_like(self.cases)
             self.cumulative_cases[:] = np.nan
             return (self.cumulative_cases,self.cumulative_cases, {
-                'qs':self.qs,
+                'qs':self.symptomatic_detection_prob,
                 'metric':self.metric,
-                'qa':self.qa,
+                'qa':self.asymptomatic_detection_prob,
                 'qi':self.qi,
                 'alpha_a':self.alpha_a,
                 'alpha_s':self.alpha_s,
@@ -606,9 +623,9 @@ class Forecast:
             return (
                 self.cases.copy(),
                 self.observed_cases.copy(), {
-                'qs':self.qs,
+                'qs':self.symptomatic_detection_prob,
                 'metric':self.metric,
-                'qa':self.qa,
+                'qa':self.asymptomatic_detection_prob,
                 'qi':self.qi,
                 'alpha_a':self.alpha_a,
                 'alpha_s':self.alpha_s,

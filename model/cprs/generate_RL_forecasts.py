@@ -13,6 +13,30 @@ from sys import argv
 from Reff_constants import *
 from Reff_functions import *
 
+import matplotlib.dates as mdates
+locator = mdates.MonthLocator()
+
+import sys
+sys.path.insert(0, '../')
+
+# Define inputs
+from params import num_forecast_days
+num_forecast_days = num_forecast_days+3 # Add 3 days buffer to mobility forecast
+data_date = pd.to_datetime(argv[1])
+print("Using data from", data_date)
+start_date = '2020-03-01'
+
+# Scenario modelling
+scenario = '' # Assume no scenario
+scenario_date = '' 
+if len(argv) > 2:
+    scenario = argv[2]
+    if len(argv) > 3:
+        scenario_date = argv[3]
+    print('Using scenario', scenario, 'with date', 'None' if scenario_date=='' else scenario_date)
+
+
+
 
 # Get Google Data
 df_google_all = read_in_google(Aus_only=True,moving=True,local=True)
@@ -52,20 +76,6 @@ survey_X = pd.pivot_table(data=always,
 prop_all = survey_X
 
 
-# Define inputs
-data_date = pd.to_datetime(argv[1])
-print("Using data from", data_date)
-start_date = '2020-03-01'
-
-# Scenario modelling
-scenario = '' # Assume no scenario
-scenario_date = '' 
-if len(argv) > 2:
-    scenario = argv[2]
-    if len(argv) > 3:
-        scenario_date = argv[3]
-    print('Using scenario', scenario, 'with date', 'None' if scenario_date=='' else scenario_date)
-
 # Get posterior
 df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
 
@@ -73,7 +83,7 @@ df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
 states = ['NSW','QLD','SA','VIC','TAS','WA','ACT','NT']
 plot_states = states.copy()
 
-one_month = data_date + timedelta(days= 42)
+one_month = data_date + timedelta(days=num_forecast_days)
 days_from_March = (one_month - pd.to_datetime(start_date)).days
 
 ##filter out future info
@@ -89,14 +99,14 @@ if df_google.date.values[-1] < data_date:
     #check if google has dates up to now
     # df_google is sorted by date
     # if not add days to the forecast
-    n_forecast = 42 + (data_date- df_google.date.values[-1]).days
+    n_forecast = num_forecast_days + (data_date- df_google.date.values[-1]).days
 else:
-    n_forecast = 42
+    n_forecast = num_forecast_days
 
 training_start_date = datetime(2020,3,1,0,0)
 print("Forecast ends at {} days after 1st March".format(
-    (pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + 42))
-print("Final date is {}".format(pd.to_datetime(today) + timedelta(days=42)))
+    (pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + num_forecast_days))
+print("Final date is {}".format(pd.to_datetime(today) + timedelta(days=num_forecast_days)))
 df_google = df_google.loc[df_google.date>= training_start_date]
 outdata = {'date': [],
         'type': [],
