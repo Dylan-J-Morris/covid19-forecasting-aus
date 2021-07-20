@@ -13,9 +13,6 @@ from sys import argv
 from Reff_constants import *
 from Reff_functions import *
 
-import matplotlib.dates as mdates
-locator = mdates.MonthLocator()
-
 import sys
 sys.path.insert(0, '../')
 
