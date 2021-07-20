@@ -25,46 +25,42 @@ class Forecast:
     Forecast object that contains methods to simulate a forcast forward, given Reff and current state.
     """
 
-    def __init__(self,current, state,start_date, people,
-        alpha_i=1,qi=0.98, qa=1/8, qs=0.8,
-        qua_ai= 1, 
-        forecast_date=None, cases_file_date=None,
-        VoC_flag = None, scenario=''
+    def __init__(self,current, state,start_date,
+        forecast_date, cases_file_date,
+        VoC_flag='', scenario=''
         ):
         """Create forecast object with parameters in preperation for running simulation.
 
         Args:
-            current ([type]): [description]
-            state ([type]): [description]
-            start_date ([type]): [description]
-            people ([type]): [description]
-            alpha_i (int, optional): [description]. Defaults to 1.
-            qi (float, optional): [description]. Defaults to 0.98.
-            qa ([type], optional): Probability of detecting an asymptomatic case.
-            qs (float, optional):  Probability of detecting an asymptomatic case.
-            qua_ai (int, optional): Pre-march-quartine version of alpha_i. Usually only applies to NSW
-            forecast_date ([type], optional): [description]. Defaults to None.
-            cases_file_date ([type], optional): [description]. Defaults to None.
-            VoC_flag ([type], optional): [description]. Defaults to None.
-            scenario (str, optional): [description]. Defaults to ''.
+            current (list of ints): A list of the infected people at the start of the simulation.
+            state (str): The state to simulate.
+            start_date (str): The %Y-%m-%d string of the start date of the forecast.
+            forecast_date ([type], optional): Date to forecast from. Usually the same as cases_file_date.
+            cases_file_date (str): Date of cases file to use. Format "2021-01-01".
+            VoC_flag (str, optional): Which VoC to increase Reff to. Can be empty str.
+            scenario (str, optional): Filename suffix for scenario run.  Can be empty str.
         """
         import numpy as np
-        self.initial_state = current.copy() #Observed cases on start day
-        #self.current=current
+        from params import local_detection, a_local_detection, qi_d, alpha_i, k
+
+        self.initial_state = current.copy() # Observed cases on start day
+        # Create an object list of Persons based on observed cases on start day/
+        people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2] 
+        self.initial_people = {i: Person(0,0,0,0,cat) for i,cat in enumerate(people)} 
+
         self.state = state
         #start date sets day 0 in script to start_date
         self.start_date = pd.to_datetime(start_date,format='%Y-%m-%d')
-        self.initial_people = people.copy() #detected people only
-        self.alpha_i = alpha_i
-        self.qi = qi
-        self.asymptomatic_detection_prob = qa
-        self.symptomatic_detection_prob = qs
-        self.k = 0.1 # Hard coded
-        self.qua_ai = qua_ai
+        self.alpha_i = alpha_i[state]
+        self.qi = qi_d[state] # Probability of *unobserved* imported infectious individuals
+        self.symptomatic_detection_prob = local_detection[state]
+        self.asymptomatic_detection_prob = a_local_detection[state]
+        self.k = k # Hard coded
+        self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quartine version of alpha_i. 
         self.gam = 1/2
         self.ps = 0.7 # Probability of being symptomatic
 
-        # The number of days into simulation at which to begin increasing Reff due to VoC
+        # Increase Reff to due this VoC
         self.VoC_flag = VoC_flag 
 
         # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.

@@ -32,39 +32,6 @@ case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date
 
 
 
-            
-local_detection = {
-            'NSW':0.9,#0.556,#0.65,
-            'QLD':0.9,#0.353,#0.493,#0.74,
-            'SA':0.7,#0.597,#0.75,
-            'TAS':0.4,#0.598,#0.48,
-            'VIC':0.35,#0.558,#0.77,
-            'WA':0.7,#0.409,#0.509,#0.66,
-            'ACT':0.95,#0.557,#0.65,
-            'NT':0.95,#0.555,#0.71
-        }
-
-a_local_detection = {
-            'NSW':0.05,#0.556,#0.65,
-            'QLD':0.05,#0.353,#0.493,#0.74,
-            'SA':0.05,#0.597,#0.75,
-            'TAS':0.05,#0.598,#0.48,
-            'VIC':0.05,#0.558,#0.77,
-            'WA':0.05,#0.409,#0.509,#0.66,
-            'ACT':0.7,#0.557,#0.65,
-            'NT':0.7,#0.555,#0.71
-        }
-
-qi_d = {
-            'NSW':0.98,#0.758,
-            'QLD':0.98,#0.801,
-            'SA':0.98,#0.792,
-            'TAS':0.98,#0.800,
-            'VIC':0.98,#0.735,
-            'WA':0.98,#0.792,
-            'ACT':0.98,#0.771,
-            'NT':0.98,#0.761
-    }
 
 ##Initialise the number of cases as 1st of March data incidence
 if start_date=="2020-03-01":
@@ -103,56 +70,15 @@ elif start_date == "2020-12-01":
 else:
     print("Start date not implemented") 
 
-initial_people = ['I']*current[state][0] + \
-        ['A']*current[state][1] + \
-        ['S']*current[state][2]
-
-people = {}
-for i,cat in enumerate(initial_people):
-    people[i] = Person(0,0,0,0,cat)
 
 
 ####### Create simulation.py object ########
 
-if state in ['VIC']:
-    forecast_object = Forecast(current[state],
-    state,start_date,people,
-    alpha_i= 1, #alpha_i is impact of importations after April 15th
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=1, forecast_date=forecast_date,
+forecast_object = Forecast(current[state],
+    state,start_date, forecast_date=forecast_date,
     cases_file_date=case_file_date, 
     VoC_flag = VoC_flag, scenario=scenario
     )
-elif state in ['NSW']:
-    forecast_object = Forecast(current[state],
-    state,start_date,people,
-    alpha_i= 1,
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=2, #qua_ai is impact of importations before April 15th 
-    forecast_date=forecast_date,
-    cases_file_date=case_file_date,
-    VoC_flag = VoC_flag, scenario=scenario
-    )
-elif state in ['ACT','NT','SA','WA','QLD']:
-    forecast_object = Forecast(current[state],
-    state,start_date,people,
-    alpha_i= 0.1,
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=1, forecast_date=forecast_date,
-    cases_file_date=case_file_date,
-    VoC_flag = VoC_flag, scenario=scenario
-    )
-else: #TAS
-    forecast_object = Forecast(current[state],state,
-    start_date,people,
-    alpha_i= 0.5,
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=1,  forecast_date=forecast_date,
-    cases_file_date=case_file_date,
-    VoC_flag = VoC_flag, scenario=scenario
-    )
-
-
 
 ############ Run Simulations in parallel and return ############
 
