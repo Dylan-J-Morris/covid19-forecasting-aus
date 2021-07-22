@@ -9,7 +9,7 @@ num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
 # Transmission parameters     
 
-k = 0.1
+k = 0.1 #  Heterogeneity parameter for a negative binomial offspring distribution
 
 local_detection = {
             'NSW':0.9,
