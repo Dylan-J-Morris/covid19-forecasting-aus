@@ -67,6 +67,17 @@ elif start_date == "2020-12-01":
         'VIC': [0, 0, 0], 
         'WA': [0, 0, 0],
     }
+elif start_date == "2021-04-15":
+    current = { # based on locally acquired cases in the days preceding the start date
+        'ACT': [0, 0, 0],
+        'NSW': [43, 0, 4], 
+        'NT': [0, 0, 0],
+        'QLD': [14, 0, 1],
+        'SA': [0, 0, 0],
+        'TAS': [0, 0, 0],
+        'VIC': [3, 0, 0], 
+        'WA': [18, 0, 2],
+    }
 else:
     print("Start date not implemented") 
 
