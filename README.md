@@ -16,7 +16,7 @@ These will need to be updated every week.
 Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
 
 ```
-DATADATE='2021-07-19'  # Date of NNDSS data file
+DATADATE='2021-07-27'  # Date of NNDSS data file
 NSIMS=20000 # Total number of simulations to run
 
 bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
