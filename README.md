@@ -16,7 +16,7 @@ These will need to be updated every week.
 Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
 
 ```
-DATADATE='2021-07-12'  # Date of NNDSS data file
+DATADATE='2021-07-19'  # Date of NNDSS data file
 NSIMS=20000 # Total number of simulations to run
 
 bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
@@ -79,13 +79,8 @@ Below is a breakdown of the pipeline from case line list data to producing forec
     ```
 
 ### Variant of Concern Changes
-The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. Currently only the B117 (UK) variant is implemented. This increased model is enabled by passing `UK` as the final parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh`.
+The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. This increased model is enabled by passing the WHO name as a parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh`.
 
-
-### Internal options
-Some things don't quite deserve to being a bash params, but you may still want to change. Here are some notes in case they are important.
-- In the `read_in_NNDSS` data inside `model/helper_functions.py` you can set the `use_linelist` option to True to replace the NNDSS data with the imputed linelist of cases used elsewhere in the Aus forecasting pipeline.
-- In `generate_RL_forecasts.py` there is a optional second argument that can be passed to allow for modelling of spread in different outbreak simulations during a lockdown (e.g. one could compare the outbreak if lockdown was stopped vs when a lockdown continues at a constant rate). This is not used or called during the normal forecasting (and the code snippet may be commented out when not in use).
 
 ### Original Code
 An earlier version of this code is available at [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
