@@ -70,6 +70,9 @@ class Forecast:
         self.forecast_date = (pd.to_datetime(forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
         self.cases_file_date = cases_file_date
 
+        # Load in Reff data before running all sims
+        self.Reff_all = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
+
         ##### Assumption dates.
 
         # Date from which quarantine was started
@@ -188,7 +191,7 @@ class Forecast:
         """
         import pandas as pd
 
-        df_forecast = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
+        df_forecast = self.Reff_all
 
         # Get R_I values and store in object.
         self.R_I = df_forecast.loc[(df_forecast.type=='R_I')&(df_forecast.state==self.state),self.num_of_sim%2000].values[0]
