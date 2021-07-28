@@ -8,7 +8,8 @@ If you have access to HPC (High performance cluster) that uses slurm, then you c
 In the `data` folder, ensure you have the latest:
 * Case data (NNDSS)
 * [Google mobility indices](https://www.google.com/covid19/mobility/); use the Global CSV with the file named `Global_Mobility_Report.csv`
-* Up to date microdistancing survey files titled `Barometer wave XX compliance.csv` saved in the `data/md/` folder. All files up to current wave need to be included.
+* Up to date microdistancing survey files titled `Barometer wave XX compliance.csv` saved in the `data/md/` folder. All files up to the current wave need to be included.
+* Include vaccination coverage data 
 
 These will need to be updated every week. 
 
