@@ -5,6 +5,7 @@ from math import floor
 import matplotlib.pyplot as plt
 import os
 from helper_functions import read_in_NNDSS, read_in_Reff_file
+from params import case_insertion_threshold
 
 class Person:
     """
@@ -683,7 +684,7 @@ class Forecast:
             actual_3_day_total = 0
             for i in range(3):
                 actual_3_day_total += self.actual[max(0,day-i)]
-            threshold = 3*max(1,sum(
+            threshold = case_insertion_threshold*max(1,sum(
                 self.observed_cases[
                     max(0,day-2):day+1,2] + self.observed_cases[
                         max(0,day-2):day+1,1]
