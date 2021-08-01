@@ -6,15 +6,21 @@ from sys import argv
 
 states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 n_sims = int(argv[1])
-start_date = argv[5]
-forecast_type = argv[3] #default None
+# If no VoC specified, code will run without alterations.
+VoC_flag = ''
+if len(argv)>3:
+    VoC_flag = argv[3]
+    print('VoC %s being used in record_to_csv.py' % VoC_flag)
 
-try:
-    forecast_date = argv[4] #format should be '%Y-%m-%d'
-except:
-    forecast_date = datetime.strftime(datetime.today(),format='%Y-%m-%d')
-
-num_forecast_days = int(argv[2])
+if len(argv) > 4:
+    # Add an optional scenario flag to load in specific Reff scenarios.
+    scenario = argv[4]
+else:
+    scenario = ''
+    
+from params import start_date, num_forecast_days
+forecast_type = 'R_L' #default None
+forecast_date = argv[2] #format should be '%Y-%m-%d'
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
 
@@ -24,17 +30,7 @@ sims_dict={
     'onset date':[],
 }
 
-# If no VoC specified, code will run without alterations.
-VoC_flag = ''
-if len(argv)>6:
-    VoC_flag = argv[6]
-    print('VoC %s being used in record_to_csv.py' % VoC_flag)
 
-if len(argv) > 7:
-    # Add an optional scenario flag to load in specific Reff scenarios.
-    scenario = argv[7]
-else:
-    scenario = ''
 
 for n in range(n_sims):
     if n <2000:

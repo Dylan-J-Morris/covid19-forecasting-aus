@@ -25,29 +25,42 @@ class Forecast:
     Forecast object that contains methods to simulate a forcast forward, given Reff and current state.
     """
 
-    def __init__(self,current, state,start_date, people,
-        alpha_i=1,qi=0.98, qa=1/8, qs=0.8,
-        qua_ai= 1, 
-        forecast_date=None, cases_file_date=None,
-        VoC_flag = None, scenario=''
+    def __init__(self,current, state,start_date,
+        forecast_date, cases_file_date,
+        VoC_flag='', scenario=''
         ):
+        """Create forecast object with parameters in preperation for running simulation.
+
+        Args:
+            current (list of ints): A list of the infected people at the start of the simulation.
+            state (str): The state to simulate.
+            start_date (str): The %Y-%m-%d string of the start date of the forecast.
+            forecast_date ([type], optional): Date to forecast from. Usually the same as cases_file_date.
+            cases_file_date (str): Date of cases file to use. Format "2021-01-01".
+            VoC_flag (str, optional): Which VoC to increase Reff to. Can be empty str.
+            scenario (str, optional): Filename suffix for scenario run.  Can be empty str.
+        """
         import numpy as np
-        self.initial_state = current.copy() #Observed cases on start day
-        #self.current=current
+        from params import local_detection, a_local_detection, qi_d, alpha_i, k
+
+        self.initial_state = current.copy() # Observed cases on start day
+        # Create an object list of Persons based on observed cases on start day/
+        people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2] 
+        self.initial_people = {i: Person(0,0,0,0,cat) for i,cat in enumerate(people)} 
+
         self.state = state
         #start date sets day 0 in script to start_date
         self.start_date = pd.to_datetime(start_date,format='%Y-%m-%d')
-        self.initial_people = people.copy() #detected people only
-        self.alpha_i = alpha_i
-        self.qi = qi
-        self.qa = qa
-        self.qs = qs
-        self.k = 0.1 # Hard coded
-        self.qua_ai = qua_ai
+        self.alpha_i = alpha_i[state]
+        self.qi = qi_d[state] # Probability of *unobserved* imported infectious individuals
+        self.symptomatic_detection_prob = local_detection[state]
+        self.asymptomatic_detection_prob = a_local_detection[state]
+        self.k = k # Hard coded
+        self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quartine version of alpha_i. 
         self.gam = 1/2
-        self.ps = 0.7
+        self.ps = 0.7 # Probability of being symptomatic
 
-        # The number of days into simulation at which to begin increasing Reff due to VoC
+        # Increase Reff to due this VoC
         self.VoC_flag = VoC_flag 
 
         # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
@@ -56,6 +69,9 @@ class Forecast:
         # forecast_date and cases_file_date are usually the same.
         self.forecast_date = (pd.to_datetime(forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
         self.cases_file_date = cases_file_date
+
+        # Load in Reff data before running all sims
+        self.Reff_all = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
 
         ##### Assumption dates.
 
@@ -108,8 +124,8 @@ class Forecast:
         else:
             #reinitialising, so actual people need times
             #assume all symptomatic
-            prob_symp_given_detect = self.qs*self.ps/(
-                self.qs*self.ps + self.qa*(1-self.ps)
+            prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
+                self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps)
             )
             num_symp = binom.rvs(n=int(self.current[2]), p=prob_symp_given_detect)
             for person in range(int(self.current[2])):
@@ -133,9 +149,9 @@ class Forecast:
 
         #num undetected is nbinom (num failures given num detected)
         if self.current[2]==0:
-            num_undetected_s = nbinom.rvs(1,self.qs)
+            num_undetected_s = nbinom.rvs(1,self.symptomatic_detection_prob)
         else:
-            num_undetected_s = nbinom.rvs(self.current[2],self.qs)
+            num_undetected_s = nbinom.rvs(self.current[2],self.symptomatic_detection_prob)
 
 
         total_s = num_undetected_s + self.current[2]
@@ -175,7 +191,7 @@ class Forecast:
         """
         import pandas as pd
 
-        df_forecast = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
+        df_forecast = self.Reff_all
 
         # Get R_I values and store in object.
         self.R_I = df_forecast.loc[(df_forecast.type=='R_I')&(df_forecast.state==self.state),self.num_of_sim%2000].values[0]
@@ -260,11 +276,11 @@ class Forecast:
                         if self.test_campaign_date is not None:
                             #see if case is during a testing campaign
                             if inf_time <self.test_campaign_date:
-                                detect_prob = self.qs
+                                detect_prob = self.symptomatic_detection_prob
                             else:
-                                detect_prob = min(0.95,self.qs*self.test_campaign_factor)
+                                detect_prob = min(0.95,self.symptomatic_detection_prob*self.test_campaign_factor)
                         else:
-                            detect_prob = self.qs
+                            detect_prob = self.symptomatic_detection_prob
                         if detection_rv < detect_prob:
                             #case detected
                             #only care about detected cases
@@ -283,11 +299,11 @@ class Forecast:
                         if self.test_campaign_date is not None:
                         #see if case is during a testing campaign
                             if inf_time <self.test_campaign_date:
-                                detect_prob = self.qa
+                                detect_prob = self.asymptomatic_detection_prob
                             else:
-                                detect_prob = min(0.95,self.qa*self.test_campaign_factor)
+                                detect_prob = min(0.95,self.asymptomatic_detection_prob*self.test_campaign_factor)
                         else:
-                            detect_prob=self.qa
+                            detect_prob=self.asymptomatic_detection_prob
                         if detection_rv < detect_prob:
                             #case detected
                             #detect_time = inf_time + next(self.get_detect_time)
@@ -476,8 +492,8 @@ class Forecast:
                         self.current[2] += max(0,self.actual[day-2] - sum(self.observed_cases[day-2,1:]))
 
                         #how many cases are symp to asymp
-                        prob_symp_given_detect = self.qs*self.ps/(
-                        self.qs*self.ps + self.qa*(1-self.ps)
+                        prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
+                        self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps)
                         )
                         num_symp = binom.rvs(n=int(self.current[2]),
                             p=prob_symp_given_detect)
@@ -580,13 +596,12 @@ class Forecast:
         gc.collect()
         if self.bad_sim:
             #return NaN arrays for all bad_sims
-            self.metric = np.nan
             self.cumulative_cases = np.empty_like(self.cases)
             self.cumulative_cases[:] = np.nan
             return (self.cumulative_cases,self.cumulative_cases, {
-                'qs':self.qs,
-                'metric':self.metric,
-                'qa':self.qa,
+                'qs':self.symptomatic_detection_prob,
+                'metric':np.nan,
+                'qa':self.asymptomatic_detection_prob,
                 'qi':self.qi,
                 'alpha_a':self.alpha_a,
                 'alpha_s':self.alpha_s,
@@ -601,14 +616,14 @@ class Forecast:
             #good sim
 
             ## Perform metric for ABC
-            self.get_metric(end_time)
+            # self.get_metric(end_time)
 
             return (
                 self.cases.copy(),
                 self.observed_cases.copy(), {
-                'qs':self.qs,
-                'metric':self.metric,
-                'qa':self.qa,
+                'qs':self.symptomatic_detection_prob,
+                'metric':np.nan,
+                'qa':self.asymptomatic_detection_prob,
                 'qi':self.qi,
                 'alpha_a':self.alpha_a,
                 'alpha_s':self.alpha_s,
@@ -694,39 +709,40 @@ class Forecast:
             #print("No cases on day %i" % day)
             return False
 
-    def get_metric(self,end_time,omega=0.2):
-        """
-        Calculate the value of the metric of the current sim compared to NNDSS data.
-        """
+    # Deprecated as no long using ABC
+    # def get_metric(self,end_time,omega=0.2):
+    #     """
+    #     Calculate the value of the metric of the current sim compared to NNDSS data.
+    #     """
 
-        self.actual_array = np.array([self.actual[day]
-        #if day not in missed_dates else 0
-        for day in range(end_time) ])
+    #     self.actual_array = np.array([self.actual[day]
+    #     #if day not in missed_dates else 0
+    #     for day in range(end_time) ])
 
-        #calculate case differences
-        #moving windows
-        sim_cases =self.observed_cases[
-            :len(self.actual_array),2] + \
-                self.observed_cases[:
-                len(self.actual_array),1] #include asymp cases.
+    #     #calculate case differences
+    #     #moving windows
+    #     sim_cases =self.observed_cases[
+    #         :len(self.actual_array),2] + \
+    #             self.observed_cases[:
+    #             len(self.actual_array),1] #include asymp cases.
 
-        #convolution with 1s should do cum sum
-        window = 7
-        sim_cases = np.convolve(sim_cases,
-            [1]*window,mode='valid')
-        actual_cum = np.convolve(self.actual_array,
-            [1]*window,mode='valid')
-        cases_diff = abs(sim_cases - actual_cum)
+    #     #convolution with 1s should do cum sum
+    #     window = 7
+    #     sim_cases = np.convolve(sim_cases,
+    #         [1]*window,mode='valid')
+    #     actual_cum = np.convolve(self.actual_array,
+    #         [1]*window,mode='valid')
+    #     cases_diff = abs(sim_cases - actual_cum)
 
-        #if sum(cases_diff) <= omega * sum(self.actual_array):
-            #cumulative diff passes, calculate metric
+    #     #if sum(cases_diff) <= omega * sum(self.actual_array):
+    #         #cumulative diff passes, calculate metric
 
-            #sum over days number of times within omega of actual
-        self.metric = sum(
-            np.square(cases_diff)#,np.maximum(omega* actual_cum,7)
-            )
+    #         #sum over days number of times within omega of actual
+    #     self.metric = sum(
+    #         np.square(cases_diff)#,np.maximum(omega* actual_cum,7)
+    #         )
 
-        self.metric = self.metric/(end_time-window) #max is end_time
+    #     self.metric = self.metric/(end_time-window) #max is end_time
 
     
     def read_in_cases(self):

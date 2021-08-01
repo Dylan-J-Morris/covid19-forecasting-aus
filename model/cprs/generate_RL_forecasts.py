@@ -13,8 +13,26 @@ from sys import argv
 from Reff_constants import *
 from Reff_functions import *
 
-import matplotlib.dates as mdates
-locator = mdates.MonthLocator()
+import sys
+sys.path.insert(0, '../')
+
+# Define inputs
+from params import num_forecast_days
+num_forecast_days = num_forecast_days+3 # Add 3 days buffer to mobility forecast
+data_date = pd.to_datetime(argv[1])
+print("Using data from", data_date)
+start_date = '2020-03-01'
+
+# Scenario modelling
+scenario = '' # Assume no scenario
+scenario_date = '' 
+if len(argv) > 2:
+    scenario = argv[2]
+    if len(argv) > 3:
+        scenario_date = argv[3]
+    print('Using scenario', scenario, 'with date', 'None' if scenario_date=='' else scenario_date)
+
+
 
 
 # Get Google Data
@@ -55,19 +73,6 @@ survey_X = pd.pivot_table(data=always,
 prop_all = survey_X
 
 
-# Define inputs
-data_date = pd.to_datetime(argv[1])
-print("Using data from", data_date)
-start_date = '2020-03-01'
-
-# Scenario modelling
-if len(argv) > 2:
-    scenario = argv[2]
-    scenario_date = argv[3]
-else:
-    scenario = ''
-    scenario_date = ''
-
 # Get posterior
 df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
 
@@ -75,7 +80,7 @@ df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
 states = ['NSW','QLD','SA','VIC','TAS','WA','ACT','NT']
 plot_states = states.copy()
 
-one_month = data_date + timedelta(days= 42)
+one_month = data_date + timedelta(days=num_forecast_days)
 days_from_March = (one_month - pd.to_datetime(start_date)).days
 
 ##filter out future info
@@ -91,14 +96,14 @@ if df_google.date.values[-1] < data_date:
     #check if google has dates up to now
     # df_google is sorted by date
     # if not add days to the forecast
-    n_forecast = 42 + (data_date- df_google.date.values[-1]).days
+    n_forecast = num_forecast_days + (data_date- df_google.date.values[-1]).days
 else:
-    n_forecast = 42
+    n_forecast = num_forecast_days
 
 training_start_date = datetime(2020,3,1,0,0)
 print("Forecast ends at {} days after 1st March".format(
-    (pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + 42))
-print("Final date is {}".format(pd.to_datetime(today) + timedelta(days=42)))
+    (pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + num_forecast_days))
+print("Final date is {}".format(pd.to_datetime(today) + timedelta(days=num_forecast_days)))
 df_google = df_google.loc[df_google.date>= training_start_date]
 outdata = {'date': [],
         'type': [],
@@ -186,10 +191,11 @@ for i,state in enumerate(states):
             # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
             if len(argv)>2:
                 cov_baseline = np.cov(Rmed[-42:-28,:], rowvar=False) # Make baseline cov for generating points
-                mu_baseline = np.mean(Rmed[-42:-28,:], axis =0)
-                mu_current = np.mean(Rmed[-3:-1,:], axis =0) 
+                mu_current = Rmed[-1,:]
+                mu_victoria = np.array([-55.35057887, -22.80891056, -46.59531636, -75.99942378, -44.71119293])
 
-                scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
+                if scenario_date != '': 
+                    scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
 
                 # Constant Lockdown
                 if scenario == "no_reversion":
@@ -209,6 +215,13 @@ for i,state in enumerate(states):
                         new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
                     else:
                         new_forcast_points = np.random.multivariate_normal((mu_current + mu_baseline)/2, cov_baseline) 
+
+                # Stage 4
+                if scenario == "stage4":
+                    if i < scenario_change_point:
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
+                    else:
+                        new_forcast_points = np.random.multivariate_normal(mu_victoria, cov_baseline) 
 
             sims[i,:,n] = new_forcast_points # Set this day in this simulation to the forecast realisation
 
@@ -244,7 +257,8 @@ for i,state in enumerate(states):
             mu_baseline = np.mean(prop[state].values[-42:-28], axis =0)
             mu_current =prop[state].values[-1]
 
-            scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + extra_days_md
+            if scenario_date != '': 
+                scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + extra_days_md
 
             # Constant Lockdown
             if scenario == "no_reversion":
@@ -265,6 +279,9 @@ for i,state in enumerate(states):
                 else:
                      # Revert to values halfway between the before and after
                     current = np.random.normal((mu_current + mu_baseline)/2, std_baseline) 
+
+            # # Stage 4
+            # Not yet implemented
 
         new_md_forecast.append(current)
 
@@ -297,33 +314,35 @@ for i,state in enumerate(states):
 
         if state in plot_states:
             if var != 'md_prop':
-                axs[rownum,colnum].plot(dates,df_google[df_google['state'] == state][var].values)
+                axs[rownum,colnum].plot(dates,df_google[df_google['state'] == state][var].values, lw=1)
                 axs[rownum,colnum].fill_between(dates,
                                                 np.percentile(Rmed_array[:,j,:], 25, axis =1),
                                                 np.percentile(Rmed_array[:,j,:], 75, axis =1),
                                             alpha=0.5)
 
-                axs[rownum,colnum].plot(dd,sims_med[:,j],'k')
+                axs[rownum,colnum].plot(dd,sims_med[:,j],'k', lw=1)
                 axs[rownum,colnum].fill_between(dd, sims_q25[:,j], sims_q75[:,j], color='k',alpha = 0.1)
             else:
                 ##md plot
-                axs[rownum,colnum].plot(prop[state].index,prop[state].values)
+                axs[rownum,colnum].plot(prop[state].index,prop[state].values, lw=1)
                 #axs[rownum,colnum].fill_between(dates,
                 #                                np.percentile(Rmed_array[:,j,:], 25, axis =1),
                 #                                np.percentile(Rmed_array[:,j,:], 75, axis =1),
                 #                               alpha=0.5)
 
-                axs[rownum,colnum].plot(dd_md,np.median(md_sims,axis=1),'k')
+                axs[rownum,colnum].plot(dd_md,np.median(md_sims,axis=1),'k', lw=1)
                 axs[rownum,colnum].fill_between(dd_md, np.quantile(md_sims,0.25, axis=1),
                                                 np.quantile(md_sims,0.75,axis=1), color='k',alpha = 0.1)
 
             axs[rownum,colnum].set_title(state)
-            axs[rownum,colnum].axhline(1,ls = '--', c = 'k')
+            axs[rownum,colnum].axhline(1,ls = '--', c = 'k', lw=1)
             axs[rownum,colnum].set_title(state)
-            axs[rownum,colnum].tick_params('x',rotation=45)
-            axs[rownum,colnum].xaxis.set_major_locator(locator)
-            #fig.autofmt_xdate()
-
+            axs[rownum,colnum].tick_params('x',rotation=90)
+            axs[rownum,colnum].tick_params('both',labelsize=8)
+            if j<len(predictors):
+                axs[rownum,colnum].set_ylabel(predictors[j].replace('_',' ')[:-5], fontsize=7)
+            else:
+                axs[rownum,colnum].set_ylabel('Proportion of respondents\n micro-distancing', fontsize=7)  
     state_Rmed[state] = Rmed_array
     state_sims[state] = sims
 os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date, exist_ok=True)
@@ -336,25 +355,25 @@ for i,fig in enumerate(figs):
     
     if i<len(predictors):
 
-        fig.text(0.03, 0.5, 
-        predictors[i].replace('_',' ')[:-5], 
-        ha='center', va='center',
-        rotation='vertical',
-        fontsize=15)
-        fig.tight_layout(rect=[0.02,0.04,1,1])
+        # fig.text(0.03, 0.5, 
+        # predictors[i].replace('_',' ')[:-5], 
+        # ha='center', va='center',
+        # rotation='vertical',
+        # fontsize=15)
+        fig.tight_layout()
         fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/"+str(predictors[i])+scenario+scenario_date+".png",dpi=144)
+            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/"+str(predictors[i])+scenario+scenario_date+".png",dpi=400)
 
 
     else:
-        fig.text(0.03, 0.5, 
-        'Proportion of respondents\n micro-distancing', 
-        ha='center', va='center',
-        rotation='vertical',
-        fontsize=15)
-        fig.tight_layout(rect=[0.02,0.04,1,1])
+        # fig.text(0.03, 0.5, 
+        # 'Proportion of respondents\n micro-distancing', 
+        # ha='center', va='center',
+        # rotation='vertical',
+        # fontsize=15)
+        fig.tight_layout()
         fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/micro_dist.png",dpi=144)
+            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/micro_dist.png",dpi=400)
 
 df_out = pd.DataFrame.from_dict(outdata)
 
@@ -408,8 +427,6 @@ theta_md = np.tile(df_samples['theta_md'].values, (df_md['NSW'].shape[0],1))
 
 fig, ax = plt.subplots(figsize=(12,9), nrows=4,ncols=2,sharex=True, sharey=True)
 
-plt.locator_params(axis='x',nbins=2)
-
 for i,state in enumerate(plot_states):
     prop_sim= df_md[state].values#np.random.normal(df_md[state].values, df_md_std.values)
     if expo_decay:
@@ -432,7 +449,6 @@ for i,state in enumerate(plot_states):
                             color='C0')
     ax[row,col].set_title(state)
     ax[row,col].tick_params('x',rotation=45)
-    ax[row,col].xaxis.set_major_locator(locator)
 
     ax[row,col].set_xticks([df_md[state].index.values[-n_forecast-extra_days_md]],minor=True,)
     ax[row,col].xaxis.grid(which='minor', linestyle='-.',color='grey', linewidth=1)
@@ -714,7 +730,6 @@ df_Rhats.type = df_Rhats.type.astype(str)
 
 fig, ax = plt.subplots(figsize=(12,9), nrows=4,ncols=2,sharex=True, sharey=True)
 
-plt.locator_params(axis='x',nbins=2)
 for i,state in enumerate(plot_states):
 
     row = i//2
@@ -727,8 +742,7 @@ for i,state in enumerate(plot_states):
     ax[row,col].fill_between( plot_df.date, plot_df['lower'],plot_df['upper'],alpha=0.4,color='C0')
     ax[row,col].fill_between( plot_df.date, plot_df['bottom'],plot_df['top'],alpha=0.4,color='C0')
 
-    ax[row,col].tick_params('x',rotation=45)
-    ax[row,col].xaxis.set_major_locator(locator)
+    ax[row,col].tick_params('x',rotation=90)
     ax[row,col].set_title(state)
     ax[row,col].set_yticks([1],minor=True,)
     ax[row,col].set_yticks([0,2,3],minor=False)

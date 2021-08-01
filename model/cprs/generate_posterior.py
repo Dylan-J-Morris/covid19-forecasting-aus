@@ -274,6 +274,7 @@ second_wave_mask = df.state.isin(sec_states)
 second_wave_mask = (second_wave_mask) & (df.date >= sec_start_date)
 second_wave_mask = (second_wave_mask) & (df.date <= sec_end_date)
 
+# Add third wave stuff here
 
 predictors = mov_values.copy()
 #predictors.extend(['driving_7days','transit_7days','walking_7days','pc'])

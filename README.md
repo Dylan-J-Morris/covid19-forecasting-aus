@@ -8,7 +8,8 @@ If you have access to HPC (High performance cluster) that uses slurm, then you c
 In the `data` folder, ensure you have the latest:
 * Case data (NNDSS)
 * [Google mobility indices](https://www.google.com/covid19/mobility/); use the Global CSV with the file named `Global_Mobility_Report.csv`
-* Up to date microdistancing survey files titled `Barometer wave XX compliance.csv` saved in the `data/md/` folder. All files up to current wave need to be included.
+* Up to date microdistancing survey files titled `Barometer wave XX compliance.csv` saved in the `data/md/` folder. All files up to the current wave need to be included.
+* Include vaccination coverage data 
 
 These will need to be updated every week. 
 
@@ -16,18 +17,14 @@ These will need to be updated every week.
 Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
 
 ```
-STARTDATE='2020-12-01' # Start date of forecast
-DATADATE='2021-07-05'  # Date of NNDSS data file
-NDAYS=35 # Number of days after data date to forecast (usually 35)
+DATADATE='2021-07-27'  # Date of NNDSS data file
 NSIMS=20000 # Total number of simulations to run
 
-bash forecast_pipeline.sh ${STARTDATE} ${DATADATE} ${NDAYS} ${NSIMS}
+bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
 ```
 
-### Internal options
-There are some options used within the model that are not passed as parameters.
-* `use_linelist` in `model/helper_functions.py` determines whether NNDSS data is used or an interum linelist from Telethon Kids. 
-* `assume_local_cases_if_unknown` in `model/helper_functions.py` determines if cases in NNDSS with no PLACE_OF_ACQUISITION field will be assumed to be local or imported cases.
+#### Internal options
+There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, many options/assumptions have been made during the fitting in `model/cprs/generate_posterior.py`. 
 
 
 ## Step-by-step workflow and relevant scripts
@@ -83,13 +80,8 @@ Below is a breakdown of the pipeline from case line list data to producing forec
     ```
 
 ### Variant of Concern Changes
-The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. Currently only the B117 (UK) variant is implemented. This increased model is enabled by passing `UK` as the final parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh`.
+The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. This increased model is enabled by passing the WHO name as a parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh`.
 
-
-### Internal options
-Some things don't quite deserve to being a bash params, but you may still want to change. Here are some notes in case they are important.
-- In the `read_in_NNDSS` data inside `model/helper_functions.py` you can set the `use_linelist` option to True to replace the NNDSS data with the imputed linelist of cases used elsewhere in the Aus forecasting pipeline.
-- In `generate_RL_forecasts.py` there is a optional second argument that can be passed to allow for modelling of spread in different outbreak simulations during a lockdown (e.g. one could compare the outbreak if lockdown was stopped vs when a lockdown continues at a constant rate). This is not used or called during the normal forecasting (and the code snippet may be commented out when not in use).
 
 ### Original Code
 An earlier version of this code is available at [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 

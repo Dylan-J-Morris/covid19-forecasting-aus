@@ -14,8 +14,7 @@ def read_in_NNDSS(date_string):
 
     from datetime import timedelta
     import glob
-
-    use_linelist = False # If something goes wrong on a day you can set this to True to use the linelist
+    from params import use_linelist, assume_local_cases_if_unknown
 
     if not use_linelist: 
         case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y")
@@ -40,7 +39,6 @@ def read_in_NNDSS(date_string):
         df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
     
         # The first 4 digits is the country code. We use this to determin if the cases is local or imported. We can choose which assumption we keep. This should be set to true during local outbreak waves.
-        assume_local_cases_if_unknown = True
         if assume_local_cases_if_unknown:
             # Fill blanks with local code
             df.PLACE_OF_ACQUISITION.fillna('11019999',inplace=True)
@@ -88,6 +86,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
         VoC_date: (date as string) date from which to increase Reff by VoC
     """
     from scipy.stats import beta
+    from params import VoC_start_date, use_vaccine_effect
     
     if file_date is None:
         raise Exception('Need to provide file date to Reff read.')
@@ -96,7 +95,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
     df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+scenario+'.h5', key='Reff')
 
     if (VoC_flag != '') and (VoC_flag is not None):
-        VoC_start_date  = pd.to_datetime('2021-05-01')
+        VoC_start_date  = pd.to_datetime(VoC_start_date)
         # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
         # We do so by editing a slice of the data frame. Forgive me for my sins.
         row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
@@ -109,4 +108,29 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
             multiplier *= 1.39
         df_forecast.iloc[index_map , 8:] = df_slice_after_VoC*multiplier
         
+    if use_vaccine_effect:
+        # Load in vaccination effect data
+        vaccination_by_state = pd.read_csv('data/vaccination_by_state.csv', parse_dates=['date'])
+        vaccination_by_state = vaccination_by_state[['state', 'date','overall_transmission_effect']]
+
+        # Make datetime objs into strings
+        vaccination_by_state['date_str'] = pd.to_datetime(vaccination_by_state['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+        df_forecast['date_str'] = pd.to_datetime(df_forecast['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+
+        # Filling in future days will the same vaccination level as current.
+        for state, forecast_df_state in df_forecast.groupby('state'):
+            latest_Reff_data_date = max(forecast_df_state.date_str)
+            latest_vaccination_data_date = max(vaccination_by_state.groupby('state').get_group(state)['date'])
+            latest_vaccination_date_effect = vaccination_by_state.groupby(['state', 'date']).get_group((state, latest_vaccination_data_date))['overall_transmission_effect'].iloc[0]
+            # Fill in the future dates with the same level of vaccination.
+            vaccination_by_state = vaccination_by_state.append(pd.DataFrame([(state, pd.to_datetime(date), latest_vaccination_date_effect, date.strftime('%Y-%m-%d')) for date in pd.date_range(latest_vaccination_data_date, latest_Reff_data_date)], columns = ['state', 'date', 'overall_transmission_effect', 'date_str']))
+        
+        # Create a (state,date) indexed map of transmission effect
+        overall_transmission_effect = vaccination_by_state.set_index(['state', 'date_str'])['overall_transmission_effect'].to_dict()
+            
+        # Apply this effect to the forecast
+        vaccination_multiplier = df_forecast.apply(lambda row: 1 if row['type']!='R_L' else overall_transmission_effect.get((row['state'], row['date_str']),1), axis=1)
+        df_forecast = df_forecast.drop('date_str', axis='columns')
+        # Apply the vaccine effect to the forecast. The 8:onwards columns are all the Reff paths.
+        df_forecast.iloc[: , 8:] = df_forecast.iloc[: , 8:].multiply(vaccination_multiplier.to_numpy(), axis='rows')
     return df_forecast

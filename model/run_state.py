@@ -7,62 +7,31 @@ import multiprocessing as mp
 
 
 n_sims=int(argv[1]) #number of sims
-start_date = argv[5] 
-state = argv[4]
+forecast_date = argv[2] # Date of forecast
+state = argv[3]
+
+# If no VoC specified, code will run without alterations.
+VoC_flag = ''
+if len(argv)>4:
+    VoC_flag =  argv[4]
+
+scenario = ''
+if len(argv) > 5: # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
+    scenario = argv[5]
+    
+
+from params import start_date, num_forecast_days # External parameters
+
 print("Simulating state " +state)
 
 
 # Get total number of simulation days
-forecast_date = argv[3] # Date of forecast
-num_forecast_days = int(argv[2]) # Number of days to forecast forward
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
 
 
-# If no VoC specified, code will run without alterations.
-VoC_flag = ''
-if len(argv)>6:
-    VoC_flag =  argv[6]
 
-if len(argv) > 7:
-    # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
-    scenario = argv[7]
-else:
-    scenario = ''
-            
-local_detection = {
-            'NSW':0.9,#0.556,#0.65,
-            'QLD':0.9,#0.353,#0.493,#0.74,
-            'SA':0.7,#0.597,#0.75,
-            'TAS':0.4,#0.598,#0.48,
-            'VIC':0.35,#0.558,#0.77,
-            'WA':0.7,#0.409,#0.509,#0.66,
-            'ACT':0.95,#0.557,#0.65,
-            'NT':0.95,#0.555,#0.71
-        }
-
-a_local_detection = {
-            'NSW':0.05,#0.556,#0.65,
-            'QLD':0.05,#0.353,#0.493,#0.74,
-            'SA':0.05,#0.597,#0.75,
-            'TAS':0.05,#0.598,#0.48,
-            'VIC':0.05,#0.558,#0.77,
-            'WA':0.05,#0.409,#0.509,#0.66,
-            'ACT':0.7,#0.557,#0.65,
-            'NT':0.7,#0.555,#0.71
-        }
-
-qi_d = {
-            'NSW':0.98,#0.758,
-            'QLD':0.98,#0.801,
-            'SA':0.98,#0.792,
-            'TAS':0.98,#0.800,
-            'VIC':0.98,#0.735,
-            'WA':0.98,#0.792,
-            'ACT':0.98,#0.771,
-            'NT':0.98,#0.761
-    }
 
 ##Initialise the number of cases as 1st of March data incidence
 if start_date=="2020-03-01":
@@ -98,58 +67,29 @@ elif start_date == "2020-12-01":
         'VIC': [0, 0, 0], 
         'WA': [0, 0, 0],
     }
+elif start_date == "2021-04-15":
+    current = { # based on locally acquired cases in the days preceding the start date
+        'ACT': [0, 0, 0],
+        'NSW': [43, 0, 4], 
+        'NT': [0, 0, 0],
+        'QLD': [14, 0, 1],
+        'SA': [0, 0, 0],
+        'TAS': [0, 0, 0],
+        'VIC': [3, 0, 0], 
+        'WA': [18, 0, 2],
+    }
 else:
     print("Start date not implemented") 
 
-initial_people = ['I']*current[state][0] + \
-        ['A']*current[state][1] + \
-        ['S']*current[state][2]
-
-people = {}
-for i,cat in enumerate(initial_people):
-    people[i] = Person(0,0,0,0,cat)
 
 
 ####### Create simulation.py object ########
 
-if state in ['VIC']:
-    forecast_object = Forecast(current[state],
-    state,start_date,people,
-    alpha_i= 1, #alpha_i is impact of importations after April 15th
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=1, forecast_date=forecast_date,
+forecast_object = Forecast(current[state],
+    state,start_date, forecast_date=forecast_date,
     cases_file_date=case_file_date, 
     VoC_flag = VoC_flag, scenario=scenario
     )
-elif state in ['NSW']:
-    forecast_object = Forecast(current[state],
-    state,start_date,people,
-    alpha_i= 1,
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=2, #qua_ai is impact of importations before April 15th 
-    forecast_date=forecast_date,
-    cases_file_date=case_file_date,
-    VoC_flag = VoC_flag, scenario=scenario
-    )
-elif state in ['ACT','NT','SA','WA','QLD']:
-    forecast_object = Forecast(current[state],
-    state,start_date,people,
-    alpha_i= 0.1,
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=1, forecast_date=forecast_date,
-    cases_file_date=case_file_date,
-    VoC_flag = VoC_flag, scenario=scenario
-    )
-else:
-    forecast_object = Forecast(current[state],state,
-    start_date,people,
-    alpha_i= 0.5,
-    qs=local_detection[state],qi=qi_d[state],qa=a_local_detection[state],
-    qua_ai=1,  forecast_date=forecast_date,
-    cases_file_date=case_file_date,
-    VoC_flag = VoC_flag, scenario=scenario
-    )
-
 
 ############ Run Simulations in parallel and return ############
 
