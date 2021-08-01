@@ -71,6 +71,9 @@ class Forecast:
         self.forecast_date = (pd.to_datetime(forecast_date,format='%Y-%m-%d') - self.start_date).days # Total number of days in simulation
         self.cases_file_date = cases_file_date
 
+        # Load in Reff data before running all sims
+        self.Reff_all = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
+
         ##### Assumption dates.
 
         # Date from which quarantine was started
@@ -189,7 +192,7 @@ class Forecast:
         """
         import pandas as pd
 
-        df_forecast = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
+        df_forecast = self.Reff_all
 
         # Get R_I values and store in object.
         self.R_I = df_forecast.loc[(df_forecast.type=='R_I')&(df_forecast.state==self.state),self.num_of_sim%2000].values[0]
@@ -594,12 +597,11 @@ class Forecast:
         gc.collect()
         if self.bad_sim:
             #return NaN arrays for all bad_sims
-            self.metric = np.nan
             self.cumulative_cases = np.empty_like(self.cases)
             self.cumulative_cases[:] = np.nan
             return (self.cumulative_cases,self.cumulative_cases, {
                 'qs':self.symptomatic_detection_prob,
-                'metric':self.metric,
+                'metric':np.nan,
                 'qa':self.asymptomatic_detection_prob,
                 'qi':self.qi,
                 'alpha_a':self.alpha_a,
@@ -615,13 +617,13 @@ class Forecast:
             #good sim
 
             ## Perform metric for ABC
-            self.get_metric(end_time)
+            # self.get_metric(end_time)
 
             return (
                 self.cases.copy(),
                 self.observed_cases.copy(), {
                 'qs':self.symptomatic_detection_prob,
-                'metric':self.metric,
+                'metric':np.nan,
                 'qa':self.asymptomatic_detection_prob,
                 'qi':self.qi,
                 'alpha_a':self.alpha_a,
@@ -708,39 +710,40 @@ class Forecast:
             #print("No cases on day %i" % day)
             return False
 
-    def get_metric(self,end_time,omega=0.2):
-        """
-        Calculate the value of the metric of the current sim compared to NNDSS data.
-        """
+    # Deprecated as no long using ABC
+    # def get_metric(self,end_time,omega=0.2):
+    #     """
+    #     Calculate the value of the metric of the current sim compared to NNDSS data.
+    #     """
 
-        self.actual_array = np.array([self.actual[day]
-        #if day not in missed_dates else 0
-        for day in range(end_time) ])
+    #     self.actual_array = np.array([self.actual[day]
+    #     #if day not in missed_dates else 0
+    #     for day in range(end_time) ])
 
-        #calculate case differences
-        #moving windows
-        sim_cases =self.observed_cases[
-            :len(self.actual_array),2] + \
-                self.observed_cases[:
-                len(self.actual_array),1] #include asymp cases.
+    #     #calculate case differences
+    #     #moving windows
+    #     sim_cases =self.observed_cases[
+    #         :len(self.actual_array),2] + \
+    #             self.observed_cases[:
+    #             len(self.actual_array),1] #include asymp cases.
 
-        #convolution with 1s should do cum sum
-        window = 7
-        sim_cases = np.convolve(sim_cases,
-            [1]*window,mode='valid')
-        actual_cum = np.convolve(self.actual_array,
-            [1]*window,mode='valid')
-        cases_diff = abs(sim_cases - actual_cum)
+    #     #convolution with 1s should do cum sum
+    #     window = 7
+    #     sim_cases = np.convolve(sim_cases,
+    #         [1]*window,mode='valid')
+    #     actual_cum = np.convolve(self.actual_array,
+    #         [1]*window,mode='valid')
+    #     cases_diff = abs(sim_cases - actual_cum)
 
-        #if sum(cases_diff) <= omega * sum(self.actual_array):
-            #cumulative diff passes, calculate metric
+    #     #if sum(cases_diff) <= omega * sum(self.actual_array):
+    #         #cumulative diff passes, calculate metric
 
-            #sum over days number of times within omega of actual
-        self.metric = sum(
-            np.square(cases_diff)#,np.maximum(omega* actual_cum,7)
-            )
+    #         #sum over days number of times within omega of actual
+    #     self.metric = sum(
+    #         np.square(cases_diff)#,np.maximum(omega* actual_cum,7)
+    #         )
 
-        self.metric = self.metric/(end_time-window) #max is end_time
+    #     self.metric = self.metric/(end_time-window) #max is end_time
 
     
     def read_in_cases(self):

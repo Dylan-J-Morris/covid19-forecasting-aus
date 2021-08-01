@@ -86,7 +86,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
         VoC_date: (date as string) date from which to increase Reff by VoC
     """
     from scipy.stats import beta
-    from params import VoC_start_date
+    from params import VoC_start_date, use_vaccine_effect
     
     if file_date is None:
         raise Exception('Need to provide file date to Reff read.')
@@ -108,4 +108,29 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
             multiplier *= 1.39
         df_forecast.iloc[index_map , 8:] = df_slice_after_VoC*multiplier
         
+    if use_vaccine_effect:
+        # Load in vaccination effect data
+        vaccination_by_state = pd.read_csv('data/vaccination_by_state.csv', parse_dates=['date'])
+        vaccination_by_state = vaccination_by_state[['state', 'date','overall_transmission_effect']]
+
+        # Make datetime objs into strings
+        vaccination_by_state['date_str'] = pd.to_datetime(vaccination_by_state['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+        df_forecast['date_str'] = pd.to_datetime(df_forecast['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+
+        # Filling in future days will the same vaccination level as current.
+        for state, forecast_df_state in df_forecast.groupby('state'):
+            latest_Reff_data_date = max(forecast_df_state.date_str)
+            latest_vaccination_data_date = max(vaccination_by_state.groupby('state').get_group(state)['date'])
+            latest_vaccination_date_effect = vaccination_by_state.groupby(['state', 'date']).get_group((state, latest_vaccination_data_date))['overall_transmission_effect'].iloc[0]
+            # Fill in the future dates with the same level of vaccination.
+            vaccination_by_state = vaccination_by_state.append(pd.DataFrame([(state, pd.to_datetime(date), latest_vaccination_date_effect, date.strftime('%Y-%m-%d')) for date in pd.date_range(latest_vaccination_data_date, latest_Reff_data_date)], columns = ['state', 'date', 'overall_transmission_effect', 'date_str']))
+        
+        # Create a (state,date) indexed map of transmission effect
+        overall_transmission_effect = vaccination_by_state.set_index(['state', 'date_str'])['overall_transmission_effect'].to_dict()
+            
+        # Apply this effect to the forecast
+        vaccination_multiplier = df_forecast.apply(lambda row: 1 if row['type']!='R_L' else overall_transmission_effect.get((row['state'], row['date_str']),1), axis=1)
+        df_forecast = df_forecast.drop('date_str', axis='columns')
+        # Apply the vaccine effect to the forecast. The 8:onwards columns are all the Reff paths.
+        df_forecast.iloc[: , 8:] = df_forecast.iloc[: , 8:].multiply(vaccination_multiplier.to_numpy(), axis='rows')
     return df_forecast
