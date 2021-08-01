@@ -683,7 +683,7 @@ class Forecast:
             actual_3_day_total = 0
             for i in range(3):
                 actual_3_day_total += self.actual[max(0,day-i)]
-            threshold = 10*max(1,sum(
+            threshold = 3*max(1,sum(
                 self.observed_cases[
                     max(0,day-2):day+1,2] + self.observed_cases[
                         max(0,day-2):day+1,1]
