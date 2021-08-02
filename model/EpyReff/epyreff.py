@@ -22,12 +22,12 @@ def read_cases_lambda(case_file_date):
     """
     df_NNDSS = read_in_NNDSS(case_file_date)
 
-    df_interim = df_NNDSS[['NOTIFICATION_RECEIVE_DATE','STATE','imported','local']] 
+    df_interim = df_NNDSS[['date_inferred','STATE','imported','local']] 
     return(df_interim)
 
 def tidy_cases_lambda(interim_data, remove_territories=True):
     #Remove non-existent notification dates
-    interim_data = interim_data[~np.isnat(interim_data.NOTIFICATION_RECEIVE_DATE)]
+    interim_data = interim_data[~np.isnat(interim_data.date_inferred)]
     
     #Filter out territories
     if(remove_territories):
@@ -35,7 +35,7 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
     #Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
     #i.e. create linelist data
-    df_linel = df_linel.melt(id_vars = ['NOTIFICATION_RECEIVE_DATE','STATE'], var_name = 'SOURCE',value_name='n_cases')
+    df_linel = df_linel.melt(id_vars = ['date_inferred','STATE'], var_name = 'SOURCE',value_name='n_cases')
 
     #Reset index or the joining doesn't work
     df_linel = df_linel[df_linel.n_cases!=0]
@@ -46,7 +46,7 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 def draw_inf_dates(df_linelist, shape_rd=2.77, scale_rd=3.17, offset_rd=0,
                     shape_inc=5.807, scale_inc=0.948, offset_inc=1,nreplicates=1):
 
-    notification_dates = df_linelist['NOTIFICATION_RECEIVE_DATE']
+    notification_dates = df_linelist['date_inferred']
     nsamples = notification_dates.shape[0]
 
     #    DEFINE DELAY DISTRIBUTION
@@ -329,7 +329,7 @@ def plot_all_states(R_summ_states,df_interim, dates,
     date_filter = pd.date_range(start=start,end=end)
 
     #prepare NNDSS cases
-    df_cases = df_interim.groupby(['NOTIFICATION_RECEIVE_DATE','STATE']).agg(sum)
+    df_cases = df_interim.groupby(['date_inferred','STATE']).agg(sum)
     df_cases = df_cases.reset_index()
 
 
@@ -369,12 +369,12 @@ def plot_all_states(R_summ_states,df_interim, dates,
         #plot cases behind
         ax2 = ax[row,col].twinx()
 
-        ax2.bar(df_cases.loc[df_cases.STATE==state,'NOTIFICATION_RECEIVE_DATE'], 
+        ax2.bar(df_cases.loc[df_cases.STATE==state,'date_inferred'], 
                 df_cases.loc[df_cases.STATE==state,'local']+df_cases.loc[df_cases.STATE==state,'imported'],
             color='grey',
                 alpha=0.3
             )
-        ax2.bar(df_cases.loc[df_cases.STATE==state,'NOTIFICATION_RECEIVE_DATE'], 
+        ax2.bar(df_cases.loc[df_cases.STATE==state,'date_inferred'], 
                 df_cases.loc[df_cases.STATE==state,'local'],
             color='grey',
                 alpha=0.8
