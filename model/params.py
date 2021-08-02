@@ -6,7 +6,7 @@ start_date = '2021-04-15' # Start date of forecast
 num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
 case_insertion_threshold = 3 # The ratio of true cases to simulation cases below which we insert cases into branching process
-use_vaccine_effect = True
+use_vaccine_effect = False
 
 
 # Transmission parameters     
