@@ -28,7 +28,7 @@ def read_in_NNDSS(date_string):
         if len(glob.glob(path))!=1:
             print("There are %i files with the same date" %len(glob.glob(path)))
         if len(glob.glob(path)) == 0:
-            raise FileNotFoundError("NNDSS no found. Did you want to use a linelist?")
+            raise FileNotFoundError("NNDSS no found. Did you want to use a linelist? Or is the file named wrong?")
 
         # Fixes errors in updated python versions
         df.TRUE_ONSET_DATE = pd.to_datetime(df.TRUE_ONSET_DATE, errors='coerce') 
