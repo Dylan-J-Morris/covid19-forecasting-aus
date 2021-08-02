@@ -17,7 +17,8 @@ def read_in_NNDSS(date_string):
     from params import use_linelist, assume_local_cases_if_unknown
 
     if not use_linelist: 
-        case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y")
+        # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
+        case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y") 
         path = "data/COVID-19 UoM "+case_file_date+"*.xlsx"
 
         for file in glob.glob(path): # Allows us to use the * option
