@@ -402,5 +402,5 @@ def plot_all_states(R_summ_states,df_interim, dates,
     if save:
         import os
         os.makedirs("figs/EpyReff/", exist_ok=True)
-        plt.savefig("figs/EpyReff/Reff_tau_"+str(tau)+"_"+date+".png",dpi=300)
+        plt.savefig("figs/EpyReff/Reff_tau_"+str(tau)+"_"+date+".pdf",format='pdf')
     return fig, ax
