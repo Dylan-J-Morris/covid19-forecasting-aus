@@ -29,7 +29,9 @@ def read_in_google(Aus_only=True,local=False,moving=False):
             local = 'data/Global_Mobility_Report.csv'
             df = pd.read_csv(local,parse_dates=['date'])
     else:
+        # Download straight from the web
         df = pd.read_csv('https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv',parse_dates=['date'])
+        df.to_csv('data/Global_Mobility_Report.csv', index = False) # Make it save automatically.
     
     
     if Aus_only:

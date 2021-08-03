@@ -240,7 +240,8 @@ df_Reff['imported'] = df_Reff.imported.fillna(0)
 
 
 ######### Read in Google mobility results #########
-df_google = read_in_google(local=True,moving=True)
+import sys; sys.path.insert(0, '../'); from params import download_google_automatically  
+df_google = read_in_google(local=not download_google_automatically,moving=True)
 
 df= df_google.merge(df_Reff[['date','state','mean','lower','upper',
                             'top','bottom','std','rho','rho_moving','local','imported']], on=['date','state'],how='inner')
