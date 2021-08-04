@@ -5,15 +5,9 @@ assume_local_cases_if_unknown = True
 start_date = '2020-03-01' # Start date of forecast
 num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
-<<<<<<< HEAD
-case_insertion_threshold = 2 # The ratio of true cases to simulation cases below which we insert cases into branching process
-use_vaccine_effect = False
-
-=======
 case_insertion_threshold = 3 # The ratio of true cases to simulation cases below which we insert cases into branching process
 use_vaccine_effect = False
 download_google_automatically = True # Will download Google data automatically on run. Set to false for repeated runs.
->>>>>>> 92c4d5c95665073f51d731f3d809d73975efff31
 
 # Transmission parameters     
 
