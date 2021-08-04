@@ -57,7 +57,7 @@ class Forecast:
         self.symptomatic_detection_prob = local_detection[state]
         self.asymptomatic_detection_prob = a_local_detection[state]
         self.k = k # Hard coded
-        self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quartine version of alpha_i. 
+        self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quarantine version of alpha_i. 
         self.gam = 1/2
         self.ps = 0.7 # Probability of being symptomatic
 
