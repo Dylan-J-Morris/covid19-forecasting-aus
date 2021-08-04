@@ -7,7 +7,6 @@
 *.xlsx
 slurm*
 experiments
-retro
 
 # VScode
 .vscode
