@@ -17,7 +17,8 @@ def read_in_NNDSS(date_string):
     from params import use_linelist, assume_local_cases_if_unknown
 
     if not use_linelist: 
-        case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y")
+        # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
+        case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y") 
         path = "data/COVID-19 UoM "+case_file_date+"*.xlsx"
 
         for file in glob.glob(path): # Allows us to use the * option
@@ -27,7 +28,7 @@ def read_in_NNDSS(date_string):
         if len(glob.glob(path))!=1:
             print("There are %i files with the same date" %len(glob.glob(path)))
         if len(glob.glob(path)) == 0:
-            raise FileNotFoundError("NNDSS no found. Did you want to use a linelist?")
+            raise FileNotFoundError("NNDSS no found. Did you want to use a linelist? Or is the file named wrong?")
 
         # Fixes errors in updated python versions
         df.TRUE_ONSET_DATE = pd.to_datetime(df.TRUE_ONSET_DATE, errors='coerce') 
@@ -74,7 +75,7 @@ def read_in_NNDSS(date_string):
         df['imported'] = [1 if stat=='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported
         df['STATE'] = df['state']
-        df['NOTIFICATION_RECEIVE_DATE'] = df['date_detection'] # Only used by EpyReff. Possible improvement here.
+        # df['NOTIFICATION_RECEIVE_DATE'] = df['date_detection'] # Only used by EpyReff. Possible improvement here.
         return df
 
 

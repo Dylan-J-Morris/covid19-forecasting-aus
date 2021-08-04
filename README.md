@@ -7,24 +7,26 @@ If you have access to HPC (High performance cluster) that uses slurm, then you c
 ### Data needed
 In the `data` folder, ensure you have the latest:
 * Case data (NNDSS)
-* [Google mobility indices](https://www.google.com/covid19/mobility/); use the Global CSV with the file named `Global_Mobility_Report.csv`
 * Up to date microdistancing survey files titled `Barometer wave XX compliance.csv` saved in the `data/md/` folder. All files up to the current wave need to be included.
-* Include vaccination coverage data 
 
-These will need to be updated every week. 
+Extra data:
+* [Google mobility indices](https://www.google.com/covid19/mobility/); use the Global CSV with the file named `Global_Mobility_Report.csv`. This is automatically downloaded when `download_google_automatically` in `params.py` is set to True.
+* Vaccination coverage data by state. This is required for later forecasts and when `use_vaccine_effect` in `params.py` is set to True.
+
+These data will need to be updated every week. 
 
 ### Running model on slurm
 Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
 
 ```
-DATADATE='2021-07-27'  # Date of NNDSS data file
+DATADATE='2021-08-02'  # Date of NNDSS data file
 NSIMS=20000 # Total number of simulations to run
 
 bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
 ```
 
 #### Internal options
-There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, many options/assumptions have been made during the fitting in `model/cprs/generate_posterior.py`. 
+There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, options/assumptions have been made during the fitting in `model/cprs/generate_posterior.py`. 
 
 
 ## Step-by-step workflow and relevant scripts
