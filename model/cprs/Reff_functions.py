@@ -60,7 +60,7 @@ def read_in_google(Aus_only=True,local=False,moving=False):
 def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True, 
                  delta=1.0,R=2.2,sigma=1, md_arg=None,
                  ban='2020-03-16',single=False,var=None,
-                rho=None, R_I =None, winter=False, prop=None,second_phase=False):
+                rho=None, R_I =None, winter=False, prop=None,second_phase=False,third_phase=False):
     """
     Produce posterior predictive plots for all states
     """
@@ -157,6 +157,8 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
             df_state = df.loc[df.sub_region_1==state]
             if second_phase:
                 df_state = df_state.loc[df_state.is_sec_wave==1]
+            elif third_phase:
+                df_state = df_state.loc[df_state.is_third_wave==1]
             samples_sim = samples.sample(1000)
             post_values = samples_sim[['bet['+str(i)+']' for i in range(1,1+len(value_vars))]].values.T    
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
@@ -235,8 +237,17 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                 #use brho_v
 
                                 rho_data = samples_sim[
-                                    ['brho_v['+str(j)+']' 
+                                    ['brho_sec_wave['+str(j)+']' 
                                         for j in range(pos, pos+df.loc[df.state==states_initials[state]].is_sec_wave.sum() ) ]
+                                ].values.T
+
+                                pos = pos + df.loc[df.state==states_initials[state]].is_sec_wave.sum()
+                            elif third_phase:
+                                #use brho_v
+
+                                rho_data = samples_sim[
+                                    ['brho_third_wave['+str(j)+']' 
+                                        for j in range(pos, pos+df.loc[df.state==states_initials[state]].is_third_wave.sum() ) ]
                                 ].values.T
 
                                 pos = pos + df.loc[df.state==states_initials[state]].is_sec_wave.sum()
