@@ -7,7 +7,7 @@ num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
 case_insertion_threshold = 3 # The ratio of true cases to simulation cases below which we insert cases into branching process
 use_vaccine_effect = False
-
+download_google_automatically = True # Will download Google data automatically on run. Set to false for repeated runs.
 
 # Transmission parameters     
 
