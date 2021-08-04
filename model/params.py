@@ -1,24 +1,24 @@
 
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
-use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
+use_linelist = False # If something goes wrong on a day you can set this to True to use the linelist
 assume_local_cases_if_unknown = True
-start_date = '2021-04-15' # Start date of forecast
+start_date = '2020-03-01' # Start date of forecast
 num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
-case_insertion_threshold = 3 # The ratio of true cases to simulation cases below which we insert cases into branching process
-use_vaccine_effect = True
+case_insertion_threshold = 2 # The ratio of true cases to simulation cases below which we insert cases into branching process
+use_vaccine_effect = False
 
 
 # Transmission parameters     
 
-k = 0.1 #  Heterogeneity parameter for a negative binomial offspring distribution
+k = 0.15 #  Heterogeneity parameter for a negative binomial offspring distribution
 
 local_detection = {
-            'NSW':0.9,
+            'NSW':0.8,
             'QLD':0.9,
             'SA':0.7,
             'TAS':0.4,
-            'VIC':0.35,
+            'VIC':0.3,
             'WA':0.7,
             'ACT':0.95,
             'NT':0.95,

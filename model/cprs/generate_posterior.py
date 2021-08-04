@@ -122,7 +122,7 @@ model {
 
     R_L ~ gamma(1.8*1.8/0.05,1.8/0.05); //hyper-prior
     R_I ~ gamma(0.5*0.5/.2,0.5/.2);
-    sig ~ exponential(20); //mean is 1/50=0.02
+    sig ~ exponential(5); //mean is 1/50=0.02
     R_Li ~ gamma( R_L*R_L/sig, R_L/sig); //partial pooling of state level estimates
     for (i in 1:j) {
         for (n in 1:N){
@@ -254,7 +254,7 @@ start_date = '2020-03-01'
 end_date = '2020-03-31'
 
 ##Second wave inputs
-sec_states=sorted(['NSW'])
+sec_states=sorted(['NSW', 'VIC'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
@@ -298,7 +298,7 @@ else:
 #choose dates for each state for sec wave
 sec_date_range = {
     'NSW':pd.date_range(start=sec_start_date,end=sec_end_date).values,
-    # 'VIC':pd.date_range(start=sec_start_date,end='2020-10-28').values
+    'VIC':pd.date_range(start=sec_start_date,end='2020-10-28').values
 }
 df2X['is_sec_wave'] =0
 for state in sec_states:
