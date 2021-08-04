@@ -38,7 +38,7 @@ data {
     matrix[N_sec_wave,j_sec_wave] local_sec_wave;               //local cases in VIC
     matrix[N_sec_wave,j_sec_wave] imported_sec_wave;            //imported cases in VIC
 
-    // data for the third wave
+    // data for the third wave -- 
     int N_third_wave;                                           //length of VIC days
     int j_third_wave;                                           //thirdond wave states
     matrix[N_third_wave,j_third_wave] Reff_third_wave;          //Reff for VIC in June
