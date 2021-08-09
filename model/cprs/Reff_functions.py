@@ -62,7 +62,8 @@ def read_in_google(Aus_only=True,local=False,moving=False):
 def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True, 
                  delta=1.0,R=2.2,sigma=1, md_arg=None,
                  ban='2020-03-16',single=False,var=None,
-                rho=None, R_I =None, winter=False, prop=None,second_phase=False,third_phase=False):
+                rho=None, R_I =None, winter=False, prop=None,second_phase=False,third_phase=False, 
+                vaccination_data=None):
     """
     Produce posterior predictive plots for all states
     """
@@ -224,7 +225,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                         sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0],1))
                 else:
                     sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0],1))
-                mu_hat = 2 *md*sim_R* expit(logodds)
+                mu_hat = 2 *md*sim_R* expit(logodds) 
                 if winter:
                     mu_hat = (1+samples_sim['winter'].values)*mu_hat
                 if rho:
@@ -252,7 +253,15 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                         for j in range(pos, pos+df.loc[df.state==states_initials[state]].is_third_wave.sum() ) ]
                                 ].values.T
 
-                                pos = pos + df.loc[df.state==states_initials[state]].is_sec_wave.sum()
+                                # voc multiplier is just a scalar
+                                voc_multiplier = samples_sim[['VoC_effect_third_wave']].values.T
+                                # vaccine multiplier is inferred vaccine effect multiplied by the vaccine effect data
+                                # the vaccination data has to be indexed by the state_initials 
+                                vaccine_multiplier = samples_sim[['vaccine_effect_third_wave']].values.T * vaccination_data.loc[[states_initials[state]],:].values.T
+
+                                mu_hat = mu_hat * voc_multiplier * vaccine_multiplier
+
+                                pos = pos + df.loc[df.state==states_initials[state]].is_third_wave.sum()
                             else:
                                 # first phase
                                 rho_data = samples_sim[
@@ -264,7 +273,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                             rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T,
                                                (1,samples_sim.shape[0]))
                     R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0],1))
-                                           
+
                     mu_hat = rho_data * R_I_sim + (1- rho_data) *mu_hat
                     
                 if var is not None:

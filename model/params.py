@@ -1,13 +1,14 @@
 
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
-use_linelist = False # If something goes wrong on a day you can set this to True to use the linelist
+use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
 assume_local_cases_if_unknown = True
 start_date = '2021-04-15' # Start date of forecast
 num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
 case_insertion_threshold = 3 # The ratio of true cases to simulation cases below which we insert cases into branching process
 use_vaccine_effect = False
-download_google_automatically = True # Will download Google data automatically on run. Set to false for repeated runs.
+use_voc_effect = False
+download_google_automatically = False # Will download Google data automatically on run. Set to false for repeated runs.
 
 # Transmission parameters     
 

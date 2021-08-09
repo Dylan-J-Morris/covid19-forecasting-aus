@@ -33,8 +33,6 @@ if len(argv) > 2:
     print('Using scenario', scenario, 'with date', 'None' if scenario_date=='' else scenario_date)
 
 
-
-
 # Get Google Data
 df_google_all = read_in_google(Aus_only=True,moving=True,local=True)
 
@@ -152,7 +150,7 @@ for i,state in enumerate(states):
             )
     dates = df_google[df_google['state'] == state]['date']
 
-        #cap min and max at historical or (-50,0)
+    #cap min and max at historical or (-50,0)
     minRmed_array = np.minimum(-50,np.amin(Rmed_array, axis = 0)) #1 by predictors by mob_samples size
     maxRmed_array = np.maximum(0,np.amax(Rmed_array, axis=0))
 
@@ -487,6 +485,25 @@ new_pol = '2020-06-01' #VIC and NSW allow gatherings of up to 20 people, other j
 
 expo_decay=True
 
+# start and end date for the third wave 
+third_start_date = '2021-06-27'
+third_end_date = third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
+
+# Load in vaccination data by state and date
+vaccination_by_state = pd.read_csv('data/vaccination_by_state.csv', parse_dates=['date'])
+vaccination_by_state = vaccination_by_state[['state', 'date','overall_transmission_effect']]
+vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
+vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(['NSW'])] # Isolate fitting states
+vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='overall_transmission_effect') # Convert to matrix form
+
+# If we are missing recent vaccination data, fill it in with the most recent available data.
+latest_vacc_data = vaccination_by_state.columns[-1]
+if latest_vacc_data < pd.to_datetime(third_end_date):
+    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
+        
+# Convert to simple array
+vaccination_by_state_array = vaccination_by_state.to_numpy()
+
 typ_state_R={}
 mob_forecast_date = df_forecast.date.min()
 mob_samples = 100
@@ -649,7 +666,30 @@ for typ in forecast_type:
                 ##concatenate to previous
                 logodds = np.concatenate((logodds, logodds_sample ), axis =1)
 
-        R_L = 2* md *sim_R * expit( logodds )
+        
+        # create an array which is an indicator of the delta strain which will be 1 up until current window and then
+        # it will be inflated using sampled values
+        post_voc_multiplier_before = [1.0]*df_state.loc[df_state<third_start_date].shape[0]
+        post_voc_multiplier_after =  np.repeat(samples['VoC_effect_third_wave'], df_state.loc[df_state>=third_start_date].shape[0])
+        voc_multiplier = post_voc_multiplier_before + post_voc_multiplier_after
+
+        # create an array which is an indicator of the vaccination effect which should be relatively straightforward, we just need to 
+        # forecast forward the last day
+        post_vaccine_multiplier_before = [1.0]*df_state.loc[df_state<third_start_date].shape[0]
+        post_vaccine_multiplier_after =  np.repeat(samples['vaccine_effect_third_wave'], df_state.loc[df_state>=third_start_date].shape[0])
+
+        # now add in the data effect, here we just need to be careful if we run off the array, in which case we can back-trace to the 
+        # last recorded value
+        for ii in range(len(post_vaccine_multiplier_before)):
+            if ii >= vaccination_by_state[state].shape[0]:
+                post_vaccine_multiplier_after[ii] *= vaccination_by_state.loc[[state],ii].values
+            else:
+                post_vaccine_multiplier_after[ii] *= vaccination_by_state.loc[[state],-1].values
+
+        vaccine_multiplier = post_vaccine_multiplier_before + post_vaccine_multiplier_after
+
+
+        R_L = 2* md *sim_R * expit( logodds ) * vaccine_multiplier * voc_multiplier
 
         R_L_lower = np.percentile(R_L,25,axis=1)
         R_L_upper = np.percentile(R_L,75,axis=1)

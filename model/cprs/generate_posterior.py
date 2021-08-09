@@ -48,7 +48,6 @@ data {
     vector[N_third_wave] policy_third_wave;                     // micro distancing compliance
     matrix[N_third_wave,j_third_wave] local_third_wave;         //local cases in VIC
     matrix[N_third_wave,j_third_wave] imported_third_wave;      //imported cases in VIC
-    
 
     // data relating to mobility and microdistancing
     vector[N] count_md[j];                                      //count of always
@@ -66,6 +65,8 @@ data {
     vector[N_third_wave] include_in_third_wave[j_third_wave];   // dates include in sec_wave 
     int pos_starts_sec[j_sec_wave];                             //starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         //starting positions for each state in the third wave 
+    vector[N_third_wave] vaccination_data[j_third_wave];        //vaccination data
+
 }
 parameters {
     vector[K] bet;                                              //coefficients
@@ -83,6 +84,14 @@ parameters {
 
     vector<lower=0,upper=1>[total_N_p_sec] brho_sec_wave;       //estimate of proportion of imported cases
     vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;   //estimate of proportion of imported cases
+
+    // voc and vaccine effects
+    real<lower=0> VoC_effect_third_wave_0;
+    real<lower=0> sig_VoC_effect_third_wave;
+    real<lower=0> VoC_effect_third_wave;
+
+    real<lower=0> sig_vaccine_effect_third_wave;
+    real<lower=0> vaccine_effect_third_wave;
 }
 transformed parameters {
     matrix<lower=0>[N,j] mu_hat;
@@ -102,6 +111,7 @@ transformed parameters {
         }
     }
     for (i in 1:j_sec_wave){
+        // define these within the scope of the loop only
         int pos;
         if (i==1){
             pos=1;
@@ -118,8 +128,7 @@ transformed parameters {
                     map_to_state_index_sec[i]
                     ])*(
                     (1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n] )*inv_logit(
-                    Mob_sec_wave[i][n,:]*(bet)
-                    ); //mean estimate
+                    Mob_sec_wave[i][n,:]*(bet)); //mean estimate
                 }
                 else {
                     mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*2*R_Li[
@@ -133,7 +142,9 @@ transformed parameters {
         }
     }
     for (i in 1:j_third_wave){
+        // define these within the scope of the loop only
         int pos;
+        real vacc_effect;
         if (i==1){
             pos=1;
         }
@@ -145,19 +156,24 @@ transformed parameters {
             if (include_in_third_wave[i][n]==1){
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);
                 if (map_to_state_index_third[i] == 5) {
+
+                    vacc_effect = vaccine_effect_third_wave * vaccination_data[i][n];
+                    
                     mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*(2*R_Li[
                     map_to_state_index_third[i]
                     ])*(
                     (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] )*inv_logit(
-                    Mob_third_wave[i][n,:]*(bet)
-                    ); //mean estimate
+                    Mob_third_wave[i][n,:]*(bet)) * VoC_effect_third_wave * vacc_effect; //mean estimate
                 }
                 else {
+
+                    vacc_effect = vaccine_effect_third_wave * vaccination_data[i][n];
+
                     mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*2*R_Li[
                     map_to_state_index_third[i]
                     ]*(
                     (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] )*inv_logit(
-                    Mob_third_wave[i][n,:]*(bet)); //mean estimate
+                    Mob_third_wave[i][n,:]*(bet))* VoC_effect_third_wave * vacc_effect; //mean estimate
                 }
                 pos += 1;
             }
@@ -167,19 +183,29 @@ transformed parameters {
 }
 model {
     int pos2;
+    real voc_mean;
     bet ~ normal(0,1);
     theta_md ~ lognormal(0,0.5);
-    //md ~ beta(7,3);
+
+    //note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
+    voc_mean = 2.0;
+    VoC_effect_third_wave_0 ~ gamma(voc_mean*voc_mean/0.02,voc_mean/0.02);
+    sig_VoC_effect_third_wave ~ exponential(20);
+    VoC_effect_third_wave ~ gamma(VoC_effect_third_wave_0*VoC_effect_third_wave_0/sig_VoC_effect_third_wave, 
+                                  VoC_effect_third_wave_0/sig_VoC_effect_third_wave);
+
+    sig_vaccine_effect_third_wave ~ exponential(50);
+    vaccine_effect_third_wave ~ normal(1, sig_vaccine_effect_third_wave);
 
     R_L ~ gamma(1.8*1.8/0.05,1.8/0.05); //hyper-prior
     R_I ~ gamma(0.5*0.5/.2,0.5/.2);
     sig ~ exponential(20); //mean is 1/50=0.02
-    R_Li ~ gamma( R_L*R_L/sig, R_L/sig); //partial pooling of state level estimates
+    R_Li ~ gamma(R_L*R_L/sig, R_L/sig); //partial pooling of state level estimates
+
     for (i in 1:j) {
         for (n in 1:N){
             prop_md[n,i] ~ beta(1 + count_md[i][n], 1+ respond_md[i][n] - count_md[i][n]);
             brho[n,i] ~ beta( 1+ imported[n,i], 1+ local[n,i]); //ratio imported/ (imported + local)
-            //noise[i][n,:] ~ normal( Mob[i][n,:] , Mob_std[i][n,:]);
             mu_hat[n,i] ~ gamma( Reff[n,i]*Reff[n,i]/(sigma2[n,i]), Reff[n,i]/sigma2[n,i]); //Stan uses shape/inverse scale
         }
     }
@@ -216,7 +242,7 @@ model {
                 prop_md_third_wave[pos2] ~ beta(1 + count_md_third_wave[i][n], 1+ respond_md_third_wave[i][n] - count_md_third_wave[i][n]);
                 brho_third_wave[pos2] ~ beta( 1+ imported_third_wave[n,i], 1+ local_third_wave[n,i]); //ratio imported/ (imported + local)
                 //noise_third_wave[i][n,:] ~ normal( Mob_third_wave[i][n,:] , Mob_third_wave_std[i][n,:]);
-                mu_hat_third_wave[pos2] ~ gamma( Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
+                mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
                 pos2+=1;
             }
         }
@@ -328,7 +354,7 @@ sec_states=sorted(['NSW'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
-# TEMPLATE: Third wave inputs
+## Third wave inputs
 # third_states=sorted(['VIC','NSW','WA','TAS'])
 third_states=sorted(['NSW'])
 third_start_date = '2021-06-27'
@@ -361,26 +387,6 @@ df['post_policy'] = (df.date >= ban).astype(int)
 dfX = df.loc[fit_mask].sort_values('date')
 df2X = df.loc[second_wave_mask].sort_values('date')
 df3X = df.loc[third_wave_mask].sort_values('date')
-
-#filter out the surveys we don't have
-# if df3X.shape[0]>0:
-#     survey_respond = survey_respond_base.loc[:df3X.date.values[-1]]
-#     survey_counts = survey_counts_base.loc[:df3X.date.values[-1]]
-# elif df2X.shape[0]>0:
-#     survey_respond = survey_respond_base.loc[:df2X.date.values[-1]]
-#     survey_counts = survey_counts_base.loc[:df2X.date.values[-1]]
-# else:
-#     survey_respond = survey_respond_base.loc[:dfX.date.values[-1]]
-#     survey_counts = survey_counts_base.loc[:dfX.date.values[-1]]    
-
-# #original code for filtering out the surveys we dont have
-# if df2X.shape[0]>0:
-#     survey_respond = survey_respond_base.loc[:df2X.date.values[-1]]
-#     survey_counts = survey_counts_base.loc[:df2X.date.values[-1]]
-# else:
-#     survey_respond = survey_respond_base.loc[:dfX.date.values[-1]]
-#     survey_counts = survey_counts_base.loc[:dfX.date.values[-1]]
-
 
 #choose dates for each state for sec wave
 sec_date_range = {
@@ -495,9 +501,24 @@ policy = dfX.loc[dfX.state==states_to_fit[0],'post_policy']     # this is the po
 policy_sec_wave = [1]*df2X.loc[df2X.state==sec_states[0]].shape[0]
 policy_third_wave = [1]*df3X.loc[df3X.state==third_states[0]].shape[0]
 
+# Load in vaccination data by state and date
+vaccination_by_state = pd.read_csv('data/vaccination_by_state.csv', parse_dates=['date'])
+vaccination_by_state = vaccination_by_state[['state', 'date','overall_transmission_effect']]
+vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
+vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(['NSW'])] # Isolate fitting states
+vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='overall_transmission_effect') # Convert to matrix form
+
+# If we are missing recent vaccination data, fill it in with the most recent available data.
+latest_vacc_data = vaccination_by_state.columns[-1]
+if latest_vacc_data < pd.to_datetime(third_end_date):
+    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
+        
+# Convert to simple array
+vaccination_by_state_array = vaccination_by_state.to_numpy()
+
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
-input_data ={
+input_data = {
     'N': dfX.loc[dfX.state==states_to_fit[0]].shape[0],
     'K': len(predictors),
     'j':len(states_to_fit),
@@ -543,7 +564,8 @@ input_data ={
     'include_in_sec_wave': include_in_sec_wave,
     'include_in_third_wave': include_in_third_wave,
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
-    'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave])
+    'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]), 
+    'vaccination_data': vaccination_by_state_array
 }
 
 fit = sm_pol_gamma.sampling(
@@ -553,7 +575,6 @@ fit = sm_pol_gamma.sampling(
     #control={'max_treedepth':15}
 )
 
-
 ######## Plotting & Saving Output #########
 
 #make results dir
@@ -562,8 +583,10 @@ os.makedirs(results_dir,exist_ok=True)
 
 filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
 with open(results_dir+filename, 'w') as f:
-    print(fit.stansummary(pars=['bet','R_I','R_L','R_Li','theta_md','sig']), file=f)
-samples_mov_gamma = fit.to_dataframe(pars=['bet','R_I','R_L','R_Li','sig','brho','theta_md','brho_sec_wave','brho_third_wave'])
+    print(fit.stansummary(pars=['bet','R_I','R_L','R_Li','theta_md','sig','VoC_effect_third_wave','vaccine_effect_third_wave']), file=f)
+samples_mov_gamma = fit.to_dataframe(
+    pars=['bet','R_I','R_L','R_Li','sig','brho','theta_md',
+        'brho_sec_wave','brho_third_wave','VoC_effect_third_wave','vaccine_effect_third_wave'])
 
 # Plot ratio of imported to total cases
 # First phase
@@ -819,7 +842,8 @@ if df3X.shape[0]>0:
     ax4 =predict_plot(samples_mov_gamma,df.loc[(df.date>=third_start_date)&(df.date<=third_end_date)],gamma=True, moving=True,split=split,grocery=True,ban = ban,
                     R=RL_by_state, var= True, md_arg=md,
                     rho=third_states, third_phase=True,
-                    R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[third_start_date:third_end_date])#by states....
+                    R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[third_start_date:third_end_date], 
+                    vaccination_data=vaccination_by_state)#by states....
     for ax in ax4:
         for a in ax:
             a.set_ylim((0,3))
@@ -834,8 +858,7 @@ if df3X.shape[0]>0:
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
 var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + [
-    'R_Li['+str(i+1)+']' for i in range(len(states_to_fit))
-    ]
+    'R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + ['VoC_effect_third_wave'] + ['vaccine_effect_third_wave']
 
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')
