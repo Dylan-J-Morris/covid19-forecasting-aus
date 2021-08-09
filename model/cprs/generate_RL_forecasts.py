@@ -198,7 +198,7 @@ for i,state in enumerate(states):
                     scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
 
                 # Constant Lockdown
-                if scenario == "no_reversion":
+                if scenario[:12] == "no_reversion":
                     new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
 
                 # No Lockdown
