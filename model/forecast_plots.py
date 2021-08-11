@@ -93,7 +93,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         ax2.fill_between(df.columns, Reff.loc[df.columns].quantile(0.25,axis=1),Reff.loc[df.columns].quantile(0.75,axis=1),alpha=0.4 ,color='C0')
         ax2.fill_between(df.columns, Reff.loc[df.columns].quantile(0.05,axis=1),Reff.loc[df.columns].quantile(0.95,axis=1),alpha=0.4,color='C0' )
         ax2.set_yticks([1,3],minor=True,)
-        ax2.set_yticks([0,2],minor=False)
+        ax2.set_yticks([0,4],minor=False)
         ax2.set_yticklabels([0,2],minor=False)
         ax2.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
         #ax2.set_ylabel("Reff")
@@ -104,7 +104,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         ax2.set_xticks([df.columns.values[-1*forecast_days]],minor=True)
         ax2.xaxis.grid(which='minor', linestyle='--',alpha=0.6, color='black')
 
-        ax2.set_ylim((0,3))
+        ax2.set_ylim((0,4))
     else:
         #ax.set_xlabel("Date")
         ax.tick_params('x',rotation=90)
@@ -172,11 +172,6 @@ states = ['NSW','QLD','SA','TAS','VIC','WA','ACT','NT']
 data_date = pd.to_datetime(data_date,format="%Y-%m-%d")
 end_date = data_date + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
-
-
-
-
-
 
 #check if any dates are incorrect
 try:
