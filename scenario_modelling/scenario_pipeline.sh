@@ -10,6 +10,7 @@ jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${
 
 # We split the scenario params into the type and the date. It will apply the sec
 jid_posteriors_a=$(sbatch --parsable sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
+jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
 
 # Here the scenario parameter is just a filename extention.
 jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")

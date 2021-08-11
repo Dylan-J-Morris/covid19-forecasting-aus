@@ -699,8 +699,8 @@ for typ in forecast_type:
         print(voc_multiplier.shape)
         print(vaccination_by_day.shape)
 
-        R_L = 2 * md *sim_R * expit( logodds ) * vaccination_by_day * voc_multiplier
-        # R_L = 2 * md *sim_R * expit( logodds ) * voc_multiplier
+        # R_L = 2 * md *sim_R * expit( logodds ) * vaccination_by_day * voc_multiplier
+        R_L = 2 * md *sim_R * expit( logodds ) * voc_multiplier
 
         R_L_lower = np.percentile(R_L,25,axis=1)
         R_L_upper = np.percentile(R_L,75,axis=1)
