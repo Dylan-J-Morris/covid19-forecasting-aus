@@ -115,7 +115,11 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
             index_map = df_forecast.index[row_bool_to_apply_VoC]
             # Index 9 and onwards are the 2000 Reff samples.
             df_slice_after_VoC = df_forecast.iloc[index_map, 8:] 
+<<<<<<< HEAD
             multiplier = beta.rvs(7, 7, size = df_slice_after_VoC.shape) + 2.5 - 0.5 # Mean 2.1 Delta
+=======
+            multiplier = beta.rvs(3,3, size = df_slice_after_VoC.shape) + 2.1 - 0.5 # Mean 2.1 Delta
+>>>>>>> 4db7f8d81cc17a5273460a46facea2d8ca6b2251
 
         df_forecast.iloc[index_map , 8:] = df_slice_after_VoC*multiplier
         
