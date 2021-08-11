@@ -62,8 +62,7 @@ def read_in_google(Aus_only=True,local=False,moving=False):
 def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True, 
                  delta=1.0,R=2.2,sigma=1, md_arg=None,
                  ban='2020-03-16',single=False,var=None,
-                rho=None, R_I =None, winter=False, prop=None,second_phase=False,third_phase=False, 
-                vaccination_data=None):
+                rho=None, R_I =None, winter=False, prop=None,second_phase=False,third_phase=False):
     """
     Produce posterior predictive plots for all states
     """
@@ -255,11 +254,8 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
 
                                 # voc multiplier is just a scalar
                                 voc_multiplier = samples_sim[['VoC_effect_third_wave']].values.T
-                                # vaccine multiplier is inferred vaccine effect multiplied by the vaccine effect data
-                                # the vaccination data has to be indexed by the state_initials 
-                                vaccine_multiplier = samples_sim[['vaccine_effect_third_wave']].values.T * vaccination_data.loc[[states_initials[state]],:].values.T
-
-                                mu_hat = mu_hat * voc_multiplier * vaccine_multiplier
+                                
+                                mu_hat = mu_hat * voc_multiplier
 
                                 pos = pos + df.loc[df.state==states_initials[state]].is_third_wave.sum()
                             else:

@@ -489,10 +489,6 @@ expo_decay=True
 third_start_date = '2021-06-27'
 third_end_date = third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
 
-# Load in vaccination data by state and date
-vaccination_by_state = pd.read_csv('data/vaccination_by_state.csv', parse_dates=['date'])
-vaccination_by_state = vaccination_by_state[['state', 'date','overall_transmission_effect']]
-
 typ_state_R={}
 mob_forecast_date = df_forecast.date.min()
 mob_samples = 100
@@ -657,7 +653,7 @@ for typ in forecast_type:
 
 
 
-        print("Including the voc and vaccine effects into the R_L forecasts")
+        print("Including the voc effects into the R_L forecasts")
         # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
         # which will be 1 up until current wave and then it will be inflated using posterior sampled values
         voc_multiplier = np.tile(samples['VoC_effect_third_wave'].values, (df_state.shape[0],mob_samples))
@@ -670,36 +666,7 @@ for typ in forecast_type:
                 for jj in range(voc_multiplier[0].shape[0]):
                     voc_multiplier[ii][jj] = 1.0
 
-        # posterior vaccine multiplier (not used yet)
-        vacc_multiplier = np.tile(samples['vaccine_effect_third_wave'].values, (df_state.shape[0],mob_samples))
-        
-        this_states_vaccination_record = vaccination_by_state.groupby('state').get_group(state)
-        first_vax_day, last_vax_day = this_states_vaccination_record['date'].min(), this_states_vaccination_record['date'].max()
-        this_states_vaccination_record = this_states_vaccination_record.set_index('date')['overall_transmission_effect'] # Set index as date
-
-        # need this for now to ensure that the vaccination_by_day and voc_multiplier arrays have the same shape - might want to look into 
-        # whether or not this should be needed 
-        mob_samples_vacc = mob_samples*mob_samples
-
-        start_date_dt = pd.to_datetime(start_date)
-        vaccination_by_day = []
-        for n in range(df_state.shape[0]):
-            n_as_datetime = start_date_dt + pd.Timedelta(days=n)
-            if n_as_datetime < first_vax_day:
-                vaccination_by_day.append([1]*mob_samples_vacc)
-            elif n_as_datetime >= last_vax_day:
-                vaccination_by_day.append([this_states_vaccination_record[last_vax_day]]*mob_samples_vacc)
-            else:
-                vaccination_by_day.append([this_states_vaccination_record[n_as_datetime]]*mob_samples_vacc)
-
-        vaccination_by_day = np.vstack(vaccination_by_day)
-
         # calculate the forecasted R_L values
-
-        print(voc_multiplier.shape)
-        print(vaccination_by_day.shape)
-
-        # R_L = 2 * md *sim_R * expit( logodds ) * vaccination_by_day * voc_multiplier
         R_L = 2 * md *sim_R * expit( logodds ) * voc_multiplier
 
         R_L_lower = np.percentile(R_L,25,axis=1)
