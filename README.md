@@ -19,7 +19,7 @@ These data will need to be updated every week.
 Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
 
 ```
-DATADATE='2021-08-02'  # Date of NNDSS data file
+DATADATE='2021-08-09'  # Date of NNDSS data file
 NSIMS=20000 # Total number of simulations to run
 
 bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
@@ -87,3 +87,5 @@ The model can run with a optional Variant of Concern (VoC) flag, which increases
 
 ### Original Code
 An earlier version of this code is available at [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
+
+test

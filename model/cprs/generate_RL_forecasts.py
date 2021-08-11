@@ -492,17 +492,6 @@ third_end_date = third_end_date = data_date - pd.Timedelta(days=10) # Subtract 1
 # Load in vaccination data by state and date
 vaccination_by_state = pd.read_csv('data/vaccination_by_state.csv', parse_dates=['date'])
 vaccination_by_state = vaccination_by_state[['state', 'date','overall_transmission_effect']]
-vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
-vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(['NSW'])] # Isolate fitting states
-vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='overall_transmission_effect') # Convert to matrix form
-
-# If we are missing recent vaccination data, fill it in with the most recent available data.
-latest_vacc_data = vaccination_by_state.columns[-1]
-if latest_vacc_data < pd.to_datetime(third_end_date):
-    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
-        
-# Convert to simple array
-vaccination_by_state_array = vaccination_by_state.to_numpy()
 
 typ_state_R={}
 mob_forecast_date = df_forecast.date.min()
@@ -666,30 +655,52 @@ for typ in forecast_type:
                 ##concatenate to previous
                 logodds = np.concatenate((logodds, logodds_sample ), axis =1)
 
+
+
+        print("Including the voc and vaccine effects into the R_L forecasts")
+        # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
+        # which will be 1 up until current wave and then it will be inflated using posterior sampled values
+        voc_multiplier = np.tile(samples['VoC_effect_third_wave'].values, (df_state.shape[0],mob_samples))
+
+        # ii index is the days, jj is the realisation (mob_samples) 
+        # this can almost surely be refactored into something nicer. Pretty sure the inner loop isn't even needed and 
+        # broadcasting will make more readable.
+        for ii in range(voc_multiplier.shape[0]):
+            if ii < df_state.loc[df_state.date<third_start_date].shape[0]:
+                for jj in range(voc_multiplier[0].shape[0]):
+                    voc_multiplier[ii][jj] = 1.0
+
+        # posterior vaccine multiplier (not used yet)
+        vacc_multiplier = np.tile(samples['vaccine_effect_third_wave'].values, (df_state.shape[0],mob_samples))
         
-        # create an array which is an indicator of the delta strain which will be 1 up until current window and then
-        # it will be inflated using sampled values
-        post_voc_multiplier_before = [1.0]*df_state.loc[df_state<third_start_date].shape[0]
-        post_voc_multiplier_after =  np.repeat(samples['VoC_effect_third_wave'], df_state.loc[df_state>=third_start_date].shape[0])
-        voc_multiplier = post_voc_multiplier_before + post_voc_multiplier_after
+        this_states_vaccination_record = vaccination_by_state.groupby('state').get_group(state)
+        first_vax_day, last_vax_day = this_states_vaccination_record['date'].min(), this_states_vaccination_record['date'].max()
+        this_states_vaccination_record = this_states_vaccination_record.set_index('date')['overall_transmission_effect'] # Set index as date
 
-        # create an array which is an indicator of the vaccination effect which should be relatively straightforward, we just need to 
-        # forecast forward the last day
-        post_vaccine_multiplier_before = [1.0]*df_state.loc[df_state<third_start_date].shape[0]
-        post_vaccine_multiplier_after =  np.repeat(samples['vaccine_effect_third_wave'], df_state.loc[df_state>=third_start_date].shape[0])
+        # need this for now to ensure that the vaccination_by_day and voc_multiplier arrays have the same shape - might want to look into 
+        # whether or not this should be needed 
+        mob_samples_vacc = mob_samples*mob_samples
 
-        # now add in the data effect, here we just need to be careful if we run off the array, in which case we can back-trace to the 
-        # last recorded value
-        for ii in range(len(post_vaccine_multiplier_before)):
-            if ii >= vaccination_by_state[state].shape[0]:
-                post_vaccine_multiplier_after[ii] *= vaccination_by_state.loc[[state],ii].values
+        start_date_dt = pd.to_datetime(start_date)
+        vaccination_by_day = []
+        for n in range(df_state.shape[0]):
+            n_as_datetime = start_date_dt + pd.Timedelta(days=n)
+            if n_as_datetime < first_vax_day:
+                vaccination_by_day.append([1]*mob_samples_vacc)
+            elif n_as_datetime >= last_vax_day:
+                vaccination_by_day.append([this_states_vaccination_record[last_vax_day]]*mob_samples_vacc)
             else:
-                post_vaccine_multiplier_after[ii] *= vaccination_by_state.loc[[state],-1].values
+                vaccination_by_day.append([this_states_vaccination_record[n_as_datetime]]*mob_samples_vacc)
 
-        vaccine_multiplier = post_vaccine_multiplier_before + post_vaccine_multiplier_after
+        vaccination_by_day = np.vstack(vaccination_by_day)
 
+        # calculate the forecasted R_L values
 
-        R_L = 2* md *sim_R * expit( logodds ) * vaccine_multiplier * voc_multiplier
+        print(voc_multiplier.shape)
+        print(vaccination_by_day.shape)
+
+        R_L = 2 * md *sim_R * expit( logodds ) * vaccination_by_day * voc_multiplier
+        # R_L = 2 * md *sim_R * expit( logodds ) * voc_multiplier
 
         R_L_lower = np.percentile(R_L,25,axis=1)
         R_L_upper = np.percentile(R_L,75,axis=1)

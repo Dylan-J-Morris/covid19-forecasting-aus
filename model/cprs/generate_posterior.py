@@ -857,8 +857,8 @@ if df3X.shape[0]>0:
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
-var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + [
-    'R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + ['VoC_effect_third_wave'] + ['vaccine_effect_third_wave']
+var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
+    'VoC_effect_third_wave'] + ['vaccine_effect_third_wave']
 
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')
