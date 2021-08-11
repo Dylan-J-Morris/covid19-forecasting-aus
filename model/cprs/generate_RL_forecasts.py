@@ -194,6 +194,8 @@ for i,state in enumerate(states):
                 mu_current = Rmed[-1,:]
                 mu_victoria = np.array([-55.35057887, -22.80891056, -46.59531636, -75.99942378, -44.71119293])
 
+                mu_baseline = np.mean(Rmed[-42:-28,:], axis = 0)
+
                 if scenario_date != '': 
                     scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
 
