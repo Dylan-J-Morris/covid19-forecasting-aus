@@ -119,8 +119,7 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 ## Third wave inputs
-# third_states=sorted(['VIC','NSW','WA','TAS'])
-third_states=sorted(['NSW'])
+third_states=sorted(['NSW','VIC']) 
 third_start_date = '2021-06-27'
 third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
 
@@ -135,7 +134,6 @@ second_wave_mask = (second_wave_mask) & (df.date >= sec_start_date)
 second_wave_mask = (second_wave_mask) & (df.date <= sec_end_date)
 
 # Add third wave stuff here
-
 third_wave_mask = df.state.isin(third_states)
 third_wave_mask = (third_wave_mask) & (df.date >= third_start_date)
 third_wave_mask = (third_wave_mask) & (df.date <= third_end_date)
@@ -331,10 +329,10 @@ os.makedirs(results_dir,exist_ok=True)
 
 filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
 with open(results_dir+filename, 'w') as f:
-    print(fit.stansummary(pars=['bet','R_I','R_L','R_Li','theta_md','sig','VoC_effect_third_wave']), file=f)
+    print(fit.stansummary(pars=['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave']), file=f)
 samples_mov_gamma = fit.to_dataframe(
     pars=['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-        'brho_sec_wave','brho_third_wave','VoC_effect_third_wave'])
+        'brho_sec_wave','brho_third_wave','voc_effect_third_wave'])
 
 # Plot ratio of imported to total cases
 # First phase
@@ -605,7 +603,7 @@ if df3X.shape[0]>0:
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
 var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
-    'VoC_effect_third_wave']
+    'voc_effect_third_wave']
 
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')

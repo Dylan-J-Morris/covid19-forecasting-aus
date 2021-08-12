@@ -83,9 +83,9 @@ parameters {
     vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;   //estimate of proportion of imported cases
 
     // voc effects
-    real<lower=0> VoC_effect_third_wave_0;
-    real<lower=0> sig_VoC_effect_third_wave;
-    real<lower=0> VoC_effect_third_wave;
+    real<lower=0> voc_effect_third_wave_0;
+    real<lower=0> sig_voc_effect_third_wave;
+    real<lower=0> voc_effect_third_wave;
 
 }
 transformed parameters {
@@ -155,7 +155,7 @@ transformed parameters {
                     map_to_state_index_third[i]
                     ])*(
                     (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] )*inv_logit(
-                    Mob_third_wave[i][n,:]*(bet)) * VoC_effect_third_wave; //mean estimate
+                    Mob_third_wave[i][n,:]*(bet)) * voc_effect_third_wave; //mean estimate
                 }
                 else {
 
@@ -163,7 +163,7 @@ transformed parameters {
                     map_to_state_index_third[i]
                     ]*(
                     (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] )*inv_logit(
-                    Mob_third_wave[i][n,:]*(bet))* VoC_effect_third_wave; //mean estimate
+                    Mob_third_wave[i][n,:]*(bet))* voc_effect_third_wave; //mean estimate
                 }
                 pos += 1;
             }
@@ -173,21 +173,27 @@ transformed parameters {
 }
 model {
     int pos2;
-    real voc_mean;
+
     bet ~ normal(0,1);
     theta_md ~ lognormal(0,0.5);
 
     //note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_mean = 2.0;
-    VoC_effect_third_wave_0 ~ gamma(voc_mean*voc_mean/0.02,voc_mean/0.02);
-    sig_VoC_effect_third_wave ~ exponential(20);
-    VoC_effect_third_wave ~ gamma(VoC_effect_third_wave_0*VoC_effect_third_wave_0/sig_VoC_effect_third_wave, 
-                                  VoC_effect_third_wave_0/sig_VoC_effect_third_wave);
+    real voc_hyper_mean;
+    real voc_hyper_sig;
+
+    voc_hyper_mean = 2.5;
+    voc_hyper_sig = 0.1;      // making the hyper-prior variance small to force the mean to move
+
+    voc_effect_third_wave_0 ~ gamma(voc_hyper_mean*voc_hyper_mean/voc_hyper_sig,
+                                    voc_hyper_mean/voc_hyper_sig);
+    sig_voc_effect_third_wave ~ exponential(100);
+    voc_effect_third_wave ~ gamma(voc_effect_third_wave_0*voc_effect_third_wave_0/sig_voc_effect_third_wave, 
+                                  voc_effect_third_wave_0/sig_voc_effect_third_wave);
 
     R_L ~ gamma(1.8*1.8/0.05,1.8/0.05); //hyper-prior
-    R_I ~ gamma(0.5*0.5/.2,0.5/.2);
-    sig ~ exponential(20); //mean is 1/50=0.02
-    R_Li ~ gamma(R_L*R_L/sig, R_L/sig); //partial pooling of state level estimates
+    R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
+    sig ~ exponential(50); //mean is 1/50=0.02
+    R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j) {
         for (n in 1:N){

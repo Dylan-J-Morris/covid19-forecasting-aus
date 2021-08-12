@@ -253,7 +253,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                 ].values.T
 
                                 # voc multiplier is just a scalar
-                                voc_multiplier = samples_sim[['VoC_effect_third_wave']].values.T
+                                voc_multiplier = samples_sim[['voc_effect_third_wave']].values.T
                                 
                                 mu_hat = mu_hat * voc_multiplier
 
