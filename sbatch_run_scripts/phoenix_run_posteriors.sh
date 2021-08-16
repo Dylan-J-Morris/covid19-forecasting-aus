@@ -17,7 +17,7 @@ DATADATE=$1
 SCENARIO=$2 # Optional flag to allow for scenario modelling. Not used in normal forecast.
 SCENARIODATE=$3
 
-# python model/cprs/generate_posterior.py $DATADATE
+python model/cprs/generate_posterior.py $DATADATE
 python model/cprs/generate_RL_forecasts.py $DATADATE $SCENARIO $SCENARIODATE
 
 deactivate

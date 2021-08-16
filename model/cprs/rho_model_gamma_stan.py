@@ -179,16 +179,16 @@ model {
 
     //note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     voc_hyper_mean = 2.5;
-    voc_hyper_sig = 0.01;      // making the hyper-prior variance small to force the mean to move
+    voc_hyper_sig = 0.5;      // making the hyper-prior variance small to force the mean to move
     voc_effect_third_wave_0 ~ gamma(voc_hyper_mean*voc_hyper_mean/voc_hyper_sig,
                                     voc_hyper_mean/voc_hyper_sig);
-    sig_voc_effect_third_wave ~ exponential(100);
+    sig_voc_effect_third_wave ~ exponential(10);
     voc_effect_third_wave ~ gamma(voc_effect_third_wave_0*voc_effect_third_wave_0/sig_voc_effect_third_wave, 
                                   voc_effect_third_wave_0/sig_voc_effect_third_wave);
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(50); //mean is 1/50=0.02
+    sig ~ exponential(20); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j) {

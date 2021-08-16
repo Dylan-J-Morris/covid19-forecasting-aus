@@ -119,7 +119,7 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 ## Third wave inputs
-third_states=sorted(['NSW']) 
+third_states=sorted(['NSW','VIC']) 
 third_start_date = '2021-06-27'
 third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
 
@@ -462,9 +462,6 @@ samples_mov_gamma['R_L_national'] = np.random.gamma(
     samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values
 )
 
-#################### Add in plotting for the priors on the VoC effect here
-
-
 df_R_values = pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]])
 print(df_R_values.variable.unique())
 sns.violinplot(x='variable',y='value',
@@ -589,7 +586,7 @@ if df3X.shape[0]>0:
             third_date_range[state]
             ).astype(int).values
     #plot only if there is third phase data - have to have third_phase=True
-    ax4 =predict_plot(samples_mov_gamma,df.loc[(df.date>=third_start_date)&(df.date<=third_end_date)],gamma=True, moving=True,split=split,grocery=True,ban = ban,
+    ax4 = predict_plot(samples_mov_gamma,df.loc[(df.date>=third_start_date)&(df.date<=third_end_date)],gamma=True, moving=True,split=split,grocery=True,ban = ban,
                     R=RL_by_state, var= True, md_arg=md,
                     rho=third_states, third_phase=True,
                     R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[third_start_date:third_end_date])#by states....

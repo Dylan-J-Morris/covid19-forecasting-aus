@@ -3,14 +3,14 @@
 DATADATE=$1 # Date of NNDSS data file
 NSIMS=$2 # Total number of simulations to run
 SCENARIO='no_reversion'
-SCENARIODATE='2021-07-09' # This doesn't matter for a no-reversion scenario
+SCENARIODATE='2021-08-23' # This doesn't matter for a no-reversion scenario
 
 # Assumes you've already run an EpyReff for the date. If not, uncomment the following line.
 jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
+jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
 
 # We split the scenario params into the type and the date. It will apply the sec
 # jid_posteriors_a=$(sbatch --parsable sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
-jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
 
 # Here the scenario parameter is just a filename extention.
 jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")

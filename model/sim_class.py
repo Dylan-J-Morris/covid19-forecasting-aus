@@ -244,7 +244,7 @@ class Forecast:
             else:
                 num_offspring = nbinom.rvs(n=k, p = 1- self.alpha_i*Reff/(self.alpha_i*Reff + k))
 
-        if num_offspring >0:
+        if num_offspring > 0:
 
             num_sympcases = self.new_symp_cases(num_offspring)
             if self.people[parent_key].category=='A':

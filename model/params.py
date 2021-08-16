@@ -48,16 +48,7 @@ download_google_automatically = False # Will download Google data automatically 
 #         }
 
 #  #alpha_i is impact of importations after April 15th
-# alpha_i = {
-#             'NSW':1,
-#             'QLD':0.1,
-#             'SA':0.1,
-#             'TAS':0.5,
-#             'VIC':1,
-#             'WA':0.1,
-#             'ACT':0.1,
-#             'NT':0.1,
-#         }
+# alpha_i = {'NSW':1,'QLD':0.1,'SA':0.1,'TAS':0.5,'VIC':1,'WA':0.1,'ACT':0.1,'NT':0.1,}
 
 # Transmission parameters     
 k = 0.15 #  Heterogeneity parameter for a negative binomial offspring distribution
@@ -98,13 +89,7 @@ qi_d = {
         }
 
 # alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe there are significant differences between hotel quarentine effectiveness between states.
-alpha_i = {
-            'NSW':1,
-            'QLD':1,
-            'SA':1,
-            'TAS':1,
-            'VIC':1,
-            'WA':1,
-            'ACT':1,
-            'NT':1,
-        }
+alpha_i_all = 0.5
+alpha_i = {'NSW':alpha_i_all,'QLD':alpha_i_all,'SA':alpha_i_all,'TAS':alpha_i_all,'VIC':alpha_i_all,'WA':alpha_i_all,'ACT':alpha_i_all,'NT':alpha_i_all}
+
+
