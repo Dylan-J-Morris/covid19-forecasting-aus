@@ -2,7 +2,8 @@
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
 assume_local_cases_if_unknown = True
-start_date = '2021-04-15' # Start date of forecast
+# start_date = '2021-04-15' # Start date of forecast
+start_date = '2021-06-10' # Start date of forecast
 num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
 case_insertion_threshold = 5 # The ratio of true cases to simulation cases below which we insert cases into branching process
@@ -48,13 +49,14 @@ qi_d = {
         }
 
 # alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe there are significant differences between hotel quarentine effectiveness between states.
+alpha_i_all = 0.5
 alpha_i = {
-            'NSW':1,
-            'QLD':1,
-            'SA':1,
-            'TAS':1,
-            'VIC':1,
-            'WA':1,
-            'ACT':1,
-            'NT':1,
-        }
+    'NSW':alpha_i_all,
+    'QLD':alpha_i_all,
+    'SA':alpha_i_all,
+    'TAS':alpha_i_all,
+    'VIC':alpha_i_all,
+    'WA':alpha_i_all,
+    'ACT':alpha_i_all,
+    'NT':alpha_i_all,
+    }
