@@ -36,9 +36,9 @@ data {
     matrix[N_sec_wave,j_sec_wave] local_sec_wave;               //local cases in VIC
     matrix[N_sec_wave,j_sec_wave] imported_sec_wave;            //imported cases in VIC
 
-    // data for the third wave -- 
+    // data for the third wave  
     int N_third_wave;                                           //length of VIC days
-    int j_third_wave;                                           //thirdond wave states
+    int j_third_wave;                                           //third wave states
     matrix[N_third_wave,j_third_wave] Reff_third_wave;          //Reff for VIC in June
     matrix[N_third_wave,K] Mob_third_wave[j_third_wave];        //Mob for VIC June
     matrix[N_third_wave,K] Mob_third_wave_std[j_third_wave];    // std of mobility
@@ -151,19 +151,17 @@ transformed parameters {
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);
                 if (map_to_state_index_third[i] == 5) {
                     
-                    mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*(2*R_Li[
-                    map_to_state_index_third[i]
-                    ])*(
-                    (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] )*inv_logit(
-                    Mob_third_wave[i][n,:]*(bet)) * voc_effect_third_wave; //mean estimate
+                    mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
+                        (1-brho_third_wave[pos])*(2*R_Li[map_to_state_index_third[i]])*(
+                            (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n]
+                        )*inv_logit(Mob_third_wave[i][n,:]*(bet)) * voc_effect_third_wave; //mean estimate
                 }
                 else {
 
-                    mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*2*R_Li[
-                    map_to_state_index_third[i]
-                    ]*(
-                    (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] )*inv_logit(
-                    Mob_third_wave[i][n,:]*(bet))* voc_effect_third_wave; //mean estimate
+                    mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
+                        (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
+                            (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] 
+                        )*inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave; //mean estimate
                 }
                 pos += 1;
             }
@@ -181,14 +179,14 @@ model {
 
     //note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     voc_hyper_mean = 2.5;
-    voc_hyper_sig = 0.1;      // making the hyper-prior variance small to force the mean to move
+    voc_hyper_sig = 0.01;      // making the hyper-prior variance small to force the mean to move
     voc_effect_third_wave_0 ~ gamma(voc_hyper_mean*voc_hyper_mean/voc_hyper_sig,
                                     voc_hyper_mean/voc_hyper_sig);
     sig_voc_effect_third_wave ~ exponential(100);
     voc_effect_third_wave ~ gamma(voc_effect_third_wave_0*voc_effect_third_wave_0/sig_voc_effect_third_wave, 
                                   voc_effect_third_wave_0/sig_voc_effect_third_wave);
 
-    R_L ~ gamma(1.8*1.8/0.05,1.8/0.05); //hyper-prior
+    R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
     sig ~ exponential(50); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates

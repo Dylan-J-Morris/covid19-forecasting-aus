@@ -119,7 +119,7 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 ## Third wave inputs
-third_states=sorted(['NSW','VIC']) 
+third_states=sorted(['NSW']) 
 third_start_date = '2021-06-27'
 third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
 
@@ -159,7 +159,7 @@ sec_date_range = {
 #choose dates for each state for third wave
 third_date_range = {
     'NSW':pd.date_range(start=third_start_date,end=third_end_date).values,
-    # 'VIC':pd.date_range(start=third_start_date,end='2020-10-28').values
+    'VIC':pd.date_range(start=third_start_date,end=third_end_date).values
 }
 
 df2X['is_sec_wave'] =0
@@ -461,6 +461,10 @@ samples_mov_gamma['R_L_national'] = np.random.gamma(
     samples_mov_gamma.R_L.values **2/ samples_mov_gamma.sig.values,
     samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values
 )
+
+#################### Add in plotting for the priors on the VoC effect here
+
+
 df_R_values = pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]])
 print(df_R_values.variable.unique())
 sns.violinplot(x='variable',y='value',
@@ -486,7 +490,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png",dpi = 144)
 # Making a new figure that doesn't include the priors
 fig,ax = plt.subplots(figsize=(12,9))
 
-small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 'R_I']
+small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 'R_I', 'voc_effect_third_wave']
 
 sns.violinplot(x='variable',y='value',
             data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -498,7 +502,7 @@ ax.set_yticks([0,2,3],minor=False)
 ax.set_yticklabels([0,2,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$',])
+ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('Effective reproduction number')

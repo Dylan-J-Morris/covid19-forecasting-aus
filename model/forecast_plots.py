@@ -132,7 +132,6 @@ def read_in_Reff(file_date, forecast_R=None, VoC_flag = '', scenario=''):
 def read_in_cases(cases_file_date):
     """
     Read in NNDSS case file data
-        
     """
     import pandas as pd
     from datetime import timedelta

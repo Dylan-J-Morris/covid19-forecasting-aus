@@ -9,6 +9,7 @@ plt.style.use('seaborn-poster')
 import sys
 sys.path.insert(0,'model') # I hate this too but it allows everything to use the same helper functions.
 from helper_functions import read_in_NNDSS
+from params import VoC_start_date
 
 def read_in_posterior(date):
     """
@@ -211,8 +212,8 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                         #this state not fitted, use gamma prior on initial value
                         print("using initial value for state" +state)
                         sim_R = np.random.gamma(
-                        shape=df.loc[df.date=='2020-03-01','mean'].mean()**2/0.2,
-                      scale=0.2/df.loc[df.date=='2020-03-01','mean'].mean(),
+                                shape=df.loc[df.date=='2020-03-01','mean'].mean()**2/0.2,
+                                scale=0.2/df.loc[df.date=='2020-03-01','mean'].mean(),
                                 size=df_state.shape[0]
                             )
                 if type(R)==dict:
@@ -224,7 +225,9 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                         sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0],1))
                 else:
                     sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0],1))
-                mu_hat = 2 *md*sim_R* expit(logodds) 
+
+                mu_hat = 2 * md*sim_R* expit(logodds)
+
                 if winter:
                     mu_hat = (1+samples_sim['winter'].values)*mu_hat
                 if rho:
@@ -252,12 +255,8 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                         for j in range(pos, pos+df.loc[df.state==states_initials[state]].is_third_wave.sum() ) ]
                                 ].values.T
 
-                                # voc multiplier is just a scalar
-                                voc_multiplier = samples_sim[['voc_effect_third_wave']].values.T
-                                
-                                mu_hat = mu_hat * voc_multiplier
-
                                 pos = pos + df.loc[df.state==states_initials[state]].is_third_wave.sum()
+
                             else:
                                 # first phase
                                 rho_data = samples_sim[

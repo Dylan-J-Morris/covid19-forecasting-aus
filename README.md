@@ -18,7 +18,7 @@ These data will need to be updated every week.
 ### Running model on slurm
 Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
 
-```
+```shell
 DATADATE='2021-08-09'  # Date of NNDSS data file
 NSIMS=10000 # Total number of simulations to run
 
