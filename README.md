@@ -20,7 +20,7 @@ Once all the data are in their corresponding folders, you can run this command t
 
 ```shell
 DATADATE='2021-08-16'  # Date of NNDSS data file
-NSIMS=5000 # Total number of simulations to run
+NSIMS=10000 # Total number of simulations to run
 
 bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
 ```
