@@ -2,7 +2,8 @@
 
 SCENARIO='no_reversion'
 # SCENARIO='half_reversion'
-SCENARIODATE='2021-08-18' # This doesn't matter for a no-reversion scenario
+# SCENARIODATE='2021-08-18' # This doesn't matter for a no-reversion scenario
+SCENARIODATE='2021-08-17' # This doesn't matter for a no-reversion scenario
 
 # Assumes you've already run an EpyReff for the date. If not, uncomment the following line.
 jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
