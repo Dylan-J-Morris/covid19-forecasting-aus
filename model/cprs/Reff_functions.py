@@ -9,7 +9,7 @@ plt.style.use('seaborn-poster')
 import sys
 sys.path.insert(0,'model') # I hate this too but it allows everything to use the same helper functions.
 from helper_functions import read_in_NNDSS
-from params import VoC_start_date
+from params import VoC_start_date, apply_voc_to_R_L_hats
 
 def read_in_posterior(date):
     """
@@ -254,6 +254,23 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                     ['brho_third_wave['+str(j)+']' 
                                         for j in range(pos, pos+df.loc[df.state==states_initials[state]].is_third_wave.sum() ) ]
                                 ].values.T
+
+                                voc_multiplier = samples_sim[['voc_effect_third_wave']].values.T
+                                # print("Including the voc effects into the R_L forecasts")
+                                # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
+                                # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
+                                # voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
+
+                                # multiply forecasted R_L values by VoC effect - when set to true should mean that the soc_mob_RL_hats plot
+                                # and the other soc mob posterior stuff should now be consistent. Might be some deviations but should provide
+                                # matches to the EpyReff estimates during all phases, but particularly in the third wave phase. 
+                                if apply_voc_to_R_L_hats:
+                                    # now we just modify the values before the introduction of the voc to be 1.0
+                                    for ii in range(voc_multiplier.shape[0]):
+                                        if ii < df_state.loc[df_state.date<VoC_start_date].shape[0]:
+                                            voc_multiplier[ii] = 1.0
+                                    # now modify the mu_hat
+                                    mu_hat *= voc_multiplier
 
                                 pos = pos + df.loc[df.state==states_initials[state]].is_third_wave.sum()
 

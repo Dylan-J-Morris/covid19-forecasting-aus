@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, '../')
 
 # Define inputs
-from params import num_forecast_days, VoC_start_date
+from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats
 
 num_forecast_days = num_forecast_days+3 # Add 3 days buffer to mobility forecast
 data_date = pd.to_datetime(argv[1])
@@ -653,28 +653,25 @@ for typ in forecast_type:
                 logodds = np.concatenate((logodds, logodds_sample ), axis =1)
 
 
-
         # print("Including the voc effects into the R_L forecasts")
         # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
         # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
         voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
 
-        # now we just modify the values before the introduction of the voc to be 1.0
-        for ii in range(voc_multiplier.shape[0]):
-            if ii < df_state.loc[df_state.date<VoC_start_date].shape[0]:
-                voc_multiplier[ii] = 1.0
-
         # calculate the forecasted R_L values
         R_L = 2 * md * sim_R * expit( logodds ) 
-        # R_L = 2 * md * sim_R * expit( logodds ) * voc_multiplier
+        # now we just modify the values before the introduction of the voc to be 1.0
+        if apply_voc_to_R_L_hats:
+            for ii in range(voc_multiplier.shape[0]):
+                if ii < df_state.loc[df_state.date<VoC_start_date].shape[0]:
+                    voc_multiplier[ii] = 1.0
+
+            R_L *= voc_multiplier
 
         R_L_lower = np.percentile(R_L,25,axis=1)
         R_L_upper = np.percentile(R_L,75,axis=1)
-
         R_L_bottom = np.percentile(R_L,5,axis=1)
         R_L_top = np.percentile(R_L,95,axis=1)
-
-
         R_L_med = np.median(R_L,axis=1)
 
         #R_L
@@ -786,289 +783,6 @@ fig.text(
 plt.tight_layout(rect=[0.04,0.04,1,1])
 os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date, exist_ok=True)
 plt.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/soc_mob_R_L_hats"+data_date.strftime('%Y-%m-%d')+".png",dpi=102)
-
-################## Now we account for the effect of the VoC 
-# same as running the above again but this time applying the voc effect in the correct spot 
-# we should refactor this at some point but this will work for now
-
-df_R = df_R.sort_values('date')
-n_samples = 100
-samples = df_samples.sample(n_samples) #test on sample of 2
-forecast_type = ['R_L','R_L0']
-state_Rs = {
-    'state':[],
-    'date':[],
-    'type':[],
-    'median':[],
-    'lower':[],
-    'upper':[],
-    'bottom':[],
-    'top':[],
-    'mean':[],
-    'std':[],
-}
-ban = '2020-03-20'
-new_pol = '2020-06-01' #VIC and NSW allow gatherings of up to 20 people, other jurisdictions allow for
-
-expo_decay=True
-
-# start and end date for the third wave 
-third_start_date = '2021-06-27'
-third_end_date = third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
-
-typ_state_R={}
-mob_forecast_date = df_forecast.date.min()
-mob_samples = 100
-
-state_key = {
-    'NSW':'1',
-    'QLD':'2',
-    'SA':'3',
-    'TAS':'4',
-    'VIC':'5',
-    'WA':'6',
-}
-for typ in forecast_type:
-    state_R={}
-    for state in states:
-    #sort df_R by date so that rows are dates
-
-        #rows are dates, columns are predictors
-        df_state = df_R.loc[df_R.state==state]
-        dd = df_state.date
-        post_values = samples[predictors].values.T
-        prop_sim = df_md[state].values
-
-                    #take right size of md to be N by N
-        theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0],mob_samples))
-        if expo_decay:
-            md = ((1+theta_md).T**(-1* prop_sim)).T
-        #else:
-        #    md = (2*expit(-1*theta_md*prop_sim[:,np.newaxis]))
-
-        for n in range(mob_samples):
-            #add gaussian noise to predictors before forecast
-            df_state.loc[df_state.date<mob_forecast_date,predictors] = state_Rmed[state][:,:,n]/100#df_state.loc[
-                #df_state.date<mob_forecast_date,predictors]/100 + np.random.normal(
-                #loc= 0, scale = df_state.loc[
-                #    (df_state.date<mob_forecast_date),
-                #    [val+'_std' for val in predictors]].values/100)
-
-
-            #add gaussian noise to predictors after forecast
-            df_state.loc[df_state.date>=mob_forecast_date,predictors] = state_sims[state][:,:,n]/100
-            #df_state.loc[
-            #   df_state.date>=mob_forecast_date,predictors]/100 + np.random.normal(
-            #   loc= 0, scale = df_std.loc[(df_std.state==state,predictors)].values/100)
-
-
-            #dd = df_state.date
-
-            df1 =df_state.loc[df_state.date<=ban]
-            X1 = df1[predictors] #N by K
-
-            #sample the right R_L
-            if state in ("ACT","NT"):
-                sim_R = np.tile(samples.R_L.values, (df_state.shape[0],mob_samples))
-            else:
-                #if state =='VIC':
-                #    sim_R = np.tile(
-                #        samples['R_Li['+state_key[state]+']'].values + samples['R_temp'].values,
-                #         (df_state.shape[0],mob_samples)
-                #         )
-                #else:
-                sim_R = np.tile(samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0],mob_samples))
-
-
-            #set initial pre ban values of md to 1
-            md[:X1.shape[0],:] = 1
-
-            if n==0:
-                #initialise arrays (loggodds)
-                logodds = X1 @ post_values # N by K times (Nsamples by K )^T = Ndate by Nsamples
-
-                if typ =='R_L':
-                    df2 = df_state.loc[(df_state.date>ban) & (df_state.date<new_pol)]
-                    df3 = df_state.loc[df_state.date>=new_pol]
-                    X2 = df2[predictors]
-                    X3 = df3[predictors]
-
-                    #halve effect of md
-                    #md[(X1.shape[0]+df2.shape[0]):,:] = 1- 0.5 *( 1 - md[(X1.shape[0]+df2.shape[0]):,:])
-
-                    logodds = np.append(logodds,X2 @ post_values,axis=0)
-                    logodds = np.append(logodds,X3 @ post_values,axis=0)
-
-                    #md = np.append(md, ((1+theta_md).T**(-1* prop2)).T, axis=0)
-                    #md = np.append(md, ((1+theta_md).T**(-1* prop3)).T, axis=0)
-
-                elif typ=='R_L0':
-                    df2 = df_state.loc[(df_state.date>ban) & (df_state.date<new_pol)]
-                    df3 = df_state.loc[df_state.date>=new_pol]
-                    X2 = df2[predictors]
-                    X3 = np.zeros_like(df3[predictors])
-
-                    #social mobility all at baseline implies R_l = R_L0
-
-                    #md has no effect after June 1st
-                    md[(X1.shape[0]+df2.shape[0]):,:] = 1
-
-                    logodds = np.append(logodds,X2 @ post_values,axis=0)
-                    logodds = np.append(logodds,X3 @ post_values,axis=0)
-
-
-                else:
-                    #forecast as before, no changes to md
-                    df2 = df_state.loc[df_state.date>ban]
-                    X2 = df2[predictors]
-
-                    logodds = np.append(logodds,X2 @ post_values,axis=0)
-                                    #df_state.loc[df_state.date>'2020-03-15',predictors].values/100 @ samples[predictors].values.T, axis = 0)
-
-            else:
-                #concatenate to pre-existing logodds martrix
-                logodds1 = X1 @ post_values
-
-                if typ =='R_L':
-                    df2 = df_state.loc[(df_state.date>ban) & (df_state.date<new_pol)]
-                    df3 = df_state.loc[df_state.date>=new_pol]
-                    X2 = df2[predictors]
-                    X3 = df3[predictors]
-
-                    prop2 = df_md.loc[ban:new_pol,state].values
-                    prop3 = df_md.loc[new_pol:,state].values
-
-                    #halve effect of md
-                    #md[(X1.shape[0]+df2.shape[0]):,:] = 1- 0.5 *( 1 - md[(X1.shape[0]+df2.shape[0]):,:])
-
-                    logodds2 = X2 @ post_values
-                    logodds3 = X3 @ post_values
-
-                    logodds_sample = np.append(logodds1, logodds2, axis=0)
-                    logodds_sample = np.append(logodds_sample, logodds3, axis=0)
-
-                elif typ=='R_L0':
-                    df2 = df_state.loc[(df_state.date>ban) & (df_state.date<new_pol)]
-                    df3 = df_state.loc[df_state.date>=new_pol]
-                    X2 = df2[predictors]
-                    X3 = np.zeros_like(df3[predictors])
-
-                    #social mobility all at baseline implies R_l = R_L0
-
-                    #md has no effect after June 1st
-
-                    md[(X1.shape[0]+df2.shape[0]):,:] = 1
-
-                    logodds2 = X2 @ post_values
-                    logodds3 = X3 @ post_values
-
-                    logodds_sample = np.append(logodds1, logodds2, axis=0)
-                    logodds_sample = np.append(logodds_sample, logodds3, axis=0)
-
-
-                else:
-                    #forecast as before, no changes to md
-                    df2 = df_state.loc[df_state.date>ban]
-                    X2 = df2[predictors]
-
-                    logodds2 = X2 @ post_values
-
-                    logodds_sample = np.append(logodds1, logodds2, axis=0)
-
-                ##concatenate to previous
-                logodds = np.concatenate((logodds, logodds_sample ), axis =1)
-
-
-
-        # print("Including the voc effects into the R_L forecasts")
-        # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
-        # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
-        voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
-
-        # now we just modify the values before the introduction of the voc to be 1.0
-        for ii in range(voc_multiplier.shape[0]):
-            if ii < df_state.loc[df_state.date<VoC_start_date].shape[0]:
-                voc_multiplier[ii] = 1.0
-
-        # calculate the forecasted R_L values
-        R_L = 2 * md * sim_R * expit( logodds ) * voc_multiplier
-
-        R_L_lower = np.percentile(R_L,25,axis=1)
-        R_L_upper = np.percentile(R_L,75,axis=1)
-
-        R_L_bottom = np.percentile(R_L,5,axis=1)
-        R_L_top = np.percentile(R_L,95,axis=1)
-
-
-        R_L_med = np.median(R_L,axis=1)
-
-        #R_L
-        state_Rs['state'].extend([state]*df_state.shape[0])
-        state_Rs['type'].extend([typ]*df_state.shape[0])
-        state_Rs['date'].extend(dd.values) #repeat n_samples times?
-        state_Rs['lower'].extend(R_L_lower)
-        state_Rs['median'].extend(R_L_med)
-        state_Rs['upper'].extend(R_L_upper)
-        state_Rs['top'].extend(R_L_top)
-        state_Rs['bottom'].extend(R_L_bottom)
-        state_Rs['mean'].extend(np.mean(R_L,axis=1))
-        state_Rs['std'].extend(np.std(R_L,axis=1))
-
-        state_R[state] = R_L
-    typ_state_R[typ] = state_R
-
-
-
-for state in states:
-    #R_I
-    R_I = samples['R_I'].values[:df_state.shape[0]]
-
-
-    state_Rs['state'].extend([state]*df_state.shape[0])
-    state_Rs['type'].extend(['R_I']*df_state.shape[0])
-    state_Rs['date'].extend(dd.values)
-    state_Rs['lower'].extend(np.repeat(np.percentile(R_I,25),df_state.shape[0]))
-    state_Rs['median'].extend(np.repeat(np.median(R_I),df_state.shape[0]))
-    state_Rs['upper'].extend(np.repeat(np.percentile(R_I,75),df_state.shape[0]))
-    state_Rs['top'].extend(np.repeat(np.percentile(R_I,95),df_state.shape[0]))
-    state_Rs['bottom'].extend(np.repeat(np.percentile(R_I,5),df_state.shape[0]))
-    state_Rs['mean'].extend(np.repeat(np.mean(R_I),df_state.shape[0]))
-    state_Rs['std'].extend(np.repeat(np.std(R_I),df_state.shape[0]))
-
-df_Rhats = pd.DataFrame().from_dict(state_Rs)
-df_Rhats = df_Rhats.set_index(['state','date','type'])
-
-d = pd.DataFrame()
-for state in states:
-    for i,typ in enumerate(forecast_type):
-        if i==0:
-            t = pd.DataFrame.from_dict(typ_state_R[typ][state])
-            t['date'] = dd.values
-            t['state'] = state
-            t['type'] = typ
-        else:
-            temp = pd.DataFrame.from_dict(typ_state_R[typ][state])
-            temp['date'] = dd.values
-            temp['state'] = state
-            temp['type'] = typ
-            t = t.append(temp)
-    #R_I
-    i = pd.DataFrame(np.tile(samples['R_I'].values,(len(dd.values),100)))
-    i['date'] = dd.values
-    i['type'] = 'R_I'
-    i['state'] = state
-
-    t = t.append(i)
-
-    d = d.append(t)
-
-        #df_Rhats = df_Rhats.loc[(df_Rhats.state==state)&(df_Rhats.type=='R_L')].join( t)
-
-d = d.set_index(['state','date','type'])
-df_Rhats = df_Rhats.join(d)
-df_Rhats = df_Rhats.reset_index()
-df_Rhats.state = df_Rhats.state.astype(str)
-df_Rhats.type = df_Rhats.type.astype(str)
 
 ################## now we save the posterior stuff
 

@@ -171,17 +171,22 @@ transformed parameters {
 }
 model {
     int pos2;
-    real voc_mean;
-    real voc_sig;
+    real voc_hyper_mean;
+    real voc_hyper_sig;
 
     bet ~ normal(0,1);
     theta_md ~ lognormal(0,0.5);
 
     //note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_mean = 2.5;
-    voc_sig = 0.1;
-    voc_effect_third_wave ~ gamma(voc_mean*voc_mean/voc_sig, 
-                                  voc_mean/voc_sig);
+    voc_hyper_mean = 2.5;
+    voc_hyper_sig = 0.5;      // making the hyper-prior variance small to force the mean to move
+    voc_effect_third_wave_0 ~ gamma(voc_hyper_mean*voc_hyper_mean/voc_hyper_sig,
+                                     voc_hyper_mean/voc_hyper_sig);
+    sig_voc_effect_third_wave ~ exponential(10);
+    voc_effect_third_wave ~ gamma(voc_effect_third_wave_0*voc_effect_third_wave_0/sig_voc_effect_third_wave, 
+                                    voc_effect_third_wave_0/sig_voc_effect_third_wave);
+
+    //voc_effect_third_wave ~ gamma(voc_hyper_mean*voc_hyper_mean/voc_hyper_sig,voc_hyper_mean/voc_hyper_sig);
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
