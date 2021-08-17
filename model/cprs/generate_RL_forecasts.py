@@ -542,7 +542,7 @@ for typ in forecast_type:
             X1 = df1[predictors] #N by K
 
             #sample the right R_L
-            if state in ("ACT","NT"):
+            if state in ("ACT","NT","TAS"):
                 sim_R = np.tile(samples.R_L.values, (df_state.shape[0],mob_samples))
             else:
                 #if state =='VIC':

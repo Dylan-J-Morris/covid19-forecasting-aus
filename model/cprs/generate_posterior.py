@@ -12,12 +12,13 @@ import os, glob
 from Reff_functions import *
 from Reff_constants import *
 
-from rho_model_gamma_stan import rho_model_gamma
+# from rho_model_gamma_stan import rho_model_gamma
 
-sm_pol_gamma = pystan.StanModel(
-    model_code = rho_model_gamma,
-    model_name ='gamma_pol_state'
-)
+# sm_pol_gamma = pystan.StanModel(
+#     # model_code = "model/cprs/rho_model_gamma.stan",
+#     file = 'rho_model_gamma.stan',
+#     model_name ='gamma_pol_state'
+# )
 
 data_date = pd.to_datetime(argv[1]) # Define data date
 print(data_date.strftime('%d%b%Y'))
@@ -314,11 +315,18 @@ input_data = {
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave])
 }
 
-fit = sm_pol_gamma.sampling(
-    data=input_data,
-    iter=5000,
-    chains=2,
-    #control={'max_treedepth':15}
+# fit = sm_pol_gamma.sampling(
+#     data=input_data,
+#     iter=5000,
+#     chains=2,
+#     #control={'max_treedepth':15}
+# )
+
+fit = pystan.stan(
+    file = 'model/cprs/rho_model_gamma.stan',
+    data = input_data,
+    iter = 5000,
+    chains = 2
 )
 
 ######## Plotting & Saving Output #########

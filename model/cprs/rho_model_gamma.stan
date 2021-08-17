@@ -1,86 +1,74 @@
-import matplotlib
-matplotlib.use('Agg')
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sys import argv
-import pystan
-import os, glob
-from Reff_functions import *
-from Reff_constants import *
+// Stan model for the hierarchical fitting of the Reff to the EpyReff estimates. 
 
-## Define pystan model
-rho_model_gamma = """
 data {
-    // data for the initial wave
-    int N;                                                      //data length num days
-    int K;                                                      //Number of mobility indices
-    int j;                                                      //Number of states
-    matrix[N,j] Reff;                                           //response
-    matrix[N,K] Mob[j];                                         //Mobility indices
-    matrix[N,K] Mob_std[j];                                     //std of mobility
-    matrix[N,j] sigma2;                                         //Variances of R_eff from previous study
-    vector[N] policy;                                           //Indicators for post policy or not
-    matrix[N,j] local;                                          //local number of cases
-    matrix[N,j] imported;                                       //imported number of cases
-
-    // data for the secondary wave
-    int N_sec_wave;                                             //length of VIC days
-    int j_sec_wave;                                             //second wave states
-    matrix[N_sec_wave,j_sec_wave] Reff_sec_wave;                //Reff for VIC in June
-    matrix[N_sec_wave,K] Mob_sec_wave[j_sec_wave];              //Mob for VIC June
+    // data for the initial wave 
+    int N;                                                      // data length num days
+    int K;                                                      // Number of mobility indices
+    int j;                                                      // Number of states
+    matrix[N,j] Reff;                                           // response
+    matrix[N,K] Mob[j];                                         // Mobility indices
+    matrix[N,K] Mob_std[j];                                     // std of mobility
+    matrix[N,j] sigma2;                                         // Variances of R_eff from previous study
+    vector[N] policy;                                           // Indicators for post policy or not
+    matrix[N,j] local;                                          // local number of cases
+    matrix[N,j] imported;                                       // imported number of cases
+ 
+    // data for the secondary wave 
+    int N_sec_wave;                                             // length of VIC days
+    int j_sec_wave;                                             // second wave states
+    matrix[N_sec_wave,j_sec_wave] Reff_sec_wave;                // Reff for VIC in June
+    matrix[N_sec_wave,K] Mob_sec_wave[j_sec_wave];              // Mob for VIC June
     matrix[N_sec_wave,K] Mob_sec_wave_std[j_sec_wave];          // std of mobility
     matrix[N_sec_wave,j_sec_wave] sigma2_sec_wave;              // variance of R_eff from previous study
     vector[N_sec_wave] policy_sec_wave;                         // micro distancing compliance
-    matrix[N_sec_wave,j_sec_wave] local_sec_wave;               //local cases in VIC
-    matrix[N_sec_wave,j_sec_wave] imported_sec_wave;            //imported cases in VIC
+    matrix[N_sec_wave,j_sec_wave] local_sec_wave;               // local cases in VIC
+    matrix[N_sec_wave,j_sec_wave] imported_sec_wave;            // imported cases in VIC
 
     // data for the third wave  
-    int N_third_wave;                                           //length of VIC days
-    int j_third_wave;                                           //third wave states
-    matrix[N_third_wave,j_third_wave] Reff_third_wave;          //Reff for VIC in June
-    matrix[N_third_wave,K] Mob_third_wave[j_third_wave];        //Mob for VIC June
+    int N_third_wave;                                           // length of VIC days
+    int j_third_wave;                                           // third wave states
+    matrix[N_third_wave,j_third_wave] Reff_third_wave;          // Reff for VIC in June
+    matrix[N_third_wave,K] Mob_third_wave[j_third_wave];        // Mob for VIC June
     matrix[N_third_wave,K] Mob_third_wave_std[j_third_wave];    // std of mobility
     matrix[N_third_wave,j_third_wave] sigma2_third_wave;        // variance of R_eff from previous study
     vector[N_third_wave] policy_third_wave;                     // micro distancing compliance
-    matrix[N_third_wave,j_third_wave] local_third_wave;         //local cases in VIC
-    matrix[N_third_wave,j_third_wave] imported_third_wave;      //imported cases in VIC
+    matrix[N_third_wave,j_third_wave] local_third_wave;         // local cases in VIC
+    matrix[N_third_wave,j_third_wave] imported_third_wave;      // imported cases in VIC
 
     // data relating to mobility and microdistancing
-    vector[N] count_md[j];                                      //count of always
+    vector[N] count_md[j];                                      // count of always
     vector[N] respond_md[j];                                    // num respondants
-    vector[N_sec_wave] count_md_sec_wave[j_sec_wave];           //count of always
+    vector[N_sec_wave] count_md_sec_wave[j_sec_wave];           // count of always
     vector[N_sec_wave] respond_md_sec_wave[j_sec_wave];         // num respondants
-    vector[N_third_wave] count_md_third_wave[j_third_wave];     //count of always
+    vector[N_third_wave] count_md_third_wave[j_third_wave];     // count of always
     vector[N_third_wave] respond_md_third_wave[j_third_wave];   // num respondants
 
     int map_to_state_index_sec[j_sec_wave];                     // indices of second wave to map to first
     int map_to_state_index_third[j_third_wave];                 // indices of second wave to map to first
-    int total_N_p_sec;                                          //total number of data in sec wave, entire state first
-    int total_N_p_third;                                        //total number of data in sec wave, entire state first
+    int total_N_p_sec;                                          // total number of data in sec wave, entire state first
+    int total_N_p_third;                                        // total number of data in sec wave, entire state first
     vector[N_sec_wave] include_in_sec_wave[j_sec_wave];         // dates include in sec_wave 
     vector[N_third_wave] include_in_third_wave[j_third_wave];   // dates include in sec_wave 
-    int pos_starts_sec[j_sec_wave];                             //starting positions for each state in the second wave
-    int pos_starts_third[j_third_wave];                         //starting positions for each state in the third wave 
+    int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
+    int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
 
 }
 parameters {
-    vector[K] bet;                                              //coefficients
-    real<lower=0> R_I;                                          //base level imports,
-    real<lower=0> R_L;                                          //base level local
-    vector<lower=0>[j] R_Li;                                    //state level estimates
-    real<lower=0> sig;                                          //state level variance
+    vector[K] bet;                                              // coefficients
+    real<lower=0> R_I;                                          // base level imports,
+    real<lower=0> R_L;                                          // base level local
+    vector<lower=0>[j] R_Li;                                    // state level estimates
+    real<lower=0> sig;                                          // state level variance
     real<lower=0> theta_md;                                     // md weighting
     matrix<lower=0,upper=1>[N,j] prop_md;                       // proportion who are md'ing
     vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec_wave;
     vector<lower=0,upper=1>[total_N_p_third] prop_md_third_wave;
-    matrix<lower=0,upper=1>[N,j] brho;                          //estimate of proportion of imported cases
+    matrix<lower=0,upper=1>[N,j] brho;                          // estimate of proportion of imported cases
     matrix<lower=0,upper=1>[N,K] noise[j];
     //real<lower=0> R_temp;
 
-    vector<lower=0,upper=1>[total_N_p_sec] brho_sec_wave;       //estimate of proportion of imported cases
-    vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;   //estimate of proportion of imported cases
+    vector<lower=0,upper=1>[total_N_p_sec] brho_sec_wave;       // estimate of proportion of imported cases
+    vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;   // estimate of proportion of imported cases
 
     // voc effects
     real<lower=0> voc_effect_third_wave_0;
@@ -92,7 +80,7 @@ transformed parameters {
     matrix<lower=0>[N,j] mu_hat;
     vector<lower=0>[total_N_p_sec] mu_hat_sec_wave;
     vector<lower=0>[total_N_p_third] mu_hat_third_wave;
-    matrix<lower=0>[N,j] md;                                    //micro distancing
+    matrix<lower=0>[N,j] md;                                    // micro distancing
     vector<lower=0>[total_N_p_sec] md_sec_wave;
     vector<lower=0>[total_N_p_third] md_third_wave;
 
@@ -239,4 +227,3 @@ model {
         }
     }
 }
-"""

@@ -12,7 +12,6 @@ module load arch/haswell
 module load Python/3.6.1-foss-2016b
 source ../virtualenvs/bin/activate
 
-
 DATADATE=$1
 SCENARIO=$2 # Optional flag to allow for scenario modelling. Not used in normal forecast.
 SCENARIODATE=$3
