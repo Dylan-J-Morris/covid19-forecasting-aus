@@ -316,7 +316,7 @@ from rho_model_gamma import rho_model_gamma_string
 posterior = stan.build(rho_model_gamma_string, data=input_data)
 
 # now we can sample from the model 
-fit = posterior.sample(num_chains=2, num_samples=100)
+fit = posterior.sample(num_chains=4, num_samples=3000)
 
 ######## Plotting & Saving Output #########
 
@@ -328,53 +328,52 @@ import arviz
 
 filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
 with open(results_dir+filename, 'w') as f:
-    print(arviz.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave']), file=f)
+    # print(arviz.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave']), file=f)
+    print(arviz.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
+                                             'brho_sec_wave','brho_third_wave','voc_effect_third_wave']), file=f)
 
 ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future
 # create extended summary of parameters to index the samples by
 
-summary_df = arviz.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-                                             'brho_sec_wave','brho_third_wave','voc_effect_third_wave'])
-index = summary_df.index
-match_list_names = list(index)
+# summary_df = arviz.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
+#                                              'brho_sec_wave','brho_third_wave','voc_effect_third_wave'])
+# index = summary_df.index
+# match_list_names = list(index)
 
-# extract the names of the constrained parameters which are the ones we actually sample
-names = fit.constrained_param_names
-df_fit = fit.to_frame()
-df_fit = df_fit.loc[:, names] 
+# # extract the names of the constrained parameters which are the ones we actually sample
+# names = fit.constrained_param_names
+# df_fit = fit.to_frame()
+# df_fit = df_fit.loc[:, names] 
 
-# loop over names and remove the var.i syntax and replace with var[i-1] to match up against the summary names
-# which are in the form we had previously. This essentially deletes '.' in names, then concatentates new names
-# as strings and relabels the dataframe.
-for name in names:
-    dot_pos = name.find('.')
-    if dot_pos != -1:
-        var_name = name[:dot_pos]
+# # loop over names and remove the var.i syntax and replace with var[i-1] to match up against the summary names
+# # which are in the form we had previously. This essentially deletes '.' in names, then concatentates new names
+# # as strings and relabels the dataframe.
+# for name in names:
+#     dot_pos = name.find('.')
+#     if dot_pos != -1:
+#         var_name = name[:dot_pos]
 
-        num_name = name[(dot_pos+1):]
-        dot_pos2 = num_name.find('.')
-        if dot_pos2 != -1:
-            num_name1 = int(num_name[:dot_pos2]) - 1
-            num_name2 = int(num_name[(dot_pos2+1):]) - 1
+#         num_name = name[(dot_pos+1):]
+#         dot_pos2 = num_name.find('.')
+#         if dot_pos2 != -1:
+#             num_name1 = int(num_name[:dot_pos2]) - 1
+#             num_name2 = int(num_name[(dot_pos2+1):]) - 1
 
-            updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
-        else:
-            num_name = int(num_name) - 1
-            updated_name = var_name + '[' + str(num_name) + ']'
+#             updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
+#         else:
+#             num_name = int(num_name) - 1
+#             updated_name = var_name + '[' + str(num_name) + ']'
         
-        df_fit = df_fit.rename(columns={name: updated_name})
+#         df_fit = df_fit.rename(columns={name: updated_name})
 
-# this produces a dataframe like we had before I believe - NEED TO CHECK AGAINST A RUN ON PHOENIX TO CONFIRM
-samples_mov_gamma = df_fit.loc[:, match_list_names]
-
-print(samples_mov_gamma.head())
+# # this produces a dataframe like we had before I believe - NEED TO CHECK AGAINST A RUN ON PHOENIX TO CONFIRM
+# samples_mov_gamma = df_fit.loc[:, match_list_names]
 
 # # Plot ratio of imported to total cases
 # # First phase
 # #rho calculated at data entry
 # if isinstance(df_state.index, pd.MultiIndex):
 #     df_state = df_state.reset_index()
-
 
 # states=sorted(['NSW','QLD','VIC','TAS','SA','WA','ACT','NT'])
 # fig,ax = plt.subplots(figsize=(24,9), ncols=len(states),sharey=True)
