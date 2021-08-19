@@ -1,6 +1,7 @@
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
 assume_local_cases_if_unknown = True
+<<<<<<< HEAD
 start_date = '2021-06-10' # Start date of forecast
 num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
@@ -12,6 +13,14 @@ case_insertion_threshold = 5 # The ratio of true cases to simulation cases below
 # alternative application of voc and vaccination effect - not removed yet in case we need them
 use_vaccine_effect = False
 use_voc_effect = False
+=======
+# start_date = '2021-04-15' # Start date of forecast
+start_date = '2021-06-10' # Start date of forecast
+num_forecast_days=35 # Number of days after data date to forecast (usually 35)
+
+case_insertion_threshold = 5 # The ratio of true cases to simulation cases below which we insert cases into branching process
+use_vaccine_effect = False
+>>>>>>> 2fd1a5a8f183b0569eceba0f49a5202fde5f5b98
 download_google_automatically = False # Will download Google data automatically on run. Set to false for repeated runs.
 
 # Transmission parameters     
@@ -62,7 +71,12 @@ alpha_i = {
     'VIC':alpha_i_all,
     'WA':alpha_i_all,
     'ACT':alpha_i_all,
+<<<<<<< HEAD
     'NT':alpha_i_all
     }
 
 
+=======
+    'NT':alpha_i_all,
+    }
+>>>>>>> 2fd1a5a8f183b0569eceba0f49a5202fde5f5b98

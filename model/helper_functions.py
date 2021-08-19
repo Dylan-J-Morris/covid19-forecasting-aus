@@ -100,16 +100,26 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
 
     if use_voc_effect and (VoC_flag != '') and (VoC_flag is not None):
         VoC_start_date  = pd.to_datetime(VoC_start_date)
-        # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
-        # We do so by editing a slice of the data frame. Forgive me for my sins.
-        row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
-        index_map = df_forecast.index[row_bool_to_apply_VoC]
-        # Index 9 and onwards are the 2000 Reff samples.
-        df_slice_after_VoC = df_forecast.iloc[index_map, 8:] 
-        multiplier = beta.rvs(6,14, size = df_slice_after_VoC.shape) + 1
+
+        if VoC_flag == 'Alpha':
+            print('This VoC will be deprecated in future.')
+            # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
+            # We do so by editing a slice of the data frame. Forgive me for my sins.
+            row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
+            index_map = df_forecast.index[row_bool_to_apply_VoC]
+            # Index 9 and onwards are the 2000 Reff samples.
+            df_slice_after_VoC = df_forecast.iloc[index_map, 8:] 
+            multiplier = beta.rvs(6,14, size = df_slice_after_VoC.shape) + 1
 
         if VoC_flag == 'Delta': # Increase from Delta
-            multiplier *= 1.39
+            # Here we apply the  beta(2,2)+3 scaling from VoC to the Reff based on CDC results.
+            # We do so by editing a slice of the data frame. Forgive me for my sins.
+            row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
+            index_map = df_forecast.index[row_bool_to_apply_VoC]
+            # Index 9 and onwards are the 2000 Reff samples.
+            df_slice_after_VoC = df_forecast.iloc[index_map, 8:] 
+            multiplier = beta.rvs(7, 7, size = df_slice_after_VoC.shape) + 2.6 - 0.5 # Mean 2.1 Delta
+
         df_forecast.iloc[index_map , 8:] = df_slice_after_VoC*multiplier
         
     if use_vaccine_effect:

@@ -18,9 +18,15 @@ These data will need to be updated every week.
 ### Running model on slurm
 Once all the data are in their corresponding folders, you can run this command to run the full pipeline on HPC:
 
+<<<<<<< HEAD
 ```shell
 DATADATE='2021-08-16'  # Date of NNDSS data file
 NSIMS=10000 # Total number of simulations to run
+=======
+```
+DATADATE='2021-08-16'  # Date of NNDSS data file
+NSIMS=20000 # Total number of simulations to run
+>>>>>>> 2fd1a5a8f183b0569eceba0f49a5202fde5f5b98
 
 bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
 ```
@@ -86,6 +92,10 @@ The model can run with a optional Variant of Concern (VoC) flag, which increases
 
 
 ### Original Code
+<<<<<<< HEAD
 An earlier version of this code is available at [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
 
 test
+=======
+Earlier versions of this code are available at [https://github.com/tobinsouth/covid19-forecasting-aus](https://github.com/tobinsouth/covid19-forecasting-aus) and [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
+>>>>>>> 2fd1a5a8f183b0569eceba0f49a5202fde5f5b98

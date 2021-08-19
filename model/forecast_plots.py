@@ -70,7 +70,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
                     
                     ax.plot(df.columns, df.loc[(var,good_sims[n])], label=var,alpha=0.8,color='C0', linewidth=0.5)
                     n +=1
-                    if n>200:
+                    if n>40:
                         break
             else:
                 ax.plot(df.columns, df.transpose()[var].quantile(0.5,axis=1), label=var)
@@ -92,9 +92,9 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         ax2.plot(df.columns, Reff.loc[df.columns].mean(axis=1))
         ax2.fill_between(df.columns, Reff.loc[df.columns].quantile(0.25,axis=1),Reff.loc[df.columns].quantile(0.75,axis=1),alpha=0.4 ,color='C0')
         ax2.fill_between(df.columns, Reff.loc[df.columns].quantile(0.05,axis=1),Reff.loc[df.columns].quantile(0.95,axis=1),alpha=0.4,color='C0' )
-        ax2.set_yticks([1,3],minor=True,)
-        ax2.set_yticks([0,2],minor=False)
-        ax2.set_yticklabels([0,2],minor=False)
+        ax2.set_yticks([1],minor=True,)
+        ax2.set_yticks([0,2,4,6],minor=False)
+        ax2.set_yticklabels([0,2,4,6],minor=False)
         ax2.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
         #ax2.set_ylabel("Reff")
         ax2.tick_params('x',rotation=90)
@@ -104,7 +104,7 @@ def plot_results(df, int_vars:list, ax_arg=None, total=False,log=False, Reff=Non
         ax2.set_xticks([df.columns.values[-1*forecast_days]],minor=True)
         ax2.xaxis.grid(which='minor', linestyle='--',alpha=0.6, color='black')
 
-        ax2.set_ylim((0,3))
+        # ax2.set_ylim((0,3))
     else:
         #ax.set_xlabel("Date")
         ax.tick_params('x',rotation=90)

@@ -67,7 +67,7 @@ elif start_date == "2020-12-01":
         'VIC': [0, 0, 0], 
         'WA': [0, 0, 0],
     }
-elif start_date == "2021-04-15":
+elif start_date == "2021-06-10":
     current = { # based on locally acquired cases in the days preceding the start date
         'ACT': [0, 0, 0],
         'NSW': [43, 0, 4], 
