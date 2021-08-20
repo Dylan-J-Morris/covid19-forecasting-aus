@@ -124,7 +124,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
         
     if use_vaccine_effect:
         # Load in vaccination effect data
-        vaccination_by_state = pd.read_csv('data/vaccination_by_state.csv', parse_dates=['date'])
+        vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
         vaccination_by_state = vaccination_by_state[['state', 'date','overall_transmission_effect']]
 
         # Make datetime objs into strings

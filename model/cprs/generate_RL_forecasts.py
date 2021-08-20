@@ -71,10 +71,8 @@ survey_X = pd.pivot_table(data=always,
                           index='date',columns='state',values='proportion')
 prop_all = survey_X
 
-
 # Get posterior
 df_samples = read_in_posterior(date = data_date.strftime("%Y-%m-%d"))
-
 
 states = ['NSW','QLD','SA','VIC','TAS','WA','ACT','NT']
 plot_states = states.copy()
@@ -86,8 +84,14 @@ days_from_March = (one_month - pd.to_datetime(start_date)).days
 prop = prop_all.loc[:data_date]
 df_google = df_google_all.loc[df_google_all.date<=data_date]
 
-#Simple interpolation for missing vlaues in Google data
-df_google = df_google.interpolate(method='linear',axis=0)
+# use this trick of saving the google data and then reloading it to kill 
+# the date time values
+df_google.to_csv("results/test_google_data.csv")
+df_google = pd.read_csv("results/test_google_data.csv")
+
+# Simple interpolation for missing vlaues in Google data
+df_google = df_google.interpolate(method='linear', axis=0)
+df_google.date = pd.to_datetime(df_google.date)
 
 #forecast time parameters
 today = data_date.strftime('%Y-%m-%d')
@@ -112,7 +116,6 @@ outdata = {'date': [],
         }
 predictors = mov_values.copy()
 predictors.remove('residential_7days')
-
 
 # Setup Figures
 axes = []

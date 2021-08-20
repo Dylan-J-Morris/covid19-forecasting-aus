@@ -8,10 +8,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sys import argv
-import stan
+import stan                     # new version of pystan 
 import os, glob
 from Reff_functions import *
 from Reff_constants import *
+# arviz allows for analysis of the posterior samples from 
+# stan 
+import arviz as az
 
 data_date = pd.to_datetime(argv[1]) # Define data date
 print(data_date.strftime('%d%b%Y'))
@@ -256,6 +259,27 @@ policy = dfX.loc[dfX.state==states_to_fit[0],'post_policy']     # this is the po
 policy_sec_wave = [1]*df2X.loc[df2X.state==sec_states[0]].shape[0]
 policy_third_wave = [1]*df3X.loc[df3X.state==third_states[0]].shape[0]
 
+#################### VACCINE DATA ####################
+
+# Load in vaccination data by state and date
+vaccination_by_state = pd.read_csv('vaccine_effect_timeseries.csv', parse_dates=['date'])
+vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
+
+third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
+vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
+vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)] # Isolate fitting states
+vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
+
+# If we are missing recent vaccination data, fill it in with the most recent available data.
+latest_vacc_data = vaccination_by_state.columns[-1]
+if latest_vacc_data < pd.to_datetime(third_end_date):
+    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
+        
+# Convert to simple array
+vaccination_by_state_array = vaccination_by_state.to_numpy()
+
+
+
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
 input_data = {
@@ -305,18 +329,17 @@ input_data = {
     'include_in_third_wave': include_in_third_wave,
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave])
+    
+    'vaccine_effect_data':
 }
 
-# for key in input_data:
-#     print(str(key) + str(type(input_data[key])) + "\n")
-
-
+# importing the stan model as a string
 from rho_model_gamma import rho_model_gamma_string
 
-# this compiles the stan model 
+# compile the stan model 
 posterior = stan.build(rho_model_gamma_string, data=input_data)
 
-# now we can sample from the model 
+# sample from the model  
 fit = posterior.sample(num_chains=4, num_samples=5000)
 
 ######## Plotting & Saving Output #########
@@ -324,8 +347,6 @@ fit = posterior.sample(num_chains=4, num_samples=5000)
 #make results dir
 results_dir ="figs/soc_mob_posterior/"
 os.makedirs(results_dir,exist_ok=True)
-
-import arviz as az
 
 filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
 with open(results_dir+filename, 'w') as f:
