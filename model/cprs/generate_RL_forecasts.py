@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, '../')
 
 # Define inputs
-from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats
+from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vaccination_start_date
 
 num_forecast_days = num_forecast_days+3 # Add 3 days buffer to mobility forecast
 data_date = pd.to_datetime(argv[1])
@@ -499,6 +499,23 @@ typ_state_R={}
 mob_forecast_date = df_forecast.date.min()
 mob_samples = 100
 
+# Load in vaccination data by state and date
+vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
+
+third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
+vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
+
+vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
+
+# If we are missing recent vaccination data, fill it in with the most recent available data.
+latest_vacc_data = vaccination_by_state.columns[-1]
+if latest_vacc_data < pd.to_datetime(third_end_date):
+    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
+        
+# Convert to simple array
+vaccination_by_state_array = vaccination_by_state.to_numpy()
+
 state_key = {
     'NSW':'1',
     'QLD':'2',
@@ -672,6 +689,31 @@ for typ in forecast_type:
                     voc_multiplier[ii] = 1.0
 
             R_L *= voc_multiplier
+            
+        # create an array which is an indicator of the vaccination effect which should be relatively straightforward, we just need to 
+        # forecast forward the last day
+        post_vaccine_multiplier_before = [1.0]*df_state.loc[df_state.date<vaccination_start_date].shape[0]
+        post_vaccine_multiplier_after = [1.0]*df_state.loc[df_state.date>=vaccination_start_date].shape[0]
+
+        # now add in the data effect, here we just need to be careful if we run off the array, in which case we can back-trace to the 
+        # last recorded value
+        for ii in range(np.shape(post_vaccine_multiplier_after)[0]):
+            if ii < vaccination_by_state.loc[state].shape[0]:
+                post_vaccine_multiplier_after[ii] *= vaccination_by_state.loc[state][ii]
+            else:
+                post_vaccine_multiplier_after[ii] *= vaccination_by_state.loc[state][-1]
+
+        # concatenate the vaccine effect before and after the vaccination program begins 
+        vaccine_multiplier = post_vaccine_multiplier_before + post_vaccine_multiplier_after
+        # need to tile it to apply to all R_L's 
+        # vaccine_multiplier = np.tile(np.array(vaccine_multiplier), (df_state.shape[0], 1))
+        
+        # print('##################')
+        # print(np.shape(R_L))
+        # print(np.shape(vaccine_multiplier))
+        # print('##################')
+        
+        R_L = (R_L.T * vaccine_multiplier).T
 
         R_L_lower = np.percentile(R_L,25,axis=1)
         R_L_upper = np.percentile(R_L,75,axis=1)

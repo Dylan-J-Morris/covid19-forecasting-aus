@@ -262,7 +262,7 @@ policy_third_wave = [1]*df3X.loc[df3X.state==third_states[0]].shape[0]
 #################### VACCINE DATA ####################
 
 # Load in vaccination data by state and date
-vaccination_by_state = pd.read_csv('vaccine_effect_timeseries.csv', parse_dates=['date'])
+vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
 vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
 third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
@@ -277,8 +277,6 @@ if latest_vacc_data < pd.to_datetime(third_end_date):
         
 # Convert to simple array
 vaccination_by_state_array = vaccination_by_state.to_numpy()
-
-
 
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
@@ -328,9 +326,9 @@ input_data = {
     'include_in_sec_wave': include_in_sec_wave,
     'include_in_third_wave': include_in_third_wave,
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
-    'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave])
+    'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
     
-    'vaccine_effect_data':
+    'vaccine_effect_data': vaccination_by_state_array                               # the vaccination data 
 }
 
 # importing the stan model as a string
@@ -340,7 +338,7 @@ from rho_model_gamma import rho_model_gamma_string
 posterior = stan.build(rho_model_gamma_string, data=input_data)
 
 # sample from the model  
-fit = posterior.sample(num_chains=4, num_samples=5000)
+fit = posterior.sample(num_chains=4, num_samples=1000)
 
 ######## Plotting & Saving Output #########
 
@@ -673,7 +671,7 @@ if df2X.shape[0]>0:
 
 
 if df3X.shape[0]>0:
-    df['is_third_wave'] =0
+    df['is_third_wave'] = 0
     for state in third_states:
         df.loc[df.state==state,'is_third_wave'] = df.loc[df.state==state].date.isin(
             third_date_range[state]

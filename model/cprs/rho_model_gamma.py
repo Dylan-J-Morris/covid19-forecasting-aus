@@ -50,6 +50,8 @@ data {
     vector[N_third_wave] include_in_third_wave[j_third_wave];   // dates include in sec_wave 
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
+    
+    vector[N_third_wave] vaccine_effect_data[j_third_wave];        //vaccination data
 
 }
 parameters {
@@ -67,10 +69,9 @@ parameters {
     vector<lower=0,upper=1>[total_N_p_sec] brho_sec_wave;       // estimate of proportion of imported cases
     vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;   // estimate of proportion of imported cases
 
-    // voc effects
-    real<lower=0> voc_effect_third_wave_0;
-    real<lower=0> sig_voc_effect_third_wave;
+    // voc and vaccine effects
     real<lower=0> voc_effect_third_wave;
+    // real<lower=0> vacc_effect_third_wave;
 
 }
 transformed parameters {
@@ -139,14 +140,14 @@ transformed parameters {
                     mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
                         (1-brho_third_wave[pos])*(2*R_Li[map_to_state_index_third[i]])*(
                             (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n]
-                        )*inv_logit(Mob_third_wave[i][n,:]*(bet)) * voc_effect_third_wave; //mean estimate
+                        )*inv_logit(Mob_third_wave[i][n,:]*(bet)) * voc_effect_third_wave * vaccine_effect_data[i][n];
                 }
                 else {
-
+                    
                     mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
                         (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
                             (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] 
-                        )*inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave; //mean estimate
+                        )*inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave * vaccine_effect_data[i][n];
                 }
                 pos += 1;
             }
@@ -156,26 +157,17 @@ transformed parameters {
 }
 model {
     int pos2;
-    real voc_hyper_mean;
-    real voc_hyper_sig;
 
     bet ~ normal(0,1);
     theta_md ~ lognormal(0,0.5);
 
-    //note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_hyper_mean = 2.5;
-    voc_hyper_sig = 0.5;      // making the hyper-prior variance small to force the mean to move
-    voc_effect_third_wave_0 ~ gamma(voc_hyper_mean*voc_hyper_mean/voc_hyper_sig,
-                                     voc_hyper_mean/voc_hyper_sig);
-    sig_voc_effect_third_wave ~ exponential(10);
-    voc_effect_third_wave ~ gamma(voc_effect_third_wave_0*voc_effect_third_wave_0/sig_voc_effect_third_wave, 
-                                    voc_effect_third_wave_0/sig_voc_effect_third_wave);
-
-    //voc_effect_third_wave ~ gamma(voc_hyper_mean*voc_hyper_mean/voc_hyper_sig,voc_hyper_mean/voc_hyper_sig);
+    // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
+    voc_effect_third_wave ~ gamma(2.9*2.9/0.01, 2.9/0.01);
+    // vacc_effect_third_wave ~ normal(1, 0.001)
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(20); //mean is 1/50=0.02
+    sig ~ exponential(50); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j) {

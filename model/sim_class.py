@@ -777,9 +777,10 @@ class Forecast:
 
         df = df.set_index('date')
         #fill missing dates with 0 up to end_time
-        df = df.reindex(range(self.end_time), fill_value=0)
+        # not sure what the deal is here - removing it seemed to fix things
+        # df = df.reindex(range(self.end_time), fill_value=0)
         ## calculate window of cases to measure against
-        if df.index.values[-1] >60:
+        if df.index.values[-1] > 60:
             #if final day of data is later than day 90, then remove first 90 days
             forecast_days = self.end_time-self.forecast_date
             self.cases_to_subtract = sum(df.local.values[:-1*(60+forecast_days)])
@@ -791,7 +792,7 @@ class Forecast:
         self.max_cases = max(500000,sum(df.local.values) + sum(df.imported.values))
         self.max_backcast_cases = max(100,4*(sum(df.local.values) - self.cases_to_subtract))
 
-        self.max_nowcast_cases = max(10, 1.5*(sum(df.local.values) - self.cases_to_subtract_now))
+        self.max_nowcast_cases = max(10, 2*(sum(df.local.values) - self.cases_to_subtract_now))
         print("Local cases in last 14 days is %i" % (sum(df.local.values) - self.cases_to_subtract_now) )
 
         print('Max limits: ', self.max_cases, self.max_backcast_cases, self.max_nowcast_cases)

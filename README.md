@@ -20,10 +20,7 @@ Once all the data are in their corresponding folders, you can run this command t
 
 ```shell
 DATADATE='2021-08-16'  # Date of NNDSS data file
-NSIMS=10000 # Total number of simulations to run
-```
-DATADATE='2021-08-16'  # Date of NNDSS data file
-NSIMS=20000 # Total number of simulations to run
+NSIMS=1000 # Total number of simulations to run
 
 bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
 ```
@@ -46,7 +43,7 @@ Below is a breakdown of the pipeline from case line list data to producing forec
     * Cori et al. (2013) $R_{eff}$ estimates from 1.
     * case data
    ```
-    python model/cprs/generate_posterior.py $DATADATE 
+   python model/cprs/generate_posterior.py $DATADATE 
    ```
 3. Forecasting Google mobility indices and microdistancing trends. Requires:
    * Google mobility indices
@@ -62,7 +59,7 @@ Below is a breakdown of the pipeline from case line list data to producing forec
     states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
     for state in "${states[@]}"
     do
-        python model/run_state.py $NSIMS $NDAYS $DATADATE $state $STARTDATE $VOCFLAG 
+        python model/run_state.py $NSIMS $DATADATE $state $VOCFLAG "${SCENARIO}${SCENARIODATE}"
     done
     ```
 
@@ -71,7 +68,7 @@ Below is a breakdown of the pipeline from case line list data to producing forec
     python model/run_state.py $NSIMS $NDAYS $DATADATE <state-initials> $STARTDATE $VOCFLAG  
     ```
 
-5.  Examine simulation of cases and generate figures. 
+1.  Examine simulation of cases and generate figures. 
     * case data
     * simulation files of all states from 4, saved in `results/`.
     
@@ -79,7 +76,7 @@ Below is a breakdown of the pipeline from case line list data to producing forec
     python model/collate_states.py $NSIMS $NDAYS $DATADATE $STARTDATE $VOCFLAG 
     ```
 
-6.  Record results into csv file for UoM ensemble model.
+2.  Record results into csv file for UoM ensemble model.
     ```
     python model/record_to_csv.py $NSIMS $NDAYS R_L $DATADATE $STARTDATE $VOCFLAG 
     ```
@@ -89,10 +86,4 @@ The model can run with a optional Variant of Concern (VoC) flag, which increases
 
 
 ### Original Code
-<<<<<<< HEAD
-An earlier version of this code is available at [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
-
-test
-=======
 Earlier versions of this code are available at [https://github.com/tobinsouth/covid19-forecasting-aus](https://github.com/tobinsouth/covid19-forecasting-aus) and [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
->>>>>>> 2fd1a5a8f183b0569eceba0f49a5202fde5f5b98

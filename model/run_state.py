@@ -30,9 +30,6 @@ end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=n
 end_time = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days # end_time is recorded as a number of days
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y") # Convert date to format used in case file
 
-
-
-
 ##Initialise the number of cases as 1st of March data incidence
 if start_date=="2020-03-01":
     current = {
