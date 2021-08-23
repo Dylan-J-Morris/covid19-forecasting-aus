@@ -162,9 +162,9 @@ model {
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_effect_third_wave ~ gamma(3.0*3.0/0.01, 3.0/0.01);
+    voc_effect_third_wave ~ gamma(3.0*3.0/0.1, 3.0/0.1);
     // tight normal prior on the vaccine effect centred at 1
-    vacc_effect_third_wave ~ normal(1, 0.001);
+    vacc_effect_third_wave ~ normal(1, 0.1);
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
