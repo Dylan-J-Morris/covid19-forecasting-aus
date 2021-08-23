@@ -9,7 +9,7 @@ plt.style.use('seaborn-poster')
 import sys
 sys.path.insert(0,'model') # I hate this too but it allows everything to use the same helper functions.
 from helper_functions import read_in_NNDSS
-from params import VoC_start_date, apply_voc_to_R_L_hats
+from params import VoC_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
 
 def read_in_posterior(date):
     """
@@ -63,7 +63,7 @@ def read_in_google(Aus_only=True,local=False,moving=False):
 def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True, 
                  delta=1.0,R=2.2,sigma=1, md_arg=None,
                  ban='2020-03-16',single=False,var=None,
-                rho=None, R_I =None, winter=False, prop=None,second_phase=False,third_phase=False):
+                rho=None, R_I =None, winter=False, prop=None,second_phase=False,third_phase=False,vaccination=None):
     """
     Produce posterior predictive plots for all states
     """
@@ -152,7 +152,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
         states = sorted(list(states_initials.keys()))
         states.remove('Northern Territory')
         states.remove('Australian Capital Territory')
-         #no R_eff modelled for these states, skip
+        #no R_eff modelled for these states, skip
         #counter for brho_v
         pos=1
         for i,state in enumerate(states):
@@ -165,6 +165,10 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
             samples_sim = samples.sample(1000)
             post_values = samples_sim[['bet['+str(i)+']' for i in range(1,1+len(value_vars))]].values.T    
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
+
+            if vaccination is not None:
+                vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
+
             if split:
 
                 #split model with parameters pre and post policy
@@ -203,6 +207,11 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
 
                     #make logodds by appending post ban values
                     logodds = np.append(logodds, X2@ post_values, axis=0)
+
+                # grab posterior sampled vaccination effects here and multiply by the daily efficacy
+                if vaccination is not None:
+                    # transposing the vaccination sampled values so that it can be multiplied by the data
+                    vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave'].values, (df_state.shape[0],1)).T * vacc_sim
             
             if gamma:
                 if type(R)==str: #'state'
@@ -217,7 +226,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                 size=df_state.shape[0]
                             )
                 if type(R)==dict:
-                    if states_initials[state] != ['ACT','NT']:
+                    if states_initials[state] != ['ACT','NT','TAS']:
                         #if state, use inferred
                         sim_R = np.tile(R[states_initials[state]][:samples_sim.shape[0]], (df_state.shape[0],1))
                     else:
@@ -226,7 +235,10 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                 else:
                     sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0],1))
 
-                mu_hat = 2 * md*sim_R* expit(logodds)
+                if vaccination is not None:
+                    mu_hat = 2 * md*sim_R* expit(logodds) * vacc_post_times_forecast.T
+                else:
+                    mu_hat = 2 * md*sim_R* expit(logodds)
 
                 if winter:
                     mu_hat = (1+samples_sim['winter'].values)*mu_hat
@@ -286,7 +298,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                                (1,samples_sim.shape[0]))
                     R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0],1))
 
-                    mu_hat = rho_data * R_I_sim + (1- rho_data) *mu_hat
+                    mu_hat = rho_data * R_I_sim + (1- rho_data) * mu_hat
                     
                 if var is not None:
                         ##Place the data derived delta here

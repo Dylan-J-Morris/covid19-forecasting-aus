@@ -16,8 +16,8 @@ Download Google mobility data from https://www.google.com/covid19/mobility/ and 
 
 Run these in terminal. Number of sims is used to name some of the files.
 ```
-DATADATE='2021-08-16'   # Date of NNDSS data file
-NSIMS=10000             # Total number of simulations to run should be > 5000
+DATADATE='2021-08-23'   # Date of NNDSS data file
+NSIMS=500             # Total number of simulations to run should be > 5000
 ```
 
 These lines provide the VoC flag as well as the scenario and are run at the command line. 
@@ -40,7 +40,7 @@ Need to `pip install matplotlib pandas numpy arviz pystan pyarrow fastparquet se
 Each of these lines needs to be run one at a time. Just be in the covid forecasting directory and run each one. 
 ### Step 2.2
 
-Run EpyReff. 
+Run EpyReff. If using the linelist you need to set `use_linelist=True` in `params.py`.
 ```
 python model/EpyReff/run_estimator.py $DATADATE
 ```
