@@ -2,7 +2,7 @@
 
 ```
 DATADATE='2021-08-16'  # Date of NNDSS data file
-NSIMS=5000 # Total number of simulations to run
+NSIMS=1000 # Total number of simulations to run
 ```
 
 ```
