@@ -347,7 +347,8 @@ for i,state in enumerate(states):
         #get dates
         dd_vacc = [vaccination_by_state.loc[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_vacc+1)]
 
-    for j, var in enumerate(predictors+['md_prop']+['vaccination']):
+    # for j, var in enumerate(predictors+['md_prop']+['vaccination']):
+    for j, var in enumerate(predictors+['md_prop']):
         #Record data
         axs=axes[j]
         if (state=='AUS') and (var=='md_prop'):
