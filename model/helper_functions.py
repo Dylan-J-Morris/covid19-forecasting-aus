@@ -147,4 +147,5 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
         df_forecast = df_forecast.drop('date_str', axis='columns')
         # Apply the vaccine effect to the forecast. The 8:onwards columns are all the Reff paths.
         df_forecast.iloc[: , 8:] = df_forecast.iloc[: , 8:].multiply(vaccination_multiplier.to_numpy(), axis='rows')
+        
     return df_forecast

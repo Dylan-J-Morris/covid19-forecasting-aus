@@ -17,7 +17,7 @@ Download Google mobility data from https://www.google.com/covid19/mobility/ and 
 Run these in terminal. Number of sims is used to name some of the files.
 ```
 DATADATE='2021-08-23'   # Date of NNDSS data file
-NSIMS=500             # Total number of simulations to run should be > 5000
+NSIMS=1000             # Total number of simulations to run should be > 5000
 ```
 
 These lines provide the VoC flag as well as the scenario and are run at the command line. 
@@ -60,6 +60,8 @@ python model/cprs/generate_RL_forecasts.py $DATADATE $SCENARIO $SCENARIODATE
 Now we loop over each state and simulate forward. 
 ```
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+
+states=("NSW")
 for state in "${states[@]}"
 do
     python model/run_state.py $NSIMS $DATADATE $state $VOCFLAG "${SCENARIO}${SCENARIODATE}"

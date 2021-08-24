@@ -267,7 +267,6 @@ policy_third_wave = [1]*df3X.loc[df3X.state==third_states[0]].shape[0]
 vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
 vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
-third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
 vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
 vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)] # Isolate fitting states
 vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
@@ -276,9 +275,14 @@ vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date',
 latest_vacc_data = vaccination_by_state.columns[-1]
 if latest_vacc_data < pd.to_datetime(third_end_date):
     vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
-        
-# Convert to simple array
+
+# Convert to simple array only useful to pass to stan
 vaccination_by_state_array = vaccination_by_state.to_numpy()
+
+
+############# mocking the vaccination data
+for i in range(vaccination_by_state_array.shape[0]):
+    vaccination_by_state_array[i] = [1.0] * vaccination_by_state_array[i].shape[0]
 
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
@@ -647,7 +651,7 @@ ax3 =predict_plot(samples_mov_gamma,df.loc[(df.date>=start_date)&(df.date<=end_d
 for ax in ax3:
     for a in ax:
         a.set_ylim((0,3))
-        #a.set_xlim((start_date,end_date))
+        a.set_xlim((pd.to_datetime(start_date),pd.to_datetime(end_date)))
 plt.savefig(
     results_dir+data_date.strftime("%Y-%m-%d")+"total_Reff_allstates.png", dpi=144)
 
@@ -665,7 +669,7 @@ if df2X.shape[0]>0:
     for ax in ax4:
         for a in ax:
             a.set_ylim((0,3))
-            #a.set_xlim((start_date,end_date))
+            # a.set_xlim((pd.to_datetime(start_date),pd.to_datetime(end_date)))
     plt.savefig(
         results_dir+data_date.strftime("%Y-%m-%d")+"Reff_sec_phase.png", dpi=144)
 
@@ -697,7 +701,7 @@ if df3X.shape[0]>0:
     ax4 = predict_plot(samples_mov_gamma,df.loc[(df.date>=third_start_date)&(df.date<=third_end_date)],gamma=True, moving=True,split=split,grocery=True,ban = ban,
                     R=RL_by_state, var= True, md_arg=md,
                     rho=third_states, third_phase=True,
-                    R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state)#by states....
+                    R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[third_start_date:third_end_date])#by states....
     for ax in ax4:
         for a in ax:
             a.set_ylim((0,3))

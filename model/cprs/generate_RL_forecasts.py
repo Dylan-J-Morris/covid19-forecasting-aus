@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, '../')
 
 # Define inputs
-from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vaccination_start_date
+from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vaccination_start_date, apply_vacc_to_R_L_hats
 
 num_forecast_days = num_forecast_days+3 # Add 3 days buffer to mobility forecast
 data_date = pd.to_datetime(argv[1])
@@ -39,22 +39,23 @@ df_google_all = read_in_google(Aus_only=True,moving=True,local=True)
 
 # reading in vaccination data
 # Load in vaccination data by state and date
-vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
-vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
+if apply_vacc_to_R_L_hats:
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+    vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
-third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
-third_start_date = '2021-06-27'
-# vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
+    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
+    third_start_date = '2021-06-27'
+    # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
 
-vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
+    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
 
-# If we are missing recent vaccination data, fill it in with the most recent available data.
-latest_vacc_data = vaccination_by_state.columns[-1]
-if latest_vacc_data < pd.to_datetime(third_end_date):
-    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
-        
-# Convert to simple array for indexing by state initials 
-vaccination_by_state_array = vaccination_by_state.to_numpy()
+    # If we are missing recent vaccination data, fill it in with the most recent available data.
+    latest_vacc_data = vaccination_by_state.columns[-1]
+    if latest_vacc_data < pd.to_datetime(third_end_date):
+        vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
+
+    # Convert to simple array for indexing by state initials 
+    vaccination_by_state_array = vaccination_by_state.to_numpy()
 
 # Get survey data
 surveys = pd.DataFrame()
@@ -148,10 +149,11 @@ var='Proportion people always microdistancing'
 fig, ax_states = plt.subplots(figsize=(7,8),nrows=4, ncols=2, sharex=True)
 axes.append(ax_states)
 figs.append(fig)
-var='Reduction in Reff due to vaccination'
-fig, ax_states = plt.subplots(figsize=(7,8),nrows=4, ncols=2, sharex=True)
-axes.append(ax_states)
-figs.append(fig)
+if apply_vacc_to_R_L_hats:
+    var='Reduction in Reff due to vaccination'
+    fig, ax_states = plt.subplots(figsize=(7,8),nrows=4, ncols=2, sharex=True)
+    axes.append(ax_states)
+    figs.append(fig)
 
 # Forecasting Params
 mob_samples = 1000
@@ -317,29 +319,30 @@ for i,state in enumerate(states):
 
     dd_md = [prop[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_md+1)]
 
-    ## Forecasting vaccine effect -- might need small refactoring going forward to avoid using .loc 
-    mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:]) # Get a baseline value of microdistancing
-    vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
-    mu_diffs = np.mean(vacc_diffs)
-    std_diffs = np.std(vacc_diffs)
+    if apply_vacc_to_R_L_hats:
+        ## Forecasting vaccine effect -- might need small refactoring going forward to avoid using .loc 
+        mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:]) # Get a baseline value of microdistancing
+        vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
+        mu_diffs = np.mean(vacc_diffs)
+        std_diffs = np.std(vacc_diffs)
 
-    extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
+        extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
 
-    current = [vaccination_by_state.loc[state].values[-1]] * 1000 # Set all values to current value.
-    new_vacc_forecast = []
-    # Forecast mobility forward sequentially by day.
-    for i in range(n_forecast + extra_days_vacc):
-        trend_force = np.random.normal(mu_diffs, std_diffs, size=1000) # Generate step realisations in training trend direction
-        current = current+trend_force       # no regression to baseline for vaccination or scenario modelling yet
-                
-        new_vacc_forecast.append(current)
+        current = [vaccination_by_state.loc[state].values[-1]] * 1000 # Set all values to current value.
+        new_vacc_forecast = []
+        # Forecast mobility forward sequentially by day.
+        for i in range(n_forecast + extra_days_vacc):
+            trend_force = np.random.normal(mu_diffs, std_diffs, size=1000) # Generate step realisations in training trend direction
+            current = current+trend_force       # no regression to baseline for vaccination or scenario modelling yet
+                    
+            new_vacc_forecast.append(current)
 
-    vacc_sims = np.vstack(new_vacc_forecast) # Put forecast days together
-    vacc_sims = np.minimum(1, vacc_sims)
-    vacc_sims = np.maximum(0, vacc_sims)
+        vacc_sims = np.vstack(new_vacc_forecast) # Put forecast days together
+        vacc_sims = np.minimum(1, vacc_sims)
+        vacc_sims = np.maximum(0, vacc_sims)
 
-    #get dates
-    dd_vacc = [vaccination_by_state.loc[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_vacc+1)]
+        #get dates
+        dd_vacc = [vaccination_by_state.loc[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_vacc+1)]
 
     for j, var in enumerate(predictors+['md_prop']+['vaccination']):
         #Record data
@@ -483,11 +486,15 @@ df_forecast_md_std = df_forecast_md_std.reindex([('std',state) for state in stat
 df_forecast_md.columns = states
 df_forecast_md_std.columns = states
 
-df_forecast_vaccination = df_forecast_vaccination.reindex([('mean',state) for state in states],axis=1)
-df_forecast_vaccination_std = df_forecast_vaccination_std.reindex([('std',state) for state in states],axis=1)
-
-df_forecast_vaccination.columns = states
-df_forecast_vaccination_std.columns = states
+if apply_vacc_to_R_L_hats:
+    df_forecast_vaccination = df_forecast_vaccination.reindex([('mean',state) for state in states],axis=1)
+    df_forecast_vaccination_std = df_forecast_vaccination_std.reindex([('std',state) for state in states],axis=1)
+    df_forecast_vaccination.columns = states
+    df_forecast_vaccination_std.columns = states
+    df_forecast_vaccination = df_forecast_vaccination.reset_index()
+    df_forecast_vaccination_std = df_forecast_vaccination_std.reset_index()
+    df_forecast_vaccination.date = pd.to_datetime(df_forecast_vaccination.date)
+    df_forecast_vaccination_std.date = pd.to_datetime(df_forecast_vaccination_std.date)
 
 df_forecast = df_forecast.reset_index()
 df_std = df_std.reset_index()
@@ -495,17 +502,12 @@ df_std = df_std.reset_index()
 df_forecast_md = df_forecast_md.reset_index()
 df_forecast_md_std = df_forecast_md_std.reset_index()
 
-df_forecast_vaccination = df_forecast_vaccination.reset_index()
-df_forecast_vaccination_std = df_forecast_vaccination_std.reset_index()
-
 df_forecast.date = pd.to_datetime(df_forecast.date)
 df_std.date = pd.to_datetime(df_std.date)
 
 df_forecast_md.date = pd.to_datetime(df_forecast_md.date)
 df_forecast_md_std.date = pd.to_datetime(df_forecast_md_std.date)
 
-df_forecast_vaccination.date = pd.to_datetime(df_forecast_vaccination.date)
-df_forecast_vaccination_std.date = pd.to_datetime(df_forecast_vaccination_std.date)
 
 df_R = df_google[['date','state']+mov_values + [val+'_std' for val in mov_values]]
 df_R = pd.concat([df_R,df_forecast],ignore_index=True,sort=False)
@@ -513,37 +515,39 @@ df_R['policy'] = (df_R.date>='2020-03-20').astype('int8')
 
 df_md = pd.concat([prop,df_forecast_md.set_index('date')])
 
-############# now we read in the vaccine time series again...
-vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
-vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
+if apply_vacc_to_R_L_hats:
+    ############# now we read in the vaccine time series again...
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+    vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
-third_start_date = '2021-06-27'
-third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
-# vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
-# vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)] # Isolate fitting states
-vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
+    third_start_date = '2021-06-27'
+    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
+    # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
+    # vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)] # Isolate fitting states
+    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
 
-# If we are missing recent vaccination data, fill it in with the most recent available data.
-latest_vacc_data = vaccination_by_state.columns[-1]
-if latest_vacc_data < pd.to_datetime(third_end_date):
-    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
+    # If we are missing recent vaccination data, fill it in with the most recent available data.
+    latest_vacc_data = vaccination_by_state.columns[-1]
+    if latest_vacc_data < pd.to_datetime(third_end_date):
+        vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
 
-# make dates 
-start_date = '2020-03-01'
-before_vacc_dates = pd.date_range(start_date, vaccination_by_state.columns[0]- timedelta(days=1), freq='d')
+    # the above part only deals with data after the vaccination program begins -- we also need to account 
+    # for a fixed effect of 1.0 before that
+    start_date = '2020-03-01'
+    before_vacc_dates = pd.date_range(start_date, vaccination_by_state.columns[0]- timedelta(days=1), freq='d')
 
-# this is just a df of ones
-before_vacc_Reff_reduction = pd.DataFrame(np.ones((8,len(before_vacc_dates))))
-before_vacc_Reff_reduction.columns = before_vacc_dates
-before_vacc_Reff_reduction.index = vaccination_by_state.index
+    # this is just a df of ones with all the missing dates as indices
+    before_vacc_Reff_reduction = pd.DataFrame(np.ones((8,len(before_vacc_dates))))
+    before_vacc_Reff_reduction.columns = before_vacc_dates
+    before_vacc_Reff_reduction.index = vaccination_by_state.index
 
-# merge them on the reduction value
-vacc_df = pd.concat([before_vacc_Reff_reduction.T, vaccination_by_state.T])
+    # merge the vaccine data and the 1's dataframes
+    vacc_df = pd.concat([before_vacc_Reff_reduction.T, vaccination_by_state.T])
 
-################# merge the dfs of the past and forecasted values on the date 
-df_vaccination = pd.concat([vacc_df,df_forecast_vaccination.set_index('date')])
+    # merge the dfs of the past and forecasted values on the date 
+    df_vaccination = pd.concat([vacc_df,df_forecast_vaccination.set_index('date')])
+
 #prop_std = pd.DataFrame(np.random.beta(1+survey_counts, 1+survey_respond), columns = survey_counts.columns, index = prop.index)
-
 #df_md_std = pd.concat([prop_std,df_forecast_md_std.set_index('date')])
 
 expo_decay=True
@@ -637,7 +641,8 @@ for typ in forecast_type:
         dd = df_state.date
         post_values = samples[predictors].values.T
         prop_sim = df_md[state].values
-        vacc_sim = df_vaccination[state].values
+        if apply_vacc_to_R_L_hats:
+            vacc_sim = df_vaccination[state].values
 
 
 
@@ -648,8 +653,13 @@ for typ in forecast_type:
         #else:
         #    md = (2*expit(-1*theta_md*prop_sim[:,np.newaxis]))
         
-        # transposing the posterior vacc effect before we multiply it by the forecasted values
-        vacc_post = np.tile(samples['vacc_effect_third_wave'], (df_state.shape[0],mob_samples)).T * vacc_sim
+        if apply_vacc_to_R_L_hats:
+            # transposing the posterior vacc effect before we multiply it by the forecasted values
+            vacc_post = np.tile(samples['vacc_effect_third_wave'], (df_state.shape[0],mob_samples)).T * vacc_sim
+            
+            for ii in range(vacc_post.shape[0]):
+                if ii < df_state.loc[df_state.date<vaccination_start_date].shape[0]:
+                    vacc_post[ii] = 1.0
 
         for n in range(mob_samples):
             #add gaussian noise to predictors before forecast
@@ -791,7 +801,11 @@ for typ in forecast_type:
         voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
 
         # calculate the forecasted R_L values
-        R_L = 2 * md * sim_R * expit( logodds ) * vacc_post.T
+        if apply_vacc_to_R_L_hats:
+            R_L = 2 * md * sim_R * expit( logodds ) * vacc_post.T
+        else: 
+            R_L = 2 * md * sim_R * expit( logodds )
+        
         # now we just modify the values before the introduction of the voc to be 1.0
         if apply_voc_to_R_L_hats:
             for ii in range(voc_multiplier.shape[0]):
