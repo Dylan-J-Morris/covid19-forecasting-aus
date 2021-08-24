@@ -463,19 +463,17 @@ for i,fig in enumerate(figs):
 df_out = pd.DataFrame.from_dict(outdata)
 
 df_md = df_out.loc[df_out.type=='md_prop']
-df_vaccination = df_out.loc[df_out.type=='vaccination']
+if apply_vacc_to_R_L_hats:
+    df_vaccination = df_out.loc[df_out.type=='vaccination']
+    df_out = df_out.loc[df_out.type!='vaccination']
 # pull out md and vaccination in 2 steps cause not sure how to do it by a list
 df_out = df_out.loc[df_out.type!='md_prop']
-df_out = df_out.loc[df_out.type!='vaccination']
 
 df_forecast = pd.pivot_table(df_out, columns=['type'],index=['date','state'],values=['mean'])
 df_std = pd.pivot_table(df_out, columns=['type'],index=['date','state'],values=['std'])
 
 df_forecast_md = pd.pivot_table(df_md, columns=['state'],index=['date'],values=['mean'])
 df_forecast_md_std = pd.pivot_table(df_md, columns=['state'],index=['date'],values=['std'])
-
-df_forecast_vaccination = pd.pivot_table(df_vaccination, columns=['state'],index=['date'],values=['mean'])
-df_forecast_vaccination_std = pd.pivot_table(df_vaccination, columns=['state'],index=['date'],values=['std'])
 
 #align with google order in columns
 df_forecast = df_forecast.reindex([('mean',val) for val in predictors],axis=1)
@@ -490,6 +488,8 @@ df_forecast_md.columns = states
 df_forecast_md_std.columns = states
 
 if apply_vacc_to_R_L_hats:
+    df_forecast_vaccination = pd.pivot_table(df_vaccination, columns=['state'],index=['date'],values=['mean'])
+    df_forecast_vaccination_std = pd.pivot_table(df_vaccination, columns=['state'],index=['date'],values=['std'])
     df_forecast_vaccination = df_forecast_vaccination.reindex([('mean',state) for state in states],axis=1)
     df_forecast_vaccination_std = df_forecast_vaccination_std.reindex([('std',state) for state in states],axis=1)
     df_forecast_vaccination.columns = states
@@ -644,10 +644,9 @@ for typ in forecast_type:
         dd = df_state.date
         post_values = samples[predictors].values.T
         prop_sim = df_md[state].values
+        
         if apply_vacc_to_R_L_hats:
             vacc_sim = df_vaccination[state].values
-
-
 
         #take right size of md to be N by N
         theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0],mob_samples))
@@ -797,18 +796,16 @@ for typ in forecast_type:
                 logodds = np.concatenate((logodds, logodds_sample ), axis =1)
 
 
-        
-        # print("Including the voc effects into the R_L forecasts")
-        # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
-        # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
-        voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
-
         # calculate the forecasted R_L values
         if apply_vacc_to_R_L_hats:
             R_L = 2 * md * sim_R * expit( logodds ) * vacc_post.T
         else: 
             R_L = 2 * md * sim_R * expit( logodds )
         
+        # print("Including the voc effects into the R_L forecasts")
+        # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
+        # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
+        voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
         # now we just modify the values before the introduction of the voc to be 1.0
         if apply_voc_to_R_L_hats:
             for ii in range(voc_multiplier.shape[0]):

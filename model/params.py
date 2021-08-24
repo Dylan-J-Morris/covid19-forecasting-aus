@@ -1,5 +1,5 @@
 ########### Inference parameters
-testing_inference = True        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
+testing_inference = False        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
 
 if testing_inference:
     num_chains = 2
@@ -19,7 +19,7 @@ num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 # setting this to False lets us check that the soc_mob_R_L_hats look ok without the VoC effect applied
 # NEED to set to True in order to apply inferred VoC effect properly
 apply_voc_to_R_L_hats = True
-apply_vacc_to_R_L_hats = True
+apply_vacc_to_R_L_hats = False      # turned off for now since it all seems broken
 
 ############ Optional parameters - require less frequent tuning 
 # alternative application of voc and vaccination effect -- not removed yet in case we need them -- should be left at False
