@@ -279,7 +279,6 @@ if latest_vacc_data < pd.to_datetime(third_end_date):
 # Convert to simple array only useful to pass to stan
 vaccination_by_state_array = vaccination_by_state.to_numpy()
 
-
 ############# mocking the vaccination data
 for i in range(vaccination_by_state_array.shape[0]):
     vaccination_by_state_array[i] = [1.0] * vaccination_by_state_array[i].shape[0]

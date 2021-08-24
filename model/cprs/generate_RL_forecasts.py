@@ -56,6 +56,9 @@ if apply_vacc_to_R_L_hats:
 
     # Convert to simple array for indexing by state initials 
     vaccination_by_state_array = vaccination_by_state.to_numpy()
+    
+    for i in range(vaccination_by_state_array.shape[0]):
+        vaccination_by_state_array[i] = [1.0] * vaccination_by_state_array[i].shape[0]
 
 # Get survey data
 surveys = pd.DataFrame()
