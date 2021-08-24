@@ -366,7 +366,7 @@ with open(results_dir+filename, 'w') as f:
 # summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
 #                                              'brho_sec_wave','brho_third_wave','voc_effect_third_wave','vacc_effect_third_wave'])
 summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-                                             'brho_sec_wave','brho_third_wave','voc_effect_third_wave','vacc_effect_third_wave'])
+                                             'brho_sec_wave','brho_third_wave','voc_effect_third_wave'])
 match_list_names = summary_df.index.to_list()
 
 # extract the names of the constrained parameters which are the ones we actually sample
@@ -604,7 +604,8 @@ ax.set_yticks([0,2,3],minor=False)
 ax.set_yticklabels([0,2,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect', 'Vaccine effect'])
+# ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect', 'Vaccine effect'])
+ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('Effective reproduction number')
