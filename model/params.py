@@ -27,6 +27,8 @@ use_voc_effect = False
 case_insertion_threshold = 5 # The ratio of true cases to simulation cases below which we insert cases into branching process
 download_google_automatically = False # Will download Google data automatically on run. Set to false for repeated runs.
 assume_local_cases_if_unknown = True
+# number of days to remove to stop right truncation 
+truncation_days = 10
 
 
 ############# Simulation parameters

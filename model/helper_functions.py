@@ -75,10 +75,10 @@ def read_in_NNDSS(date_string):
         df['imported'] = [1 if stat=='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported
         df['STATE'] = df['state']
-        df['NOTIFICATION_RECEIVE_DATE'] = df['date_detection'] # Only used by EpyReff. Possible improvement here.
+        # df['NOTIFICATION_RECEIVE_DATE'] = df['date_detection'] # Only used by EpyReff. Possible improvement here.
 
         # added this to be consistent with the NNDSS data
-        df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
+        # df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
         return df
 
 

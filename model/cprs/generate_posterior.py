@@ -14,7 +14,8 @@ from Reff_functions import *
 from Reff_constants import *
 # arviz allows for analysis of the posterior samples from 
 
-from params import apply_vacc_to_R_L_hats
+# import any useful bits and pieces from the params file
+from params import apply_vacc_to_R_L_hats, truncation_days
 # stan 
 import arviz as az
 
@@ -121,7 +122,7 @@ sec_end_date = '2021-01-19'
 ## Third wave inputs
 third_states=sorted(['NSW','VIC']) 
 third_start_date = '2021-06-27'
-third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
+third_end_date = data_date - pd.Timedelta(days=truncation_days) # Subtract 10 days to avoid right truncation
 
 fit_mask = df.state.isin(states_to_fit)
 if fit_post_March:
@@ -684,7 +685,7 @@ if apply_vacc_to_R_L_hats:
     vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
-    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
+    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
     vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
 

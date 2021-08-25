@@ -164,7 +164,7 @@ def index_by_infection_date(infections_wide):
 
 
 def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07, 
-                    trunc_days=21,shift=0, offset=1):
+                    trunc_days=21, shift=0, offset=1):
     """
     Given array of infection_dates (N_dates by N_samples), where values are possible
     number of cases infected on this day, generate the force of infection Lambda_t,
@@ -193,7 +193,7 @@ def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07,
     return lambda_t
     
     
-def lambda_all_states(df_infection, **kwargs):
+def lambda_all_states(df_infection, trunc_days=21, **kwargs):
     """
     Use geenrate lambda on every state
     """
@@ -203,7 +203,7 @@ def lambda_all_states(df_infection, **kwargs):
     for state in statelist:
         df_total_infections = df_infection.groupby(['STATE','INFECTION_DATE']).agg(sum)
         lambda_dict[state] = generate_lambda(
-             df_total_infections.loc[state].values,
+             df_total_infections.loc[state].values, trunc_days=trunc_days,
             **kwargs
             )
     
