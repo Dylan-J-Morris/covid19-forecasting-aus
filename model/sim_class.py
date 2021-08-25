@@ -1,12 +1,18 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import nbinom, erlang, beta, binom, gamma, poisson, beta
+from scipy.stats import nbinom, erlang, beta, binom, gamma, poisson
 from math import floor
 import matplotlib.pyplot as plt
 import os
 from helper_functions import read_in_NNDSS, read_in_Reff_file
 from params import case_insertion_threshold
+# from numba import jit
 
+from collections import deque
+from math import ceil
+import gc
+from numpy.random import random
+from itertools import cycle
 class Person:
     """
     Individuals in the forecast
@@ -100,7 +106,6 @@ class Forecast:
         simulate undetected cases in each category and their
         infectious times. Updates self.current for each person.
         """
-        from math import ceil
         if curr_time ==0:
             self.alpha_s = 1/(self.ps + self.gam*(1-self.ps))
             self.alpha_a = self.gam * self.alpha_s
@@ -210,16 +215,10 @@ class Forecast:
 
         self.Reff = Reff_lookupstate
 
-
     def generate_new_cases(self,parent_key, Reff,k,travel=False):
         """
         Generate offspring for each parent, check if they travel. The parent_key parameter lets us find the parent from the array self.people containing the objects from the branching process.
         """
-
-        from math import ceil
-        from numpy.random import random
-
-
         # Check parent category
         if self.people[parent_key].category=='S': # Symptomatic
             num_offspring = nbinom.rvs(n=k,p= 1- self.alpha_s*Reff/(self.alpha_s*Reff + k))
@@ -323,14 +322,10 @@ class Forecast:
                     #add person to tracked people
                     self.people[len(self.people)] = Person(parent_key, inf_time, detect_time,recovery_time, category)
 
-
     def simulate(self, end_time,sim,seed):
         """
         Simulate forward until end_time
         """
-        from collections import deque
-        from math import ceil
-        import gc
         np.random.seed(seed)
         self.num_of_sim = sim
 
@@ -677,7 +672,6 @@ class Forecast:
 
         return df_results
 
-
     def data_check(self,day):
         """
         A metric to calculate how far the simulation is from the actual data
@@ -709,41 +703,6 @@ class Forecast:
         except KeyError:
             #print("No cases on day %i" % day)
             return False
-
-    # Deprecated as no long using ABC
-    # def get_metric(self,end_time,omega=0.2):
-    #     """
-    #     Calculate the value of the metric of the current sim compared to NNDSS data.
-    #     """
-
-    #     self.actual_array = np.array([self.actual[day]
-    #     #if day not in missed_dates else 0
-    #     for day in range(end_time) ])
-
-    #     #calculate case differences
-    #     #moving windows
-    #     sim_cases =self.observed_cases[
-    #         :len(self.actual_array),2] + \
-    #             self.observed_cases[:
-    #             len(self.actual_array),1] #include asymp cases.
-
-    #     #convolution with 1s should do cum sum
-    #     window = 7
-    #     sim_cases = np.convolve(sim_cases,
-    #         [1]*window,mode='valid')
-    #     actual_cum = np.convolve(self.actual_array,
-    #         [1]*window,mode='valid')
-    #     cases_diff = abs(sim_cases - actual_cum)
-
-    #     #if sum(cases_diff) <= omega * sum(self.actual_array):
-    #         #cumulative diff passes, calculate metric
-
-    #         #sum over days number of times within omega of actual
-    #     self.metric = sum(
-    #         np.square(cases_diff)#,np.maximum(omega* actual_cum,7)
-    #         )
-
-    #     self.metric = self.metric/(end_time-window) #max is end_time
 
     
     def read_in_cases(self):
@@ -799,7 +758,6 @@ class Forecast:
 
         self.actual = df.local.to_dict()
 
-
     def import_cases_model(self, df):
         """
         This function takes the NNDSS/linelist data and creates a set of parameters to generate imported (overseas acquired) cases over time.
@@ -846,12 +804,10 @@ class Forecast:
         self.inf_times =  np.random.gamma(i/j, j, size =size) #shape and scale
         self.detect_times = np.random.gamma(m/n,n, size = size)
 
-
     def iter_inf_time(self):
         """
         Helper function. Access Next inf_time.
         """
-        from itertools import cycle
         for time in cycle(self.inf_times):
             yield time
 
@@ -859,7 +815,6 @@ class Forecast:
         """
         Helper function. Access Next detect_time.
         """
-        from itertools import cycle
         for time in cycle(self.detect_times):
             yield time
 

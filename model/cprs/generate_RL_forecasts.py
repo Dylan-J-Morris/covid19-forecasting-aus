@@ -56,9 +56,6 @@ if apply_vacc_to_R_L_hats:
 
     # Convert to simple array for indexing by state initials 
     vaccination_by_state_array = vaccination_by_state.to_numpy()
-    
-    for i in range(vaccination_by_state_array.shape[0]):
-        vaccination_by_state_array[i] = [1.0] * vaccination_by_state_array[i].shape[0]
 
 # Get survey data
 surveys = pd.DataFrame()
@@ -130,12 +127,13 @@ print("Forecast ends at {} days after 1st March".format(
     (pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + num_forecast_days))
 print("Final date is {}".format(pd.to_datetime(today) + timedelta(days=num_forecast_days)))
 df_google = df_google.loc[df_google.date>= training_start_date]
-outdata = {'date': [],
-        'type': [],
-        'state': [],
-            'mean': [],
-            'std' : [],
-        }
+outdata = {
+    'date': [],
+    'type': [],
+    'state': [],
+    'mean': [],
+    'std' : [],
+    }
 predictors = mov_values.copy()
 predictors.remove('residential_7days')
 
@@ -324,7 +322,7 @@ for i,state in enumerate(states):
 
     if apply_vacc_to_R_L_hats:
         ## Forecasting vaccine effect -- might need small refactoring going forward to avoid using .loc 
-        mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:]) # Get a baseline value of microdistancing
+        mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:]) # Get a baseline value of vaccination
         vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
         mu_diffs = np.mean(vacc_diffs)
         std_diffs = np.std(vacc_diffs)
@@ -337,7 +335,7 @@ for i,state in enumerate(states):
         for i in range(n_forecast + extra_days_vacc):
             trend_force = np.random.normal(mu_diffs, std_diffs, size=1000) # Generate step realisations in training trend direction
             current = current+trend_force       # no regression to baseline for vaccination or scenario modelling yet
-                    
+            
             new_vacc_forecast.append(current)
 
         vacc_sims = np.vstack(new_vacc_forecast) # Put forecast days together
@@ -347,8 +345,7 @@ for i,state in enumerate(states):
         #get dates
         dd_vacc = [vaccination_by_state.loc[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_vacc+1)]
 
-    # for j, var in enumerate(predictors+['md_prop']+['vaccination']):
-    for j, var in enumerate(predictors+['md_prop']):
+    for j, var in enumerate(predictors+['md_prop']+['vaccination']):
         #Record data
         axs=axes[j]
         if (state=='AUS') and (var=='md_prop'):
@@ -425,6 +422,7 @@ for i,state in enumerate(states):
                 axs[rownum,colnum].set_ylabel('Vaccine reduction in Reff', fontsize=7)  
     state_Rmed[state] = Rmed_array
     state_sims[state] = sims
+    
 os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date, exist_ok=True)
 for i,fig in enumerate(figs):
     fig.text(0.5, 0.02, 
@@ -460,6 +458,7 @@ for i,fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/vaccination.png",dpi=400)
+        
 
 df_out = pd.DataFrame.from_dict(outdata)
 
@@ -467,6 +466,7 @@ df_md = df_out.loc[df_out.type=='md_prop']
 if apply_vacc_to_R_L_hats:
     df_vaccination = df_out.loc[df_out.type=='vaccination']
     df_out = df_out.loc[df_out.type!='vaccination']
+
 # pull out md and vaccination in 2 steps cause not sure how to do it by a list
 df_out = df_out.loc[df_out.type!='md_prop']
 
@@ -512,7 +512,6 @@ df_std.date = pd.to_datetime(df_std.date)
 df_forecast_md.date = pd.to_datetime(df_forecast_md.date)
 df_forecast_md_std.date = pd.to_datetime(df_forecast_md_std.date)
 
-
 df_R = df_google[['date','state']+mov_values + [val+'_std' for val in mov_values]]
 df_R = pd.concat([df_R,df_forecast],ignore_index=True,sort=False)
 df_R['policy'] = (df_R.date>='2020-03-20').astype('int8')
@@ -550,6 +549,8 @@ if apply_vacc_to_R_L_hats:
 
     # merge the dfs of the past and forecasted values on the date 
     df_vaccination = pd.concat([vacc_df,df_forecast_vaccination.set_index('date')])
+    # save the forecasted vaccination line
+    df_vaccination.to_csv("results/forecasted_vaccination.csv")
 
 #prop_std = pd.DataFrame(np.random.beta(1+survey_counts, 1+survey_respond), columns = survey_counts.columns, index = prop.index)
 #df_md_std = pd.concat([prop_std,df_forecast_md_std.set_index('date')])
@@ -635,6 +636,7 @@ state_key = {
     'VIC':'5',
     'WA':'6',
 }
+
 for typ in forecast_type:
     state_R={}
     for state in states:

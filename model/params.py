@@ -13,13 +13,12 @@ start_date = '2021-06-10' # Start date of forecast
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
 vaccination_start_date = '2021-02-22'
-vaccination_start_date = '2021-03-01'
 num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 
 # setting this to False lets us check that the soc_mob_R_L_hats look ok without the VoC effect applied
 # NEED to set to True in order to apply inferred VoC effect properly
 apply_voc_to_R_L_hats = True
-apply_vacc_to_R_L_hats = False      # turned off for now since it all seems broken
+apply_vacc_to_R_L_hats = True      # turned off for now since it all seems broken
 
 ############ Optional parameters - require less frequent tuning 
 # alternative application of voc and vaccination effect -- not removed yet in case we need them -- should be left at False

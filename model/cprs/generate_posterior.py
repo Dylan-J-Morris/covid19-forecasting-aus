@@ -282,8 +282,8 @@ if latest_vacc_data < pd.to_datetime(third_end_date):
 vaccination_by_state_array = vaccination_by_state.to_numpy()
 
 ############# mocking the vaccination data
-for i in range(vaccination_by_state_array.shape[0]):
-    vaccination_by_state_array[i] = [1.0] * vaccination_by_state_array[i].shape[0]
+# for i in range(vaccination_by_state_array.shape[0]):
+#     vaccination_by_state_array[i] = [1.0] * vaccination_by_state_array[i].shape[0]
 
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
@@ -356,17 +356,14 @@ os.makedirs(results_dir,exist_ok=True)
 
 filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
 with open(results_dir+filename, 'w') as f:
-    # print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave','vacc_effect_third_wave']), file=f)
-    print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave']), file=f)
+    print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave','vacc_effect_third_wave']), file=f)
     # print(arviz.summary(fit, var_names = ['brho']), file=f)
 
 ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future
 # create extended summary of parameters to index the samples by
 
-# summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-#                                              'brho_sec_wave','brho_third_wave','voc_effect_third_wave','vacc_effect_third_wave'])
 summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-                                             'brho_sec_wave','brho_third_wave','voc_effect_third_wave'])
+                                             'brho_sec_wave','brho_third_wave','voc_effect_third_wave','vacc_effect_third_wave'])
 match_list_names = summary_df.index.to_list()
 
 # extract the names of the constrained parameters which are the ones we actually sample
@@ -589,10 +586,8 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png",dpi = 144)
 # Making a new figure that doesn't include the priors
 fig,ax = plt.subplots(figsize=(12,9))
 
-# small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 
-#                   'R_I', 'voc_effect_third_wave', 'vacc_effect_third_wave']
 small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 
-                  'R_I', 'voc_effect_third_wave']
+                  'R_I', 'voc_effect_third_wave', 'vacc_effect_third_wave']
 
 sns.violinplot(x='variable',y='value',
             data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -604,8 +599,7 @@ ax.set_yticks([0,2,3],minor=False)
 ax.set_yticklabels([0,2,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-# ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect', 'Vaccine effect'])
-ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect'])
+ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect', 'Vaccine effect'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('Effective reproduction number')
@@ -709,7 +703,7 @@ if df3X.shape[0]>0:
     ax4 = predict_plot(samples_mov_gamma,df.loc[(df.date>=third_start_date)&(df.date<=third_end_date)],gamma=True, moving=True,split=split,grocery=True,ban = ban,
                     R=RL_by_state, var= True, md_arg=md,
                     rho=third_states, third_phase=True,
-                    R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[third_start_date:third_end_date])#by states....
+                    R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[third_start_date:third_end_date],vaccination=vaccination_by_state)#by states....
     for ax in ax4:
         for a in ax:
             a.set_ylim((0,3))
@@ -723,9 +717,7 @@ if df3X.shape[0]>0:
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
-# var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
-#     'voc_effect_third_wave'] + ['vacc_effect_third_wave']
 var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
-    'voc_effect_third_wave']
+    'voc_effect_third_wave'] + ['vacc_effect_third_wave']
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')
