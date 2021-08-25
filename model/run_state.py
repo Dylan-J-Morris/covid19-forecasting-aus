@@ -133,7 +133,7 @@ if __name__ =="__main__":
     forecast_object.num_too_many = 0
 
     pool = mp.Pool(12)
-    with tqdm(total=n_sims, leave=False, smoothing=0, miniters=500) as pbar:
+    with tqdm(total=n_sims, leave=False, smoothing=0, miniters=1000) as pbar:
         for cases, obs_cases, param_dict in pool.imap_unordered(worker,
         [(forecast_object,'simulate',end_time,n,n) 
         for n in range(n_sims)] #n is the seed

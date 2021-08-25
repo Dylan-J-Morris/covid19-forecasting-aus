@@ -1,12 +1,17 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import nbinom, erlang, beta, binom, gamma, poisson, beta
+from scipy.stats import nbinom, erlang, beta, binom, gamma, poisson
 from math import floor
 import matplotlib.pyplot as plt
 import os
 from helper_functions import read_in_NNDSS, read_in_Reff_file
 from params import case_insertion_threshold
 
+from collections import deque
+from math import ceil
+import gc
+from numpy.random import random
+from itertools import cycle
 class Person:
     """
     Individuals in the forecast
@@ -100,7 +105,6 @@ class Forecast:
         simulate undetected cases in each category and their
         infectious times. Updates self.current for each person.
         """
-        from math import ceil
         if curr_time ==0:
             self.alpha_s = 1/(self.ps + self.gam*(1-self.ps))
             self.alpha_a = self.gam * self.alpha_s
@@ -210,16 +214,10 @@ class Forecast:
 
         self.Reff = Reff_lookupstate
 
-
     def generate_new_cases(self,parent_key, Reff,k,travel=False):
         """
         Generate offspring for each parent, check if they travel. The parent_key parameter lets us find the parent from the array self.people containing the objects from the branching process.
         """
-
-        from math import ceil
-        from numpy.random import random
-
-
         # Check parent category
         if self.people[parent_key].category=='S': # Symptomatic
             num_offspring = nbinom.rvs(n=k,p= 1- self.alpha_s*Reff/(self.alpha_s*Reff + k))
@@ -244,7 +242,7 @@ class Forecast:
             else:
                 num_offspring = nbinom.rvs(n=k, p = 1- self.alpha_i*Reff/(self.alpha_i*Reff + k))
 
-        if num_offspring >0:
+        if num_offspring > 0:
 
             num_sympcases = self.new_symp_cases(num_offspring)
             if self.people[parent_key].category=='A':
@@ -323,14 +321,10 @@ class Forecast:
                     #add person to tracked people
                     self.people[len(self.people)] = Person(parent_key, inf_time, detect_time,recovery_time, category)
 
-
     def simulate(self, end_time,sim,seed):
         """
         Simulate forward until end_time
         """
-        from collections import deque
-        from math import ceil
-        import gc
         np.random.seed(seed)
         self.num_of_sim = sim
 
@@ -416,16 +410,16 @@ class Forecast:
             day_end = self.people[self.infected_queue[0]].detection_time
             if day_end < self.forecast_date:
                 if self.inf_backcast_counter  > self.max_backcast_cases:
-                    print("Sim "+str(self.num_of_sim
-                    )+" in "+self.state+" has > "+str(self.max_backcast_cases)+" cases in backcast. Ending")
+                    # print("Sim "+str(self.num_of_sim
+                    # )+" in "+self.state+" has > "+str(self.max_backcast_cases)+" cases in backcast. Ending")
                     self.num_too_many+=1
                     self.bad_sim = True
                     break
                 elif self.inf_nowcast_counter  > self.max_nowcast_cases:
-                    print("Sim "+str(self.num_of_sim
-                    )+" in "+self.state+" has > "+str(
-                        self.max_nowcast_cases
-                        )+" cases in nowcast. Ending")
+                    # print("Sim "+str(self.num_of_sim
+                    # )+" in "+self.state+" has > "+str(
+                    #     self.max_nowcast_cases
+                    #     )+" cases in nowcast. Ending")
                     self.num_too_many+=1
                     self.bad_sim = True
                     break
@@ -440,8 +434,8 @@ class Forecast:
                     else:
                         self.cases_after +=1
 
-                    print("Sim "+str(self.num_of_sim
-                        )+" in "+self.state+" has >"+str(self.max_cases)+" cases in forecast period.")
+                    # print("Sim "+str(self.num_of_sim
+                    #     )+" in "+self.state+" has >"+str(self.max_cases)+" cases in forecast period.")
                     self.num_too_many+=1
                     break
 
@@ -449,7 +443,7 @@ class Forecast:
             ## stop if parent infection time greater than end time
             if self.people[self.infected_queue[0]].infection_time >end_time:
                 self.infected_queue.popleft()
-                print("queue had someone exceed end_time!!")
+                # print("queue had someone exceed end_time!!")
             else:
 
                 #take approproate Reff based on parent's infection time
@@ -527,7 +521,7 @@ class Forecast:
                         self.daycount = 0
 
                 if n_resim> 10:
-                    print("This sim reinitilaised %i times" % n_resim)
+                    # print("This sim reinitilaised %i times" % n_resim)
                     self.bad_sim = True
                     n_resim = 0
                     break
@@ -539,16 +533,16 @@ class Forecast:
                     #check for exceeding max_cases
                     if day_end <self.forecast_date:
                         if self.inf_backcast_counter > self.max_backcast_cases:
-                            print("Sim "+str(self.num_of_sim
-                            )+" in "+self.state+" has > "+str(self.max_backcast_cases)+" cases in backcast. Ending")
+                            # print("Sim "+str(self.num_of_sim
+                            # )+" in "+self.state+" has > "+str(self.max_backcast_cases)+" cases in backcast. Ending")
                             self.num_too_many+=1
                             self.bad_sim = True
                             break
                         elif self.inf_nowcast_counter  > self.max_nowcast_cases:
-                            print("Sim "+str(self.num_of_sim
-                            )+" in "+self.state+" has > "+str(
-                                self.max_nowcast_cases
-                                )+" cases in nowcast. Ending")
+                            # print("Sim "+str(self.num_of_sim
+                            # )+" in "+self.state+" has > "+str(
+                            #     self.max_nowcast_cases
+                            #     )+" cases in nowcast. Ending")
                             self.num_too_many+=1
                             self.bad_sim = True
                             break
@@ -558,8 +552,8 @@ class Forecast:
                             self.cases[ceil(day_inf):,2] = self.cases[ceil(day_inf)-2,2]
 
                             self.observed_cases[ceil(day_inf):,2] = self.observed_cases[ceil(day_inf)-2,2]
-                            print("Sim "+str(self.num_of_sim
-                                )+" in "+self.state+" has >"+str(self.max_cases)+" cases in forecast period.")
+                            # print("Sim "+str(self.num_of_sim
+                            #     )+" in "+self.state+" has >"+str(self.max_cases)+" cases in forecast period.")
                             self.num_too_many+=1
                             break
                     ## stop if parent infection time greater than end time
@@ -677,7 +671,6 @@ class Forecast:
 
         return df_results
 
-
     def data_check(self,day):
         """
         A metric to calculate how far the simulation is from the actual data
@@ -709,41 +702,6 @@ class Forecast:
         except KeyError:
             #print("No cases on day %i" % day)
             return False
-
-    # Deprecated as no long using ABC
-    # def get_metric(self,end_time,omega=0.2):
-    #     """
-    #     Calculate the value of the metric of the current sim compared to NNDSS data.
-    #     """
-
-    #     self.actual_array = np.array([self.actual[day]
-    #     #if day not in missed_dates else 0
-    #     for day in range(end_time) ])
-
-    #     #calculate case differences
-    #     #moving windows
-    #     sim_cases =self.observed_cases[
-    #         :len(self.actual_array),2] + \
-    #             self.observed_cases[:
-    #             len(self.actual_array),1] #include asymp cases.
-
-    #     #convolution with 1s should do cum sum
-    #     window = 7
-    #     sim_cases = np.convolve(sim_cases,
-    #         [1]*window,mode='valid')
-    #     actual_cum = np.convolve(self.actual_array,
-    #         [1]*window,mode='valid')
-    #     cases_diff = abs(sim_cases - actual_cum)
-
-    #     #if sum(cases_diff) <= omega * sum(self.actual_array):
-    #         #cumulative diff passes, calculate metric
-
-    #         #sum over days number of times within omega of actual
-    #     self.metric = sum(
-    #         np.square(cases_diff)#,np.maximum(omega* actual_cum,7)
-    #         )
-
-    #     self.metric = self.metric/(end_time-window) #max is end_time
 
     
     def read_in_cases(self):
@@ -777,9 +735,10 @@ class Forecast:
 
         df = df.set_index('date')
         #fill missing dates with 0 up to end_time
-        df = df.reindex(range(self.end_time), fill_value=0)
+        # not sure what the deal is here - removing it seemed to fix things
+        # df = df.reindex(range(self.end_time), fill_value=0)
         ## calculate window of cases to measure against
-        if df.index.values[-1] >60:
+        if df.index.values[-1] > 60:
             #if final day of data is later than day 90, then remove first 90 days
             forecast_days = self.end_time-self.forecast_date
             self.cases_to_subtract = sum(df.local.values[:-1*(60+forecast_days)])
@@ -789,7 +748,7 @@ class Forecast:
             self.cases_to_subtract_now = 0
         #self.imported_total = sum(df.imported.values)
         self.max_cases = max(500000,sum(df.local.values) + sum(df.imported.values))
-        self.max_backcast_cases = max(100,4*(sum(df.local.values) - self.cases_to_subtract))
+        self.max_backcast_cases = max(100,3*(sum(df.local.values) - self.cases_to_subtract))
 
         self.max_nowcast_cases = max(10, 1.5*(sum(df.local.values) - self.cases_to_subtract_now))
         print("Local cases in last 14 days is %i" % (sum(df.local.values) - self.cases_to_subtract_now) )
@@ -797,7 +756,6 @@ class Forecast:
         print('Max limits: ', self.max_cases, self.max_backcast_cases, self.max_nowcast_cases)
 
         self.actual = df.local.to_dict()
-
 
     def import_cases_model(self, df):
         """
@@ -845,12 +803,10 @@ class Forecast:
         self.inf_times =  np.random.gamma(i/j, j, size =size) #shape and scale
         self.detect_times = np.random.gamma(m/n,n, size = size)
 
-
     def iter_inf_time(self):
         """
         Helper function. Access Next inf_time.
         """
-        from itertools import cycle
         for time in cycle(self.inf_times):
             yield time
 
@@ -858,7 +814,6 @@ class Forecast:
         """
         Helper function. Access Next detect_time.
         """
-        from itertools import cycle
         for time in cycle(self.detect_times):
             yield time
 
