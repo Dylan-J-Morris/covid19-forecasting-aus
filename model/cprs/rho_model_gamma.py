@@ -128,6 +128,7 @@ transformed parameters {
         // define these within the scope of the loop only
         int pos;
         real vacc_effect_tot;
+        
         if (i==1){
             pos=1;
         }

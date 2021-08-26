@@ -211,7 +211,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                 # grab posterior sampled vaccination effects here and multiply by the daily efficacy
                 if vaccination is not None:
                     # transposing the vaccination sampled values so that it can be multiplied by the data
-                    vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave'].values, (df_state.shape[0],1)).T * vacc_sim
+                    vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave['+str(i)+']'].values, (df_state.shape[0],1)).T * vacc_sim
                     for ii in range(vacc_post_times_forecast.shape[0]):
                         if ii < df_state.loc[df_state.date<vaccination_start_date].shape[0]:
                             vacc_post_times_forecast[ii] = 1.0
