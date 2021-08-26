@@ -588,7 +588,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png",dpi = 144)
 fig,ax = plt.subplots(figsize=(12,9))
 
 small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 
-                  'R_I', 'voc_effect_third_wave', 'vacc_effect_third_wave']
+                  'R_I', 'voc_effect_third_wave']
 
 sns.violinplot(x='variable',y='value',
             data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -600,13 +600,35 @@ ax.set_yticks([0,2,3],minor=False)
 ax.set_yticklabels([0,2,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect', 'Vaccine effect'])
+ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('Effective reproduction number')
 ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
 plt.tight_layout()
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors).png",dpi = 288)
+
+######### making figure for vaccination reductions
+
+small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]']
+
+sns.violinplot(x='variable',y='value',
+            data=pd.melt(samples_mov_gamma[small_plot_cols]),
+            ax=ax,
+            cut=0)
+
+ax.set_yticks([1],minor=True,)
+ax.set_yticks([0,2,3],minor=False)
+ax.set_yticklabels([0,2,3],minor=False)
+ax.set_ylim((0,2))
+#state labels in alphabetical
+ax.set_xticklabels(['NSW', 'VIC'])
+ax.tick_params('x',rotation=90)
+ax.set_xlabel('')
+ax.set_ylabel('Adjustment factor')
+ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
+plt.tight_layout()
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_effect_priors.png",dpi = 288)
 
 
 posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]
