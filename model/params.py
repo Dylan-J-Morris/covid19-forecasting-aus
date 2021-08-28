@@ -1,9 +1,9 @@
 ########### Inference parameters
-testing_inference = True        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
+testing_inference = False        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
 
 if testing_inference:
     num_chains = 2
-    num_samples = 1000
+    num_samples = 2000
 else:
     num_chains = 4
     num_samples = 5000

@@ -73,7 +73,8 @@ parameters {
     real<lower=0> voc_effect_third_wave;
     real<lower=0> vacc_effect_third_wave_mean;
     real<lower=0> vacc_effect_third_wave_sig;
-    vector<lower=0>[j_third_wave] vacc_effect_third_wave;
+    // vector<lower=0>[N_third_wave] vacc_effect_third_wave[j_third_wave];     // array of arrays of each daily effect
+    vector<lower=0>[j_third_wave] vacc_effect_third_wave;     // array of adjustment factor for each third wave state
 
 }
 transformed parameters {
@@ -104,9 +105,9 @@ transformed parameters {
             pos =pos_starts_sec[i-1]+1;
             }
         for (n in 1:N_sec_wave){
-            if (include_in_sec_wave[i][n]==1){
+            if (include_in_sec_wave[i][n]==1){        
                 md_sec_wave[pos] = pow(1+theta_md ,-1*prop_md_sec_wave[pos]);
-                if (map_to_state_index_sec[i] == 5) {
+                if (map_to_state_index_sec[i] == 5) {       // include VIC separately
                     mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*(2*R_Li[
                     map_to_state_index_sec[i]
                     ])*(
@@ -139,31 +140,14 @@ transformed parameters {
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);
-                if (map_to_state_index_third[i] == 5) {
-                    
-                    // total vacc effect is the product of the estimated reduction and the inferred adjustment 
-                    // factor
-                    vacc_effect_tot = vaccine_effect_data[i][n] * vacc_effect_third_wave[i];
-                    if (vacc_effect_tot > 1.0){
-                        vacc_effect_tot = 1.0;
-                    }
-                    
-                    mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
-                        (1-brho_third_wave[pos])*(2*R_Li[map_to_state_index_third[i]])*(
-                            (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n]
-                        )*inv_logit(Mob_third_wave[i][n,:]*(bet)) * voc_effect_third_wave * vacc_effect_tot;
-                }
-                else {
-                    
-                    vacc_effect_tot = vaccine_effect_data[i][n] * vacc_effect_third_wave[i];
-                    if (vacc_effect_tot > 1.0){
-                        vacc_effect_tot = 1.0;
-                    }
-                    mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
-                        (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
-                            (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] 
-                        )*inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave * vacc_effect_tot;
-                }
+                
+                // take the minimum of 1.0 and the vaccine multiplication here
+                vacc_effect_tot = fmin(1.0, vaccine_effect_data[i][n]*vacc_effect_third_wave[i]);
+                
+                mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
+                    (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
+                        (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] 
+                    )*inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave * vacc_effect_tot;
                 pos += 1;
             }
         }
@@ -173,7 +157,6 @@ transformed parameters {
 model {
     int pos2;
 
-    // bet ~ normal(0,1);
     bet ~ normal(0,0.5);
     theta_md ~ lognormal(0,0.5);
 
@@ -181,8 +164,8 @@ model {
     voc_effect_third_wave ~ gamma(3.0*3.0/0.1, 3.0/0.1);
     
     // assume a hierarchical structure on the vaccine effect 
-    vacc_effect_third_wave_mean ~ normal(1.0, 0.05);       // mean of 1 but not too tight so it can move 
-    vacc_effect_third_wave_sig ~ exponential(50);           // variance of around 1/50 = 0.02
+    vacc_effect_third_wave_mean ~ normal(1.0, 0.01);       // mean of 1 but not too tight so it can move 
+    vacc_effect_third_wave_sig ~ exponential(30);           // variance of around 1/50 = 0.02
     vacc_effect_third_wave ~ normal(vacc_effect_third_wave_mean, vacc_effect_third_wave_sig);
 
     R_L ~ gamma(2.0*2.0/0.01,2.0/0.01); //hyper-prior

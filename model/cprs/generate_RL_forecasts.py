@@ -44,7 +44,7 @@ if apply_vacc_to_R_L_hats:
     vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
     third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
-    third_start_date = '2021-06-27'
+    third_start_date = '2021-06-04'
     # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
 
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
@@ -523,7 +523,7 @@ if apply_vacc_to_R_L_hats:
     vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
-    third_start_date = '2021-06-27'
+    third_start_date = '2021-06-04'
     third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
     # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
     # vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)] # Isolate fitting states
@@ -621,7 +621,7 @@ new_pol = '2020-06-01' #VIC and NSW allow gatherings of up to 20 people, other j
 expo_decay=True
 
 # start and end date for the third wave 
-third_start_date = '2021-06-27'
+third_start_date = '2021-06-04'
 third_end_date = third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
 
 typ_state_R={}
@@ -635,6 +635,13 @@ state_key = {
     'TAS':'4',
     'VIC':'5',
     'WA':'6',
+}
+
+# this key is just used so that the right vaccination multiplier gets used in the calculation
+vacc_state_key = {
+    'NSW':'1',
+    'QLD':'2',
+    'VIC':'3',
 }
 
 for typ in forecast_type:
@@ -659,9 +666,16 @@ for typ in forecast_type:
         #    md = (2*expit(-1*theta_md*prop_sim[:,np.newaxis]))
         
         if apply_vacc_to_R_L_hats:
-            # transposing the posterior vacc effect before we multiply it by the forecasted values
-            vacc_post = np.tile(samples['vacc_effect_third_wave'], (df_state.shape[0],mob_samples)).T * vacc_sim
-            
+            # only have fit the effect to NSW, QLD and VIC
+            if state in {'NSW', 'QLD', 'VIC'}:
+                # transposing the posterior vacc effect before we multiply it by the forecasted values
+                vacc_post = np.tile(samples['vacc_effect_third_wave['+vacc_state_key[state]+']'], (df_state.shape[0],mob_samples)).T * vacc_sim
+            else:
+                # if we don't fit to a state, for now we just use the data -- will want to sample from the hierarchical part 
+                # going forwards
+                vacc_post = np.tile([1.0]*samples['vacc_effect_third_wave[1]'].shape[0], (df_state.shape[0],mob_samples)).T * vacc_sim
+                
+            # last thing to do is modify the 
             for ii in range(vacc_post.shape[0]):
                 if ii < df_state.loc[df_state.date<vaccination_start_date].shape[0]:
                     vacc_post[ii] = 1.0

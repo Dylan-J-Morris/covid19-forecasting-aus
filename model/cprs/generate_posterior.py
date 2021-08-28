@@ -120,8 +120,8 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 ## Third wave inputs
-third_states=sorted(['NSW','VIC']) 
-third_start_date = '2021-06-27'
+third_states=sorted(['NSW','VIC','QLD']) 
+third_start_date = '2021-06-04'
 third_end_date = data_date - pd.Timedelta(days=truncation_days) # Subtract 10 days to avoid right truncation
 
 fit_mask = df.state.isin(states_to_fit)
@@ -160,7 +160,8 @@ sec_date_range = {
 #choose dates for each state for third wave
 third_date_range = {
     'NSW':pd.date_range(start=third_start_date,end=third_end_date).values,
-    'VIC':pd.date_range(start=third_start_date,end=third_end_date).values
+    'VIC':pd.date_range(start=third_start_date,end=third_end_date).values,
+    'QLD':pd.date_range(start=third_start_date,end=third_end_date).values
 }
 
 df2X['is_sec_wave'] =0
@@ -372,6 +373,8 @@ names = fit.constrained_param_names
 
 df_fit = fit.to_frame()
 
+df_fit.to_csv("results/raw_posterior_output.csv")
+
 for name in names:
     dot_pos = name.find('.')
     if dot_pos != -1:
@@ -427,7 +430,7 @@ for i in range(np.size(names)):
     name_updates.update({names[i]: updated_names[i]})
 
 df_fit_new = df_fit.rename(columns=name_updates)
-        
+
 # we save the df to csv so we have it
 df_fit_new.to_csv("results/samples_mov_gamma.csv")
 # reading it straight back in fixes the formatting issues that occur due to data manipulations
@@ -610,7 +613,10 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors
 
 ######### making figure for vaccination reductions
 
-small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]']
+# Making a new figure that doesn't include the priors
+fig,ax = plt.subplots(figsize=(12,9))
+
+small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]', 'vacc_effect_third_wave[3]']
 
 sns.violinplot(x='variable',y='value',
             data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -618,21 +624,20 @@ sns.violinplot(x='variable',y='value',
             cut=0)
 
 ax.set_yticks([1],minor=True,)
-ax.set_yticks([0,2,3],minor=False)
-ax.set_yticklabels([0,2,3],minor=False)
+ax.set_yticks([0,0.5,1,1.5,2],minor=False)
+ax.set_yticklabels([0,0.5,1,1.5,2],minor=False)
 ax.set_ylim((0,2))
 #state labels in alphabetical
-ax.set_xticklabels(['NSW', 'VIC'])
+ax.set_xticklabels(['NSW', 'QLD', 'VIC'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('Adjustment factor')
 ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
 plt.tight_layout()
-plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_effect_priors.png",dpi = 288)
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_effect_posteriors.png",dpi = 288)
 
 
-posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]
-                            ]
+posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
 
 split=True
 md = 'power'#samples_mov_gamma.md.values
@@ -741,6 +746,6 @@ if df3X.shape[0]>0:
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
 var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
-    'voc_effect_third_wave'] + ['vacc_effect_third_wave']
+    'voc_effect_third_wave'] + ['vacc_effect_third_wave['+str(i+1)+']' for i in range(len(third_states))]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')

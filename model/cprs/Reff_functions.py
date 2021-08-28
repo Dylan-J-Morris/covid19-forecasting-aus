@@ -210,8 +210,13 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
 
                 # grab posterior sampled vaccination effects here and multiply by the daily efficacy
                 if vaccination is not None:
-                    # transposing the vaccination sampled values so that it can be multiplied by the data
-                    vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave['+str(i)+']'].values, (df_state.shape[0],1)).T * vacc_sim
+                    # transposing the vaccination sampled values so that it can be multiplied by the data 
+                    # the str(i+1) is required because the state indexing starts at 0 I think 
+                    if state in {"QLD", "NSW", "VIC"}:
+                        vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave['+str(i+1)+']'].values, (df_state.shape[0],1)).T * vacc_sim
+                    else: 
+                        vacc_post_times_forecast = np.tile([1.0]*samples_sim['vacc_effect_third_wave['+str(1)+']'].shape[0], (df_state.shape[0],1)).T * vacc_sim
+                        
                     for ii in range(vacc_post_times_forecast.shape[0]):
                         if ii < df_state.loc[df_state.date<vaccination_start_date].shape[0]:
                             vacc_post_times_forecast[ii] = 1.0
