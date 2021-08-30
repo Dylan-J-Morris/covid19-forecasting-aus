@@ -45,6 +45,7 @@ Below is a breakdown of the pipeline from case line list data to producing forec
    ```
    python model/cprs/generate_posterior.py $DATADATE 
    ```
+   At this stage the stan model will be compiled and stored in a local folder `/build`. This means that we can repeatedly use the compiled model if there are any issues with convergence. 
 3. Forecasting Google mobility indices and microdistancing trends. Requires:
    * Google mobility indices
    * Micro-distancing surveys
@@ -83,7 +84,5 @@ Below is a breakdown of the pipeline from case line list data to producing forec
 
 ### Variant of Concern Changes
 The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. This increased model is enabled by passing the WHO name as a parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh`.
-
-
 ### Original Code
-Earlier versions of this code are available at [https://github.com/tobinsouth/covid19-forecasting-aus](https://github.com/tobinsouth/covid19-forecasting-aus) and [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repository. 
+Earlier versions of this code are available at [https://github.com/tobinsouth/covid19-forecasting-aus](https://github.com/tobinsouth/covid19-forecasting-aus) and [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repositories.  
