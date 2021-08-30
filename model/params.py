@@ -8,7 +8,8 @@ else:
     num_chains = 4
     num_samples = 5000
 
-########### Epidemic parameters
+
+########### Key parameters
 start_date = '2021-06-10' # Start date of forecast
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
@@ -18,17 +19,17 @@ num_forecast_days=35 # Number of days after data date to forecast (usually 35)
 # setting this to False lets us check that the soc_mob_R_L_hats look ok without the VoC effect applied
 # NEED to set to True in order to apply inferred VoC effect properly
 apply_voc_to_R_L_hats = True
-apply_vacc_to_R_L_hats = True      # turned off for now since it all seems broken
+apply_vacc_to_R_L_hats = True      
+
 
 ############ Optional parameters - require less frequent tuning 
 # alternative application of voc and vaccination effect -- not removed yet in case we need them -- should be left at False
 use_vaccine_effect = False
 use_voc_effect = False
 case_insertion_threshold = 5 # The ratio of true cases to simulation cases below which we insert cases into branching process
-download_google_automatically = False # Will download Google data automatically on run. Set to false for repeated runs.
+download_google_automatically = False           # Will download Google data automatically on run. Set to false for repeated runs.
 assume_local_cases_if_unknown = True
-# number of days to remove to stop right truncation 
-truncation_days = 10
+truncation_days = 14                            # number of days to remove to stop right truncation 
 
 
 ############# Simulation parameters

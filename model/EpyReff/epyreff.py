@@ -235,7 +235,7 @@ def Reff_from_case(cases_by_infection, lamb, prior_a=1, prior_b=5, tau=7, sample
     
     #Use array inputs to output to same size
     #inputs are T-tau by N, output will be T-tau by N
-    # 
+    
     return a,b, R
 
 def generate_summary(samples, dates_by='rows'):
@@ -312,7 +312,7 @@ def plot_Reff(Reff:dict, dates=None, ax_arg=None, truncate=None, **kwargs):
     
     return fig, ax
 
-def plot_all_states(R_summ_states,df_interim, dates,
+def plot_all_states(R_summ_states, df_interim, dates,
     start='2020-03-01',end='2020-08-01',save=True, date =None, tau = 7, 
     nowcast_truncation=-10):
     """

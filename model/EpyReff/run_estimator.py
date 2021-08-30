@@ -41,6 +41,8 @@ try:
     plot_time = argv[2]
 except:
     plot_time = False
+    
+plot_time = True
 # Read in the data
 
 ##read in case file data
@@ -127,8 +129,8 @@ if plot_time:
 df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv",index=False)
 
 #plot all the estimates
-fig,ax = plot_all_states(R_summary_states,df_interim, dates, 
-        start='2020-03-01',end=file_date,save=True,
-        tau=tau, date=date
+fig,ax = plot_all_states(R_summary_states, df_interim, dates, 
+        start='2020-03-01', end=file_date, save=True,
+        tau=tau, date=date, nowcast_truncation=-10
     )
 plt.close()

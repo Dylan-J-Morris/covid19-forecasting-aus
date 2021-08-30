@@ -96,6 +96,9 @@ df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
 df_Reff['local'] = df_Reff.local.fillna(0)
 df_Reff['imported'] = df_Reff.imported.fillna(0)
 
+# save the output of the merging to see what's happening with the shifts 
+df_Reff.to_csv("results/df_Reff.csv")
+
 
 ######### Read in Google mobility results #########
 import sys; sys.path.insert(0, '../'); 
@@ -282,10 +285,6 @@ if latest_vacc_data < pd.to_datetime(third_end_date):
 
 # Convert to simple array only useful to pass to stan
 vaccination_by_state_array = vaccination_by_state.to_numpy()
-
-############# mocking the vaccination data
-# for i in range(vaccination_by_state_array.shape[0]):
-#     vaccination_by_state_array[i] = [1.0] * vaccination_by_state_array[i].shape[0]
 
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
