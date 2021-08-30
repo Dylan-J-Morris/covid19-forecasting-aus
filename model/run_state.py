@@ -75,10 +75,6 @@ elif start_date == "2021-06-10":
     }
 else:
     print("Start date not implemented") 
-    
-
-def initialise_case_numbers():
-    read_in_NNDSS()
 
 
 ####### Create simulation.py object ########
