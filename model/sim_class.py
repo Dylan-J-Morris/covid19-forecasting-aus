@@ -735,8 +735,10 @@ class Forecast:
 
         df = df.set_index('date')
         #fill missing dates with 0 up to end_time
-        # not sure what the deal is here - removing it seemed to fix things
-        # df = df.reindex(range(self.end_time), fill_value=0)
+        # not sure what the deal is here -- removing it seemed to fix things -- might need to readdd it...
+        # df = df.reindex(range(self.start_date, self.end_time), fill_value=0)
+        # df.reset_index(drop=True, inplace=True)
+        
         ## calculate window of cases to measure against
         if df.index.values[-1] > 60:
             #if final day of data is later than day 90, then remove first 90 days

@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from epyreff import *
+from params import truncation_days      # this is not used in the estimation routine, it just lets the plot know what we ignore
 
 from sys import argv
 from scipy.stats import gamma
@@ -42,14 +43,13 @@ try:
 except:
     plot_time = False
     
-plot_time = True
 # Read in the data
 
 ##read in case file data
 print(dt_date.strftime("%d%b%Y"))
 df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
 
-##generate dataframe with id_vars date and state, variable SOURCE and number of cases
+## generate dataframe with id_vars date and state, variable SOURCE and number of cases
 df_linel = tidy_cases_lambda(df_interim)
 
 ##infer extra cases in last 10 days by the reporting delay distribution
@@ -71,8 +71,6 @@ lambda_dict = lambda_all_states(df_inc_zeros,
                                 shape_gen=shape_gen,scale_gen=scale_gen,offset=offset, 
                                 trunc_days=trunc_days)
 
-
-
 states = [*df_inc_zeros.index.get_level_values('STATE').unique()]
 R_summary_states={}
 dates = {}
@@ -90,7 +88,7 @@ for state in states:
     temp =pd.DataFrame.from_dict(R_summary_states[state])
     temp['INFECTION_DATES'] = dates[state]
     temp['STATE'] = state
-    #temp.index =pd.MultiIndex.from_product(([state], dates[state]))
+    #temp.index = pd.MultiIndex.from_product(([state], dates[state]))
     df = df.append(temp, ignore_index=True)
 
 #make folder to record files
@@ -131,6 +129,6 @@ df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv",index=False)
 #plot all the estimates
 fig,ax = plot_all_states(R_summary_states, df_interim, dates, 
         start='2020-03-01', end=file_date, save=True,
-        tau=tau, date=date, nowcast_truncation=-10
+        tau=tau, date=date, nowcast_truncation=-truncation_days
     )
 plt.close()

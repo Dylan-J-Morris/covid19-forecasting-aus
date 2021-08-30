@@ -31,7 +31,6 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
     interim_data = interim_data[~np.isnat(interim_data.date_inferred)]
     # interim_data = interim_data[~np.isnat(interim_data.NOTIFICATION_RECEIVE_DATE)]
     
-    
     #Filter out territories
     if(remove_territories):
         df_linel = interim_data[(interim_data['STATE']!='NT') & (interim_data['STATE']!='ACT')]
@@ -182,7 +181,6 @@ def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07,
     #renormalise the pdf
     disc_gamma = gamma_vals/sum(gamma_vals)
     
-    
     ws = disc_gamma[:trunc_days]
     #offset
     ws[offset:] = disc_gamma[:trunc_days-offset]
@@ -201,6 +199,7 @@ def lambda_all_states(df_infection, trunc_days=21, **kwargs):
     
     lambda_dict ={}
     for state in statelist:
+        # state = 'NSW'
         df_total_infections = df_infection.groupby(['STATE','INFECTION_DATE']).agg(sum)
         lambda_dict[state] = generate_lambda(
              df_total_infections.loc[state].values, trunc_days=trunc_days,
@@ -209,7 +208,7 @@ def lambda_all_states(df_infection, trunc_days=21, **kwargs):
     
     return lambda_dict
 
-def Reff_from_case(cases_by_infection, lamb, prior_a=1, prior_b=5, tau=7, samples=1000):
+def Reff_from_case(cases_by_infection, lamb, prior_a=1, prior_b=5, tau=7, samples=1000, trunc_days=21):
     """
     Using Cori at al. 2013, given case incidence by date of infection, and the force
     of infection \Lambda_t on day t, estimate the effective reproduction number at time
@@ -221,11 +220,17 @@ def Reff_from_case(cases_by_infection, lamb, prior_a=1, prior_b=5, tau=7, sample
     csum_incidence = np.cumsum(cases_by_infection, axis = 0)
     #remove first few incidences to align with size of lambda
     # Generation interval length 20
-    csum_incidence = csum_incidence[20:,:]
+    csum_incidence = csum_incidence[(trunc_days-1):,:]
     csum_lambda = np.cumsum(lamb, axis =0)
+    
+    # pd.DataFrame(csum_incidence).to_csv("results/csum_incidence.csv")
+    # pd.DataFrame(csum_lambda).to_csv("results/csum_lambda.csv")
     
     roll_sum_incidence = csum_incidence[tau:, :] - csum_incidence[:-tau, :]
     roll_sum_lambda = csum_lambda[tau:,:] - csum_lambda[:-tau,:]
+    
+    # pd.DataFrame(roll_sum_incidence).to_csv("results/roll_sum_incidence.csv")
+    # pd.DataFrame(roll_sum_lambda).to_csv("results/roll_sum_lambda.csv")
     a = prior_a + roll_sum_incidence
     b = 1/(1/prior_b + roll_sum_lambda)
     
@@ -236,7 +241,7 @@ def Reff_from_case(cases_by_infection, lamb, prior_a=1, prior_b=5, tau=7, sample
     #Use array inputs to output to same size
     #inputs are T-tau by N, output will be T-tau by N
     
-    return a,b, R
+    return a, b, R
 
 def generate_summary(samples, dates_by='rows'):
     """

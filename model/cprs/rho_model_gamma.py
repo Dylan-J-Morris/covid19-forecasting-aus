@@ -164,8 +164,8 @@ model {
     voc_effect_third_wave ~ gamma(3.0*3.0/0.1, 3.0/0.1);
     
     // assume a hierarchical structure on the vaccine effect 
-    vacc_effect_third_wave_mean ~ normal(1.0, 0.001);       // mean of 1 but not too tight so it can move 
-    vacc_effect_third_wave_sig ~ exponential(20);           // variance of around 1/50 = 0.02
+    vacc_effect_third_wave_mean ~ normal(1.0, 0.01);       // mean of 1 but not too tight so it can move 
+    vacc_effect_third_wave_sig ~ exponential(20);           // variance of around 1/20
     vacc_effect_third_wave ~ normal(vacc_effect_third_wave_mean, vacc_effect_third_wave_sig);
 
     R_L ~ gamma(2.0*2.0/0.01,2.0/0.01); //hyper-prior
