@@ -75,7 +75,6 @@ python model/collate_states.py ${NSIMS} ${DATADATE} $VOCFLAG "${SCENARIO}${SCENA
 ### Step 2.7
 Finally we record the csv to supply for the ensemble. 
 
-*Note*: the record to csv bit is still buggered and I am trying to fix it. 
 ```
 python model/record_to_csv.py ${NSIMS} ${DATADATE} $VOCFLAG "${SCENARIO}${SCENARIODATE}"
 ```
