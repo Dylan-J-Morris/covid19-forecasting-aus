@@ -5,7 +5,6 @@ from numpy.random import beta, gamma
 from tqdm import tqdm
 import multiprocessing as mp
 
-
 n_sims=int(argv[1]) #number of sims
 forecast_date = argv[2] # Date of forecast
 state = argv[3]
@@ -23,7 +22,6 @@ if len(argv) > 5: # Add an optional scenario flag to load in specific Reff scena
 from params import start_date, num_forecast_days # External parameters
 
 print("Simulating state " +state)
-
 
 # Get total number of simulation days
 end_date = pd.to_datetime(forecast_date,format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
@@ -67,7 +65,7 @@ elif start_date == "2020-12-01":
 elif start_date == "2021-06-10":
     current = { # based on locally acquired cases in the days preceding the start date
         'ACT': [0, 0, 0],
-        'NSW': [43, 0, 4], 
+        'NSW': [33, 0, 4], 
         'NT': [0, 0, 0],
         'QLD': [14, 0, 1],
         'SA': [0, 0, 0],
@@ -77,7 +75,10 @@ elif start_date == "2021-06-10":
     }
 else:
     print("Start date not implemented") 
+    
 
+def initialise_case_numbers():
+    read_in_NNDSS()
 
 
 ####### Create simulation.py object ########
@@ -169,11 +170,6 @@ if __name__ =="__main__":
         
     pool.close()
     pool.join()
-
-    
-
-
-    
 
     #convert arrays into df
     results = {
