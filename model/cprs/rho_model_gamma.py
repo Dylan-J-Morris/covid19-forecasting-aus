@@ -65,7 +65,6 @@ parameters {
     vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec_wave;
     vector<lower=0,upper=1>[total_N_p_third] prop_md_third_wave;
     matrix<lower=0,upper=1>[N,j] brho;                          // estimate of proportion of imported cases
-
     vector<lower=0,upper=1>[total_N_p_sec] brho_sec_wave;       // estimate of proportion of imported cases
     vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;   // estimate of proportion of imported cases
 
@@ -73,7 +72,7 @@ parameters {
     real<lower=0> voc_effect_third_wave;
     real<lower=0> vacc_effect_third_wave_mean;
     real<lower=0> vacc_effect_third_wave_sig;
-    // vector<lower=0>[N_third_wave] vacc_effect_third_wave[j_third_wave];     // array of arrays of each daily effect
+    // vector<lower=1/vaccine_effect_data[j_third_wave][1], upper=1/vaccine_effect_data[j_third_wave][N_third_wave]>[j_third_wave] vacc_effect_third_wave;     // array of adjustment factor for each third wave state
     vector<lower=0>[j_third_wave] vacc_effect_third_wave;     // array of adjustment factor for each third wave state
 
 }
@@ -139,10 +138,9 @@ transformed parameters {
             }
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
-                md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);
-                
-                // take the minimum of 1.0 and the vaccine multiplication here
-                vacc_effect_tot = fmin(1.0, vaccine_effect_data[i][n]*vacc_effect_third_wave[i]);
+                md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
+                // vacc_effect_tot = fmin(1.0, vaccine_effect_data[i][n]*vacc_effect_third_wave[i]);
+                vacc_effect_tot = vaccine_effect_data[i][n]*vacc_effect_third_wave[i];
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
                     (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
@@ -157,16 +155,17 @@ transformed parameters {
 model {
     int pos2;
 
-    bet ~ normal(0,0.5);
+    bet ~ normal(0,0.25);
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_effect_third_wave ~ gamma(3.0*3.0/0.1, 3.0/0.1);
+    voc_effect_third_wave ~ gamma(2.8*2.8/0.05, 2.8/0.05);
     
     // assume a hierarchical structure on the vaccine effect 
     vacc_effect_third_wave_mean ~ normal(1.0, 0.01);       // mean of 1 but not too tight so it can move 
-    vacc_effect_third_wave_sig ~ exponential(20);           // variance of around 1/20
-    vacc_effect_third_wave ~ normal(vacc_effect_third_wave_mean, vacc_effect_third_wave_sig);
+    vacc_effect_third_wave_sig ~ exponential(50);           // variance of around 1/20
+    vacc_effect_third_wave ~ gamma(vacc_effect_third_wave_mean*vacc_effect_third_wave_mean/vacc_effect_third_wave_sig, 
+                                   vacc_effect_third_wave_mean/vacc_effect_third_wave_sig);
 
     R_L ~ gamma(2.0*2.0/0.01,2.0/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);

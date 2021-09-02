@@ -17,9 +17,12 @@ import sys
 sys.path.insert(0, '../')
 
 # Define inputs
-from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vaccination_start_date, apply_vacc_to_R_L_hats
+from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date
 
-num_forecast_days = num_forecast_days+3 # Add 3 days buffer to mobility forecast
+# convert third start date to the correct format
+third_start_date = pd.to_datetime(third_start_date)
+
+num_forecast_days = num_forecast_days + 3 # Add 3 days buffer to mobility forecast
 data_date = pd.to_datetime(argv[1])
 print("Using data from", data_date)
 start_date = '2020-03-01'
@@ -43,8 +46,7 @@ if apply_vacc_to_R_L_hats:
     vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
-    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
-    third_start_date = '2021-06-04'
+    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
     # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
 
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
@@ -54,7 +56,7 @@ if apply_vacc_to_R_L_hats:
     if latest_vacc_data < pd.to_datetime(third_end_date):
         vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
 
-    # Convert to simple array for indexing by state initials 
+    # Convert to simple array for indexing 
     vaccination_by_state_array = vaccination_by_state.to_numpy()
 
 # Get survey data
@@ -118,7 +120,7 @@ if df_google.date.values[-1] < data_date:
     #check if google has dates up to now
     # df_google is sorted by date
     # if not add days to the forecast
-    n_forecast = num_forecast_days + (data_date- df_google.date.values[-1]).days
+    n_forecast = num_forecast_days + (data_date - df_google.date.values[-1]).days
 else:
     n_forecast = num_forecast_days
 
@@ -344,6 +346,10 @@ for i,state in enumerate(states):
 
         #get dates
         dd_vacc = [vaccination_by_state.loc[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_vacc+1)]
+        
+        pd.DataFrame(dd).to_csv("results/tmp/dd.csv")
+        pd.DataFrame(dd_md).to_csv("results/tmp/dd_md.csv")
+        pd.DataFrame(dd_vacc).to_csv("results/tmp/dd_vacc.csv")
 
     for j, var in enumerate(predictors+['md_prop']+['vaccination']):
         #Record data
@@ -408,12 +414,22 @@ for i,state in enumerate(states):
 
                 axs[rownum,colnum].plot(dd,sims_med[:,j],'k', lw=1)
                 axs[rownum,colnum].fill_between(dd, sims_q25[:,j], sims_q75[:,j], color='k',alpha = 0.1)
+                
+            # axs[rownum,colnum].axvline(dd[-num_forecast_days], ls = '--', color = 'black', lw=1)            # plotting a vertical line at the end of the data date
+            # axs[rownum,colnum].axvline(dd[-(num_forecast_days+truncation_days)], ls = '-.', color='grey', lw=1)            # plotting a vertical line at the forecast date
 
             axs[rownum,colnum].set_title(state)
-            axs[rownum,colnum].axhline(1,ls = '--', c = 'k', lw=1)
+            axs[rownum,colnum].axhline(1,ls = '--', c = 'k', lw=1)          # plotting horizontal line at 1
+            
             axs[rownum,colnum].set_title(state)
             axs[rownum,colnum].tick_params('x',rotation=90)
             axs[rownum,colnum].tick_params('both',labelsize=8)
+            
+            # plot the start date of the data and indicators of the data we are actually fitting to (in grey)
+            axs[rownum,colnum].axvline(data_date, ls = '-.', color = 'black', lw = 1)
+            axs[rownum,colnum].axvline(third_start_date, ls = '--', color = 'grey', lw = 1)
+            axs[rownum,colnum].axvline(data_date - timedelta(days=truncation_days), ls = '--', color = 'grey', lw = 1)
+            
             if j<len(predictors):
                 axs[rownum,colnum].set_ylabel(predictors[j].replace('_',' ')[:-5], fontsize=7)
             elif var == 'md_prop':
@@ -488,18 +504,6 @@ df_forecast_md_std = df_forecast_md_std.reindex([('std',state) for state in stat
 df_forecast_md.columns = states
 df_forecast_md_std.columns = states
 
-if apply_vacc_to_R_L_hats:
-    df_forecast_vaccination = pd.pivot_table(df_vaccination, columns=['state'],index=['date'],values=['mean'])
-    df_forecast_vaccination_std = pd.pivot_table(df_vaccination, columns=['state'],index=['date'],values=['std'])
-    df_forecast_vaccination = df_forecast_vaccination.reindex([('mean',state) for state in states],axis=1)
-    df_forecast_vaccination_std = df_forecast_vaccination_std.reindex([('std',state) for state in states],axis=1)
-    df_forecast_vaccination.columns = states
-    df_forecast_vaccination_std.columns = states
-    df_forecast_vaccination = df_forecast_vaccination.reset_index()
-    df_forecast_vaccination_std = df_forecast_vaccination_std.reset_index()
-    df_forecast_vaccination.date = pd.to_datetime(df_forecast_vaccination.date)
-    df_forecast_vaccination_std.date = pd.to_datetime(df_forecast_vaccination_std.date)
-
 df_forecast = df_forecast.reset_index()
 df_std = df_std.reset_index()
 
@@ -519,27 +523,29 @@ df_R['policy'] = (df_R.date>='2020-03-20').astype('int8')
 df_md = pd.concat([prop,df_forecast_md.set_index('date')])
 
 if apply_vacc_to_R_L_hats:
+    df_forecast_vaccination = pd.pivot_table(df_vaccination, columns=['state'],index=['date'],values=['mean'])
+    df_forecast_vaccination_std = pd.pivot_table(df_vaccination, columns=['state'],index=['date'],values=['std'])
+    df_forecast_vaccination = df_forecast_vaccination.reindex([('mean',state) for state in states],axis=1)
+    df_forecast_vaccination_std = df_forecast_vaccination_std.reindex([('std',state) for state in states],axis=1)
+    df_forecast_vaccination.columns = states
+    df_forecast_vaccination_std.columns = states
+    df_forecast_vaccination = df_forecast_vaccination.reset_index()
+    df_forecast_vaccination_std = df_forecast_vaccination_std.reset_index()
+    df_forecast_vaccination.date = pd.to_datetime(df_forecast_vaccination.date)
+    df_forecast_vaccination_std.date = pd.to_datetime(df_forecast_vaccination_std.date)
+
+if apply_vacc_to_R_L_hats:
     ############# now we read in the vaccine time series again...
     vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
-
-    third_start_date = '2021-06-04'
-    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=10)
-    # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
-    # vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)] # Isolate fitting states
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
-
-    # If we are missing recent vaccination data, fill it in with the most recent available data.
-    latest_vacc_data = vaccination_by_state.columns[-1]
-    if latest_vacc_data < pd.to_datetime(third_end_date):
-        vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
 
     # the above part only deals with data after the vaccination program begins -- we also need to account 
     # for a fixed effect of 1.0 before that
     start_date = '2020-03-01'
-    before_vacc_dates = pd.date_range(start_date, vaccination_by_state.columns[0]- timedelta(days=1), freq='d')
+    before_vacc_dates = pd.date_range(start_date, vaccination_by_state.columns[0] - timedelta(days=1), freq='d')
 
-    # this is just a df of ones with all the missing dates as indices
+    # this is just a df of ones with all the missing dates as indices (8 comes from 8 jurisdictions)
     before_vacc_Reff_reduction = pd.DataFrame(np.ones((8,len(before_vacc_dates))))
     before_vacc_Reff_reduction.columns = before_vacc_dates
     before_vacc_Reff_reduction.index = vaccination_by_state.index
@@ -559,6 +565,10 @@ expo_decay=True
 theta_md = np.tile(df_samples['theta_md'].values, (df_md['NSW'].shape[0],1))
 
 fig, ax = plt.subplots(figsize=(12,9), nrows=4,ncols=2,sharex=True, sharey=True)
+
+pd.DataFrame(df_out).to_csv("results/forecasting/mob.csv")
+pd.DataFrame(df_vaccination).to_csv("results/forecasting/vaccination.csv")
+pd.DataFrame(df_md).to_csv("results/forecasting/md.csv")
 
 for i,state in enumerate(plot_states):
     prop_sim= df_md[state].values#np.random.normal(df_md[state].values, df_md_std.values)
@@ -621,8 +631,7 @@ new_pol = '2020-06-01' #VIC and NSW allow gatherings of up to 20 people, other j
 expo_decay=True
 
 # start and end date for the third wave 
-third_start_date = '2021-06-04'
-third_end_date = third_end_date = data_date - pd.Timedelta(days=10) # Subtract 10 days to avoid right truncation
+third_end_date = data_date - pd.Timedelta(days=truncation_days) # Subtract 10 days to avoid right truncation
 
 typ_state_R={}
 mob_forecast_date = df_forecast.date.min()
@@ -647,6 +656,7 @@ vacc_state_key = {
 for typ in forecast_type:
     state_R={}
     for state in states:
+    # for state in {'NSW'}:
     #sort df_R by date so that rows are dates
 
         #rows are dates, columns are predictors
@@ -661,24 +671,36 @@ for typ in forecast_type:
         #take right size of md to be N by N
         theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0],mob_samples))
         if expo_decay:
-            md = ((1+theta_md).T**(-1* prop_sim)).T
+            md = ((1+theta_md).T**(-1*prop_sim)).T
         #else:
         #    md = (2*expit(-1*theta_md*prop_sim[:,np.newaxis]))
         
         if apply_vacc_to_R_L_hats:
             # only have fit the effect to NSW, QLD and VIC
-            if state in {'NSW', 'QLD', 'VIC'}:
-                # transposing the posterior vacc effect before we multiply it by the forecasted values
-                vacc_post = np.tile(samples['vacc_effect_third_wave['+vacc_state_key[state]+']'], (df_state.shape[0],mob_samples)).T * vacc_sim
+            # if state in {'NSW', 'QLD', 'VIC'}:
+            
+            if state in {'NSW', 'VIC', 'QLD'}:
+                # first we tile the vaccine data to get an array of size (T, mob_samples) (hence the transposing)
+                vacc_data_full = np.tile(vacc_sim, (mob_samples**2,1)).T
+                # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
+                vacc_post = np.tile(samples['vacc_effect_third_wave['+vacc_state_key[state]+']'], (df_state.shape[0],mob_samples))
+
+                vacc_post = vacc_data_full * vacc_post
+                
             else:
                 # if we don't fit to a state, for now we just use the data -- will want to sample from the hierarchical part 
-                # going forwards
-                vacc_post = np.tile([1.0]*samples['vacc_effect_third_wave[1]'].shape[0], (df_state.shape[0],mob_samples)).T * vacc_sim
+                # going forwards -- this just multiplies the vacc_sim data by 1.
+                vacc_data_full = np.tile(vacc_sim, (mob_samples**2,1)).T
+                vacc_post = np.tile([1.0], (df_state.shape[0],mob_samples**2))
+                vacc_post = vacc_data_full * vacc_post
                 
-            # last thing to do is modify the 
+            # last thing to do is modify the vacc_post values before the start of vaccination 
             for ii in range(vacc_post.shape[0]):
                 if ii < df_state.loc[df_state.date<vaccination_start_date].shape[0]:
                     vacc_post[ii] = 1.0
+                    
+            if state == "NSW" and typ == "R_L":
+                pd.DataFrame(vacc_post).to_csv("results/tmp/vacc.csv")
 
         for n in range(mob_samples):
             #add gaussian noise to predictors before forecast
@@ -695,25 +717,16 @@ for typ in forecast_type:
             #   df_state.date>=mob_forecast_date,predictors]/100 + np.random.normal(
             #   loc= 0, scale = df_std.loc[(df_std.state==state,predictors)].values/100)
 
-
             #dd = df_state.date
-
-            df1 =df_state.loc[df_state.date<=ban]
-            X1 = df1[predictors] #N by K
 
             #sample the right R_L
             if state in ("ACT","NT","TAS"):
                 sim_R = np.tile(samples.R_L.values, (df_state.shape[0],mob_samples))
             else:
-                #if state =='VIC':
-                #    sim_R = np.tile(
-                #        samples['R_Li['+state_key[state]+']'].values + samples['R_temp'].values,
-                #         (df_state.shape[0],mob_samples)
-                #         )
-                #else:
                 sim_R = np.tile(samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0],mob_samples))
-
-
+                
+            df1 = df_state.loc[df_state.date<=ban]
+            X1 = df1[predictors] #N by K
             #set initial pre ban values of md to 1
             md[:X1.shape[0],:] = 1
 
@@ -721,7 +734,7 @@ for typ in forecast_type:
                 #initialise arrays (loggodds)
                 logodds = X1 @ post_values # N by K times (Nsamples by K )^T = Ndate by Nsamples
 
-                if typ =='R_L':
+                if typ == 'R_L':
                     df2 = df_state.loc[(df_state.date>ban) & (df_state.date<new_pol)]
                     df3 = df_state.loc[df_state.date>=new_pol]
                     X2 = df2[predictors]
@@ -782,6 +795,7 @@ for typ in forecast_type:
                     logodds_sample = np.append(logodds_sample, logodds3, axis=0)
 
                 elif typ=='R_L0':
+                    
                     df2 = df_state.loc[(df_state.date>ban) & (df_state.date<new_pol)]
                     df3 = df_state.loc[df_state.date>=new_pol]
                     X2 = df2[predictors]
@@ -799,7 +813,6 @@ for typ in forecast_type:
                     logodds_sample = np.append(logodds1, logodds2, axis=0)
                     logodds_sample = np.append(logodds_sample, logodds3, axis=0)
 
-
                 else:
                     #forecast as before, no changes to md
                     df2 = df_state.loc[df_state.date>ban]
@@ -812,10 +825,13 @@ for typ in forecast_type:
                 ##concatenate to previous
                 logodds = np.concatenate((logodds, logodds_sample ), axis =1)
 
-
-        # calculate the forecasted R_L values
+        if state == "NSW" and typ == "R_L":
+            pd.DataFrame(md).to_csv("results/tmp/md.csv")
+            pd.DataFrame(sim_R).to_csv("results/tmp/sim_R.csv")
+            pd.DataFrame(logodds).to_csv("results/tmp/logodds.csv")
+        
         if apply_vacc_to_R_L_hats:
-            R_L = 2 * md * sim_R * expit( logodds ) * vacc_post.T
+            R_L = 2 * md * sim_R * expit( logodds ) * vacc_post
         else: 
             R_L = 2 * md * sim_R * expit( logodds )
         
@@ -830,12 +846,15 @@ for typ in forecast_type:
                     voc_multiplier[ii] = 1.0
 
             R_L *= voc_multiplier
-
+            
+        if state == "NSW" and typ == "R_L":
+            pd.DataFrame(voc_multiplier).to_csv("results/tmp/voc.csv")
+        
+        R_L_med = np.median(R_L,axis=1)
         R_L_lower = np.percentile(R_L,25,axis=1)
         R_L_upper = np.percentile(R_L,75,axis=1)
         R_L_bottom = np.percentile(R_L,5,axis=1)
         R_L_top = np.percentile(R_L,95,axis=1)
-        R_L_med = np.median(R_L,axis=1)
 
         #R_L
         state_Rs['state'].extend([state]*df_state.shape[0])
@@ -927,12 +946,12 @@ for i,state in enumerate(plot_states):
     ax[row,col].yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
     ax[row,col].set_ylim((0,3))
 
-    ax[row,col].set_xticks([plot_df.date.values[-n_forecast]],minor=True,)
+    ax[row,col].set_xticks([plot_df.date.values[-n_forecast]],minor=True)
     ax[row,col].xaxis.grid(which='minor', linestyle='-.',color='grey', linewidth=1)
 #fig.autofmt_xdate()
 fig.text(
     0.03,0.5,
-    'Effective \nreproduction number',
+    'Transmission potential',
     va='center',ha='center',
     rotation='vertical',
     fontsize=20
@@ -957,5 +976,5 @@ df_Rhats = df_Rhats[['state','date','type','median',
 df_hdf = df_Rhats.loc[df_Rhats.type=='R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_I')&(df_Rhats.date=='2020-03-01')])
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_L0')&(df_Rhats.date=='2020-03-01')])
-#df_Rhats.to_csv('./soc_mob_R'+today+'.csv')
+df_Rhats.to_csv('./soc_mob_R'+today+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+scenario+scenario_date+'.h5',key='Reff')

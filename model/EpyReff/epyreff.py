@@ -373,7 +373,7 @@ def plot_all_states(R_summ_states, df_interim, dates,
         #plot formatting
         ax[row,col].set_title(state)
         ax[row,col].set_ylim((0,4))
-        ax[row,col].set_xlim((pd.to_datetime(start),pd.to_datetime(end)))
+        ax[row,col].set_xlim((pd.to_datetime(start), pd.to_datetime(end)))
         
         #plot cases behind
         ax2 = ax[row,col].twinx()

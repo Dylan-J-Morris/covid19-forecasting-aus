@@ -172,11 +172,6 @@ data_date = pd.to_datetime(data_date,format="%Y-%m-%d")
 end_date = data_date + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date,format="%Y-%m-%d")).days
 
-
-
-
-
-
 #check if any dates are incorrect
 try:
     num_bad_dates = df_cases_state_time.loc[

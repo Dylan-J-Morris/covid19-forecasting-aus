@@ -106,7 +106,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                 md[:logodds.shape[0]] = np.ones(size=logodds.shape[0])
                 
                 #make logodds by appending post ban values
-                logodds = np.append(logodds, X2@ post_values, axis=0)
+                logodds = np.append(logodds, X2 @ post_values, axis=0)
             
         else:
             X1 = df_state[value_vars]/100
@@ -206,17 +206,20 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                     md[:logodds.shape[0],:] = 1
 
                     #make logodds by appending post ban values
-                    logodds = np.append(logodds, X2@ post_values, axis=0)
+                    logodds = np.append(logodds, X2 @ post_values, axis=0)
 
                 # grab posterior sampled vaccination effects here and multiply by the daily efficacy
                 if vaccination is not None:
                     # transposing the vaccination sampled values so that it can be multiplied by the data 
-                    # the str(i+1) is required because the state indexing starts at 0 I think 
+                    # the str(i+1) is required because the state indexing starts at 0
                     if state in {"QLD", "NSW", "VIC"}:
+                    # if state in {"NSW", "VIC"}:
                         vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave['+str(i+1)+']'].values, (df_state.shape[0],1)).T * vacc_sim
                     else: 
-                        vacc_post_times_forecast = np.tile([1.0]*samples_sim['vacc_effect_third_wave['+str(1)+']'].shape[0], (df_state.shape[0],1)).T * vacc_sim
+                        vacc_post_times_forecast =  np.tile([1.0]*samples_sim['vacc_effect_third_wave['+str(1)+']'].shape[0], (df_state.shape[0],1)).T * vacc_sim
                         
+                    # this just makes sure to set vaccination effect before the vaccination program to 1 -- should not be 
+                    # required but is consistent with other parts of codebase
                     for ii in range(vacc_post_times_forecast.shape[0]):
                         if ii < df_state.loc[df_state.date<vaccination_start_date].shape[0]:
                             vacc_post_times_forecast[ii] = 1.0
@@ -242,6 +245,12 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                         sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0],1))
                 else:
                     sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0],1))
+
+                if states_initials[state] == "NSW" and third_phase:
+                    pd.DataFrame(md).to_csv("results/third_wave_fit/md.csv")   
+                    pd.DataFrame(sim_R).to_csv("results/third_wave_fit/sim_R.csv")   
+                    pd.DataFrame(expit(logodds)).to_csv("results/third_wave_fit/exp_logodds.csv")   
+                    pd.DataFrame(vacc_post_times_forecast).to_csv("results/third_wave_fit/vacc_post_times_forecast.csv")   
 
                 if vaccination is not None:
                     mu_hat = 2 * md*sim_R* expit(logodds) * vacc_post_times_forecast.T
@@ -291,6 +300,9 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                             voc_multiplier[ii] = 1.0
                                     # now modify the mu_hat
                                     mu_hat *= voc_multiplier
+                                    
+                                if states_initials[state] == "NSW" and third_phase:
+                                    pd.DataFrame(voc_multiplier).to_csv("results/third_wave_fit/voc.csv")
 
                                 pos = pos + df.loc[df.state==states_initials[state]].is_third_wave.sum()
 

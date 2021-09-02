@@ -1,5 +1,3 @@
-// Stan model for the hierarchical fitting of the Reff to the EpyReff estimates. 
-
 data {
     // data for the initial wave 
     int N;                                                      // data length num days
@@ -85,6 +83,9 @@ transformed parameters {
     matrix<lower=0>[N,j] md;                                    // micro distancing
     vector<lower=0>[total_N_p_sec] md_sec_wave;
     vector<lower=0>[total_N_p_third] md_third_wave;
+    
+    // new array for the adjustment factor which lets us constrain the parameter
+    vector<lower=0,upper=1>[total_N_p_third] total_vacc_effect_third_wave;
 
     for (i in 1:j) {
         for (n in 1:N){
@@ -129,7 +130,7 @@ transformed parameters {
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
         int pos;
-        real vacc_effect_tot;
+        // real vacc_effect_tot;
         
         if (i==1){
             pos=1;
@@ -143,13 +144,21 @@ transformed parameters {
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);
                 
                 // take the minimum of 1.0 and the vaccine multiplication here
-                vacc_effect_tot = min([1.0, vaccine_effect_data[i][n]*vacc_effect_third_wave[i]]);
-                // vacc_effect_tot = vaccine_effect_data[i][n] * vacc_effect_third_wave[i];
+                // vacc_effect_tot = fmin(1.0, vaccine_effect_data[i][n]*vacc_effect_third_wave[i]);
+                // vacc_effect_tot = vaccine_effect_data[i][n]*vacc_effect_third_wave[i];
+                // now we determine the effect for each day of the third wave
+                total_vacc_effect_third_wave[pos] = vaccine_effect_data[i][n]*vacc_effect_third_wave[i];
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
                     (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
                         (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] 
-                    )*inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave * vacc_effect_tot;
+                    )*inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave*total_vacc_effect_third_wave[pos];
+                
+                
+                // mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
+                //     (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
+                //         (1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n] 
+                //     )*inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave * vacc_effect_tot;
                 pos += 1;
             }
         }
@@ -159,17 +168,17 @@ transformed parameters {
 model {
     int pos2;
 
-    // bet ~ normal(0,1);
     bet ~ normal(0,0.5);
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_effect_third_wave ~ gamma(3.0*3.0/0.1, 3.0/0.1);
+    voc_effect_third_wave ~ gamma(3.0*3.0/0.05, 3.0/0.05);
     
     // assume a hierarchical structure on the vaccine effect 
-    vacc_effect_third_wave_mean ~ normal(1.0, 0.01);       // mean of 1 but not too tight so it can move 
-    vacc_effect_third_wave_sig ~ exponential(20);           // variance of around 1/50 = 0.02
-    vacc_effect_third_wave ~ normal(vacc_effect_third_wave_mean, vacc_effect_third_wave_sig);
+    // vacc_effect_third_wave_mean ~ normal(1.0, 0.05);       // mean of 1 but not too tight so it can move 
+    // vacc_effect_third_wave_sig ~ exponential(30);           // variance of around 1/20
+    // vacc_effect_third_wave ~ gamma(vacc_effect_third_wave_mean*vacc_effect_third_wave_mean/vacc_effect_third_wave_sig, 
+    //                                vacc_effect_third_wave_mean/vacc_effect_third_wave_sig);
 
     R_L ~ gamma(2.0*2.0/0.01,2.0/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
@@ -212,6 +221,7 @@ model {
             }
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
+                total_vacc_effect_third_wave[pos2] ~ normal(vaccine_effect_data[i][n], 0.1) T[0,1];
                 prop_md_third_wave[pos2] ~ beta(1 + count_md_third_wave[i][n], 1+ respond_md_third_wave[i][n] - count_md_third_wave[i][n]);
                 brho_third_wave[pos2] ~ beta( 1+ imported_third_wave[n,i], 1+ local_third_wave[n,i]); //ratio imported/ (imported + local)
                 mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), Reff_third_wave[n,i]/sigma2_third_wave[n,i]);

@@ -5,6 +5,7 @@
 print('Running EpyReff on NNDSS data')
 
 import matplotlib
+from pandas._libs.tslibs.timedeltas import Timedelta
 matplotlib.use('Agg')
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -127,8 +128,11 @@ if plot_time:
 df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv",index=False)
 
 #plot all the estimates
+file_date_updated = dt_date
+file_date_updated = file_date_updated.strftime("%Y-%m-%d")
+
 fig,ax = plot_all_states(R_summary_states, df_interim, dates, 
-        start='2020-03-01', end=file_date, save=True,
+        start='2020-03-01', end=file_date_updated, save=True,
         tau=tau, date=date, nowcast_truncation=-truncation_days
     )
 plt.close()

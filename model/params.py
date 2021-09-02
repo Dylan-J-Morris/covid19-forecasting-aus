@@ -1,16 +1,19 @@
 ########### Inference parameters
-testing_inference = False        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
+testing_inference = True        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
 
 if testing_inference:
-    num_chains = 2
-    num_samples = 2000
+    num_chains = 4
+    num_samples = 1000
 else:
     num_chains = 4
     num_samples = 5000
+    
+run_inference = True
 
 
 ########### Key parameters
-start_date = '2021-06-10' # Start date of forecast
+third_start_date = '2021-06-16'
+start_date = '2021-06-01' # Start date of forecast
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
 vaccination_start_date = '2021-02-22'
@@ -29,7 +32,11 @@ use_voc_effect = False
 case_insertion_threshold = 5 # The ratio of true cases to simulation cases below which we insert cases into branching process
 download_google_automatically = False           # Will download Google data automatically on run. Set to false for repeated runs.
 assume_local_cases_if_unknown = True
-truncation_days = 16                            # number of days to remove to stop right truncation 
+# number of days to remove to stop the issues with the right-truncation 
+# we have 6 days here cause this is the average amount of the incubation period
+# the other 10 come from standard censoring as we are inferring the infection dates
+# based on time distributions 
+truncation_days = 16                   
 
 
 ############# Simulation parameters

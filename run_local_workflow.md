@@ -23,7 +23,7 @@ NSIMS=1000             # Total number of simulations to run should be > 5000
 VOCFLAG='Delta'
 SCENARIO='no_reversion'
 # set date of scenario. Does not matter for no-reversion and is just used to name files. 
-SCENARIODATE='2021-09-01'       
+SCENARIODATE='2021-08-30'       
 ```
 
 ## 2. Running the Python code

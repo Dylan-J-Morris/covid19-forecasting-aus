@@ -15,7 +15,7 @@ from Reff_constants import *
 # arviz allows for analysis of the posterior samples from 
 
 # import any useful bits and pieces from the params file
-from params import apply_vacc_to_R_L_hats, truncation_days
+from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, third_start_date
 # stan 
 import arviz as az
 
@@ -97,8 +97,7 @@ df_Reff['local'] = df_Reff.local.fillna(0)
 df_Reff['imported'] = df_Reff.imported.fillna(0)
 
 # save the output of the merging to see what's happening with the shifts 
-df_Reff.to_csv("results/df_Reff.csv")
-
+# df_Reff.to_csv("results/df_Reff.csv")
 
 ######### Read in Google mobility results #########
 import sys; sys.path.insert(0, '../'); 
@@ -123,8 +122,8 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 ## Third wave inputs
+# third_states=sorted(['NSW','VIC','QLD']) 
 third_states=sorted(['NSW','VIC','QLD']) 
-third_start_date = '2021-06-04'
 third_end_date = data_date - pd.Timedelta(days=truncation_days) # Subtract 10 days to avoid right truncation
 
 fit_mask = df.state.isin(states_to_fit)
@@ -161,10 +160,15 @@ sec_date_range = {
 }
 
 #choose dates for each state for third wave
+# third_date_range = {
+#     'NSW':pd.date_range(start='2021-06-18',end=third_end_date).values,
+#     'VIC':pd.date_range(start='2021-07-01',end=third_end_date).values,
+#     'QLD':pd.date_range(start='2021-07-01',end=third_end_date).values
+# }
 third_date_range = {
     'NSW':pd.date_range(start=third_start_date,end=third_end_date).values,
-    'VIC':pd.date_range(start=third_start_date,end=third_end_date).values,
-    'QLD':pd.date_range(start=third_start_date,end=third_end_date).values
+    'QLD':pd.date_range(start=third_start_date,end=third_end_date).values,
+    'VIC':pd.date_range(start=third_start_date,end=third_end_date).values
 }
 
 df2X['is_sec_wave'] =0
@@ -280,6 +284,8 @@ vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date',
 
 # If we are missing recent vaccination data, fill it in with the most recent available data.
 latest_vacc_data = vaccination_by_state.columns[-1]
+print("Latest date in vaccine data is {}".format(latest_vacc_data))
+
 if latest_vacc_data < pd.to_datetime(third_end_date):
     vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
 
@@ -339,99 +345,101 @@ input_data = {
     'vaccine_effect_data': vaccination_by_state_array                               # the vaccination data 
 }
 
-# importing the stan model as a string
-from rho_model_gamma import rho_model_gamma_string
-
-# compile the stan model 
-posterior = stan.build(rho_model_gamma_string, data=input_data)
-
-# sample from the model  
-from params import num_chains, num_samples
-fit = posterior.sample(num_chains=num_chains, num_samples=num_samples)
-
-######## Plotting & Saving Output #########
-
 #make results dir
 results_dir ="figs/soc_mob_posterior/"
 os.makedirs(results_dir,exist_ok=True)
 
-filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
-with open(results_dir+filename, 'w') as f:
-    print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave','vacc_effect_third_wave']), file=f)
-    # print(arviz.summary(fit, var_names = ['brho']), file=f)
+if run_inference:
+    # importing the stan model as a string
+    from rho_model_gamma import rho_model_gamma_string
 
-######### now a hacky fix to put the data in the same format as before -- might break stuff in the future
-# create extended summary of parameters to index the samples by
+    # compile the stan model 
+    posterior = stan.build(rho_model_gamma_string, data=input_data)
 
-summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-                                             'brho_sec_wave','brho_third_wave','voc_effect_third_wave','vacc_effect_third_wave'])
-match_list_names = summary_df.index.to_list()
+    # sample from the model  
+    from params import num_chains, num_samples
+    fit = posterior.sample(num_chains=num_chains, num_samples=num_samples)
 
-# extract the names of the constrained parameters which are the ones we actually sample
-names = fit.constrained_param_names
+    ######## Plotting & Saving Output #########
 
-df_fit = fit.to_frame()
+    filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
+    with open(results_dir+filename, 'w') as f:
+        print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave','vacc_effect_third_wave']), file=f)
+        # print(arviz.summary(fit, var_names = ['brho']), file=f)
 
-df_fit.to_csv("results/raw_posterior_output.csv")
+    ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future
+    # create extended summary of parameters to index the samples by
 
-for name in names:
-    dot_pos = name.find('.')
-    if dot_pos != -1:
-        var_name = name[:dot_pos]
-        num_name = name[(dot_pos+1):]
-        dot_pos2 = num_name.find('.')
-        if dot_pos2 != -1:
-            num_name1 = int(num_name[:dot_pos2]) - 1
-            num_name2 = int(num_name[(dot_pos2+1):]) - 1
-            updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
+    summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
+                                                'brho_sec_wave','brho_third_wave','voc_effect_third_wave','vacc_effect_third_wave'])
+    match_list_names = summary_df.index.to_list()
+
+    # extract the names of the constrained parameters which are the ones we actually sample
+    names = fit.constrained_param_names
+
+    df_fit = fit.to_frame()
+
+    df_fit.to_csv("results/raw_posterior_output.csv")
+
+    for name in names:
+        dot_pos = name.find('.')
+        if dot_pos != -1:
+            var_name = name[:dot_pos]
+            num_name = name[(dot_pos+1):]
+            dot_pos2 = num_name.find('.')
+            if dot_pos2 != -1:
+                num_name1 = int(num_name[:dot_pos2]) - 1
+                num_name2 = int(num_name[(dot_pos2+1):]) - 1
+                updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
+            else:
+                num_name = int(num_name) - 1
+                updated_name = var_name + '[' + str(num_name) + ']'
+                
         else:
-            num_name = int(num_name) - 1
-            updated_name = var_name + '[' + str(num_name) + ']'
+            updated_name = name
             
-    else:
-        updated_name = name
+        df_fit = df_fit.rename(columns={name: updated_name})
+
+    # produces dataframe with variables matching those needed
+    df_fit = df_fit.loc[:, match_list_names]
+
+    names = df_fit.columns
+
+    updated_names = []
+
+    # now we need to rename one more time because the naming convention is so dumb
+    for name in names:
+        bracket1_pos = name.find('[') 
+        bracket2_pos = name.find(']')
+        if bracket1_pos != -1:
+            var_name = name[:bracket1_pos]
+            # now we check whether the thing we are indexing is a matrix and if so we want to increase 
+            # the labels by 1. this is just because python's indexing starts at 0 but the labelling used
+            # is 1, 2, ...
+            comma_pos = name.find(',')
+            if comma_pos != -1:
+                num_name1 = int(name[(bracket1_pos+1):comma_pos]) + 1
+                num_name2 = int(name[(comma_pos+1):(bracket2_pos)]) + 1
+                updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
+            else: 
+                num_name = int(name[(bracket1_pos+1):bracket2_pos]) + 1
+                updated_name = var_name + '[' + str(num_name) + ']'
+        else:
+            updated_name = name
+            
+        updated_names.append(updated_name)  
         
-    df_fit = df_fit.rename(columns={name: updated_name})
+    names = names.to_list()
+    name_updates = {}
 
-# produces dataframe with variables matching those needed
-df_fit = df_fit.loc[:, match_list_names]
+    for i in range(np.size(names)):
+        name_updates.update({names[i]: updated_names[i]})
 
-names = df_fit.columns
+    df_fit_new = df_fit.rename(columns=name_updates)
 
-updated_names = []
-
-# now we need to rename one more time because the naming convention is so dumb
-for name in names:
-    bracket1_pos = name.find('[') 
-    bracket2_pos = name.find(']')
-    if bracket1_pos != -1:
-        var_name = name[:bracket1_pos]
-        # now we check whether the thing we are indexing is a matrix and if so we want to increase 
-        # the labels by 1. this is just because python's indexing starts at 0 but the labelling used
-        # is 1, 2, ...
-        comma_pos = name.find(',')
-        if comma_pos != -1:
-            num_name1 = int(name[(bracket1_pos+1):comma_pos]) + 1
-            num_name2 = int(name[(comma_pos+1):(bracket2_pos)]) + 1
-            updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
-        else: 
-            num_name = int(name[(bracket1_pos+1):bracket2_pos]) + 1
-            updated_name = var_name + '[' + str(num_name) + ']'
-    else:
-        updated_name = name
-        
-    updated_names.append(updated_name)  
+    # we save the df to csv so we have it
+    df_fit_new.to_csv("results/samples_mov_gamma.csv")
     
-names = names.to_list()
-name_updates = {}
-
-for i in range(np.size(names)):
-    name_updates.update({names[i]: updated_names[i]})
-
-df_fit_new = df_fit.rename(columns=name_updates)
-
-# we save the df to csv so we have it
-df_fit_new.to_csv("results/samples_mov_gamma.csv")
 # reading it straight back in fixes the formatting issues that occur due to data manipulations
 samples_mov_gamma = pd.read_csv("results/samples_mov_gamma.csv")
 
@@ -616,6 +624,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors
 fig,ax = plt.subplots(figsize=(12,9))
 
 small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]', 'vacc_effect_third_wave[3]']
+# small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]']
 
 sns.violinplot(x='variable',y='value',
             data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -628,13 +637,13 @@ ax.set_yticklabels([0,0.5,1,1.5,2],minor=False)
 ax.set_ylim((0,2))
 #state labels in alphabetical
 ax.set_xticklabels(['NSW', 'QLD', 'VIC'])
+# ax.set_xticklabels(['NSW', 'VIC'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('Adjustment factor')
 ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
 plt.tight_layout()
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_effect_posteriors.png",dpi = 288)
-
 
 posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
 
