@@ -12,7 +12,7 @@ run_inference = True
 
 
 ########### Key parameters
-third_start_date = '2021-06-16'
+third_start_date = '2021-07-20'
 start_date = '2021-06-01' # Start date of forecast
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
