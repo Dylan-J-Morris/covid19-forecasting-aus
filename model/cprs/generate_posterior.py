@@ -117,7 +117,7 @@ start_date = '2020-03-01'
 end_date = '2020-03-31'
 
 ##Second wave inputs
-sec_states=sorted(['NSW','VIC'])
+sec_states=sorted(['NSW'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
@@ -278,19 +278,26 @@ policy_third_wave = [1]*df3X.loc[df3X.state==third_states[0]].shape[0]
 vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
 vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
+# display the latest available date in the NSW data (will be the same date between states)
+print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
+
 vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
 vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)] # Isolate fitting states
 vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
 
 # If we are missing recent vaccination data, fill it in with the most recent available data.
 latest_vacc_data = vaccination_by_state.columns[-1]
-print("Latest date in vaccine data is {}".format(latest_vacc_data))
 
 if latest_vacc_data < pd.to_datetime(third_end_date):
     vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data,end=third_end_date)], axis = 1)
 
 # Convert to simple array only useful to pass to stan
 vaccination_by_state_array = vaccination_by_state.to_numpy()
+
+# figure out the number of days between the third_start date and the beginning of the vacc data
+# days_after_vacc_program_begins = (pd.to_datetime(third_start_date) - vaccination_by_state.columns[0]).days
+
+# print(type(days_after_vacc_program_begins))
 
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
@@ -342,7 +349,7 @@ input_data = {
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
     
-    'vaccine_effect_data': vaccination_by_state_array                               # the vaccination data 
+    'vaccine_effect_data': vaccination_by_state_array,                               # the vaccination data 
 }
 
 #make results dir
@@ -364,14 +371,14 @@ if run_inference:
 
     filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
     with open(results_dir+filename, 'w') as f:
-        print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_third_wave','vacc_effect_third_wave']), file=f)
+        print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_sec_wave','voc_effect_third_wave','eta']), file=f)
         # print(arviz.summary(fit, var_names = ['brho']), file=f)
 
     ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future
     # create extended summary of parameters to index the samples by
 
     summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-                                                'brho_sec_wave','brho_third_wave','voc_effect_third_wave','vacc_effect_third_wave'])
+                                                'brho_sec_wave','brho_third_wave','voc_effect_third_wave','eta'])
     match_list_names = summary_df.index.to_list()
 
     # extract the names of the constrained parameters which are the ones we actually sample
@@ -597,8 +604,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png",dpi = 144)
 # Making a new figure that doesn't include the priors
 fig,ax = plt.subplots(figsize=(12,9))
 
-small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 
-                  'R_I', 'voc_effect_third_wave']
+small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 'R_I']
 
 sns.violinplot(x='variable',y='value',
             data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -610,7 +616,7 @@ ax.set_yticks([0,2,3],minor=False)
 ax.set_yticklabels([0,2,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$', 'VoC effect'])
+ax.set_xticklabels(['$R_L0$ NSW','$R_L0$ QLD','$R_L0$ SA','$R_L0$ TAS','$R_L0$ VIC','$R_L0$ WA', '$R_I$'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('Effective reproduction number')
@@ -623,7 +629,10 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors
 # Making a new figure that doesn't include the priors
 fig,ax = plt.subplots(figsize=(12,9))
 
-small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]', 'vacc_effect_third_wave[3]']
+small_plot_cols =[
+    'voc_effect_third_wave', 
+    'eta[1]', 'eta[2]', 'eta[3]'
+    ]
 # small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]']
 
 sns.violinplot(x='variable',y='value',
@@ -632,18 +641,18 @@ sns.violinplot(x='variable',y='value',
             cut=0)
 
 ax.set_yticks([1],minor=True,)
-ax.set_yticks([0,0.5,1,1.5,2],minor=False)
-ax.set_yticklabels([0,0.5,1,1.5,2],minor=False)
-ax.set_ylim((0,2))
+ax.set_yticks([0,0.5,1,1.5,2,2.5,3],minor=False)
+ax.set_yticklabels([0,0.5,1,1.5,2,2.5,3],minor=False)
+ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['NSW', 'QLD', 'VIC'])
+ax.set_xticklabels(['VoC 3rd wave', '$\eta$ NSW', '$\eta$ QLD', '$\eta$ VIC'])
 # ax.set_xticklabels(['NSW', 'VIC'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
-ax.set_ylabel('Adjustment factor')
+ax.set_ylabel('value')
 ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
 plt.tight_layout()
-plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_effect_posteriors.png",dpi = 288)
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"voc_vaccine_effect_posteriors.png",dpi = 288)
 
 posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
 
@@ -753,7 +762,7 @@ if df3X.shape[0]>0:
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
-var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
-    'voc_effect_third_wave'] + ['vacc_effect_third_wave['+str(i+1)+']' for i in range(len(third_states))]
+var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+ predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
+    'voc_effect_third_wave'] + ['eta['+str(i+1)+']' for i in range(len(third_states))]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')

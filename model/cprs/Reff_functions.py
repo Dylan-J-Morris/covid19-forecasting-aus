@@ -168,6 +168,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
 
             if vaccination is not None:
                 vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
+                vacc_sim = np.tile(vacc_sim, (1000,1)).T
 
             if split:
 
@@ -212,11 +213,16 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                 if vaccination is not None:
                     # transposing the vaccination sampled values so that it can be multiplied by the data 
                     # the str(i+1) is required because the state indexing starts at 0
-                    if state in {"QLD", "NSW", "VIC"}:
+                    if state in {'NSW','QLD','VIC'}:
                     # if state in {"NSW", "VIC"}:
-                        vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave['+str(i+1)+']'].values, (df_state.shape[0],1)).T * vacc_sim
+                        # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
+                        vacc_post = np.tile(samples_sim['eta['+str(i+1)+']'], (df_state.shape[0],1))
+                        vacc_post_times_forecast = vacc_sim**vacc_post
+                            
+                        # vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave['+str(i+1)+']'].values, (df_state.shape[0],1)).T * vacc_sim
                     else: 
-                        vacc_post_times_forecast =  np.tile([1.0]*samples_sim['vacc_effect_third_wave['+str(1)+']'].shape[0], (df_state.shape[0],1)).T * vacc_sim
+                        vacc_post = np.tile(samples_sim['eta['+str(1)+']'], (df_state.shape[0],1))
+                        vacc_post_times_forecast = vacc_sim**vacc_post
                         
                     # this just makes sure to set vaccination effect before the vaccination program to 1 -- should not be 
                     # required but is consistent with other parts of codebase
@@ -250,10 +256,11 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                     pd.DataFrame(md).to_csv("results/third_wave_fit/md.csv")   
                     pd.DataFrame(sim_R).to_csv("results/third_wave_fit/sim_R.csv")   
                     pd.DataFrame(expit(logodds)).to_csv("results/third_wave_fit/exp_logodds.csv")   
-                    pd.DataFrame(vacc_post_times_forecast).to_csv("results/third_wave_fit/vacc_post_times_forecast.csv")   
+                    pd.DataFrame(vacc_sim).to_csv("results/third_wave_fit/vacc_sim.csv")   
+                    pd.DataFrame(vacc_post).to_csv("results/third_wave_fit/vacc_post.csv")   
 
                 if vaccination is not None:
-                    mu_hat = 2 * md*sim_R* expit(logodds) * vacc_post_times_forecast.T
+                    mu_hat = 2 * md*sim_R* expit(logodds) * vacc_post_times_forecast
                 else:
                     mu_hat = 2 * md*sim_R* expit(logodds)
 
