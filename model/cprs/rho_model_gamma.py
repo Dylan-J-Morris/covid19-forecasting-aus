@@ -156,15 +156,15 @@ transformed parameters {
 model {
     int pos2;
 
-    bet ~ normal(0,0.5);
+    bet ~ normal(0,1.0);
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     voc_effect_sec_wave ~ gamma(1.3*1.3/0.05, 1.3/0.05);
-    voc_effect_third_wave ~ gamma(2.8*2.8/0.05, 2.8/0.05);
+    voc_effect_third_wave ~ gamma(2.9*2.9/0.05, 2.9/0.05);
     
     // assume a hierarchical structure on the vaccine effect 
-    eta ~ beta(12,3);       // mean of 12/(12+3) = 0.8
+    eta ~ beta(5, 2);       // mean of 12/(12+3) = 0.8
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);

@@ -11,6 +11,7 @@ else:
 
 
 ########### Key parameters
+ncores = 4
 third_start_date = '2021-06-15'
 start_date = '2021-06-01' # Start date of forecast
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
