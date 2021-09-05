@@ -679,19 +679,11 @@ for typ in forecast_type:
             # only have fit the effect to NSW, QLD and VIC
             # if state in {'NSW', 'QLD', 'VIC'}:
             
-            if state in {'NSW', 'VIC', 'QLD'}:
-                # first we tile the vaccine data to get an array of size (T, mob_samples) (hence the transposing)
-                vacc_data_full = np.tile(vacc_sim, (mob_samples**2,1)).T
-                # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-                vacc_post = np.tile(samples['eta['+vacc_state_key[state]+']'], (df_state.shape[0],mob_samples))
-                vacc_post = vacc_data_full**vacc_post
-                
-            else:
-                # if we don't fit to a state, for now we just use the data -- will want to sample from the hierarchical part 
-                # going forwards -- this just multiplies the vacc_sim data by 1.
-                vacc_data_full = np.tile(vacc_sim, (mob_samples**2,1)).T
-                vacc_post = np.tile([1.0], (df_state.shape[0],mob_samples**2))
-                vacc_post = vacc_data_full**vacc_post    
+            # first we tile the vaccine data to get an array of size (T, mob_samples) (hence the transposing)
+            vacc_data_full = np.tile(vacc_sim, (mob_samples**2,1)).T
+            # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
+            vacc_post = np.tile(samples['eta'], (df_state.shape[0],mob_samples))
+            vacc_post = vacc_data_full**vacc_post
             
             # last thing to do is modify the vacc_post values before the start of vaccination 
             for ii in range(vacc_post.shape[0]):

@@ -74,7 +74,7 @@ parameters {
     
     // real<lower=0> vacc_effect_third_wave_mean;
     // real<lower=0> vacc_effect_third_wave_sig;
-    vector<lower=0,upper=1>[j_third_wave] eta;     // array of adjustment factor for each third wave state
+    real<lower=0,upper=1> eta;     // array of adjustment factor for each third wave state
 
 }
 transformed parameters {
@@ -141,7 +141,7 @@ transformed parameters {
             if (include_in_third_wave[i][n]==1){
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
                 
-                vacc_effect_tot = pow(vaccine_effect_data[i][n], eta[i]);
+                vacc_effect_tot = pow(vaccine_effect_data[i][n], eta);
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
                     (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
@@ -164,7 +164,7 @@ model {
     voc_effect_third_wave ~ gamma(2.8*2.8/0.05, 2.8/0.05);
     
     // assume a hierarchical structure on the vaccine effect 
-    eta ~ beta(12,3);       // mean of 12/(12+3) = 0.8
+    eta ~ beta(5,3);       // mean of 12/(12+3) = 0.8
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
