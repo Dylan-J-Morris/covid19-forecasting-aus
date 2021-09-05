@@ -346,10 +346,6 @@ for i,state in enumerate(states):
 
         #get dates
         dd_vacc = [vaccination_by_state.loc[state].index[-1] + timedelta(days=x) for x in range(1,n_forecast+extra_days_vacc+1)]
-        
-        pd.DataFrame(dd).to_csv("results/tmp/dd.csv")
-        pd.DataFrame(dd_md).to_csv("results/tmp/dd_md.csv")
-        pd.DataFrame(dd_vacc).to_csv("results/tmp/dd_vacc.csv")
 
     for j, var in enumerate(predictors+['md_prop']+['vaccination']):
         #Record data
@@ -692,11 +688,6 @@ for typ in forecast_type:
                     
             # now we map the total vacc value multiplier to [0,1]
             vacc_post[vacc_post > 1] = 1
-                    
-            if state == "NSW" and typ == "R_L":
-                pd.DataFrame(vacc_post).to_csv("results/tmp/vacc_post.csv")
-                pd.DataFrame(vacc_sim).to_csv("results/tmp/vacc_sim.csv")
-                pd.DataFrame(vacc_data_full).to_csv("results/tmp/vacc_data_full.csv")
 
         for n in range(mob_samples):
             #add gaussian noise to predictors before forecast
@@ -820,11 +811,6 @@ for typ in forecast_type:
 
                 ##concatenate to previous
                 logodds = np.concatenate((logodds, logodds_sample ), axis =1)
-
-        if state == "NSW" and typ == "R_L":
-            pd.DataFrame(md).to_csv("results/tmp/md.csv")
-            pd.DataFrame(sim_R).to_csv("results/tmp/sim_R.csv")
-            pd.DataFrame(logodds).to_csv("results/tmp/logodds.csv")
         
         if apply_vacc_to_R_L_hats:
             R_L = 2 * md * sim_R * expit( logodds ) * vacc_post
@@ -842,9 +828,6 @@ for typ in forecast_type:
                     voc_multiplier[ii] = 1.0
 
             R_L *= voc_multiplier
-            
-        if state == "NSW" and typ == "R_L":
-            pd.DataFrame(voc_multiplier).to_csv("results/tmp/voc.csv")
         
         R_L_med = np.median(R_L,axis=1)
         R_L_lower = np.percentile(R_L,25,axis=1)
@@ -971,5 +954,5 @@ df_Rhats = df_Rhats[['state','date','type','median',
 df_hdf = df_Rhats.loc[df_Rhats.type=='R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_I')&(df_Rhats.date=='2020-03-01')])
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_L0')&(df_Rhats.date=='2020-03-01')])
-df_Rhats.to_csv('./soc_mob_R'+today+'.csv')
+df_Rhats.to_csv('results/third_wave_fit/soc_mob_R'+today+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+scenario+scenario_date+'.h5',key='Reff')

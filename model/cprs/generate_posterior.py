@@ -1,4 +1,4 @@
-print('Performing inference on state level Reff')
+######### imports #########
 
 from arviz.utils import _var_names
 import matplotlib
@@ -8,17 +8,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sys import argv
-import stan                     # new version of pystan 
+import stan                                 # new version of pystan 
 import os, glob
 from Reff_functions import *
 from Reff_constants import *
-# arviz allows for analysis of the posterior samples from 
 
 # import any useful bits and pieces from the params file
 from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, third_start_date
-# stan 
+# arviz allows for analysis of the posterior samples from pystan3 / stan 
 import arviz as az
 
+######### start #########
+
+print('Performing inference on state level Reff')
 data_date = pd.to_datetime(argv[1]) # Define data date
 print(data_date.strftime('%d%b%Y'))
 # note: 2020-09-09 won't work (for some reason)
@@ -108,7 +110,7 @@ df_google = read_in_google(local=not download_google_automatically,moving=True)
 df= df_google.merge(df_Reff[['date','state','mean','lower','upper',
                             'top','bottom','std','rho','rho_moving','local','imported']], on=['date','state'],how='inner')
 
-##### Create useable dataset
+######### Create useable dataset #########
 ## ACT and NT not in original estimates, need to extrapolated
 states_to_fit = sorted(['NSW','VIC','QLD','SA','WA','TAS']) #sorting keeps consistent with sort in data_by_state
 fit_post_March = True
@@ -116,7 +118,7 @@ ban = '2020-03-20'
 start_date = '2020-03-01'
 end_date = '2020-03-31'
 
-##Second wave inputs
+## Second wave inputs
 sec_states=sorted(['NSW'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
@@ -272,7 +274,7 @@ policy = dfX.loc[dfX.state==states_to_fit[0],'post_policy']     # this is the po
 policy_sec_wave = [1]*df2X.loc[df2X.state==sec_states[0]].shape[0]
 policy_third_wave = [1]*df3X.loc[df3X.state==third_states[0]].shape[0]
 
-#################### VACCINE DATA ####################
+######### loading and cleaning vaccine data #########
 
 # Load in vaccination data by state and date
 vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
@@ -299,8 +301,10 @@ vaccination_by_state_array = vaccination_by_state.to_numpy()
 
 # print(type(days_after_vacc_program_begins))
 
-state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 ##Make state by state arrays
+state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
+
+# input data block for stan model 
 input_data = {
     'N': dfX.loc[dfX.state==states_to_fit[0]].shape[0],
     'K': len(predictors),
@@ -352,10 +356,11 @@ input_data = {
     'vaccine_effect_data': vaccination_by_state_array,                               # the vaccination data 
 }
 
-#make results dir
+# make results dir
 results_dir ="figs/soc_mob_posterior/"
 os.makedirs(results_dir,exist_ok=True)
 
+######### running inference #########
 if run_inference:
     # importing the stan model as a string
     from rho_model_gamma import rho_model_gamma_string
@@ -367,16 +372,15 @@ if run_inference:
     from params import num_chains, num_samples
     fit = posterior.sample(num_chains=num_chains, num_samples=num_samples)
 
-    ######## Plotting & Saving Output #########
+    ######### Saving Output #########
 
     filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
     with open(results_dir+filename, 'w') as f:
         print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_sec_wave','voc_effect_third_wave','eta']), file=f)
         # print(arviz.summary(fit, var_names = ['brho']), file=f)
 
-    ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future
+    ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
     # create extended summary of parameters to index the samples by
-
     summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
                                                 'brho_sec_wave','brho_third_wave','voc_effect_third_wave','eta'])
     match_list_names = summary_df.index.to_list()
@@ -447,12 +451,13 @@ if run_inference:
     # we save the df to csv so we have it
     df_fit_new.to_csv("results/samples_mov_gamma.csv")
     
-# reading it straight back in fixes the formatting issues that occur due to data manipulations
+######### read in the posterior results #########
 samples_mov_gamma = pd.read_csv("results/samples_mov_gamma.csv")
 
-################### now we can plot finally 
+######### plotting the results #########
 
-# Plot ratio of imported to total cases
+######### ratio of imported to local cases #########
+
 # First phase
 #rho calculated at data entry
 if isinstance(df_state.index, pd.MultiIndex):
@@ -566,7 +571,8 @@ if df3X.shape[0]>0:
     plt.legend()
     plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"rho_third_phase.png",dpi = 144)
 
-#plot marginal distributions
+######### plotting marginal posterior distributions of R0's #########
+
 fig,ax = plt.subplots(figsize=(12,9))
 samples_mov_gamma['R_L_prior'] = np.random.gamma(
 1.8*1.8/0.05,0.05/1.8, size=samples_mov_gamma.shape[0])
@@ -624,7 +630,7 @@ ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
 plt.tight_layout()
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors).png",dpi = 288)
 
-######### making figure for vaccination reductions
+######### plotting figures for vaccine and voc effects #########
 
 # Making a new figure that doesn't include the priors
 fig,ax = plt.subplots(figsize=(12,9))
@@ -653,6 +659,8 @@ ax.set_ylabel('value')
 ax.yaxis.grid(which='minor',linestyle='--',color='black',linewidth=2)
 plt.tight_layout()
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"voc_vaccine_effect_posteriors.png",dpi = 288)
+
+######### plotting mobility coefficients #########
 
 posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
 
@@ -686,6 +694,7 @@ plt.tight_layout()
 plt.savefig(
     results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi =288)
 
+######### generating and plotting TP plots #########
 
 RL_by_state = { state: samples_mov_gamma[
     'R_Li['+str(i)+']'].values for state, i in state_index.items()
@@ -759,6 +768,8 @@ if df3X.shape[0]>0:
     #remove plots from memory
     fig.clear()
     plt.close(fig)
+
+######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
