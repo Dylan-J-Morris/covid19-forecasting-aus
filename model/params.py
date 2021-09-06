@@ -1,5 +1,5 @@
 ########### Inference parameters
-run_inference = False
+run_inference = True
 testing_inference = False        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
 
 if testing_inference:

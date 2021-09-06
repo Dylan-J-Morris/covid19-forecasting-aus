@@ -141,7 +141,8 @@ transformed parameters {
             if (include_in_third_wave[i][n]==1){
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
                 
-                vacc_effect_tot = pow(vaccine_effect_data[i][n], eta[i]);
+                // vacc_effect_tot = pow(vaccine_effect_data[i][n], eta[i]);
+                vacc_effect_tot = eta[i] + (1-eta[i]) * vaccine_effect_data[i][n];
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
                     (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(
@@ -164,7 +165,7 @@ model {
     voc_effect_third_wave ~ gamma(2.9*2.9/0.05, 2.9/0.05);
     
     // assume a hierarchical structure on the vaccine effect 
-    eta ~ beta(5, 2);       // mean of 12/(12+3) = 0.8
+    eta ~ beta(2, 5);       // mean of 12/(12+3) = 0.8
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);

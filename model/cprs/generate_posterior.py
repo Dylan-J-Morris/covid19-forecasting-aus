@@ -779,7 +779,7 @@ for i, state in enumerate(states):
         eta = samples_mov_gamma['eta['+str(state_vacc_map['QLD'])+']']
     
     vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0],1)).T
-    vacc_eff = vacc_tmp**np.array(eta)
+    vacc_eff = np.array(eta) + (1-np.array(eta)) * vacc_tmp
 
     row = i//4
     col = i%4
