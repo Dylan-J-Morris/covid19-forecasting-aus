@@ -378,7 +378,7 @@ if run_inference:
     # create extended summary of parameters to index the samples by
 
     summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-                                                'brho_sec_wave','brho_third_wave','voc_effect_third_wave','eta'])
+                                                'brho_sec_wave','brho_third_wave','voc_effect_sec_wave','voc_effect_third_wave','eta'])
     match_list_names = summary_df.index.to_list()
 
     # extract the names of the constrained parameters which are the ones we actually sample
@@ -759,6 +759,43 @@ if df3X.shape[0]>0:
     #remove plots from memory
     fig.clear()
     plt.close(fig)
+    
+######### plotting the inferred vaccine effect trajectory #########
+
+dates = vaccination_by_state.columns
+
+fig,ax = plt.subplots(figsize=(15,12), ncols=4, nrows=2, sharey=True, sharex=True)
+state_vacc_map = {
+    'NSW': '1', 
+    'QLD': '2', 
+    'VIC': '3'
+}
+
+for i, state in enumerate(states):
+    
+    if state in third_states:
+        eta = samples_mov_gamma['eta['+str(state_vacc_map[state])+']']
+    else:
+        eta = samples_mov_gamma['eta['+str(state_vacc_map['QLD'])+']']
+    
+    vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0],1)).T
+    vacc_eff = vacc_tmp**np.array(eta)
+
+    row = i//4
+    col = i%4
+
+    ax[row,col].plot(dates, vaccination_by_state.loc[state].values, label = 'data', color = 'C1')
+    ax[row,col].plot(dates, np.median(vacc_eff, axis = 1), label='fit', color='C0')
+    ax[row,col].fill_between(dates, np.quantile(vacc_eff,0.25,axis=1),np.quantile(vacc_eff,0.75,axis=1),color='C0',alpha=0.4)
+    ax[row,col].fill_between(dates, np.quantile(vacc_eff,0.05,axis=1),np.quantile(vacc_eff,0.95,axis=1),color='C0',alpha=0.4)
+    ax[row,col].set_title(state)
+    ax[row,col].tick_params(axis='x',rotation=90)
+
+ax[0,0].set_ylabel('reduction in TP from vaccination')
+ax[1,0].set_ylabel('reduction in TP from vaccination')
+
+plt.savefig(
+        results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_reduction_in_TP.png", dpi=144)
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]

@@ -221,7 +221,8 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                             
                         # vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave['+str(i+1)+']'].values, (df_state.shape[0],1)).T * vacc_sim
                     else: 
-                        vacc_post = np.tile(samples_sim['eta['+str(1)+']'], (df_state.shape[0],1))
+                        # treating the heterogeneity effect from QLD as homogeneous
+                        vacc_post = np.tile(samples_sim['eta['+str(2)+']'], (df_state.shape[0],1))
                         vacc_post_times_forecast = vacc_sim**vacc_post
                         
                     # this just makes sure to set vaccination effect before the vaccination program to 1 -- should not be 
@@ -281,6 +282,20 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                     ['brho_sec_wave['+str(j)+']' 
                                         for j in range(pos, pos+df.loc[df.state==states_initials[state]].is_sec_wave.sum() ) ]
                                 ].values.T
+                                
+                                voc_multiplier = samples_sim[['voc_effect_sec_wave']].values.T
+                                # print("Including the voc effects into the R_L forecasts")
+                                # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
+                                # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
+                                # voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
+
+                                # multiply forecasted R_L values by VoC effect - when set to true should mean that the soc_mob_RL_hats plot
+                                # and the other soc mob posterior stuff should now be consistent. Might be some deviations but should provide
+                                # matches to the EpyReff estimates during all phases, but particularly in the third wave phase. 
+                                if apply_voc_to_R_L_hats:
+                                
+                                    # now modify the mu_hat
+                                    mu_hat *= voc_multiplier
 
                                 pos = pos + df.loc[df.state==states_initials[state]].is_sec_wave.sum()
                             elif third_phase:
