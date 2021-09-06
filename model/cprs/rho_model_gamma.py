@@ -74,7 +74,7 @@ parameters {
     
     // real<lower=0> vacc_effect_third_wave_mean;
     // real<lower=0> vacc_effect_third_wave_sig;
-    vector<lower=0,upper=1>[j_third_wave] eta;     // array of adjustment factor for each third wave state
+    vector<lower=0,upper=1> eta;     // array of adjustment factor for each third wave state
 
 }
 transformed parameters {
@@ -142,7 +142,7 @@ transformed parameters {
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
                 
                 // vacc_effect_tot = pow(vaccine_effect_data[i][n], eta[i]);
-                vacc_effect_tot = eta[i] + (1-eta[i]) * vaccine_effect_data[i][n];
+                vacc_effect_tot = eta + (1-eta) * vaccine_effect_data[i][n];
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
                     (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*(

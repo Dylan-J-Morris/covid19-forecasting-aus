@@ -774,9 +774,7 @@ state_vacc_map = {
 for i, state in enumerate(states):
     
     if state in third_states:
-        eta = samples_mov_gamma['eta['+str(state_vacc_map[state])+']']
-    else:
-        eta = samples_mov_gamma['eta['+str(state_vacc_map['QLD'])+']']
+        eta = samples_mov_gamma['eta']
     
     vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0],1)).T
     vacc_eff = np.array(eta) + (1-np.array(eta)) * vacc_tmp
