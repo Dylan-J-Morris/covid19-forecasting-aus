@@ -57,9 +57,9 @@ python model/cprs/generate_RL_forecasts.py $DATADATE $SCENARIO $SCENARIODATE
 ### Step 2.5
 Now we loop over each state and simulate forward. 
 ```
-states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 states=("TAS" "WA" "ACT" "NT")
 states=("NSW" "VIC" "QLD")
+states=("VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for state in "${states[@]}"
 do
     python model/run_state.py $NSIMS $DATADATE $state $VOCFLAG "${SCENARIO}${SCENARIODATE}"
