@@ -213,20 +213,11 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                 if vaccination is not None:
                     # transposing the vaccination sampled values so that it can be multiplied by the data 
                     # the str(i+1) is required because the state indexing starts at 0
-                    if state in {'NSW','QLD','VIC'}:
-                    # if state in {"NSW", "VIC"}:
-                        # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-                        vacc_post = np.tile(samples_sim['eta['+str(i+1)+']'], (df_state.shape[0],1))
-                        # vacc_post_times_forecast = vacc_sim**vacc_post
-                        vacc_post_times_forecast = vacc_post + (1-vacc_post)*vacc_sim
-                            
-                        # vacc_post_times_forecast = np.tile(samples_sim['vacc_effect_third_wave['+str(i+1)+']'].values, (df_state.shape[0],1)).T * vacc_sim
-                    else: 
-                        # treating the heterogeneity effect from QLD as homogeneous
-                        vacc_post = np.tile(samples_sim['eta['+str(2)+']'], (df_state.shape[0],1))
-                        # vacc_post_times_forecast = vacc_sim**vacc_post
-                        vacc_post_times_forecast = vacc_post + (1-vacc_post)*vacc_sim
-                        
+                    # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
+                    vacc_post = np.tile(samples_sim['eta'], (df_state.shape[0],1))
+                    # vacc_post_times_forecast = vacc_sim**vacc_post
+                    vacc_post_times_forecast = vacc_post + (1-vacc_post)*vacc_sim
+                                
                     # this just makes sure to set vaccination effect before the vaccination program to 1 -- should not be 
                     # required but is consistent with other parts of codebase
                     for ii in range(vacc_post_times_forecast.shape[0]):

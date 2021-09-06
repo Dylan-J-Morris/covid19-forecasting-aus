@@ -631,7 +631,7 @@ fig,ax = plt.subplots(figsize=(12,9))
 
 small_plot_cols =[
     'voc_effect_third_wave', 
-    'eta[1]', 'eta[2]', 'eta[3]'
+    'eta',
     ]
 # small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]']
 
@@ -645,7 +645,7 @@ ax.set_yticks([0,0.5,1,1.5,2,2.5,3],minor=False)
 ax.set_yticklabels([0,0.5,1,1.5,2,2.5,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['VoC 3rd wave', '$\eta$ NSW', '$\eta$ QLD', '$\eta$ VIC'])
+ax.set_xticklabels(['VoC 3rd wave', '$\eta$'])
 # ax.set_xticklabels(['NSW', 'VIC'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
@@ -773,8 +773,7 @@ state_vacc_map = {
 
 for i, state in enumerate(states):
     
-    if state in third_states:
-        eta = samples_mov_gamma['eta']
+    eta = samples_mov_gamma.eta
     
     vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0],1)).T
     vacc_eff = np.array(eta) + (1-np.array(eta)) * vacc_tmp
@@ -798,6 +797,6 @@ plt.savefig(
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
 var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+ predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
-    'voc_effect_third_wave'] + ['eta['+str(i+1)+']' for i in range(len(third_states))]
+    'voc_effect_third_wave'] + ['eta']
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')

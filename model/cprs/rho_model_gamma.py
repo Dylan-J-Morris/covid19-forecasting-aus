@@ -74,7 +74,7 @@ parameters {
     
     // real<lower=0> vacc_effect_third_wave_mean;
     // real<lower=0> vacc_effect_third_wave_sig;
-    vector<lower=0,upper=1> eta;     // array of adjustment factor for each third wave state
+    real<lower=0,upper=1> eta;     // array of adjustment factor for each third wave state
 
 }
 transformed parameters {
