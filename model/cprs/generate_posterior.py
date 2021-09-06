@@ -579,7 +579,7 @@ samples_mov_gamma['R_L_national'] = np.random.gamma(
     samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values)
 
 df_R_values = pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]])
-print(df_R_values.variable.unique())
+# print(df_R_values.variable.unique())
 
 sns.violinplot(x='variable',y='value',
             data=pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]]),
