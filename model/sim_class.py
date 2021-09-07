@@ -62,7 +62,8 @@ class Forecast:
         self.symptomatic_detection_prob = local_detection[state]
         self.asymptomatic_detection_prob = a_local_detection[state]
         self.k = k # Hard coded
-        self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quarantine version of alpha_i. 
+        # self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quarantine version of alpha_i. 
+        self.qua_ai = 1
         self.gam = 1/2
         self.ps = 0.7 # Probability of being symptomatic
 
@@ -113,7 +114,7 @@ class Forecast:
 
             #N samples for each of infection and detection times
             #Grab now and iterate through samples to save simulation
-            self.generate_times(size=10000)
+            self.generate_times(size=50000)
             self.get_inf_time = self.iter_inf_time()
             self.get_detect_time = self.iter_detect_time()
 
@@ -798,7 +799,7 @@ class Forecast:
         # Set all betas to prior plus effective period size of 1
         self.b_dict = {i:prior_beta+1 for i in range(self.end_time)} 
 
-    def generate_times(self,  i=3.64, j=3.07, m=5.505, n=0.948, size=10000):
+    def generate_times(self,  i=3.64, j=3.07, m=5.505, n=0.948, size=50000):
         """
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """

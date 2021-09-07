@@ -19,7 +19,7 @@ Run these in terminal. Number of sims is used to name some of the files.
 These lines provide the VoC flag as well as the scenario and are run at the command line. 
 ```
 DATADATE='2021-09-06'   # Date of NNDSS data file
-NSIMS=1000             # Total number of simulations to run should be > 5000
+NSIMS=5000             # Total number of simulations to run should be > 5000
 VOCFLAG='Delta'
 SCENARIO='no_reversion'
 # set date of scenario. Does not matter for no-reversion and is just used to name files. 
@@ -59,7 +59,8 @@ Now we loop over each state and simulate forward.
 ```
 states=("TAS" "WA" "ACT" "NT")
 states=("NSW" "VIC" "QLD")
-states=("VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+states=("SA" "QLD" "TAS" "WA" "ACT" "NT")
+states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for state in "${states[@]}"
 do
     python model/run_state.py $NSIMS $DATADATE $state $VOCFLAG "${SCENARIO}${SCENARIODATE}"
