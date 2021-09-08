@@ -213,6 +213,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                 if vaccination is not None:
                     # transposing the vaccination sampled values so that it can be multiplied by the data 
                     # the str(i+1) is required because the state indexing starts at 0
+                    
                     # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
                     if state == 'NSW':
                         vacc_post = np.tile(samples_sim['eta_NSW'], (df_state.shape[0],1))

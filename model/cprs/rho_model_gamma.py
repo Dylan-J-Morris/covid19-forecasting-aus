@@ -72,7 +72,6 @@ parameters {
     // voc and vaccine effects
     real<lower=0> voc_effect_sec_wave;
     real<lower=0> voc_effect_third_wave;
-    
     real<lower=0,upper=1> eta_NSW;     // array of adjustment factor for each third wave state
     real<lower=0,upper=1> eta_other;     // array of adjustment factor for each third wave state
 

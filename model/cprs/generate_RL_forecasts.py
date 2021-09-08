@@ -682,6 +682,7 @@ for typ in forecast_type:
             
             # first we tile the vaccine data to get an array of size (T, mob_samples) (hence the transposing)
             vacc_data_full = np.tile(vacc_sim, (mob_samples**2,1)).T
+
             if state == 'NSW':    
                 # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
                 eta = np.tile(samples['eta_NSW'], (df_state.shape[0],mob_samples))
@@ -985,5 +986,5 @@ df_Rhats = df_Rhats[['state','date','type','median',
 df_hdf = df_Rhats.loc[df_Rhats.type=='R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_I')&(df_Rhats.date=='2020-03-01')])
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_L0')&(df_Rhats.date=='2020-03-01')])
-df_Rhats.to_csv('./soc_mob_R'+today+'.csv')
+df_Rhats.to_csv('results/third_wave_fit/soc_mob_R'+today+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+scenario+scenario_date+'.h5',key='Reff')
