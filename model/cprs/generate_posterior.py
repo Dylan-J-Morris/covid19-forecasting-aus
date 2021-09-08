@@ -2,6 +2,7 @@
 
 from arviz.utils import _var_names
 import matplotlib
+from numpy.random import sample
 matplotlib.use('Agg')
 import pandas as pd
 import numpy as np
@@ -301,6 +302,11 @@ vaccination_by_state_array = vaccination_by_state.to_numpy()
 
 # print(type(days_after_vacc_program_begins))
 
+# elementwise comparison of the third states with NSW and then convert to int
+is_NSW = (np.array(third_states) == 'NSW').astype(int)
+
+state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
+
 ##Make state by state arrays
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 
@@ -353,6 +359,7 @@ input_data = {
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
     
+    'is_NSW': is_NSW,
     'vaccine_effect_data': vaccination_by_state_array,                               # the vaccination data 
 }
 
@@ -376,13 +383,19 @@ if run_inference:
 
     filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
     with open(results_dir+filename, 'w') as f:
-        print(az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','theta_md','sig','voc_effect_sec_wave','voc_effect_third_wave','eta']), file=f)
+        print(az.summary(fit, var_names = [
+            'bet','R_I','R_L','R_Li','theta_md','sig',
+            'voc_effect_sec_wave','voc_effect_third_wave','eta_NSW','eta_other'
+            ]), file=f)
         # print(arviz.summary(fit, var_names = ['brho']), file=f)
 
     ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
     # create extended summary of parameters to index the samples by
-    summary_df = az.summary(fit, var_names = ['bet','R_I','R_L','R_Li','sig','brho','theta_md',
-                                                'brho_sec_wave','brho_third_wave','voc_effect_third_wave','eta'])
+    summary_df = az.summary(fit, var_names = [
+        'bet','R_I','R_L','R_Li','sig','brho','theta_md','brho_sec_wave','brho_third_wave',
+        'voc_effect_sec_wave','voc_effect_third_wave','eta_NSW','eta_other'
+        ])
+
     match_list_names = summary_df.index.to_list()
 
     # extract the names of the constrained parameters which are the ones we actually sample
@@ -585,7 +598,7 @@ samples_mov_gamma['R_L_national'] = np.random.gamma(
     samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values)
 
 df_R_values = pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]])
-print(df_R_values.variable.unique())
+# print(df_R_values.variable.unique())
 
 sns.violinplot(x='variable',y='value',
             data=pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]]),
@@ -597,9 +610,8 @@ ax.set_yticks([0,2,3],minor=False)
 ax.set_yticklabels([0,2,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['R_I','R_L0 mean',
-'R_L0 NSW','R_L0 QLD','R_L0 SA','R_L0 TAS','R_L0 VIC','R_L0 WA',#'R_temp',
-'R_L0 prior','R_I prior','R_L0 national'])
+ax.set_xticklabels(['R_I','R_L0 mean','R_L0 NSW','R_L0 QLD','R_L0 SA','R_L0 TAS','R_L0 VIC','R_L0 WA',
+                    'R_L0 prior','R_I prior','R_L0 national'])
 ax.set_xlabel('')
 ax.set_ylabel('Effective reproduction number')
 ax.tick_params('x',rotation=90)
@@ -613,9 +625,9 @@ fig,ax = plt.subplots(figsize=(12,9))
 small_plot_cols =['R_Li[1]', 'R_Li[2]', 'R_Li[3]', 'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 'R_I']
 
 sns.violinplot(x='variable',y='value',
-            data=pd.melt(samples_mov_gamma[small_plot_cols]),
-            ax=ax,
-            cut=0)
+               data=pd.melt(samples_mov_gamma[small_plot_cols]),
+               ax=ax,
+               cut=0)
 
 ax.set_yticks([1],minor=True,)
 ax.set_yticks([0,2,3],minor=False)
@@ -635,24 +647,20 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors
 # Making a new figure that doesn't include the priors
 fig,ax = plt.subplots(figsize=(12,9))
 
-small_plot_cols =[
-    'voc_effect_third_wave', 
-    'eta'
-    ]
-# small_plot_cols =['vacc_effect_third_wave[1]', 'vacc_effect_third_wave[2]']
+small_plot_cols =['voc_effect_third_wave', 'eta_NSW', 'eta_other']
+
 
 sns.violinplot(x='variable',y='value',
-            data=pd.melt(samples_mov_gamma[small_plot_cols]),
-            ax=ax,
-            cut=0)
+               data=pd.melt(samples_mov_gamma[small_plot_cols]),
+               ax=ax,
+               cut=0)
 
 ax.set_yticks([1],minor=True,)
 ax.set_yticks([0,0.5,1,1.5,2,2.5,3],minor=False)
 ax.set_yticklabels([0,0.5,1,1.5,2,2.5,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['VoC 3rd wave', '$\eta$'])
-# ax.set_xticklabels(['NSW', 'VIC'])
+ax.set_xticklabels(['VoC 3rd wave', '$\eta$ (NSW)', '$\eta$ (not NSW)'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('value')
@@ -672,17 +680,14 @@ long = pd.melt(posterior)
 
 fig,ax2 =plt.subplots(figsize=(12,9))
 
-ax2 = sns.violinplot(x='variable',y='value',#hue='policy',
-                    data=long,
-                    ax=ax2,
-                    color='C0'
-                )
+ax2 = sns.violinplot(x='variable',y='value',
+                     data=long,
+                     ax=ax2,
+                     color='C0')
 
 
 ax2.plot([0]*len(predictors), linestyle='dashed',alpha=0.6, color = 'grey')
 ax2.tick_params(axis='x',rotation=90)
-
-#ax =plot_posterior_violin(posterior)
 
 ax2.set_title('Coefficients of mobility indices')
 ax2.set_xlabel('Social mobility index')
@@ -697,12 +702,12 @@ plt.savefig(
 ######### generating and plotting TP plots #########
 
 RL_by_state = { state: samples_mov_gamma[
-    'R_Li['+str(i)+']'].values for state, i in state_index.items()
-}
+    'R_Li['+str(i)+']'].values for state, i in state_index.items()}
 ax3 =predict_plot(samples_mov_gamma,df.loc[(df.date>=start_date)&(df.date<=end_date)],gamma=True,
-                moving=True,split=split,grocery=True,ban = ban,
-                R=RL_by_state, var= True, md_arg=md,
-                rho=states_to_fit, R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[start_date:end_date])#by states....
+                  moving=True,split=split,grocery=True,ban = ban,
+                  R=RL_by_state, var= True, md_arg=md,
+                  rho=states_to_fit, R_I =samples_mov_gamma.R_I.values,
+                  prop=survey_X.loc[start_date:end_date])#by states....
 for ax in ax3:
     for a in ax:
         a.set_ylim((0,3))
@@ -754,10 +759,11 @@ if df3X.shape[0]>0:
             third_date_range[state]
             ).astype(int).values
     #plot only if there is third phase data - have to have third_phase=True
-    ax4 = predict_plot(samples_mov_gamma,df.loc[(df.date>=third_start_date)&(df.date<=third_end_date)],gamma=True, moving=True,split=split,grocery=True,ban = ban,
-                    R=RL_by_state, var= True, md_arg=md,
-                    rho=third_states, third_phase=True,
-                    R_I =samples_mov_gamma.R_I.values,prop=survey_X.loc[third_start_date:third_end_date],vaccination=vaccination_by_state)#by states....
+    ax4 = predict_plot(samples_mov_gamma,df.loc[(df.date>=third_start_date)&(df.date<=third_end_date)],
+                       gamma=True, moving=True,split=split,grocery=True,ban = ban,
+                       R=RL_by_state, var= True, md_arg=md,rho=third_states, third_phase=True,
+                       R_I =samples_mov_gamma.R_I.values,
+                       prop=survey_X.loc[third_start_date:third_end_date],vaccination=vaccination_by_state)#by states....
     for ax in ax4:
         for a in ax:
             a.set_ylim((0,3))
@@ -768,12 +774,52 @@ if df3X.shape[0]>0:
     #remove plots from memory
     fig.clear()
     plt.close(fig)
+    
+######### plotting the inferred vaccine effect trajectory #########
+
+dates = vaccination_by_state.columns
+
+fig,ax = plt.subplots(figsize=(15,12), ncols=4, nrows=2, sharey=True, sharex=True)
+state_vacc_map = {'NSW': '1', 
+                  'QLD': '2', 
+                  'VIC': '3'}
+
+for i, state in enumerate(states):
+    
+    # apply different vaccine form depending on if NSW
+    if state == 'NSW':
+        eta = samples_mov_gamma.eta_NSW
+    else: 
+        eta = samples_mov_gamma.eta_other
+    
+    # tile the states vaccination data from Curtin     
+    vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0],1)).T
+    vacc_eff = np.array(eta) + (1-np.array(eta)) * vacc_tmp
+
+    row = i//4
+    col = i%4
+
+    ax[row,col].plot(dates, vaccination_by_state.loc[state].values, label = 'data', color = 'C1')
+    ax[row,col].plot(dates, np.median(vacc_eff, axis = 1), label='fit', color='C0')
+    ax[row,col].fill_between(dates, np.quantile(vacc_eff,0.25,axis=1),np.quantile(vacc_eff,0.75,axis=1),color='C0',alpha=0.4)
+    ax[row,col].fill_between(dates, np.quantile(vacc_eff,0.05,axis=1),np.quantile(vacc_eff,0.95,axis=1),color='C0',alpha=0.4)
+    ax[row,col].set_title(state)
+    ax[row,col].tick_params(axis='x',rotation=90)
+
+ax[0,0].set_ylabel('reduction in TP from vaccination')
+ax[1,0].set_ylabel('reduction in TP from vaccination')
+
+plt.savefig(
+        results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_reduction_in_TP.png", dpi=144)
 
 ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
-var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+ predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
-    'voc_effect_third_wave'] + ['eta']
+# var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors+['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
+#     'voc_effect_third_wave'] + ['eta']
+var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_third_wave', 'eta_NSW', 'eta_other']
+var_to_csv = var_to_csv + predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))]
+
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')

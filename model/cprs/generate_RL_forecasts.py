@@ -230,6 +230,11 @@ for i,state in enumerate(states):
 
                 # Constant Lockdown
                 if scenario[:12] == "no_reversion":
+                    mu_current = np.mean(Rmed[-7:,:], axis=0)         # take a continuous median to account for noise in recent observations (such as sunny days)
+                    new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
+                    
+                if scenario[:12] == "no_reversion_continuous_lockdown":
+                    # add the new scenario here
                     new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline) 
 
                 # No Lockdown
@@ -677,9 +682,34 @@ for typ in forecast_type:
             
             # first we tile the vaccine data to get an array of size (T, mob_samples) (hence the transposing)
             vacc_data_full = np.tile(vacc_sim, (mob_samples**2,1)).T
-            # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-            vacc_post = np.tile(samples['eta'], (df_state.shape[0],mob_samples))
-            vacc_post = vacc_data_full**vacc_post
+
+            if state == 'NSW':    
+                # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
+                eta = np.tile(samples['eta_NSW'], (df_state.shape[0],mob_samples))
+                pd.DataFrame(eta).to_csv("eta_NSW.csv")
+                pd.DataFrame(vacc_data_full).to_csv("vacc_data_NSW.csv")
+            else:
+                eta = np.tile(samples['eta_other'], (df_state.shape[0],mob_samples))
+            
+            # find days after forecast began that we want to apply the effect
+            heterogeneity_delay_start_day = (pd.to_datetime(data_date) - pd.to_datetime(start_date)).days
+            # print(heterogeneity_delay_start_day)
+            # print(eta.shape)
+            
+            # sys.exit()
+            
+            # rate of return to homogeneity 
+            r = 0.1645
+            # apply the return to homogeneity (i.e. the Curtin estimate is truth)
+            for ii in range(eta.shape[0]):
+                if ii >= heterogeneity_delay_start_day:
+                    # number of days after campaigns to reduce heterogeneity in the vaccine coverage
+                    heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+                    # modify eta accordingly by applying a decay term which begins at the heterogeneity_delay_start_day
+                    eta[ii] = np.exp(-r*heterogeneity_delay_days) * eta[ii]
+            
+            # calculate the TP reduction from vaccination
+            vacc_post = eta + (1-eta) * vacc_data_full
             
             # last thing to do is modify the vacc_post values before the start of vaccination 
             for ii in range(vacc_post.shape[0]):
@@ -687,7 +717,7 @@ for typ in forecast_type:
                     vacc_post[ii] = 1.0
                     
             # now we map the total vacc value multiplier to [0,1]
-            vacc_post[vacc_post > 1] = 1
+            vacc_post[vacc_post > 1] = 1.0
 
         for n in range(mob_samples):
             #add gaussian noise to predictors before forecast
@@ -925,6 +955,8 @@ for i,state in enumerate(plot_states):
     ax[row,col].set_ylim((0,3))
 
     ax[row,col].set_xticks([plot_df.date.values[-n_forecast]],minor=True)
+    # create a plot window over the last six months
+    ax[row,col].set_xlim((pd.to_datetime(today) - timedelta(days=6*28), pd.to_datetime(today) + timedelta(days=num_forecast_days)))
     ax[row,col].xaxis.grid(which='minor', linestyle='-.',color='grey', linewidth=1)
 #fig.autofmt_xdate()
 fig.text(

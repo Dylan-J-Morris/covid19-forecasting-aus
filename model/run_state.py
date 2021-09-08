@@ -19,7 +19,7 @@ if len(argv) > 5: # Add an optional scenario flag to load in specific Reff scena
     scenario = argv[5]
     
 
-from params import start_date, num_forecast_days # External parameters
+from params import start_date, num_forecast_days, ncores # External parameters
 
 print("Simulating state " +state)
 
@@ -65,7 +65,7 @@ elif start_date == "2020-12-01":
 elif start_date == "2021-06-01":
     current = { # based on locally acquired cases in the days preceding the start date
         'ACT': [0, 0, 0],
-        'NSW': [33, 0, 4], 
+        'NSW': [20, 0, 2], 
         'NT': [0, 0, 0],
         'QLD': [14, 0, 1],
         'SA': [0, 0, 0],
@@ -129,7 +129,7 @@ if __name__ =="__main__":
     forecast_object.num_bad_sims = 0
     forecast_object.num_too_many = 0
 
-    pool = mp.Pool(12)
+    pool = mp.Pool(ncores)
     with tqdm(total=n_sims, leave=False, smoothing=0, miniters=1000) as pbar:
         for cases, obs_cases, param_dict in pool.imap_unordered(worker,
         [(forecast_object,'simulate',end_time,n,n) 

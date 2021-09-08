@@ -3,14 +3,15 @@ run_inference = True
 testing_inference = False        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
 
 if testing_inference:
-    num_chains = 4
+    num_chains = 2
     num_samples = 2000
 else:
     num_chains = 4
-    num_samples = 5000
+    num_samples = 4000
 
 
 ########### Key parameters
+ncores = 4
 third_start_date = '2021-06-15'
 start_date = '2021-06-01' # Start date of forecast
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
@@ -35,7 +36,7 @@ assume_local_cases_if_unknown = True
 # we have 6 days here cause this is the average amount of the incubation period
 # the other 10 come from standard censoring as we are inferring the infection dates
 # based on time distributions 
-truncation_days = 18            
+truncation_days = 16            
 
 
 ############# Simulation parameters
