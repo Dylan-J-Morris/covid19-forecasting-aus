@@ -198,4 +198,3 @@ if __name__ =="__main__":
     #results recorded into parquet as dataframe
     df = forecast_object.to_df(results)
 
-

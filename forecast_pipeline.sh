@@ -1,5 +1,4 @@
 #!/bin/bash
-
 DATADATE=$1 # Date of NNDSS data file
 NSIMS=$2 # Total number of simulations to run
 

@@ -6,7 +6,7 @@ SCENARIO='no_reversion'
 SCENARIODATE='2021-08-25' # This doesn't matter for a no-reversion scenario
 
 # Assumes you've already run an EpyReff for the date. If not, uncomment the following line.
-# jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
+jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
 jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
 
 # Here the scenario parameter is just a filename extention.

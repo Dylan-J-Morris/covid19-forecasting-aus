@@ -10,14 +10,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sys import argv
 import stan                                 # new version of pystan 
+# arviz allows for analysis of the posterior samples from pystan3/stan in later versions of Python
+import arviz as az
 import os, glob
 from Reff_functions import *
 from Reff_constants import *
-
 # import any useful bits and pieces from the params file
-from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, third_start_date
-# arviz allows for analysis of the posterior samples from pystan3 / stan 
-import arviz as az
+from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, run_inference_only, third_start_date
 
 ######### start #########
 
@@ -163,11 +162,6 @@ sec_date_range = {
 }
 
 #choose dates for each state for third wave
-# third_date_range = {
-#     'NSW':pd.date_range(start='2021-06-18',end=third_end_date).values,
-#     'VIC':pd.date_range(start='2021-07-01',end=third_end_date).values,
-#     'QLD':pd.date_range(start='2021-07-01',end=third_end_date).values
-# }
 third_date_range = {
     'NSW':pd.date_range(start=third_start_date,end=third_end_date).values,
     'QLD':pd.date_range(start=third_start_date,end=third_end_date).values,
@@ -278,7 +272,7 @@ policy_third_wave = [1]*df3X.loc[df3X.state==third_states[0]].shape[0]
 ######### loading and cleaning vaccine data #########
 
 # Load in vaccination data by state and date
-vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
 vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
 # display the latest available date in the NSW data (will be the same date between states)
@@ -297,13 +291,11 @@ if latest_vacc_data < pd.to_datetime(third_end_date):
 # Convert to simple array only useful to pass to stan
 vaccination_by_state_array = vaccination_by_state.to_numpy()
 
-# figure out the number of days between the third_start date and the beginning of the vacc data
-# days_after_vacc_program_begins = (pd.to_datetime(third_start_date) - vaccination_by_state.columns[0]).days
-
-# print(type(days_after_vacc_program_begins))
-
 # elementwise comparison of the third states with NSW and then convert to int
 is_NSW = (np.array(third_states) == 'NSW').astype(int)
+
+# calculate how many days the end of august is after the third start date
+decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
 
 state_index = { state : i+1  for i, state in enumerate(states_to_fit)}
 
@@ -352,15 +344,16 @@ input_data = {
 
     'map_to_state_index_sec': [state_index[state] for state in sec_states],
     'map_to_state_index_third': [state_index[state] for state in third_states],
-    'total_N_p_sec': sum( [sum(x) for x in include_in_sec_wave]).item(),            # needed to convert this to primitive int for pystan
-    'total_N_p_third': sum( [sum(x) for x in include_in_third_wave]).item(),        # needed to convert this to primitive int for pystan
+    'total_N_p_sec': sum( [sum(x) for x in include_in_sec_wave]).item(),    # needed to convert this to primitive int for pystan
+    'total_N_p_third': sum( [sum(x) for x in include_in_third_wave]).item(),    # needed to convert this to primitive int for pystan
     'include_in_sec_wave': include_in_sec_wave,
     'include_in_third_wave': include_in_third_wave,
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
     
-    'is_NSW': is_NSW,
-    'vaccine_effect_data': vaccination_by_state_array,                               # the vaccination data 
+    'is_NSW': is_NSW,   # indicator for whether we are looking at NSW
+    'decay_start_date_third': decay_start_date_third,   # days into third wave that we start return to homogoeneity in vaccination
+    'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data 
 }
 
 # make results dir
@@ -368,6 +361,7 @@ results_dir ="figs/soc_mob_posterior/"
 os.makedirs(results_dir,exist_ok=True)
 
 ######### running inference #########
+# to run the inference set run_inference to True in params
 if run_inference:
     # importing the stan model as a string
     from rho_model_gamma import rho_model_gamma_string
@@ -385,7 +379,7 @@ if run_inference:
     with open(results_dir+filename, 'w') as f:
         print(az.summary(fit, var_names = [
             'bet','R_I','R_L','R_Li','theta_md','sig',
-            'voc_effect_sec_wave','voc_effect_third_wave','eta_NSW','eta_other'
+            'voc_effect_sec_wave','voc_effect_third_wave','eta_NSW','eta_other', 'r_NSW', 'r_other'
             ]), file=f)
         # print(arviz.summary(fit, var_names = ['brho']), file=f)
 
@@ -393,7 +387,7 @@ if run_inference:
     # create extended summary of parameters to index the samples by
     summary_df = az.summary(fit, var_names = [
         'bet','R_I','R_L','R_Li','sig','brho','theta_md','brho_sec_wave','brho_third_wave',
-        'voc_effect_sec_wave','voc_effect_third_wave','eta_NSW','eta_other'
+        'voc_effect_sec_wave','voc_effect_third_wave','eta_NSW','eta_other', 'r_NSW', 'r_other'
         ])
 
     match_list_names = summary_df.index.to_list()
@@ -464,6 +458,9 @@ if run_inference:
     # we save the df to csv so we have it
     df_fit_new.to_csv("results/samples_mov_gamma.csv")
     
+    if run_inference_only:
+        sys.exit()
+
 ######### read in the posterior results #########
 samples_mov_gamma = pd.read_csv("results/samples_mov_gamma.csv")
 
@@ -647,8 +644,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors_(without_priors
 # Making a new figure that doesn't include the priors
 fig,ax = plt.subplots(figsize=(12,9))
 
-small_plot_cols =['voc_effect_third_wave', 'eta_NSW', 'eta_other']
-
+small_plot_cols =['voc_effect_third_wave', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
 
 sns.violinplot(x='variable',y='value',
                data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -660,7 +656,7 @@ ax.set_yticks([0,0.5,1,1.5,2,2.5,3],minor=False)
 ax.set_yticklabels([0,0.5,1,1.5,2,2.5,3],minor=False)
 ax.set_ylim((0,3))
 #state labels in alphabetical
-ax.set_xticklabels(['VoC 3rd wave', '$\eta$ (NSW)', '$\eta$ (not NSW)'])
+ax.set_xticklabels(['VoC 3rd wave', '$\eta$ (NSW)', '$\eta$ (not NSW)', '$r$ (NSW)', '$r$ (not NSW)'])
 ax.tick_params('x',rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('value')
@@ -740,7 +736,7 @@ if df2X.shape[0]>0:
 
 if apply_vacc_to_R_L_hats:
     # Load in vaccination data by state and date and this time do NOT isolate by fitting states 
-    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
     third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
@@ -779,7 +775,7 @@ if df3X.shape[0]>0:
 
 dates = vaccination_by_state.columns
 
-fig,ax = plt.subplots(figsize=(15,12), ncols=4, nrows=2, sharey=True, sharex=True)
+fig,ax = plt.subplots(figsize=(15,12), ncols=2, nrows=4, sharey=True, sharex=True)
 state_vacc_map = {'NSW': '1', 
                   'QLD': '2', 
                   'VIC': '3'}
@@ -789,15 +785,32 @@ for i, state in enumerate(states):
     # apply different vaccine form depending on if NSW
     if state == 'NSW':
         eta = samples_mov_gamma.eta_NSW
+        r = samples_mov_gamma.r_NSW
     else: 
         eta = samples_mov_gamma.eta_other
+        r = samples_mov_gamma.r_other
     
     # tile the states vaccination data from Curtin     
     vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0],1)).T
-    vacc_eff = np.array(eta) + (1-np.array(eta)) * vacc_tmp
+    # find days after the third start date began that we want to apply the effect — currently this is fixed from the
+    # 20th of Aug
+    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+    # create zero vector to fill in with vaccine effect 
+    vacc_eff = np.zeros_like(vacc_tmp)
 
-    row = i//4
-    col = i%4
+    # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
+    # note that in here we apply the entire sample to the vaccination data to create a days by samples array
+    for ii in range(vacc_tmp.shape[0]):
+        if ii < heterogeneity_delay_start_day:
+            vacc_eff[ii] = eta + (1-eta)*vacc_tmp[ii]    
+        else:
+            # number of days after the heterogeneity should start to wane 
+            heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+            decay_factor = np.exp(-r*heterogeneity_delay_days)
+            vacc_eff[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_tmp[ii]
+
+    row = i%4
+    col = i//4
 
     ax[row,col].plot(dates, vaccination_by_state.loc[state].values, label = 'data', color = 'C1')
     ax[row,col].plot(dates, np.median(vacc_eff, axis = 1), label='fit', color='C0')
@@ -809,17 +822,15 @@ for i, state in enumerate(states):
 ax[0,0].set_ylabel('reduction in TP from vaccination')
 ax[1,0].set_ylabel('reduction in TP from vaccination')
 
-plt.savefig(
-        results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_reduction_in_TP.png", dpi=144)
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"vaccine_reduction_in_TP.png", dpi=144)
 
 ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1,1+len(predictors))]]
-# var_to_csv = ['R_I']+['R_L','sig']+['theta_md']+predictors+['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))] + [
-#     'voc_effect_third_wave'] + ['eta']
-var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_third_wave', 'eta_NSW', 'eta_other']
+var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 
+              'voc_effect_third_wave', 'eta_NSW', 'eta_other', 
+              'r_NSW', 'r_other']
 var_to_csv = var_to_csv + predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))]
-
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5',key='samples')

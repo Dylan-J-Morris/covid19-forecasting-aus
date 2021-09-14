@@ -50,8 +50,10 @@ data {
     vector[N_third_wave] include_in_third_wave[j_third_wave];   // dates include in sec_wave 
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
-    int is_NSW[j_third_wave];                                // indicator vector of which state is NSW in the third wave
     
+    int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
+
+    int decay_start_date_third;
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data
 
 }
@@ -72,8 +74,10 @@ parameters {
     // voc and vaccine effects
     real<lower=0> voc_effect_sec_wave;
     real<lower=0> voc_effect_third_wave;
-    real<lower=0,upper=1> eta_NSW;     // array of adjustment factor for each third wave state
-    real<lower=0,upper=1> eta_other;     // array of adjustment factor for each third wave state
+    real<lower=0,upper=1> eta_NSW;                              // array of adjustment factor for each third wave state
+    real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
+    real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
+    real<lower=0> r_other;                                      // parameter for decay to heterogeneity
 
 }
 transformed parameters {
@@ -129,6 +133,8 @@ transformed parameters {
         int pos;
         real vacc_effect_tot;
         real eta;
+        real r;
+        real decay_in_heterogeneity;
         
         if (i==1){
             pos=1;
@@ -141,15 +147,22 @@ transformed parameters {
             if (include_in_third_wave[i][n]==1){
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
                 
-                // apply different heterogeneity effect depending on whether we are looking at NSW or not
-                // this will need to be adjusted if we start fitting to more states in the third wave...
+                // apply different heterogeneity effects depending on whether we are looking at NSW or not
                 if (is_NSW[i] == 1){
                     eta = eta_NSW;
+                    r = r_NSW;
                 } else {
                     eta = eta_other;
+                    r = r_other;
                 }
                 
-                // over the fitting period we assume this form -- will not apply in the future
+                # applying the return to homogeneity in vaccination effect 
+                if (n >= decay_start_date_third){
+                    decay_in_heterogeneity = exp(-r*(n-decay_start_date_third));
+                    eta *= decay_in_heterogeneity;
+                }
+
+                // total vaccination effect still has this form
                 vacc_effect_tot = eta + (1-eta) * vaccine_effect_data[i][n];
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
@@ -173,8 +186,12 @@ model {
     voc_effect_third_wave ~ gamma(2.9*2.9/0.05, 2.9/0.05);
     
     // assume a hierarchical structure on the vaccine effect 
-    eta_NSW ~ beta(2, 2);           // mean of 2/(2+2) = 0.5 => more pessimistic
-    eta_other ~ beta(2, 5);         // mean of 2/(2+5) = 0.28 => less pessimistic 
+    eta_NSW ~ beta(2, 7);           // mean of 2/(2+2) = 0.5 => more pessimistic
+    eta_other ~ beta(2, 7);         // mean of 2/(2+5) = 0.28 => less pessimistic 
+
+    // want it to have mean 0.16 => log-mean is log(0.16)
+    r_NSW ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
+    r_other ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);

@@ -7,6 +7,7 @@ from Reff_constants import *
 plt.style.use('seaborn-poster')
 
 import sys
+import os
 sys.path.insert(0,'model') # I hate this too but it allows everything to use the same helper functions.
 from helper_functions import read_in_NNDSS
 from params import VoC_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
@@ -68,6 +69,9 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
     Produce posterior predictive plots for all states
     """
     from scipy.special import expit
+    from params import third_start_date
+    
+    os.makedirs("results/third_wave_fit/",exist_ok=True)    
 
     value_vars=['retail_and_recreation_percent_change_from_baseline',
                             'grocery_and_pharmacy_percent_change_from_baseline',
@@ -197,7 +201,7 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                     md = 2*expit(-1*theta_md* prop_sim)
                     md[:logodds.shape[0]] = 1
                     #make logodds by appending post ban values
-                    logodds = np.append(logodds, X2@ post_values, axis=0)
+                    logodds = np.append(logodds, X2 @ post_values, axis=0)
                     
                 else:
                     #take right size of md to be N by N
@@ -216,17 +220,34 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                     
                     # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
                     if state == 'NSW':
-                        vacc_post = np.tile(samples_sim['eta_NSW'], (df_state.shape[0],1))
+                        eta = samples_sim['eta_NSW']
+                        r = samples_sim['r_NSW']
                     else:
-                        vacc_post = np.tile(samples_sim['eta_other'], (df_state.shape[0],1))
-                    # vacc_post_times_forecast = vacc_sim**vacc_post
-                    vacc_post_times_forecast = vacc_post + (1-vacc_post)*vacc_sim
+                        eta = samples_sim['eta_other']
+                        r = samples_sim['r_other']
                                 
                     # this just makes sure to set vaccination effect before the vaccination program to 1 -- should not be 
                     # required but is consistent with other parts of codebase
-                    for ii in range(vacc_post_times_forecast.shape[0]):
+                    # find days after forecast began that we want to apply the effect — currently this is fixed from the
+                    # 30th of Aug
+                    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+
+                    vacc_post = np.zeros_like(vacc_sim)
+
+                    # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
+                    # note that in here we apply the entire sample to the vaccination data to create a days by samples array
+                    for ii in range(vacc_post.shape[0]):
+                        if ii < heterogeneity_delay_start_day:
+                            vacc_post[ii] = eta + (1-eta)*vacc_sim[ii]    
+                        else:
+                            # number of days after the heterogeneity should start to wane 
+                            heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+                            decay_factor = np.exp(-r*heterogeneity_delay_days)
+                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_sim[ii]
+                    
+                    for ii in range(vacc_post.shape[0]):
                         if ii < df_state.loc[df_state.date<vaccination_start_date].shape[0]:
-                            vacc_post_times_forecast[ii] = 1.0
+                            vacc_post[ii] = 1.0
             
             if gamma:
                 if type(R)==str: #'state'
@@ -250,15 +271,8 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                 else:
                     sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0],1))
 
-                if states_initials[state] == "NSW" and third_phase:
-                    pd.DataFrame(md).to_csv("results/third_wave_fit/md.csv")   
-                    pd.DataFrame(sim_R).to_csv("results/third_wave_fit/sim_R.csv")   
-                    pd.DataFrame(expit(logodds)).to_csv("results/third_wave_fit/exp_logodds.csv")   
-                    pd.DataFrame(vacc_sim).to_csv("results/third_wave_fit/vacc_sim.csv")   
-                    pd.DataFrame(vacc_post).to_csv("results/third_wave_fit/vacc_post.csv")   
-
                 if vaccination is not None:
-                    mu_hat = 2 * md*sim_R* expit(logodds) * vacc_post_times_forecast
+                    mu_hat = 2 * md*sim_R* expit(logodds) * vacc_post
                 else:
                     mu_hat = 2 * md*sim_R* expit(logodds)
 
@@ -281,18 +295,9 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                 ].values.T
                                 
                                 voc_multiplier = samples_sim[['voc_effect_sec_wave']].values.T
-                                # print("Including the voc effects into the R_L forecasts")
-                                # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
-                                # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
-                                # voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
-
-                                # multiply forecasted R_L values by VoC effect - when set to true should mean that the soc_mob_RL_hats plot
-                                # and the other soc mob posterior stuff should now be consistent. Might be some deviations but should provide
-                                # matches to the EpyReff estimates during all phases, but particularly in the third wave phase. 
-                                if apply_voc_to_R_L_hats:
                                 
-                                    # now modify the mu_hat
-                                    mu_hat *= voc_multiplier
+                                # now modify the mu_hat
+                                mu_hat *= voc_multiplier
 
                                 pos = pos + df.loc[df.state==states_initials[state]].is_sec_wave.sum()
                             elif third_phase:
@@ -304,23 +309,14 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                 ].values.T
 
                                 voc_multiplier = samples_sim[['voc_effect_third_wave']].values.T
-                                # print("Including the voc effects into the R_L forecasts")
-                                # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now) 
-                                # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
-                                # voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0],mob_samples))
-
-                                # multiply forecasted R_L values by VoC effect - when set to true should mean that the soc_mob_RL_hats plot
-                                # and the other soc mob posterior stuff should now be consistent. Might be some deviations but should provide
-                                # matches to the EpyReff estimates during all phases, but particularly in the third wave phase. 
-                                if apply_voc_to_R_L_hats:
-                                    # now we just modify the values before the introduction of the voc to be 1.0
-                                    for ii in range(voc_multiplier.shape[0]):
-                                        if ii < df_state.loc[df_state.date<VoC_start_date].shape[0]:
-                                            voc_multiplier[ii] = 1.0
-                                    # now modify the mu_hat
-                                    mu_hat *= voc_multiplier
+                                # now we just modify the values before the introduction of the voc to be 1.0
+                                for ii in range(voc_multiplier.shape[0]):
+                                    if ii < df_state.loc[df_state.date<VoC_start_date].shape[0]:
+                                        voc_multiplier[ii] = 1.0
+                                # now modify the mu_hat
+                                mu_hat *= voc_multiplier
                                     
-                                if states_initials[state] == "NSW" and third_phase:
+                                if states_initials[state] == "SA" and third_phase:
                                     pd.DataFrame(voc_multiplier).to_csv("results/third_wave_fit/voc.csv")
 
                                 pos = pos + df.loc[df.state==states_initials[state]].is_third_wave.sum()
@@ -333,8 +329,8 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                                         for j in range(df_state.shape[0])]].values.T 
                         else:
                             print("Using data as inference not done on {}".format(state))
-                            rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T,
-                                               (1,samples_sim.shape[0]))
+                            rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T,(1,samples_sim.shape[0]))
+                    
                     R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0],1))
 
                     mu_hat = rho_data * R_I_sim + (1- rho_data) * mu_hat
@@ -345,9 +341,8 @@ def predict_plot(samples, df, split=True,gamma=False,moving=True,grocery=True,
                 else:
                     if type(delta)==np.ndarray:
                             delta = np.random.choice(delta,size=df_state.shape[0])
-
-
-                R_eff_hat = mu_hat #np.random.gamma(shape= mu_hat*delta, scale=1.0/delta)
+                            
+                R_eff_hat = mu_hat 
 
             else:
                 #Use normal distribution

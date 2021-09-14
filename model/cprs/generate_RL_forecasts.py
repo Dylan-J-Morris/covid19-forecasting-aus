@@ -40,10 +40,9 @@ if len(argv) > 2:
 # Get Google Data
 df_google_all = read_in_google(Aus_only=True,moving=True,local=True)
 
-# reading in vaccination data
-# Load in vaccination data by state and date
+# Load in vaccination data by state and date which should have the same date as the NNDSS/linelist data 
 if apply_vacc_to_R_L_hats:
-    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
 
     third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
@@ -537,7 +536,7 @@ if apply_vacc_to_R_L_hats:
 
 if apply_vacc_to_R_L_hats:
     ############# now we read in the vaccine time series again...
-    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date','effect']]
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect') # Convert to matrix form
 
@@ -557,7 +556,8 @@ if apply_vacc_to_R_L_hats:
     # merge the dfs of the past and forecasted values on the date 
     df_vaccination = pd.concat([vacc_df,df_forecast_vaccination.set_index('date')])
     # save the forecasted vaccination line
-    df_vaccination.to_csv("results/forecasted_vaccination.csv")
+    os.makedirs("results/forecasting/",exist_ok=True)
+    df_vaccination.to_csv("results/forecasting/forecasted_vaccination.csv")
 
 #prop_std = pd.DataFrame(np.random.beta(1+survey_counts, 1+survey_respond), columns = survey_counts.columns, index = prop.index)
 #df_md_std = pd.concat([prop_std,df_forecast_md_std.set_index('date')])
@@ -578,6 +578,7 @@ for i,state in enumerate(plot_states):
     else:
         md = (2*expit(-1*theta_md*prop_sim[:,np.newaxis]))
 
+    pd.DataFrame(md).to_csv("results/forecasting/md.csv")
 
     row = i//2
     col = i%2
@@ -686,30 +687,28 @@ for typ in forecast_type:
             if state == 'NSW':    
                 # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
                 eta = np.tile(samples['eta_NSW'], (df_state.shape[0],mob_samples))
-                pd.DataFrame(eta).to_csv("eta_NSW.csv")
-                pd.DataFrame(vacc_data_full).to_csv("vacc_data_NSW.csv")
+                # rate of return to homogeneity - chosen to return after 28 days
+                r = np.tile(samples['r_NSW'], (df_state.shape[0],mob_samples))
             else:
                 eta = np.tile(samples['eta_other'], (df_state.shape[0],mob_samples))
+                r = np.tile(samples['r_other'], (df_state.shape[0],mob_samples))
             
-            # find days after forecast began that we want to apply the effect
-            heterogeneity_delay_start_day = (pd.to_datetime(data_date) - pd.to_datetime(start_date)).days
-            # print(heterogeneity_delay_start_day)
-            # print(eta.shape)
-            
-            # sys.exit()
-            
-            # rate of return to homogeneity 
-            r = 0.1645
-            # apply the return to homogeneity (i.e. the Curtin estimate is truth)
-            for ii in range(eta.shape[0]):
-                if ii >= heterogeneity_delay_start_day:
-                    # number of days after campaigns to reduce heterogeneity in the vaccine coverage
+            # find days after forecast began that we want to apply the effect — currently this is fixed from the
+            # 30th of Aug
+            heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(start_date)).days
+
+            vacc_post = np.zeros_like(vacc_data_full)
+
+            # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
+            # note that in here we apply the entire sample to the vaccination data to create a days by samples array
+            for ii in range(vacc_post.shape[0]):
+                if ii < heterogeneity_delay_start_day:
+                    vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_data_full[ii]    
+                else:
+                    # number of days after the heterogeneity should start to wane 
                     heterogeneity_delay_days = ii - heterogeneity_delay_start_day
-                    # modify eta accordingly by applying a decay term which begins at the heterogeneity_delay_start_day
-                    eta[ii] = np.exp(-r*heterogeneity_delay_days) * eta[ii]
-            
-            # calculate the TP reduction from vaccination
-            vacc_post = eta + (1-eta) * vacc_data_full
+                    decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+                    vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_data_full[ii]
             
             # last thing to do is modify the vacc_post values before the start of vaccination 
             for ii in range(vacc_post.shape[0]):
@@ -858,6 +857,16 @@ for typ in forecast_type:
                     voc_multiplier[ii] = 1.0
 
             R_L *= voc_multiplier
+            
+        # saving some output for SA — specifically focused on the RL through time 
+        # with and without effects of mding
+        if typ == 'R_L' and state == 'SA': 
+            mu_hat_no_rev = 2 * md * sim_R * expit( logodds ) * voc_multiplier
+            # 2 cancels as logistic(0) = 1/2 
+            mu_hat_rev = sim_R * voc_multiplier
+            pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
+            pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
+            pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
         
         R_L_med = np.median(R_L,axis=1)
         R_L_lower = np.percentile(R_L,25,axis=1)
@@ -978,13 +987,12 @@ plt.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+s
 
 ################## now we save the posterior stuff
 
-df_Rhats = df_Rhats[['state','date','type','median',
-'bottom','lower','upper','top']+[i for i in range(2000)] ]
+df_Rhats = df_Rhats[['state','date','type','median','bottom','lower','upper','top']+[i for i in range(2000)] ]
 #df_Rhats.columns = ['state','date','type','median',
 #'bottom','lower','upper','top']  + [i for i in range(1000)]
 
 df_hdf = df_Rhats.loc[df_Rhats.type=='R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_I')&(df_Rhats.date=='2020-03-01')])
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type=='R_L0')&(df_Rhats.date=='2020-03-01')])
-df_Rhats.to_csv('results/third_wave_fit/soc_mob_R'+today+'.csv')
+df_Rhats.to_csv('results/third_wave_fit/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+scenario+scenario_date+'.h5',key='Reff')
