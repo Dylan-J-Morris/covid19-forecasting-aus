@@ -362,7 +362,7 @@ os.makedirs(results_dir,exist_ok=True)
 
 ######### running inference #########
 # to run the inference set run_inference to True in params
-if run_inference:
+if run_inference or run_inference_only:
     # importing the stan model as a string
     from rho_model_gamma import rho_model_gamma_string
 

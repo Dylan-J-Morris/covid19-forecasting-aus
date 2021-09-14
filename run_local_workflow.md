@@ -60,7 +60,7 @@ Now we loop over each state and simulate forward.
 states=("TAS" "WA" "ACT" "NT")
 states=("SA" "QLD" "TAS" "WA" "ACT" "NT")
 states=("NSW" "VIC")
-states=("VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+states=("SA" "QLD" "TAS" "WA" "ACT" "NT")
 for state in "${states[@]}"
 do
     python model/run_state.py $NSIMS $DATADATE $state $VOCFLAG "${SCENARIO}${SCENARIODATE}"
