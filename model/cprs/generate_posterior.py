@@ -360,8 +360,6 @@ input_data = {
 results_dir ="figs/soc_mob_posterior/"
 os.makedirs(results_dir,exist_ok=True)
 
-import Setuptools
-
 ######### running inference #########
 # to run the inference set run_inference to True in params
 if run_inference or run_inference_only:
