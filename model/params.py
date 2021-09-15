@@ -1,7 +1,7 @@
 ########### Inference parameters
 run_inference = True
 run_inference_only = False
-testing_inference = False        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
+testing_inference = True        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
 
 if testing_inference:
     num_chains = 2
@@ -12,7 +12,7 @@ else:
 
 
 ########### Key parameters
-ncores = 4
+ncores = 12
 third_start_date = '2021-06-15'
 start_date = '2021-06-01' # Start date of forecast
 use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
