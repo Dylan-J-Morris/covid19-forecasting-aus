@@ -8,18 +8,19 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sys import argv
-if on_phoenix:
-    import pystan
-else:
-    import stan                                 # new version of pystan 
+from sys import argv                             # new version of pystan 
 # arviz allows for analysis of the posterior samples from pystan3/stan in later versions of Python
 import arviz as az
 import os, glob
 from Reff_functions import *
 from Reff_constants import *
 # import any useful bits and pieces from the params file
-from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, run_inference_only, third_start_date
+from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, run_inference_only, third_start_date, on_phoenix
+
+if on_phoenix:
+    import pystan
+else:
+    import stan    
 
 ######### start #########
 
@@ -366,10 +367,11 @@ os.makedirs(results_dir,exist_ok=True)
 ######### running inference #########
 # to run the inference set run_inference to True in params
 if run_inference or run_inference_only:
+    
     # importing the stan model as a string
     from rho_model_gamma import rho_model_gamma_string
     # sample from the model  
-    from params import num_chains, num_samples, on_phoenix
+    from params import num_chains, num_samples
 
     if on_phoenix:
         #make results dir
