@@ -1,4 +1,5 @@
 ########### Inference parameters
+on_phoenix = True
 run_inference = True
 run_inference_only = False
 testing_inference = True        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
