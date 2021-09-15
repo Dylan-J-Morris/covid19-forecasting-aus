@@ -10,9 +10,8 @@
 #SBATCH --mail-user=$USER@adelaide.edu.au
 
 module load arch/haswell
-module load arch/skylake
-module load Python/3.8.6
-source ../virtualenvs3.8/bin/activate
+module load Python/3.6.1-foss-2016b
+source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 
 DATADATE=$1
 python model/EpyReff/run_estimator.py $DATADATE

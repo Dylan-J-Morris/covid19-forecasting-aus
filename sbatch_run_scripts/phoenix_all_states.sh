@@ -11,9 +11,8 @@
 
 
 module load arch/haswell
-module load arch/skylake
-module load Python/3.8.6
-source ../virtualenvs3.8/bin/activate
+module load Python/3.6.1-foss-2016b
+source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 
