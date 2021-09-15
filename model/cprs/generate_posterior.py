@@ -374,10 +374,7 @@ if run_inference or run_inference_only:
     from params import num_chains, num_samples
 
     if on_phoenix:
-        #make results dir
-        
         sm_pol_gamma = pystan.StanModel(model_code = rho_model_gamma_string, model_name = 'gamma_pol_state')
-        
         fit = sm_pol_gamma.sampling(data=input_data,iter=num_samples,chains=num_chains)
 
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
@@ -396,7 +393,6 @@ if run_inference or run_inference_only:
 
         # compile the stan model 
         posterior = stan.build(rho_model_gamma_string, data=input_data)
-
         fit = posterior.sample(num_chains=num_chains, num_samples=num_samples)
 
         ######### Saving Output #########
