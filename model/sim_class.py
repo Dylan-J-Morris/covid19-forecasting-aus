@@ -69,33 +69,24 @@ class Forecast:
         self.qua_ai = 1
         self.gam = 1/2
         self.ps = 0.7  # Probability of being symptomatic
-
         # Increase Reff to due this VoC
         self.VoC_flag = VoC_flag
-
         # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
         self.scenario = scenario
-
         # forecast_date and cases_file_date are usually the same.
         # Total number of days in simulation
         self.forecast_date = (pd.to_datetime(forecast_date, format='%Y-%m-%d') - self.start_date).days
         self.cases_file_date = cases_file_date
-
-        # Load in Reff data before running all sims
+        # Load in Rff data before running all sims
         self.Reff_all = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
-
         # Assumption dates.
-
         # Date from which quarantine was started
         self.quarantine_change_date = pd.to_datetime('2020-04-15', format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
-
-        # Day from which to reduce imported overseas cases escapes due to quarantine worker vaccination
+        # Day from whih to reduce imported overseas cases escapes due to quarantine worker vaccination
         self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01", format='%Y-%m-%d') - self.start_date).days
-
         # Day from which to start treating imported cases as delta cases
         self.VoC_on_imported_effect_start = (pd.to_datetime("2021-05-01", format='%Y-%m-%d') - self.start_date).days
-
-        # This is a parameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
+        # This is a paameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
         if state == "VIC":
             self.test_campaign_date = (pd.to_datetime('2020-06-01', format='%Y-%m-%d') - self.start_date).days
             self.test_campaign_factor = 1.5
@@ -147,13 +138,9 @@ class Forecast:
                 # inf_time = next(self.get_inf_time) #remove?
                 detection_time = next(self.get_detect_time)
                 if person <= num_symp:
-                    new_person = Person(-1,
-                                        curr_time-1*detection_time,
-                                        curr_time, 0, 'S')
+                    new_person = Person(-1,curr_time-1*detection_time,curr_time, 0, 'S')
                 else:
-                    new_person = Person(-1,
-                                        curr_time-1*detection_time,
-                                        curr_time, 0, 'A')
+                    new_person = Person(-1,curr_time-1*detection_time,curr_time, 0, 'A')
 
                 self.people[len(self.people)] = new_person
 
@@ -340,19 +327,16 @@ class Forecast:
         """
         np.random.seed(seed)
         self.num_of_sim = sim
-
         self.read_in_Reff()
         # generate storage for cases
         self.cases = np.zeros(shape=(end_time, 3), dtype=float)
         self.observed_cases = np.zeros_like(self.cases)
-
         self.observed_cases[0, :] = self.initial_state.copy()
 
         # Initalise undetected cases and add them to current
         self.initialise_sim()
         # number of cases after end time
         self.cases_after = 0  # gets incremented in generate new cases
-
         # Record day 0 cases
         self.cases[0, :] = self.current.copy()
 
@@ -699,7 +683,7 @@ class Forecast:
         df['date'] = timedelta_from_start.apply(lambda x: x.days)
         df = df.sort_values(by='date')
         df = df.set_index('date')
-        # needed to be more careful with the reindexing
+        # needed to be more careful with the reindexing as using the date inferred value
         df = df.reindex(range(self.end_time), columns={'imported', 'local'}, fill_value=0)
 
         # calculate window of cases to measure against
