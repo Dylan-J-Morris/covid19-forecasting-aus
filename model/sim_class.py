@@ -13,7 +13,6 @@ import gc
 from numpy.random import random
 from itertools import cycle
 
-
 class Person:
     """
     Individuals in the forecast
@@ -28,7 +27,6 @@ class Person:
         self.detection_time = detection_time
         self.recovery_time = recovery_time
         self.category = category
-
 
 class Forecast:
     """
@@ -56,8 +54,7 @@ class Forecast:
         self.initial_state = current.copy()  # Observed cases on start day
         # Create an object list of Persons based on observed cases on start day/
         people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2]
-        self.initial_people = {i: Person(0, 0, 0, 0, cat)
-                               for i, cat in enumerate(people)}
+        self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
 
         self.state = state
         # start date sets day 0 in script to start_date
@@ -81,32 +78,26 @@ class Forecast:
 
         # forecast_date and cases_file_date are usually the same.
         # Total number of days in simulation
-        self.forecast_date = (pd.to_datetime(
-            forecast_date, format='%Y-%m-%d') - self.start_date).days
+        self.forecast_date = (pd.to_datetime(forecast_date, format='%Y-%m-%d') - self.start_date).days
         self.cases_file_date = cases_file_date
 
         # Load in Reff data before running all sims
-        self.Reff_all = read_in_Reff_file(
-            self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
+        self.Reff_all = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
 
         # Assumption dates.
 
         # Date from which quarantine was started
-        self.quarantine_change_date = pd.to_datetime(
-            '2020-04-15', format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
+        self.quarantine_change_date = pd.to_datetime('2020-04-15', format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
 
         # Day from which to reduce imported overseas cases escapes due to quarantine worker vaccination
-        self.hotel_quarantine_vaccine_start = (pd.to_datetime(
-            "2021-05-01", format='%Y-%m-%d') - self.start_date).days
+        self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01", format='%Y-%m-%d') - self.start_date).days
 
         # Day from which to start treating imported cases as delta cases
-        self.VoC_on_imported_effect_start = (pd.to_datetime(
-            "2021-05-01", format='%Y-%m-%d') - self.start_date).days
+        self.VoC_on_imported_effect_start = (pd.to_datetime("2021-05-01", format='%Y-%m-%d') - self.start_date).days
 
         # This is a parameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
         if state == "VIC":
-            self.test_campaign_date = (pd.to_datetime(
-                '2020-06-01', format='%Y-%m-%d') - self.start_date).days
+            self.test_campaign_date = (pd.to_datetime('2020-06-01', format='%Y-%m-%d') - self.start_date).days
             self.test_campaign_factor = 1.5
         else:
             self.test_campaign_date = None
@@ -140,8 +131,7 @@ class Forecast:
             # assign infection time to those discovered
             # obs time is day =0
             for person in self.people.keys():
-                self.people[person].infection_time = - \
-                    1*next(self.get_detect_time)
+                self.people[person].infection_time = -1*next(self.get_detect_time)
         else:
             # reinitialising, so actual people need times
             # assume all symptomatic
@@ -188,25 +178,21 @@ class Forecast:
         if curr_time == 0:
             # Add each undetected case into people
             for n in range(num_undetected_a):
-                self.people[len(self.people)] = Person(
-                    0, curr_time-1*next(self.get_inf_time), 0, 0, 'A')
+                self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time), 0, 0, 'A')
                 self.current[1] += 1
             for n in range(num_undetected_s):
-                self.people[len(self.people)] = Person(
-                    0, curr_time-1*next(self.get_inf_time), 0, 0, 'S')
+                self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time), 0, 0, 'S')
                 self.current[2] += 1
         else:
             # reinitialised, so add these cases back onto cases
             # Add each undetected case into people
             for n in range(num_undetected_a):
-                new_person = Person(-1, curr_time-1 *
-                                    next(self.get_inf_time), 0, 0, 'A')
+                new_person = Person(-1, curr_time-1*next(self.get_inf_time), 0, 0, 'A')
                 self.infected_queue.append(len(self.people))
                 self.people[len(self.people)] = new_person
                 self.cases[max(0, ceil(new_person.infection_time)), 1] += 1
             for n in range(num_undetected_s):
-                new_person = Person(-1, curr_time-1 *
-                                    next(self.get_inf_time), 0, 0, 'S')
+                new_person = Person(-1, curr_time-1*next(self.get_inf_time), 0, 0, 'S')
                 self.infected_queue.append(len(self.people))
                 self.people[len(self.people)] = new_person
                 self.cases[max(0, ceil(new_person.infection_time)), 2] += 1
@@ -227,30 +213,28 @@ class Forecast:
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
         df_forecast = df_forecast.set_index(['state', 'date'])
 
-        dfReff_dict = df_forecast.loc[self.state,
-                                      [0, 1]].to_dict(orient='index')
+        dfReff_dict = df_forecast.loc[self.state,[0, 1]].to_dict(orient='index')
 
         Reff_lookupstate = {}
         for key, stats in dfReff_dict.items():
             # instead of mean and std, take all columns as samples of Reff
             # convert key to days since start date for easier indexing
             newkey = (key - self.start_date).days
-            Reff_lookupstate[newkey] = df_forecast.loc[(
-                self.state, key), self.num_of_sim % 2000]
+            Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
 
         self.Reff = Reff_lookupstate
 
     def generate_new_cases(self, parent_key, Reff, k, travel=False):
         """
-        Generate offspring for each parent, check if they travel. The parent_key parameter lets us find the parent from the array self.people containing the objects from the branching process.
+        Generate offspring for each parent, check if they travel. 
+        The parent_key parameter lets us find the parent from the array self.people 
+        containing the objects from the branching process.
         """
         # Check parent category
         if self.people[parent_key].category == 'S':  # Symptomatic
-            num_offspring = nbinom.rvs(
-                n=k, p=1 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
+            num_offspring = nbinom.rvs(n=k, p=1 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
         elif self.people[parent_key].category == 'A':  # Asymptomatic
-            num_offspring = nbinom.rvs(
-                n=k, p=1 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
+            num_offspring = nbinom.rvs(n=k, p=1 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
         else:  # Imported
             Reff = self.R_I
             # Apply vaccine reduction for hotel quarantine workers
@@ -267,11 +251,9 @@ class Forecast:
 
             if self.people[parent_key].infection_time < self.quarantine_change_date:
                 # factor of 3 times infectiousness prequarantine changes
-                num_offspring = nbinom.rvs(
-                    n=k, p=1 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
+                num_offspring = nbinom.rvs(n=k, p=1 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
             else:
-                num_offspring = nbinom.rvs(
-                    n=k, p=1 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
+                num_offspring = nbinom.rvs(n=k, p=1 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
 
         if num_offspring > 0:
 
@@ -281,8 +263,7 @@ class Forecast:
             for new_case in range(num_offspring):
                 # define each offspring
 
-                inf_time = self.people[parent_key].infection_time + \
-                    next(self.get_inf_time)
+                inf_time = self.people[parent_key].infection_time + next(self.get_inf_time)
                 if inf_time > self.forecast_date:
                     self.inf_forecast_counter += 1
 
@@ -309,8 +290,7 @@ class Forecast:
                             if inf_time < self.test_campaign_date:
                                 detect_prob = self.symptomatic_detection_prob
                             else:
-                                detect_prob = min(
-                                    0.95, self.symptomatic_detection_prob*self.test_campaign_factor)
+                                detect_prob = min(0.95, self.symptomatic_detection_prob*self.test_campaign_factor)
                         else:
                             detect_prob = self.symptomatic_detection_prob
                         if detection_rv < detect_prob:
@@ -322,8 +302,7 @@ class Forecast:
                                         self.inf_nowcast_counter += 1
                                     elif detect_time > self.forecast_date - 60:
                                         self.inf_backcast_counter += 1
-                                self.observed_cases[max(
-                                    0, ceil(detect_time)-1), 2] += 1
+                                self.observed_cases[max(0, ceil(detect_time)-1), 2] += 1
 
                     else:
                         category = 'A'
@@ -334,8 +313,7 @@ class Forecast:
                             if inf_time < self.test_campaign_date:
                                 detect_prob = self.asymptomatic_detection_prob
                             else:
-                                detect_prob = min(
-                                    0.95, self.asymptomatic_detection_prob*self.test_campaign_factor)
+                                detect_prob = min(0.95, self.asymptomatic_detection_prob*self.test_campaign_factor)
                         else:
                             detect_prob = self.asymptomatic_detection_prob
                         if detection_rv < detect_prob:
@@ -348,15 +326,13 @@ class Forecast:
                                         self.inf_nowcast_counter += 1
                                     elif detect_time > self.forecast_date - 60:
                                         self.inf_backcast_counter += 1
-                                self.observed_cases[max(
-                                    0, ceil(detect_time)-1), 1] += 1
+                                self.observed_cases[max(0, ceil(detect_time)-1), 1] += 1
 
                     # add new infected to queue
                     self.infected_queue.append(len(self.people))
 
                     # add person to tracked people
-                    self.people[len(self.people)] = Person(
-                        parent_key, inf_time, detect_time, recovery_time, category)
+                    self.people[len(self.people)] = Person(parent_key, inf_time, detect_time, recovery_time, category)
 
     def simulate(self, end_time, sim, seed):
         """
@@ -402,19 +378,16 @@ class Forecast:
                 # Generate people
                 if n - unobs_imports[day] >= 0:
                     # number of observed people
-                    new_person = Person(
-                        0, day, day + next(self.get_detect_time), 0, 'I')
+                    new_person = Person(0, day, day + next(self.get_detect_time), 0, 'I')
                     self.people[len(self.people)] = new_person
                     if new_person.detection_time <= end_time:
-                        self.observed_cases[max(
-                            0, ceil(new_person.detection_time)-1), 0] += 1
+                        self.observed_cases[max(0, ceil(new_person.detection_time)-1), 0] += 1
                 else:
                     # unobserved people
                     new_person = Person(0, day, 0, 0, 'I')
                     self.people[len(self.people)] = new_person
                     if day <= end_time:
                         self.cases[max(0, day-1), 0] += 1
-         #####
 
         # Create queue for infected people
         self.infected_queue = deque()
@@ -446,36 +419,21 @@ class Forecast:
         self.daycount = 0
         while len(self.infected_queue) > 0:
             day_end = self.people[self.infected_queue[0]].detection_time
-            if day_end < self.forecast_date:
-                if self.inf_backcast_counter > self.max_backcast_cases:
-                    # print("Sim "+str(self.num_of_sim
-                    # )+" in "+self.state+" has > "+str(self.max_backcast_cases)+" cases in backcast. Ending")
-                    self.num_too_many += 1
-                    self.bad_sim = True
-                    break
-                elif self.inf_nowcast_counter > self.max_nowcast_cases:
-                    # print("Sim "+str(self.num_of_sim
-                    # )+" in "+self.state+" has > "+str(
-                    #     self.max_nowcast_cases
-                    #     )+" cases in nowcast. Ending")
-                    self.num_too_many += 1
-                    self.bad_sim = True
-                    break
+            if day_end < self.forecast_date and (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases): 
+                self.num_too_many += 1
+                self.bad_sim = True
+                break
             else:
                 # check max cases for after forecast date
                 if self.inf_forecast_counter > self.max_cases:
                     # hold value forever
                     if day_end < self.cases.shape[0]-1:
-                        self.cases[ceil(day_end):,
-                                   2] = self.cases[ceil(day_end)-2, 2]
+                        self.cases[ceil(day_end):,2] = self.cases[ceil(day_end)-2, 2]
 
-                        self.observed_cases[ceil(
-                            day_end):, 2] = self.observed_cases[ceil(day_end)-2, 2]
+                        self.observed_cases[ceil(day_end):, 2] = self.observed_cases[ceil(day_end)-2, 2]
                     else:
                         self.cases_after += 1
-
-                    # print("Sim "+str(self.num_of_sim
-                    #     )+" in "+self.state+" has >"+str(self.max_cases)+" cases in forecast period.")
+                        
                     self.num_too_many += 1
                     break
 
@@ -487,23 +445,19 @@ class Forecast:
 
                 # take approproate Reff based on parent's infection time
                 curr_time = self.people[self.infected_queue[0]].infection_time
-                if type(self.Reff) == int:
-                    Reff = 1
-                    print("using flat Reff")
-                elif type(self.Reff) == dict:
-                    while True:
-                        # sometimes initial cases infection time is pre
-                        # Reff data, so take the earliest one
-                        try:
-                            Reff = self.Reff[ceil(curr_time)-1]
-                        except KeyError:
-                            if curr_time > 0:
-                                print(
-                                    "Unable to find Reff for this parent at time: %.2f" % curr_time)
-                                raise KeyError
-                            curr_time += 1
-                            continue
-                        break
+                while True:
+                    # sometimes initial cases infection time is pre
+                    # Reff data, so take the earliest one
+                    try:
+                        Reff = self.Reff[ceil(curr_time)-1]
+                    except KeyError:
+                        if curr_time > 0:
+                            print(
+                                "Unable to find Reff for this parent at time: %.2f" % curr_time)
+                            raise KeyError
+                        curr_time += 1
+                        continue
+                    break
                 # generate new cases with times
                 parent_key = self.infected_queue.popleft()
                 # recorded within generate new cases
@@ -516,26 +470,23 @@ class Forecast:
 
                 missed_outbreak = self.data_check(day)  # True or False
                 if missed_outbreak:
+                    # print("missing an outbreak")
                     self.daycount += 1
                     if self.daycount >= reinitialising_window:
                         n_resim += 1
                         #print("Local outbreak in "+self.state+" not simulated on day %i" % day)
                         # cases to add
                         # treat current like empty list
-                        self.current[2] = max(
-                            0, self.actual[day] - sum(self.observed_cases[day, 1:]))
-                        self.current[2] += max(0, self.actual[day-1] -
-                                               sum(self.observed_cases[day-1, 1:]))
-                        self.current[2] += max(0, self.actual[day-2] -
-                                               sum(self.observed_cases[day-2, 1:]))
+                        self.current[2] = max(0, self.actual[day] - sum(self.observed_cases[day, 1:]))
+                        self.current[2] += max(0, self.actual[day-1] - sum(self.observed_cases[day-1, 1:]))
+                        self.current[2] += max(0, self.actual[day-2] - sum(self.observed_cases[day-2, 1:]))
 
                         # how many cases are symp to asymp
                         prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
                             self.symptomatic_detection_prob*self.ps +
                             self.asymptomatic_detection_prob*(1-self.ps)
                         )
-                        num_symp = binom.rvs(n=int(self.current[2]),
-                                             p=prob_symp_given_detect)
+                        num_symp = binom.rvs(n=int(self.current[2]),p=prob_symp_given_detect)
                         # distribute observed cases over 3 days
                         # Triangularly
                         self.observed_cases[max(0, day), 2] += num_symp//2
@@ -569,41 +520,26 @@ class Forecast:
                     self.bad_sim = True
                     n_resim = 0
                     break
+                
                 # Each check of day needs to simulate the cases before moving
                 # to next check, otherwise will be doubling up on undetecteds
                 while len(self.infected_queue) > 0:
-                    day_end = self.people[self.infected_queue[0]
-                                          ].detection_time
+                    day_end = self.people[self.infected_queue[0]].detection_time
 
                     # check for exceeding max_cases
-                    if day_end < self.forecast_date:
-                        if self.inf_backcast_counter > self.max_backcast_cases:
-                            # print("Sim "+str(self.num_of_sim
-                            # )+" in "+self.state+" has > "+str(self.max_backcast_cases)+" cases in backcast. Ending")
-                            self.num_too_many += 1
-                            self.bad_sim = True
-                            break
-                        elif self.inf_nowcast_counter > self.max_nowcast_cases:
-                            # print("Sim "+str(self.num_of_sim
-                            # )+" in "+self.state+" has > "+str(
-                            #     self.max_nowcast_cases
-                            #     )+" cases in nowcast. Ending")
+                    if day_end < self.forecast_date and (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases):
                             self.num_too_many += 1
                             self.bad_sim = True
                             break
                     else:
                         if self.inf_forecast_counter > self.max_cases:
-                            day_inf = self.people[self.infected_queue[0]
-                                                  ].infection_time
-                            self.cases[ceil(day_inf):,
-                                       2] = self.cases[ceil(day_inf)-2, 2]
+                            day_inf = self.people[self.infected_queue[0]].infection_time
+                            self.cases[ceil(day_inf):,2] = self.cases[ceil(day_inf)-2, 2]
 
-                            self.observed_cases[ceil(
-                                day_inf):, 2] = self.observed_cases[ceil(day_inf)-2, 2]
-                            # print("Sim "+str(self.num_of_sim
-                            #     )+" in "+self.state+" has >"+str(self.max_cases)+" cases in forecast period.")
+                            self.observed_cases[ceil(day_inf):, 2] = self.observed_cases[ceil(day_inf)-2, 2]
                             self.num_too_many += 1
                             break
+                        
                     # stop if parent infection time greater than end time
                     if self.people[self.infected_queue[0]].infection_time > end_time:
                         personkey = self.infected_queue.popleft()
@@ -612,22 +548,19 @@ class Forecast:
                         # take approproate Reff based on parent's infection time
                         curr_time = self.people[self.infected_queue[0]
                                                 ].infection_time
-                        if type(self.Reff) == int:
-                            Reff = 2
-                        elif type(self.Reff) == dict:
-                            while True:
-                                # sometimes initial cases infection time is pre
-                                # Reff data, so take the earliest one
-                                try:
-                                    Reff = self.Reff[ceil(curr_time)-1]
-                                except KeyError:
-                                    if curr_time > 0:
-                                        print(
-                                            "Unable to find Reff for this parent at time: %.2f" % curr_time)
-                                        raise KeyError
-                                    curr_time += 1
-                                    continue
-                                break
+                        while True:
+                            # sometimes initial cases infection time is pre
+                            # Reff data, so take the earliest one
+                            try:
+                                Reff = self.Reff[ceil(curr_time)-1]
+                            except KeyError:
+                                if curr_time > 0:
+                                    print(
+                                        "Unable to find Reff for this parent at time: %.2f" % curr_time)
+                                    raise KeyError
+                                curr_time += 1
+                                continue
+                            break
                         # generate new cases with times
                         parent_key = self.infected_queue.popleft()
                         self.generate_new_cases(
@@ -697,22 +630,12 @@ class Forecast:
         for key, item in results.items():
             if key not in sim_vars:
                 df_results = df_results.append(
-                    pd.DataFrame(
-                        item.T, index=pd.MultiIndex.from_product([
-                            [key], range(n_sims)],
-                            names=['Category', 'sim']
-                        )
-                    )
-                )
-        df_results.columns = pd.date_range(start=self.start_date,
-                                           periods=days  # num of days
-                                           )
-        df_results.columns = [col.strftime('%Y-%m-%d') for
-                              col in df_results.columns]
+                    pd.DataFrame(item.T, index=pd.MultiIndex.from_product([[key], range(n_sims)], names=['Category', 'sim'])))
+        df_results.columns = pd.date_range(start=self.start_date, periods=days)
+        df_results.columns = [col.strftime('%Y-%m-%d') for col in df_results.columns]
         # Record simulation variables
         for var in sim_vars:
-            df_results[var] = [results[var][sim]
-                               for cat, sim in df_results.index]
+            df_results[var] = [results[var][sim] for cat, sim in df_results.index]
 
         print('VoC_flag is', self.VoC_flag)
         print("Saving results for state "+self.state)
@@ -731,19 +654,12 @@ class Forecast:
             actual_3_day_total = 0
             for i in range(3):
                 actual_3_day_total += self.actual[max(0, day-i)]
-            threshold = case_insertion_threshold*max(1, sum(
-                self.observed_cases[
-                    max(0, day-2):day+1, 2] + self.observed_cases[
-                        max(0, day-2):day+1, 1]
-            )
-            )
+            threshold = case_insertion_threshold*max(1, sum(self.observed_cases[max(0, day-2):day+1, 2] + self.observed_cases[max(0, day-2):day+1, 1]))
             if actual_3_day_total > threshold:
                 return min(3, actual_3_day_total/threshold)
             else:
                 # long absence, then a case, reintroduce
-                week_in_sim = sum(self.observed_cases[
-                    max(0, day-7):day+1, 2] + self.observed_cases[
-                        max(0, day-7):day+1, 1])
+                week_in_sim = sum(self.observed_cases[max(0, day-7):day+1, 2] + self.observed_cases[max(0, day-7):day+1, 1])
                 if week_in_sim == 0:
                     if actual_3_day_total > 0:
                         return actual_3_day_total
@@ -771,51 +687,38 @@ class Forecast:
 
         if self.state == 'VIC':
             # data quality issue
-            df.loc[df.date_inferred <= '2019-01-01', 'date_inferred'] = df.loc[
-                df.date_inferred <= '2019-01-01', 'date_inferred'
-            ] + pd.offsets.DateOffset(year=2020)
-            df.loc[df.date_inferred == '2002-07-03',
-                   'date_inferred'] = pd.to_datetime('2020-07-03')
-            df.loc[df.date_inferred == '2002-07-17',
-                   'date_inferred'] = pd.to_datetime('2020-07-17')
+            df.loc[df.date_inferred <= '2019-01-01', 'date_inferred'] = df.loc[df.date_inferred <= '2019-01-01', 'date_inferred'] + pd.offsets.DateOffset(year=2020)
+            df.loc[df.date_inferred == '2002-07-03','date_inferred'] = pd.to_datetime('2020-07-03')
+            df.loc[df.date_inferred == '2002-07-17','date_inferred'] = pd.to_datetime('2020-07-17')
+            
         df = df.groupby(['date_inferred'])[['imported', 'local']].sum()
+        
         df.reset_index(inplace=True)
         # make date integer from start of year
         timedelta_from_start = df.date_inferred - self.start_date
         df['date'] = timedelta_from_start.apply(lambda x: x.days)
-        #df['date'] = df.date_inferred.apply(lambda x: x.dayofyear) -self.start_date.dayofyear
         df = df.sort_values(by='date')
-
         df = df.set_index('date')
-        # fill missing dates with 0 up to end_time
-        # not sure what the deal is here -- removing it seemed to fix things -- might need to readdd it...
-        # df = df.reindex(range(self.start_date, self.end_time), fill_value=0)
-        # df.reset_index(drop=True, inplace=True)
+        # needed to be more careful with the reindexing
+        df = df.reindex(range(self.end_time), columns={'imported', 'local'}, fill_value=0)
 
         # calculate window of cases to measure against
         if df.index.values[-1] > 60:
             # if final day of data is later than day 90, then remove first 90 days
             forecast_days = self.end_time-self.forecast_date
-            self.cases_to_subtract = sum(
-                df.local.values[:-1*(60+forecast_days)])
-            self.cases_to_subtract_now = sum(
-                df.local.values[:-1*(14+forecast_days)])
+            self.cases_to_subtract = sum(df.local.values[:-1*(60+forecast_days)])
+            self.cases_to_subtract_now = sum(df.local.values[:-1*(14+forecast_days)])
         else:
             self.cases_to_subtract = 0
             self.cases_to_subtract_now = 0
         #self.imported_total = sum(df.imported.values)
-        self.max_cases = max(500000, sum(
-            df.local.values) + sum(df.imported.values))
-        self.max_backcast_cases = max(
-            100, 3*(sum(df.local.values) - self.cases_to_subtract))
+        self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
+        self.max_backcast_cases = max(100, 2*(sum(df.local.values) - self.cases_to_subtract))
 
-        self.max_nowcast_cases = max(
-            10, 1.5*(sum(df.local.values) - self.cases_to_subtract_now))
-        print("Local cases in last 14 days is %i" %
-              (sum(df.local.values) - self.cases_to_subtract_now))
+        self.max_nowcast_cases = max(10, 1.5*(sum(df.local.values) - self.cases_to_subtract_now))
+        print("Local cases in last 14 days is %i" % (sum(df.local.values) - self.cases_to_subtract_now))
 
-        print('Max limits: ', self.max_cases,
-              self.max_backcast_cases, self.max_nowcast_cases)
+        print('Max limits: ', self.max_cases, self.max_backcast_cases, self.max_nowcast_cases)
 
         self.actual = df.local.to_dict()
 
@@ -848,8 +751,7 @@ class Forecast:
         # Loop through each day up to forecast - 4 (as recent imports are not discovered yet)
         for j in range(-10, self.forecast_date-4):
             count_on_day = counts_by_date.get(j, default=0)
-            current_ema = smoothing_factor*count_on_day + \
-                (1-smoothing_factor)*current_ema
+            current_ema = smoothing_factor*count_on_day + (1-smoothing_factor)*current_ema
             moving_average_a[j] = prior_alpha+current_ema
 
         # Set the imports moving forward to match last window

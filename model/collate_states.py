@@ -1,5 +1,5 @@
-import forecast_plots
 from params import start_date, num_forecast_days
+
 import pandas as pd
 from sys import argv
 import json
@@ -84,3 +84,5 @@ plots.to_parquet('./results/quantiles'+forecast_type+start_date +
 with open(
         "./results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".json", 'w') as file:
     json.dump(good_sims_by_state, file)
+
+import forecast_plots

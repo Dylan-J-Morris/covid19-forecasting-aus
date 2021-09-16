@@ -2,13 +2,11 @@
 
 # new version of pystan
 import sys
-from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, run_inference_only, third_start_date, on_phoenix, testing_inference
-from params import download_google_automatically
+from Reff_constants import *
+from Reff_functions import *
 import glob
 import os
 from sys import argv
-from Reff_constants import *
-from Reff_functions import *
 import arviz as az
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -18,6 +16,8 @@ from arviz.utils import _var_names
 import matplotlib
 from numpy.random import sample
 matplotlib.use('Agg')
+from params import apply_vacc_to_R_L_hats, truncation_days, download_google_automatically, \
+    run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference
 # arviz allows for analysis of the posterior samples from pystan3/stan in later versions of Python
 # import any useful bits and pieces from the params file
 
@@ -412,8 +412,6 @@ if run_inference or run_inference_only:
 
     # importing the stan model as a string
     from rho_model_gamma import rho_model_gamma_string
-    # sample from the model
-    from params import num_chains, num_samples
 
     if on_phoenix:
         sm_pol_gamma = pystan.StanModel(

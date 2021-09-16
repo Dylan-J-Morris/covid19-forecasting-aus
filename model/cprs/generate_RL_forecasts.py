@@ -1,9 +1,11 @@
 import glob
 import os
-from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date
 import sys
+# these imports and usings need to be in the same order 
+sys.path.insert(0, '../')
 from Reff_functions import *
 from Reff_constants import *
+from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date
 from sys import argv
 from datetime import timedelta, datetime
 from scipy.special import expit
@@ -13,9 +15,6 @@ import pandas as pd
 import matplotlib
 print('Generating R_L forecasts using mobility data.')
 matplotlib.use('Agg')
-
-
-sys.path.insert(0, '../')
 
 # Define inputs
 

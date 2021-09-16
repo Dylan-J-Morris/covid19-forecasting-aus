@@ -1,18 +1,16 @@
 
-from params import VoC_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
-from helper_functions import read_in_NNDSS
 import os
 import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from Reff_constants import *
 plt.style.use('seaborn-poster')
-
 # I hate this too but it allows everything to use the same helper functions.
 sys.path.insert(0, 'model')
-
+from helper_functions import read_in_NNDSS
+from Reff_constants import *
+from params import VoC_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
 
 def read_in_posterior(date):
     """

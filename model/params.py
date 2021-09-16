@@ -1,7 +1,7 @@
-# Key parameters
-on_phoenix = True   # flag for running on phoenix
+##### Key parameters
+on_phoenix = False   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
-ncores = 12     # number of cores to use (this is relevant for the simulation)
+ncores = 4     # number of cores to use (this is relevant for the simulation)
 # use this to test the inference methods, fewer chains and samples => easy to debug and check summary output
 testing_inference = True
 # this flag will run the inference only and quit after it's done
@@ -10,7 +10,7 @@ testing_sim = True      # this flag will tet the simulation algorithm
 # If something goes wrong on a day you can set this to True to use the linelist
 use_linelist = True
 
-# Usually unchanged parameters, contains some dates and number of forecast
+##### Usually unchanged parameters, contains some dates and number of forecast
 third_start_date = '2021-06-15'
 start_date = '2021-06-01'  # Start date of forecast
 VoC_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase
@@ -32,7 +32,7 @@ assume_local_cases_if_unknown = True
 # number of days to remove to stop the issues with the right-truncation
 truncation_days = 16
 
-# Simulation parameters/transmission parameters
+##### Simulation parameters/transmission parameters
 k = 0.15  # Heterogeneity parameter for a negative binomial offspring distribution
 
 # Also known as qs, this is the probability of detecting an symptomatic case. This will go up during major testing drives. Increasing qs increases the observed outbreak.

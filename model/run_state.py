@@ -1,14 +1,18 @@
-from params import start_date, num_forecast_days, ncores  # External parameters
 from sim_class import *
+from params import start_date, num_forecast_days, ncores, testing_sim  # External parameters
 import pandas as pd
 from sys import argv
 from numpy.random import beta, gamma
 from tqdm import tqdm
 import multiprocessing as mp
 
-n_sims = int(argv[1])  # number of sims
+if testing_sim:
+    n_sims = 100
+else: 
+    n_sims = int(argv[1])  # number of sims
+    
 forecast_date = argv[2]  # Date of forecast
-state = argv[3]
+state = argv[3] 
 
 # If no VoC specified, code will run without alterations.
 VoC_flag = ''
@@ -18,7 +22,6 @@ if len(argv) > 4:
 scenario = ''
 if len(argv) > 5:  # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
     scenario = argv[5]
-
 
 print("Simulating state " + state)
 
@@ -134,10 +137,7 @@ if __name__ == "__main__":
 
     pool = mp.Pool(ncores)
     with tqdm(total=n_sims, leave=False, smoothing=0, miniters=1000) as pbar:
-        for cases, obs_cases, param_dict in pool.imap_unordered(worker,
-                                                                [(forecast_object, 'simulate', end_time, n, n)
-                                                                 for n in range(n_sims)]  # n is the seed
-                                                                ):
+        for cases, obs_cases, param_dict in pool.imap_unordered(worker,[(forecast_object, 'simulate', end_time, n, n)for n in range(n_sims)]):
             # cycle through all results and record into arrays
             n = param_dict['num_of_sim']
             if param_dict['bad_sim']:
@@ -189,13 +189,11 @@ if __name__ == "__main__":
         'alpha_a': alpha_a,
         'alpha_s': alpha_s,
         'cases_after': cases_after,
-        # 'travel_seeds': travel_seeds,
-        # 'travel_induced_cases'+str(item.cross_border_state): travel_induced_cases,
         'ps': ps,
     }
-    print("Number of bad sims is %i" % sum(bad_sim))
-    # print("Number of sims in "+state\
-    #        +" exceeding "+\
-    #            "max cases is "+str(sum()) )
+    
+    good_sims = n_sims-sum(bad_sim)
+    
+    print("Number of good sims is %i" % good_sims)
     # results recorded into parquet as dataframe
     df = forecast_object.to_df(results)
