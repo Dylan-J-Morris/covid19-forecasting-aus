@@ -1,8 +1,8 @@
 # COVID-19 Forecasting for Australia
 University of Adelaide model used to forecast COVID-19 cases in Australia for the Australian Health Protection Principal Committee (AHPPC). This model uses a hierarchical bayesian approach to state level to inference of effective reproductions numbers over time using marco and micro social distancing data. These inferred temporal $R_{eff}$ values are then used in a branching process model to select valid $R_{eff}$ trajectories and produce a forecast distribution of cases over an arbitrary forecast period.
 
-## Quickstart: Using HPC and slurm
-If you have access to HPC (High performance cluster) that uses slurm, then you can use the following bash script to run the full pipeline, provided your data is stored correctly.
+## Quickstart
+See the `how_to_run_workflows.md` document for details on running the workflows both locally and on HPC that uses slurm. This document provides a more detailed discussion of each step,the workflows document provides the lines to run for the model.
 
 ### Data needed
 In the `data` folder, ensure you have the latest:
@@ -85,4 +85,4 @@ Below is a breakdown of the pipeline from case line list data to producing forec
 ### Variant of Concern Changes
 The model can run with a optional Variant of Concern (VoC) flag, which increases the $R_{eff}$ starting from the forecast date. This increased model is enabled by passing the WHO name as a parameter to `phoenix_all_states.sh` or `phoenix_final_plots_csv.sh`. This is done automatically by `forecast_pipeline.sh`.
 ### Original Code
-Earlier versions of this code are available at [https://github.com/tobinsouth/covid19-forecasting-aus](https://github.com/tobinsouth/covid19-forecasting-aus) and [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repositories.  
+Earlier version of this code are available at [https://github.com/tobinsouth/covid19-forecasting-aus](https://github.com/tobinsouth/covid19-forecasting-aus). For the original codebase, see [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. For older code check the other repositories.  
