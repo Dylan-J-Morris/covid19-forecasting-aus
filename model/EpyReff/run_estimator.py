@@ -5,8 +5,8 @@
 from scipy.stats import gamma
 from sys import argv
 # this is not used in the estimation routine, it just lets the plot know what we ignore
-from params import truncation_days
 from epyreff import *
+from params import truncation_days
 import os
 import numpy as np
 import matplotlib.pyplot as plt
