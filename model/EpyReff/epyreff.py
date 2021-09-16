@@ -1,5 +1,7 @@
-from helper_functions import read_in_NNDSS
 import sys
+# I hate this too but it allows everything to use the same helper functions.
+sys.path.insert(0, 'model')
+from helper_functions import read_in_NNDSS
 from scipy.stats import gamma
 import glob
 from datetime import timedelta
@@ -12,8 +14,6 @@ matplotlib.use('Agg')
 
 plt.style.use('seaborn-poster')
 
-# I hate this too but it allows everything to use the same helper functions.
-sys.path.insert(0, 'model')
 
 # Code taken from read_in_cases from Reff_functions. Preprocessing was not helpful for this situation.
 
