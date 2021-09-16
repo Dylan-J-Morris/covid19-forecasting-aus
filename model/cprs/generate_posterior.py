@@ -15,7 +15,7 @@ import os, glob
 from Reff_functions import *
 from Reff_constants import *
 # import any useful bits and pieces from the params file
-from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, run_inference_only, third_start_date, on_phoenix
+from params import apply_vacc_to_R_L_hats, truncation_days, run_inference, run_inference_only, third_start_date, on_phoenix, testing_inference
 
 if on_phoenix:
     import pystan
@@ -365,6 +365,12 @@ results_dir ="figs/soc_mob_posterior/"
 os.makedirs(results_dir,exist_ok=True)
 
 ######### running inference #########
+if testing_inference:
+    num_chains = 2
+    num_samples = 1000
+else:
+    num_chains = 4
+    num_samples = 4000
 # to run the inference set run_inference to True in params
 if run_inference or run_inference_only:
     

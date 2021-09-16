@@ -1,33 +1,22 @@
-########### Inference parameters
-on_phoenix = True
-run_inference = True
-run_inference_only = False
-testing_inference = True        # use this to test the inference methods -- fewer chains and samples -- easy to debug and check summary output
-
-if testing_inference:
-    num_chains = 2
-    num_samples = 1000
-else:
-    num_chains = 4
-    num_samples = 4000
-
-
 ########### Key parameters
-ncores = 12
+on_phoenix = True   # flag for running on phoenix
+run_inference = True    # whether the inference should be run
+ncores = 12     # number of cores to use (this is relevant for the simulation)
+testing_inference = True    # use this to test the inference methods, fewer chains and samples => easy to debug and check summary output
+run_inference_only = False      # this flag will run the inference only and quit after it's done
+testing_sim = True      # this flag will tet the simulation algorithm 
+use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
+
+########### Usually unchanged parameters, contains some dates and number of forecast 
 third_start_date = '2021-06-15'
 start_date = '2021-06-01' # Start date of forecast
-use_linelist = True # If something goes wrong on a day you can set this to True to use the linelist
 VoC_start_date = '2021-05-01' # Date from which to apply the VoC Reff increase
 vaccination_start_date = '2021-02-22'
 num_forecast_days=35 # Number of days after data date to forecast (usually 35)
-
 # setting this to False lets us check that the soc_mob_R_L_hats look ok without the VoC effect applied
 # NEED to set to True in order to apply inferred VoC effect properly
 apply_voc_to_R_L_hats = True
 apply_vacc_to_R_L_hats = True      
-
-
-############ Optional parameters - require less frequent tuning 
 # alternative application of voc and vaccination effect -- not removed yet in case we need them -- should be left at False
 use_vaccine_effect = False
 use_voc_effect = False
@@ -35,11 +24,7 @@ case_insertion_threshold = 5 # The ratio of true cases to simulation cases below
 download_google_automatically = False           # Will download Google data automatically on run. Set to false for repeated runs.
 assume_local_cases_if_unknown = True
 # number of days to remove to stop the issues with the right-truncation 
-# we have 6 days here cause this is the average amount of the incubation period
-# the other 10 come from standard censoring as we are inferring the infection dates
-# based on time distributions 
 truncation_days = 16            
-
 
 ############# Simulation parameters
 # Transmission parameters     
