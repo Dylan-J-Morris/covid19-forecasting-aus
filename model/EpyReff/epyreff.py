@@ -12,12 +12,10 @@ matplotlib.use('Agg')
 
 plt.style.use('seaborn-poster')
 
-
 # I hate this too but it allows everything to use the same helper functions.
 sys.path.insert(0, 'model')
 
 # Code taken from read_in_cases from Reff_functions. Preprocessing was not helpful for this situation.
-
 
 def read_cases_lambda(case_file_date):
     """

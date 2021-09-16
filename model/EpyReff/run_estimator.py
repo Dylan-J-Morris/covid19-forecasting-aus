@@ -17,7 +17,6 @@ print('Running EpyReff on NNDSS data')
 
 matplotlib.use('Agg')
 
-
 # parameters
 tau = 4
 prior_a = 1
