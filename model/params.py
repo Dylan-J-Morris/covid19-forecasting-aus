@@ -1,7 +1,7 @@
 ##### Key parameters
-on_phoenix = False   # flag for running on phoenix
+on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
-ncores = 4     # number of cores to use (this is relevant for the simulation)
+ncores = 12     # number of cores to use (this is relevant for the simulation)
 # use this to test the inference methods, fewer chains and samples => easy to debug and check summary output
 testing_inference = True
 # this flag will run the inference only and quit after it's done
