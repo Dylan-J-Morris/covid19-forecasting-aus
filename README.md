@@ -28,7 +28,6 @@ bash forecast_pipeline.sh ${DATADATE} ${NSIMS}
 #### Internal options
 There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, options/assumptions have been made during the fitting in `model/cprs/generate_posterior.py`. 
 
-
 ## Step-by-step workflow and relevant scripts
 Below is a breakdown of the pipeline from case line list data to producing forecasts using this repository. This can be used if you don't have access to a slurm HPC.
 

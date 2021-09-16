@@ -17,15 +17,14 @@ In this markdown document we outline the requirements for both and provide the s
 5. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `\data`.
 
 ## What you need installed
-Easiest to run in a virtual environment of Python3. Otherwise a standard Python3 install should work fine. 
+Need `pip install matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy`.
 
-Need to `pip install matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy`.
-
-*Note*: I think this is all the dependencies but there might be one or two more. Might be best to wait till you see that each part is running before leaving it alone. Particularly relevant for the simulation part (Step 2.5).
-
+*Note*: I think this is all the dependencies but there might be one or two more. Might be best to wait till you see that each part is running before leaving it alone. Particularly relevant for the simulation part.
 ## Model options
 
-There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, options/assumptions have been made during the fitting in `model/cprs/generate_posterior.py`. Before running either workflow, ensure the flags in the `model/params.py` file are set accordingly. Typically this will involve setting `on_phoenix=True` to either true (if using HPC) of false (if running locally), setting `run_inference=True`, `testing_inference=False` and `run_inference_only=False`. The latter two flags are used to save time by not plotting in the stan fitting part of `generate_posterior.py`. 
+There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, options/assumptions have been made during the fitting in `model/cprs/generate_posterior.py`. Before running either workflow, ensure the flags in the `model/params.py` file are set accordingly. Typically this will involve setting `on_phoenix=True` to either true (if using HPC) of `False` (if running locally), setting `run_inference=True`, `testing_inference=False` and `run_inference_only=False`. The latter two flags are used to save time by not plotting in the stan fitting part of `generate_posterior.py`. 
+
+The `on_phoenix` flag tells the model to use a slightly older version of Pystan and Python. This does not influence any results but latter versions of Pystan required slightly more postprocessing of the file. This is implemented if `on_phoenix=False`.
 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ```
