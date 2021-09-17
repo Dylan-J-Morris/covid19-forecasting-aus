@@ -1,14 +1,16 @@
 ##### Key parameters
-on_phoenix = True   # flag for running on phoenix
+on_phoenix = False   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
+run_inference_only = False
+use_linelist = True
 ncores = 4     # number of cores to use (this is relevant for the simulation)
+
+##### Parameters for testing
 # use this to test the inference methods, fewer chains and samples => easy to debug and check summary output
 testing_inference = True
 # this flag will run the inference only and quit after it's done
-run_inference_only = False
 testing_sim = False      # this flag will tet the simulation algorithm
 # If something goes wrong on a day you can set this to True to use the linelist
-use_linelist = True
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
 third_start_date = '2021-06-15'
