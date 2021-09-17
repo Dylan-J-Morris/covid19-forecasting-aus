@@ -13,6 +13,8 @@ import gc
 from numpy.random import random
 from itertools import cycle
 
+from timeit import default_timer as timer
+
 class Person:
     """
     Individuals in the forecast
@@ -446,6 +448,7 @@ class Forecast:
                 parent_key = self.infected_queue.popleft()
                 # recorded within generate new cases
                 self.generate_new_cases(parent_key, Reff=Reff, k=self.k)
+                
         # self.people.clear()
         if self.bad_sim == False:
             # Check simulation for discrepancies
@@ -555,6 +558,7 @@ class Forecast:
                     continue
                 # only reach here if while loop breaks, so break the data check
                 break
+        
         self.people.clear()
         gc.collect()
         if self.bad_sim:
