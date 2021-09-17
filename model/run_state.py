@@ -6,6 +6,8 @@ from numpy.random import beta, gamma
 from tqdm import tqdm
 import multiprocessing as mp
 
+from timeit import default_timer as timer
+
 if testing_sim:
     n_sims = 100
 else: 
@@ -24,6 +26,7 @@ if len(argv) > 5:  # Add an optional scenario flag to load in specific Reff scen
     scenario = argv[5]
 
 print("Simulating state " + state)
+
 
 # Get total number of simulation days
 end_date = pd.to_datetime(forecast_date, format="%Y-%m-%d") + \
@@ -135,6 +138,8 @@ if __name__ == "__main__":
     forecast_object.num_bad_sims = 0
     forecast_object.num_too_many = 0
 
+    start_timer = timer()
+
     pool = mp.Pool(ncores)
     with tqdm(total=n_sims, leave=False, smoothing=0, miniters=1000) as pbar:
         for cases, obs_cases, param_dict in pool.imap_unordered(worker,[(forecast_object, 'simulate', end_time, n, n)for n in range(n_sims)]):
@@ -197,3 +202,8 @@ if __name__ == "__main__":
     print("Number of good sims is %i" % good_sims)
     # results recorded into parquet as dataframe
     df = forecast_object.to_df(results)
+    
+    end_timer = timer()
+    time_for_sim = end_timer-start_timer
+
+    print("NSW took: %f" %time_for_sim)
