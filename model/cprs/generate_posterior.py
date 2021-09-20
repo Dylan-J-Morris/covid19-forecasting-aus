@@ -815,8 +815,7 @@ if df2X.shape[0] > 0:
         for a in ax:
             a.set_ylim((0, 3))
             # a.set_xlim((pd.to_datetime(start_date),pd.to_datetime(end_date)))
-    plt.savefig(
-        results_dir+data_date.strftime("%Y-%m-%d")+"Reff_sec_phase.png", dpi=144)
+    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_sec_phase.png", dpi=144)
 
     # remove plots from memory
     fig.clear()
@@ -825,8 +824,7 @@ if df2X.shape[0] > 0:
 
 if apply_vacc_to_R_L_hats:
     # Load in vaccination data by state and date and this time do NOT isolate by fitting states
-    vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
     third_end_date = pd.to_datetime(

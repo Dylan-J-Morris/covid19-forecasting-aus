@@ -7,7 +7,7 @@ ncores = 12     # number of cores to use (this is relevant for the simulation)
 
 ##### Parameters for testing
 # use this to test the inference methods, fewer chains and samples => easy to debug and check summary output
-testing_inference = True
+testing_inference = False
 # this flag will run the inference only and quit after it's done
 testing_sim = False      # this flag will tet the simulation algorithm
 # If something goes wrong on a day you can set this to True to use the linelist
