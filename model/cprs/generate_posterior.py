@@ -69,18 +69,14 @@ always.loc[:'2020-03-20', 'proportion'] = 0
 
 always = always.reset_index().set_index(['state', 'date'])
 
-survey_X = pd.pivot_table(data=always,
-                          index='date', columns='state', values='proportion')
-survey_counts_base = pd.pivot_table(data=always,
-                                    index='date', columns='state', values='count').drop(['Australia', 'Other'], axis=1).astype(int)
+survey_X = pd.pivot_table(data=always, index='date', columns='state', values='proportion')
+survey_counts_base = pd.pivot_table(data=always, index='date', columns='state', values='count').drop(['Australia', 'Other'], axis=1).astype(int)
 
-survey_respond_base = pd.pivot_table(data=always,
-                                     index='date', columns='state', values='respondents').drop(['Australia', 'Other'], axis=1).astype(int)
+survey_respond_base = pd.pivot_table(data=always, index='date', columns='state', values='respondents').drop(['Australia', 'Other'], axis=1).astype(int)
 
 
 ######### Read in EpyReff results #########
-df_Reff = pd.read_csv("results/EpyReff/Reff" +
-                      data_date.strftime("%Y-%m-%d")+"tau_4.csv", parse_dates=['INFECTION_DATES'])
+df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_4.csv", parse_dates=['INFECTION_DATES'])
 df_Reff['date'] = df_Reff.INFECTION_DATES
 df_Reff['state'] = df_Reff.STATE
 
@@ -89,14 +85,11 @@ df_Reff['state'] = df_Reff.STATE
 # If this errors it may be missing a leading zero on the date.
 df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'))
 
-df_Reff = df_Reff.merge(df_state, how='left', left_on=['state', 'date'], right_on=[
-                        'STATE', 'date_inferred'])  # how = left to use Reff days, NNDSS missing dates
-df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(
-    lambda x: x.rolling(7, 1).mean())  # minimum number of 1
+df_Reff = df_Reff.merge(df_state, how='left', left_on=['state', 'date'], right_on=['STATE', 'date_inferred'])  # how = left to use Reff days, NNDSS missing dates
+df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.rolling(7, 1).mean())  # minimum number of 1
 
 # some days have no cases, so need to fillna
 df_Reff['rho_moving'] = df_Reff.rho_moving.fillna(method='bfill')
-
 
 # shift counts to align with infection date not symptom date
 # dates should be complete at this point, no days skipped
@@ -118,15 +111,16 @@ sys.path.insert(0, '../')
 df_google = read_in_google(
     local=not download_google_automatically, moving=True)
 
-df = df_google.merge(df_Reff[['date', 'state', 'mean', 'lower', 'upper',
-                              'top', 'bottom', 'std', 'rho', 'rho_moving', 'local', 'imported']], on=['date', 'state'], how='inner')
+df = df_google.merge(
+    df_Reff[['date', 'state', 'mean', 'lower', 'upper', 'top', 'bottom', 'std', 'rho', 'rho_moving', 'local', 'imported']], 
+    on=['date', 'state'], how='inner')
 
 ######### Create useable dataset #########
 # ACT and NT not in original estimates, need to extrapolated
 # sorting keeps consistent with sort in data_by_state
 states_to_fit_all_waves = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT'])
 
-states_to_fit = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS'])
+first_states = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS'])
 fit_post_March = True
 ban = '2020-03-20'
 start_date = '2020-03-01'
@@ -143,7 +137,7 @@ third_states = sorted(['NSW', 'VIC', 'QLD', 'ACT'])
 # Subtract 10 days to avoid right truncation
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
-fit_mask = df.state.isin(states_to_fit)
+fit_mask = df.state.isin(first_states)
 if fit_post_March:
     fit_mask = (fit_mask) & (df.date >= start_date)
 
@@ -170,6 +164,8 @@ dfX = df.loc[fit_mask].sort_values('date')
 df2X = df.loc[second_wave_mask].sort_values('date')
 df3X = df.loc[third_wave_mask].sort_values('date')
 
+# choose dates for the first wave — this is kinda redundant but ensures a common format of 
+# data between waves. 
 first_date_range = {
     "NSW": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
     "QLD": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
@@ -194,7 +190,7 @@ third_date_range = {
 }
 
 dfX['is_first_wave'] = 0
-for state in states_to_fit:
+for state in first_states:
     dfX.loc[dfX.state == state, 'is_first_wave'] = dfX.loc[dfX.state == state].date.isin(
         first_date_range[state]).astype(int).values
     
@@ -239,7 +235,7 @@ survey_respond = survey_respond_base.loc[:dfX.date.values[-1]]
 survey_counts = survey_counts_base.loc[:dfX.date.values[-1]]
 include_in_first_wave = []
 
-for state in states_to_fit:
+for state in first_states:
 
     mobility_by_state.append(dfX.loc[dfX.state == state, predictors].values/100)
     mobility_std_by_state.append(dfX.loc[dfX.state == state, [val+'_std' for val in predictors]].values/100)
@@ -286,7 +282,7 @@ for state in third_states:
     include_in_third_wave.append(df3X.loc[df3X.state == state, 'is_third_wave'].values)
 
 # policy boolean flag for after travel ban in each wave
-policy = dfX.loc[dfX.state == states_to_fit[0],'post_policy']     # this is the post ban policy
+policy = dfX.loc[dfX.state == first_states[0],'post_policy']     # this is the post ban policy
 policy_sec_wave = [1]*df2X.loc[df2X.state == sec_states[0]].shape[0]
 policy_third_wave = [1]*df3X.loc[df3X.state == third_states[0]].shape[0]
 
@@ -328,9 +324,9 @@ state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 input_data = {
     'j_total': len(states_to_fit_all_waves),
     
-    'N': dfX.loc[dfX.state == states_to_fit[0]].shape[0],
+    'N': dfX.loc[dfX.state == first_states[0]].shape[0],
     'K': len(predictors),
-    'j_first_wave': len(states_to_fit),
+    'j_first_wave': len(first_states),
     'Reff': data_by_state['mean'].values,
     'Mob': mobility_by_state,
     'Mob_std': mobility_std_by_state,
@@ -366,7 +362,7 @@ input_data = {
     'count_md_third_wave': third_count_by_state,
     'respond_md_third_wave': third_respond_by_state,
 
-    'map_to_state_index_first': [state_index[state] for state in states_to_fit],
+    'map_to_state_index_first': [state_index[state] for state in first_states],
     'map_to_state_index_sec': [state_index[state] for state in sec_states],
     'map_to_state_index_third': [state_index[state] for state in third_states],
     # needed to convert this to primitive int for pystan
@@ -496,8 +492,7 @@ if run_inference or run_inference_only:
                 if comma_pos != -1:
                     num_name1 = int(name[(bracket1_pos+1):comma_pos]) + 1
                     num_name2 = int(name[(comma_pos+1):(bracket2_pos)]) + 1
-                    updated_name = var_name + \
-                        '[' + str(num_name1) + ',' + str(num_name2) + ']'
+                    updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
                 else:
                     num_name = int(name[(bracket1_pos+1):bracket2_pos]) + 1
                     updated_name = var_name + '[' + str(num_name) + ']'
@@ -537,12 +532,13 @@ if isinstance(df_state.index, pd.MultiIndex):
 
 states = sorted(['NSW', 'QLD', 'VIC', 'TAS', 'SA', 'WA', 'ACT', 'NT'])
 fig, ax = plt.subplots(figsize=(24, 9), ncols=len(states), sharey=True)
-states_to_fitd = {state: i+1 for i, state in enumerate(states_to_fit)}
+
+states_to_fitd = {state: i+1 for i, state in enumerate(first_states)}
 
 for i, state in enumerate(states):
-    if state in states_to_fit:
+    if state in first_states:
         dates = df_Reff.loc[(df_Reff.date >= start_date) & (df_Reff.state == state) & (df_Reff.date <= end_date)].date
-        rho_samples = samples_mov_gamma[['brho['+str(j+1)+','+str(states_to_fitd[state])+']' for j in range(dfX.loc[dfX.state == states_to_fit[0]].shape[0])]]
+        rho_samples = samples_mov_gamma[['brho['+str(j+1)+','+str(states_to_fitd[state])+']' for j in range(dfX.loc[dfX.state == first_states[0]].shape[0])]]
         ax[i].plot(dates, rho_samples.median(), label='fit', color='C0')
         ax[i].fill_between(dates, rho_samples.quantile(0.25), rho_samples.quantile(0.75), color='C0', alpha=0.4)
 
@@ -555,7 +551,7 @@ for i, state in enumerate(states):
     sns.lineplot(x='date', y='rho_moving',
                  data=df_Reff.loc[(df_Reff.date >= start_date) & (df_Reff.state == state) & (df_Reff.date <= end_date)], ax=ax[i], color='C2', label='moving')
 
-    dates = dfX.loc[dfX.state == states_to_fit[0]].date
+    dates = dfX.loc[dfX.state == first_states[0]].date
 
     ax[i].tick_params('x', rotation=90)
     ax[i].xaxis.set_major_locator(plt.MaxNLocator(4))
@@ -769,7 +765,7 @@ RL_by_state = {state: samples_mov_gamma['R_Li['+str(i)+']'].values for state, i 
 ax3 = predict_plot(samples_mov_gamma, df.loc[(df.date >= start_date) & (df.date <= end_date)], gamma=True,
                    moving=True, split=split, grocery=True, ban=ban,
                    R=RL_by_state, var=True, md_arg=md,
-                   rho=states_to_fit, R_I=samples_mov_gamma.R_I.values,
+                   rho=first_states, R_I=samples_mov_gamma.R_I.values,
                    prop=survey_X.loc[start_date:end_date])  # by states....
 for ax in ax3:
     for a in ax:

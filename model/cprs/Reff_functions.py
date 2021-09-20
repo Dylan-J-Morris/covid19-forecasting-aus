@@ -142,14 +142,14 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                 sigma_i = sigma.sample(df_state.shape[0]).values
             else:
                 sigma_i = sigma
+                
             # N by N, where rows = datum, column = sample from posterior
             R_eff_hat = np.random.normal(mu_hat, sigma_i)
 
         df_hat = pd.DataFrame(R_eff_hat.T)
 
         # plot actual R_eff
-        ax.plot(df_state.date, df_state['mean'],
-                label='R_eff from Price et al')
+        ax.plot(df_state.date, df_state['mean'], label='R_eff from Price et al')
         ax.fill_between(
             df_state.date, df_state['bottom'], df_state['top'], color='C0', alpha=0.3)
 
@@ -185,6 +185,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                 df_state = df_state.loc[df_state.is_sec_wave == 1]
             elif third_phase:
                 df_state = df_state.loc[df_state.is_third_wave == 1]
+                
             samples_sim = samples.sample(1000)
             post_values = samples_sim[['bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
@@ -249,9 +250,8 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                         eta = samples_sim['eta_other']
                         r = samples_sim['r_other']
 
-                    # find days after forecast began that we want to apply the effect — currently this is fixed from the
-                    # 30th of Aug
-
+                    # find days after forecast began that we want to apply the effect. From conversations with James and Nic we 
+                    # think the heterogeneity / assortativity was more prominent before late August (hence the fixed date)
                     heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
                     
                     vacc_post = np.zeros_like(vacc_sim)
@@ -279,17 +279,14 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                         # this state not fitted, use gamma prior on initial value
                         print("using initial value for state" + state)
                         sim_R = np.random.gamma(
-                            shape=df.loc[df.date == '2020-03-01',
-                                         'mean'].mean()**2/0.2,
-                            scale=0.2/df.loc[df.date ==
-                                             '2020-03-01', 'mean'].mean(),
+                            shape=df.loc[df.date == '2020-03-01','mean'].mean()**2/0.2,
+                            scale=0.2/df.loc[df.date == '2020-03-01', 'mean'].mean(),
                             size=df_state.shape[0]
                         )
                 if type(R) == dict:
                     if states_initials[state] != ['NT']:
                         # if state, use inferred
-                        sim_R = np.tile(
-                            R[states_initials[state]][:samples_sim.shape[0]], (df_state.shape[0], 1))
+                        sim_R = np.tile(R[states_initials[state]][:samples_sim.shape[0]], (df_state.shape[0], 1))
                     else:
                         # if territory, use generic R_L
                         sim_R = np.tile(samples_sim.R_L.values,(df_state.shape[0], 1))
@@ -313,30 +310,20 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                             if second_phase:
                                 # use brho_v
 
-                                rho_data = samples_sim[
-                                    ['brho_sec_wave['+str(j)+']'
-                                        for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_sec_wave.sum())]
-                                ].values.T
+                                rho_data = samples_sim[['brho_sec_wave['+str(j)+']' for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_sec_wave.sum())]].values.T
 
-                                voc_multiplier = samples_sim[[
-                                    'voc_effect_sec_wave']].values.T
+                                voc_multiplier = samples_sim[['voc_effect_sec_wave']].values.T
 
                                 # now modify the mu_hat
                                 mu_hat *= voc_multiplier
 
-                                pos = pos + \
-                                    df.loc[df.state == states_initials[state]
-                                           ].is_sec_wave.sum()
+                                pos = pos + df.loc[df.state == states_initials[state]].is_sec_wave.sum()
                             elif third_phase:
                                 # use brho_v
 
-                                rho_data = samples_sim[
-                                    ['brho_third_wave['+str(j)+']'
-                                        for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_third_wave.sum())]
-                                ].values.T
+                                rho_data = samples_sim[['brho_third_wave['+str(j)+']' for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
 
-                                voc_multiplier = samples_sim[[
-                                    'voc_effect_third_wave']].values.T
+                                voc_multiplier = samples_sim[['voc_effect_third_wave']].values.T
                                 # now we just modify the values before the introduction of the voc to be 1.0
                                 for ii in range(voc_multiplier.shape[0]):
                                     if ii < df_state.loc[df_state.date < VoC_start_date].shape[0]:
@@ -345,24 +332,16 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                                 mu_hat *= voc_multiplier
 
                                 if states_initials[state] == "SA" and third_phase:
-                                    pd.DataFrame(voc_multiplier).to_csv(
-                                        "results/third_wave_fit/voc.csv")
+                                    pd.DataFrame(voc_multiplier).to_csv("results/third_wave_fit/voc.csv")
 
-                                pos = pos + \
-                                    df.loc[df.state == states_initials[state]
-                                           ].is_third_wave.sum()
+                                pos = pos + df.loc[df.state == states_initials[state]].is_third_wave.sum()
 
                             else:
                                 # first phase
-                                rho_data = samples_sim[
-                                    ['brho['+str(j+1)+',' +
-                                     str(states_to_fitd[states_initials[state]])+']'
-                                        for j in range(df_state.shape[0])]].values.T
+                                rho_data = samples_sim[['brho['+str(j+1)+',' + str(states_to_fitd[states_initials[state]])+']' for j in range(df_state.shape[0])]].values.T
                         else:
-                            print(
-                                "Using data as inference not done on {}".format(state))
-                            rho_data = np.tile(
-                                df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))
+                            print("Using data as inference not done on {}".format(state))
+                            rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))
 
                     R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0], 1))
 
@@ -396,27 +375,20 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                     ax[i//3, i % 3].tick_params(axis='x', rotation=90)
                 continue
             # plot actual R_eff
-            ax[i//3, i % 3].plot(df_state.date, df_state['mean'],
-                                 label='$R_{eff}$', color='C1')
-            ax[i//3, i % 3].fill_between(df_state.date, df_state['bottom'],
-                                         df_state['top'], color='C1', alpha=0.3)
-            ax[i//3, i % 3].fill_between(df_state.date, df_state['lower'],
-                                         df_state['upper'], color='C1', alpha=0.3)
+            ax[i//3, i % 3].plot(df_state.date, df_state['mean'], label='$R_{eff}$', color='C1')
+            ax[i//3, i % 3].fill_between(df_state.date, df_state['bottom'], df_state['top'], color='C1', alpha=0.3)
+            ax[i//3, i % 3].fill_between(df_state.date, df_state['lower'], df_state['upper'], color='C1', alpha=0.3)
 
-            ax[i//3, i % 3].plot(df_state.date, df_hat.quantile(0.5,
-                                 axis=0), label='$\hat{\mu}$', color='C0')
-            ax[i//3, i % 3].fill_between(df_state.date, df_hat.quantile(
-                0.25, axis=0), df_hat.quantile(0.75, axis=0), color='C0', alpha=0.3)
-            ax[i//3, i % 3].fill_between(df_state.date, df_hat.quantile(
-                0.05, axis=0), df_hat.quantile(0.95, axis=0), color='C0', alpha=0.3)
+            ax[i//3, i % 3].plot(df_state.date, df_hat.quantile(0.5, axis=0), label='$\hat{\mu}$', color='C0')
+            ax[i//3, i % 3].fill_between(df_state.date, df_hat.quantile(0.25, axis=0), df_hat.quantile(0.75, axis=0), color='C0', alpha=0.3)
+            ax[i//3, i % 3].fill_between(df_state.date, df_hat.quantile(0.05, axis=0), df_hat.quantile(0.95, axis=0), color='C0', alpha=0.3)
             ax[i//3, i % 3].set_title(state)
 
             # grid line at R_eff =1
             ax[i//3, i % 3].set_yticks([1], minor=True,)
             ax[i//3, i % 3].set_yticks([0, 2, 3], minor=False)
             ax[i//3, i % 3].set_yticklabels([0, 2, 3], minor=False)
-            ax[i//3, i % 3].yaxis.grid(which='minor',
-                                       linestyle='--', color='black', linewidth=2)
+            ax[i//3, i % 3].yaxis.grid(which='minor', linestyle='--', color='black', linewidth=2)
             ax[i//3, i % 3].set_ylim((0, 4))
             if i//3 == 1:
                 ax[i//3, i % 3].tick_params(axis='x', rotation=90)

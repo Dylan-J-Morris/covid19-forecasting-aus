@@ -962,15 +962,10 @@ for typ in forecast_type:
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
-        if typ == 'R_L' and state == 'SA':
+        if typ == 'R_L' and state == 'ACT':
             mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
-            # 2 cancels as logistic(0) = 1/2
-            mu_hat_rev = sim_R * voc_multiplier
             pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
-            pd.DataFrame(mu_hat_no_rev).to_csv(
-                'results/forecasting/mu_hat_SA_no_rev.csv')
-            pd.DataFrame(mu_hat_rev).to_csv(
-                'results/forecasting/mu_hat_SA_rev.csv')
+            pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_ACT_no_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)
@@ -1109,11 +1104,8 @@ df_Rhats = df_Rhats[['state', 'date', 'type', 'median',
 # 'bottom','lower','upper','top']  + [i for i in range(1000)]
 
 df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
-df_hdf = df_hdf.append(
-    df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
+df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
 df_hdf = df_hdf.append(
     df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
-df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +
-                data_date.strftime('%Y-%m-%d')+'.csv')
-df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d') +
-              scenario+scenario_date+'.h5', key='Reff')
+df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
+df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d') + scenario+scenario_date+'.h5', key='Reff')
