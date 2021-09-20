@@ -35,8 +35,7 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
     # Filter out territories
     if(remove_territories):
-        df_linel = interim_data[(interim_data['STATE'] != 'NT') & (
-            interim_data['STATE'] != 'ACT')]
+        df_linel = interim_data[(interim_data['STATE'] != 'NT')]
 
     # Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
     # i.e. create linelist data
@@ -72,18 +71,15 @@ def draw_inf_dates(df_linelist, shape_rd=2.77, scale_rd=3.17, offset_rd=0,
     #shape_inc =(scale_inc)**2/scale_inc**2
 
     # Draw from distributions - these are long vectors
-    inc_period = offset_inc + \
-        np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
-    rep_delay = offset_rd + \
-        np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))
+    inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
+    rep_delay = offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))
 
     # infection date is id_nd_diff days before notification date. This is also a long vector.
     id_nd_diff = inc_period + rep_delay
 
     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
     whole_day_diff = np.ceil(id_nd_diff)
-    time_day_diffmat = whole_day_diff.astype(
-        'timedelta64[D]').reshape((nsamples, nreplicates))
+    time_day_diffmat = whole_day_diff.astype('timedelta64[D]').reshape((nsamples, nreplicates))
 
     # Vector must be coerced into a nsamples by nreplicates array. Then each column must be subtracted from notification_dates.
     # Subtract days off of notification dates.
@@ -101,29 +97,24 @@ def draw_inf_dates(df_linelist, shape_rd=2.77, scale_rd=3.17, offset_rd=0,
     #print([df_linelist.shape, infdates_df.shape])
 
     # Combine infection dates and original dataframe
-    df_inf = pd.concat([df_linelist, infdates_df],
-                       axis=1, verify_integrity=True)
+    df_inf = pd.concat([df_linelist, infdates_df], axis=1, verify_integrity=True)
 
     return(df_inf)
 
 
 def index_by_infection_date(infections_wide):
     datecolnames = [*infections_wide.columns[4:]]
-    df_combined = infections_wide[['STATE', 'SOURCE', datecolnames[0], 'n_cases']].groupby(
-        ['STATE', datecolnames[0], 'SOURCE']).sum()
+    df_combined = infections_wide[['STATE', 'SOURCE', datecolnames[0], 'n_cases']].groupby(['STATE', datecolnames[0], 'SOURCE']).sum()
 
     # For each column (cn=column number): concatenate each sample as a column.
     for cn in range(1, len(datecolnames)):
-        df_addin = infections_wide[['STATE', 'SOURCE', datecolnames[cn], 'n_cases']].groupby(
-            ['STATE', datecolnames[cn], 'SOURCE']).sum()
-        df_combined = pd.concat([df_combined, df_addin],
-                                axis=1, ignore_index=True)
+        df_addin = infections_wide[['STATE', 'SOURCE', datecolnames[cn], 'n_cases']].groupby(['STATE', datecolnames[cn], 'SOURCE']).sum()
+        df_combined = pd.concat([df_combined, df_addin], axis=1, ignore_index=True)
 
     # NaNs are inserted for missing values when concatenating. If it's missing, there were zero infections
     df_combined[np.isnan(df_combined)] = 0
     # Rename the index.
-    df_combined.index.set_names(
-        ["STATE", "INFECTION_DATE", "SOURCE"], inplace=True)
+    df_combined.index.set_names(["STATE", "INFECTION_DATE", "SOURCE"], inplace=True)
 
     # return(df_combined)
 
@@ -175,8 +166,7 @@ def index_by_infection_date(infections_wide):
 
     df_inc_zeros = df_inc_zeros.reset_index()
     df_inc_zeros = df_inc_zeros.groupby(['level_0', "level_1", "SOURCE"]).sum()
-    df_inc_zeros.index = df_inc_zeros.index.rename(
-        ['STATE', 'INFECTION_DATE', "SOURCE"])
+    df_inc_zeros.index = df_inc_zeros.index.rename(['STATE', 'INFECTION_DATE', "SOURCE"])
 
     return(df_inc_zeros)
 
@@ -205,8 +195,7 @@ def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07,
     # offset
     ws[offset:] = disc_gamma[:trunc_days-offset]
     ws[:offset] = 0
-    lambda_t = np.zeros(
-        shape=(infection_dates.shape[0]-trunc_days+1, infection_dates.shape[1]))
+    lambda_t = np.zeros(shape=(infection_dates.shape[0]-trunc_days+1, infection_dates.shape[1]))
     for n in range(infection_dates.shape[1]):
         lambda_t[:, n] = np.convolve(infection_dates[:, n], ws, mode='valid')
     return lambda_t
@@ -221,12 +210,8 @@ def lambda_all_states(df_infection, trunc_days=21, **kwargs):
     lambda_dict = {}
     for state in statelist:
         # state = 'NSW'
-        df_total_infections = df_infection.groupby(
-            ['STATE', 'INFECTION_DATE']).agg(sum)
-        lambda_dict[state] = generate_lambda(
-            df_total_infections.loc[state].values, trunc_days=trunc_days,
-            **kwargs
-        )
+        df_total_infections = df_infection.groupby(['STATE', 'INFECTION_DATE']).agg(sum)
+        lambda_dict[state] = generate_lambda(df_total_infections.loc[state].values, trunc_days=trunc_days,**kwargs)
 
     return lambda_dict
 
@@ -280,9 +265,7 @@ def generate_summary(samples, dates_by='rows'):
         # quantiles of the rows
         ax = 0
     mean = np.mean(samples, axis=ax)
-    bottom, lower, median, upper, top = np.quantile(samples,
-                                                    (0.05, 0.25, 0.5, 0.75, 0.95),
-                                                    axis=ax)
+    bottom, lower, median, upper, top = np.quantile(samples, (0.05, 0.25, 0.5, 0.75, 0.95), axis=ax)
     std = np.std(samples, axis=ax)
     output = {
         'mean': mean,
@@ -319,20 +302,13 @@ def plot_Reff(Reff: dict, dates=None, ax_arg=None, truncate=None, **kwargs):
     if truncate is None:
         ax.plot(dates, Reff['mean'], color=curr_color, **kwargs)
 
-        ax.fill_between(dates, Reff['lower'],
-                        Reff['upper'], alpha=0.4, color=curr_color)
-        ax.fill_between(dates, Reff['bottom'],
-                        Reff['top'], alpha=0.4, color=curr_color)
+        ax.fill_between(dates, Reff['lower'],Reff['upper'], alpha=0.4, color=curr_color)
+        ax.fill_between(dates, Reff['bottom'],Reff['top'], alpha=0.4, color=curr_color)
     else:
-        ax.plot(dates[truncate[0]:truncate[1]], Reff['mean']
-                [truncate[0]:truncate[1]], color=curr_color, **kwargs)
+        ax.plot(dates[truncate[0]:truncate[1]], Reff['mean'][truncate[0]:truncate[1]], color=curr_color, **kwargs)
 
-        ax.fill_between(dates[truncate[0]:truncate[1]], Reff['lower'][truncate[0]:truncate[1]],
-                        Reff['upper'][truncate[0]:truncate[1]],
-                        alpha=0.4, color=curr_color)
-        ax.fill_between(dates[truncate[0]:truncate[1]], Reff['bottom'][truncate[0]:truncate[1]],
-                        Reff['top'][truncate[0]:truncate[1]],
-                        alpha=0.4, color=curr_color)
+        ax.fill_between(dates[truncate[0]:truncate[1]], Reff['lower'][truncate[0]:truncate[1]], Reff['upper'][truncate[0]:truncate[1]], alpha=0.4, color=curr_color)
+        ax.fill_between(dates[truncate[0]:truncate[1]], Reff['bottom'][truncate[0]:truncate[1]], Reff['top'][truncate[0]:truncate[1]], alpha=0.4, color=curr_color)
         # plt.legend()
 
        # grid line at R_eff =1
@@ -360,7 +336,6 @@ def plot_all_states(R_summ_states, df_interim, dates,
     import os
     states = df_interim.STATE.unique().tolist()
     states.remove('NT')
-    states.remove('ACT')
 
     date_filter = pd.date_range(start=start, end=end)
 
@@ -369,14 +344,11 @@ def plot_all_states(R_summ_states, df_interim, dates,
     # df_cases = df_interim.groupby(['NOTIFICATION_RECEIVE_DATE','STATE']).agg(sum)
     df_cases = df_cases.reset_index()
 
-    fig, ax = plt.subplots(nrows=2, ncols=3,
-                           sharex=True, sharey=True,
-                           figsize=(15, 12)
-                           )
+    fig, ax = plt.subplots(nrows=2, ncols=4,sharex=True, sharey=True,figsize=(15, 12))
 
     for i, state in enumerate(states):
-        row = i//3
-        col = i % 3
+        row = i//4
+        col = i % 4
 
         R_summary = R_summ_states[state]
 
@@ -447,6 +419,5 @@ def plot_all_states(R_summ_states, df_interim, dates,
     if save:
         import os
         os.makedirs("figs/EpyReff/", exist_ok=True)
-        plt.savefig("figs/EpyReff/Reff_tau_"+str(tau) +
-                    "_"+date+".pdf", format='pdf')
+        plt.savefig("figs/EpyReff/Reff_tau_"+str(tau) + "_"+date+".pdf", format='pdf')
     return fig, ax
