@@ -541,16 +541,12 @@ states_to_fitd = {state: i+1 for i, state in enumerate(states_to_fit)}
 
 for i, state in enumerate(states):
     if state in states_to_fit:
-        dates = df_Reff.loc[(df_Reff.date >= start_date) &
-                            (df_Reff.state == state) & (df_Reff.date <= end_date)].date
-        rho_samples = samples_mov_gamma[['brho['+str(j+1)+','+str(
-            states_to_fitd[state])+']' for j in range(dfX.loc[dfX.state == states_to_fit[0]].shape[0])]]
+        dates = df_Reff.loc[(df_Reff.date >= start_date) & (df_Reff.state == state) & (df_Reff.date <= end_date)].date
+        rho_samples = samples_mov_gamma[['brho['+str(j+1)+','+str(states_to_fitd[state])+']' for j in range(dfX.loc[dfX.state == states_to_fit[0]].shape[0])]]
         ax[i].plot(dates, rho_samples.median(), label='fit', color='C0')
-        ax[i].fill_between(dates, rho_samples.quantile(
-            0.25), rho_samples.quantile(0.75), color='C0', alpha=0.4)
+        ax[i].fill_between(dates, rho_samples.quantile(0.25), rho_samples.quantile(0.75), color='C0', alpha=0.4)
 
-        ax[i].fill_between(dates, rho_samples.quantile(
-            0.05), rho_samples.quantile(0.95), color='C0', alpha=0.4)
+        ax[i].fill_between(dates, rho_samples.quantile(0.05), rho_samples.quantile(0.95), color='C0', alpha=0.4)
     else:
         sns.lineplot(x='date_inferred', y='rho',
                      data=df_state.loc[(df_state.date_inferred >= start_date) & (df_state.STATE == state) & (df_state.date_inferred <= end_date)], ax=ax[i], color='C1', label='data')
@@ -564,6 +560,7 @@ for i, state in enumerate(states):
     ax[i].tick_params('x', rotation=90)
     ax[i].xaxis.set_major_locator(plt.MaxNLocator(4))
     ax[i].set_title(state)
+    
 ax[0].set_ylabel('Proportion of imported cases')
 plt.legend()
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") +
@@ -571,8 +568,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") +
 
 # Second phase
 if df2X.shape[0] > 0:
-    fig, ax = plt.subplots(figsize=(24, 9), ncols=len(
-        sec_states), sharey=True, squeeze=False)
+    fig, ax = plt.subplots(figsize=(24, 9), ncols=len(sec_states), sharey=True, squeeze=False)
     states_to_fitd = {state: i+1 for i, state in enumerate(sec_states)}
     pos = 1
     for i, state in enumerate(sec_states):
@@ -607,6 +603,7 @@ if df2X.shape[0] > 0:
         ax[0, i].tick_params('x', rotation=90)
         ax[0, i].xaxis.set_major_locator(plt.MaxNLocator(4))
         ax[0, i].set_title(state)
+        
     ax[0, 0].set_ylabel('Proportion of imported cases')
     plt.legend()
     plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") +
@@ -614,15 +611,12 @@ if df2X.shape[0] > 0:
 
 # Third  phase
 if df3X.shape[0] > 0:
-    fig, ax = plt.subplots(figsize=(24, 9), ncols=len(
-        third_states), sharey=True, squeeze=False)
+    fig, ax = plt.subplots(figsize=(24, 9), ncols=len(third_states), sharey=True, squeeze=False)
     states_to_fitd = {state: i+1 for i, state in enumerate(third_states)}
     pos = 1
     for i, state in enumerate(third_states):
         # Google mobility only up to a certain date, so take only up to that value
-        dates = df3X.loc[(df3X.state == state) & (
-            df3X.is_third_wave == 1
-        )].date.values
+        dates = df3X.loc[(df3X.state == state) & (df3X.is_third_wave == 1)].date.values
         # df_Reff.loc[(df_Reff.date>=sec_start_date) &
         #                    (df_Reff.state==state)&(df_Reff.date<=sec_end_date)].date
         rho_samples = samples_mov_gamma[
@@ -632,11 +626,9 @@ if df3X.shape[0] > 0:
         pos = pos + df3X.loc[df3X.state == state].is_third_wave.sum()
 
         ax[0, i].plot(dates, rho_samples.median(), label='fit', color='C0')
-        ax[0, i].fill_between(dates, rho_samples.quantile(
-            0.25), rho_samples.quantile(0.75), color='C0', alpha=0.4)
+        ax[0, i].fill_between(dates, rho_samples.quantile(0.25), rho_samples.quantile(0.75), color='C0', alpha=0.4)
 
-        ax[0, i].fill_between(dates, rho_samples.quantile(
-            0.05), rho_samples.quantile(0.95), color='C0', alpha=0.4)
+        ax[0, i].fill_between(dates, rho_samples.quantile(0.05), rho_samples.quantile(0.95), color='C0', alpha=0.4)
 
         sns.lineplot(x='date_inferred', y='rho',
                      data=df_state.loc[(df_state.date_inferred >= third_start_date) & (df_state.STATE == state) & (df_state.date_inferred <= third_end_date)], ax=ax[0, i], color='C1', label='data')
@@ -650,10 +642,10 @@ if df3X.shape[0] > 0:
         ax[0, i].tick_params('x', rotation=90)
         ax[0, i].xaxis.set_major_locator(plt.MaxNLocator(4))
         ax[0, i].set_title(state)
+        
     ax[0, 0].set_ylabel('Proportion of imported cases')
     plt.legend()
-    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") +
-                "rho_third_phase.png", dpi=144)
+    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "rho_third_phase.png", dpi=144)
 
 ######### plotting marginal posterior distributions of R0's #########
 
@@ -679,7 +671,8 @@ ax.set_yticks([0, 2, 3], minor=False)
 ax.set_yticklabels([0, 2, 3], minor=False)
 ax.set_ylim((0, 3))
 # state labels in alphabetical
-ax.set_xticklabels(['R_I', 'R_L0 mean', 'R_L0 ACT', 'R_L0 NSW', 'R_L0 QLD', 'R_L0 SA', 'R_L0 TAS', 'R_L0 VIC', 'R_L0 WA',
+ax.set_xticklabels(['R_I', 'R_L0 mean', 'R_L0 ACT', 'R_L0 NSW', 
+                    'R_L0 QLD', 'R_L0 SA', 'R_L0 TAS', 'R_L0 VIC', 'R_L0 WA',
                     'R_L0 prior', 'R_I prior', 'R_L0 national'])
 ax.set_xlabel('')
 ax.set_ylabel('Effective reproduction number')
@@ -737,13 +730,11 @@ ax.set_xlabel('')
 ax.set_ylabel('value')
 ax.yaxis.grid(which='minor', linestyle='--', color='black', linewidth=2)
 plt.tight_layout()
-plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") +
-            "voc_vaccine_effect_posteriors.png", dpi=288)
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "voc_vaccine_effect_posteriors.png", dpi=288)
 
 ######### plotting mobility coefficients #########
 
-posterior = samples_mov_gamma[[
-    'bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
+posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
 
 split = True
 md = 'power'  # samples_mov_gamma.md.values
@@ -770,8 +761,7 @@ ax2.set_xticklabels(['Retail and Recreation', 'Grocery and Pharmacy',
 ax2.tick_params('x', rotation=15)
 plt.tight_layout()
 
-plt.savefig(
-    results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi=288)
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi=288)
 
 ######### generating and plotting TP plots #########
 
@@ -785,14 +775,13 @@ for ax in ax3:
     for a in ax:
         a.set_ylim((0, 3))
         a.set_xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
+        
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"total_Reff_allstates.png", dpi=144)
 
 if df2X.shape[0] > 0:
     df['is_sec_wave'] = 0
     for state in sec_states:
-        df.loc[df.state == state, 'is_sec_wave'] = df.loc[df.state == state].date.isin(
-            sec_date_range[state]
-        ).astype(int).values
+        df.loc[df.state == state, 'is_sec_wave'] = df.loc[df.state == state].date.isin(sec_date_range[state]).astype(int).values
     # plot only if there is second phase data - have to have second_phase=True
     ax4 = predict_plot(samples_mov_gamma, df.loc[(df.date >= sec_start_date) & (df.date <= sec_end_date)], gamma=True, moving=True, split=split, grocery=True, ban=ban,
                        R=RL_by_state, var=True, md_arg=md,
@@ -802,8 +791,8 @@ if df2X.shape[0] > 0:
         for a in ax:
             a.set_ylim((0, 3))
             # a.set_xlim((pd.to_datetime(start_date),pd.to_datetime(end_date)))
-    plt.savefig(
-        results_dir+data_date.strftime("%Y-%m-%d")+"Reff_sec_phase.png", dpi=144)
+            
+    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_sec_phase.png", dpi=144)
 
     # remove plots from memory
     fig.clear()
@@ -827,6 +816,7 @@ if df3X.shape[0] > 0:
     df['is_third_wave'] = 0
     for state in third_states:
         df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values
+        
     # plot only if there is third phase data - have to have third_phase=True
     ax4 = predict_plot(samples_mov_gamma, df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
@@ -837,6 +827,7 @@ if df3X.shape[0] > 0:
         for a in ax:
             a.set_ylim((0, 3))
             # a.set_xlim((start_date,end_date))
+            
     plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
 
     # remove plots from memory

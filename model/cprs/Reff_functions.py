@@ -83,6 +83,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                   'workplaces_percent_change_from_baseline',
                   'residential_percent_change_from_baseline']
     value_vars.remove('residential_percent_change_from_baseline')
+    
     if not grocery:
         value_vars.remove('grocery_and_pharmacy_percent_change_from_baseline')
     if moving:
@@ -166,13 +167,14 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
     else:
         # all states
-        fig, ax = plt.subplots(figsize=(15, 12), ncols=3,
-                               nrows=2, sharex=True, sharey=True)
+        fig, ax = plt.subplots(figsize=(15, 12), ncols=3, nrows=2, sharex=True, sharey=True)
 
         states = sorted(list(states_initials.keys()))
         states.remove('Northern Territory')
+        
         if not third_phase:
             states.remove('Australian Capital Territory')
+            
         # no R_eff modelled for these states, skip
         # counter for brho_v
         pos = 1
@@ -249,11 +251,9 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
                     # find days after forecast began that we want to apply the effect — currently this is fixed from the
                     # 30th of Aug
-                    if state == 'ACT':
-                        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime('2021-08-12')).days
-                    else:
-                        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
 
+                    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+                    
                     vacc_post = np.zeros_like(vacc_sim)
 
                     # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
