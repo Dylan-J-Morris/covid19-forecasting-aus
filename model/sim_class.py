@@ -701,9 +701,9 @@ class Forecast:
             self.cases_to_subtract_now = 0
         #self.imported_total = sum(df.imported.values)
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
-        self.max_backcast_cases = max(100, 2*(sum(df.local.values) - self.cases_to_subtract))
+        self.max_backcast_cases = max(100, 2.5*(sum(df.local.values) - self.cases_to_subtract))
 
-        self.max_nowcast_cases = max(10, 1.5*(sum(df.local.values) - self.cases_to_subtract_now))
+        self.max_nowcast_cases = max(10, 1.25*(sum(df.local.values) - self.cases_to_subtract_now))
         print("Local cases in last 14 days is %i" % (sum(df.local.values) - self.cases_to_subtract_now))
 
         print('Max limits: ', self.max_cases, self.max_backcast_cases, self.max_nowcast_cases)

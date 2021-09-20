@@ -147,7 +147,7 @@ transformed parameters {
             pos=1;
         } else {
             //Add 1 to get to start of new group, not end of old group
-            pos =pos_starts_third[i-1]+1;
+            pos = pos_starts_third[i-1]+1;
         }
         
         for (n in 1:N_third_wave){
