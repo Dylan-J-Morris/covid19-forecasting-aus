@@ -70,8 +70,7 @@ for file in glob.glob(path):
     surveys = surveys.append(pd.read_csv(file, parse_dates=['date']))
 surveys = surveys.sort_values(by='date')
 
-surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT',
-                                                           'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
+surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT', 'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
 surveys['proportion'] = surveys['count']/surveys.respondents
 surveys.date = pd.to_datetime(surveys.date)
 
@@ -93,8 +92,7 @@ always.loc[:'2020-03-20', 'proportion'] = 0
 
 always = always.reset_index().set_index(['state', 'date'])
 
-survey_X = pd.pivot_table(data=always,
-                          index='date', columns='state', values='proportion')
+survey_X = pd.pivot_table(data=always, index='date', columns='state', values='proportion')
 prop_all = survey_X
 
 # Get posterior
@@ -125,8 +123,7 @@ if df_google.date.values[-1] < data_date:
     # check if google has dates up to now
     # df_google is sorted by date
     # if not add days to the forecast
-    n_forecast = num_forecast_days + \
-        (data_date - df_google.date.values[-1]).days
+    n_forecast = num_forecast_days + (data_date - df_google.date.values[-1]).days
 else:
     n_forecast = num_forecast_days
 
@@ -729,12 +726,13 @@ mob_forecast_date = df_forecast.date.min()
 mob_samples = 100
 
 state_key = {
-    'NSW': '1',
-    'QLD': '2',
-    'SA': '3',
-    'TAS': '4',
-    'VIC': '5',
-    'WA': '6',
+    'ACT': '1',
+    'NSW': '2',
+    'QLD': '3',
+    'SA': '4',
+    'TAS': '5',
+    'VIC': '6',
+    'WA': '7',
 }
 
 # this key is just used so that the right vaccination multiplier gets used in the calculation
@@ -833,12 +831,10 @@ for typ in forecast_type:
             #dd = df_state.date
 
             # sample the right R_L
-            if state in ("ACT", "NT", "TAS"):
-                sim_R = np.tile(samples.R_L.values,
-                                (df_state.shape[0], mob_samples))
+            if state == "NT":
+                sim_R = np.tile(samples.R_L.values, (df_state.shape[0], mob_samples))
             else:
-                sim_R = np.tile(
-                    samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0], mob_samples))
+                sim_R = np.tile(samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0], mob_samples))
 
             df1 = df_state.loc[df_state.date <= ban]
             X1 = df1[predictors]  # N by K

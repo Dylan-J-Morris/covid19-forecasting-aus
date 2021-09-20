@@ -42,8 +42,7 @@ for file in glob.glob(path):
 surveys = surveys.sort_values(by='date')
 print("Latest Microdistancing survey is {}".format(surveys.date.values[-1]))
 
-surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT',
-                                                           'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
+surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT', 'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
 surveys['proportion'] = surveys['count']/surveys.respondents
 surveys.date = pd.to_datetime(surveys.date)
 
@@ -125,6 +124,8 @@ df = df_google.merge(df_Reff[['date', 'state', 'mean', 'lower', 'upper',
 ######### Create useable dataset #########
 # ACT and NT not in original estimates, need to extrapolated
 # sorting keeps consistent with sort in data_by_state
+states_to_fit_all_waves = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT'])
+
 states_to_fit = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS'])
 fit_post_March = True
 ban = '2020-03-20'
@@ -138,7 +139,7 @@ sec_end_date = '2021-01-19'
 
 # Third wave inputs
 # third_states=sorted(['NSW','VIC','QLD'])
-third_states = sorted(['NSW', 'VIC', 'QLD'])
+third_states = sorted(['NSW', 'VIC', 'QLD', 'ACT'])
 # Subtract 10 days to avoid right truncation
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
@@ -169,30 +170,43 @@ dfX = df.loc[fit_mask].sort_values('date')
 df2X = df.loc[second_wave_mask].sort_values('date')
 df3X = df.loc[third_wave_mask].sort_values('date')
 
+first_date_range = {
+    "NSW": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
+    "QLD": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
+    "SA": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
+    "TAS": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
+    "VIC": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
+    "WA": pd.date_range(start='2020-03-01', end='2020-03-31').values
+}
+
 # choose dates for each state for sec wave
 sec_date_range = {
     'NSW': pd.date_range(start=sec_start_date, end=sec_end_date).values,
-    'VIC': pd.date_range(start=sec_start_date, end='2020-10-30').values
+    # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-30').values
 }
 
 # choose dates for each state for third wave
 third_date_range = {
+    'ACT': pd.date_range(start='2021-08-12', end=third_end_date).values,
     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
     'QLD': pd.date_range(start=third_start_date, end=third_end_date).values,
     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values
 }
 
+dfX['is_first_wave'] = 0
+for state in states_to_fit:
+    dfX.loc[dfX.state == state, 'is_first_wave'] = dfX.loc[dfX.state == state].date.isin(
+        first_date_range[state]).astype(int).values
+    
 df2X['is_sec_wave'] = 0
 for state in sec_states:
     df2X.loc[df2X.state == state, 'is_sec_wave'] = df2X.loc[df2X.state == state].date.isin(
-        sec_date_range[state]
-    ).astype(int).values
+        sec_date_range[state]).astype(int).values
 
 df3X['is_third_wave'] = 0
 for state in third_states:
     df3X.loc[df3X.state == state, 'is_third_wave'] = df3X.loc[df3X.state == state].date.isin(
-        third_date_range[state]
-    ).astype(int).values
+        third_date_range[state]).astype(int).values
 
 data_by_state = {}
 sec_data_by_state = {}
@@ -200,24 +214,19 @@ third_data_by_state = {}
 
 for value in ['mean', 'std', 'local', 'imported']:
     data_by_state[value] = pd.pivot(dfX[['state', value, 'date']],
-                                    index='date', columns='state', values=value).sort_index(
-        axis='columns')
+                                    index='date', columns='state', values=value).sort_index(axis='columns')
     sec_data_by_state[value] = pd.pivot(df2X[['state', value, 'date']],
-                                        index='date', columns='state', values=value).sort_index(
-        axis='columns')
+                                        index='date', columns='state', values=value).sort_index(axis='columns')
     third_data_by_state[value] = pd.pivot(df3X[['state', value, 'date']],
-                                          index='date', columns='state', values=value).sort_index(
-        axis='columns')
+                                          index='date', columns='state', values=value).sort_index(axis='columns')
     # account for dates pre pre second wave
     if df2X.loc[df2X.state == sec_states[0]].shape[0] == 0:
         print("making empty")
-        sec_data_by_state[value] = pd.DataFrame(
-            columns=sec_states).astype(float)
+        sec_data_by_state[value] = pd.DataFrame(columns=sec_states).astype(float)
     # account for dates pre pre third wave
     if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
         print("making empty")
-        third_data_by_state[value] = pd.DataFrame(
-            columns=third_states).astype(float)
+        third_data_by_state[value] = pd.DataFrame(columns=third_states).astype(float)
 
 # FIRST PHASE
 mobility_by_state = []
@@ -228,18 +237,15 @@ respond_by_state = []
 # filtering survey responses to dates before this wave fitting
 survey_respond = survey_respond_base.loc[:dfX.date.values[-1]]
 survey_counts = survey_counts_base.loc[:dfX.date.values[-1]]
+include_in_first_wave = []
 
 for state in states_to_fit:
 
-    mobility_by_state.append(
-        dfX.loc[dfX.state == state, predictors].values/100)
-    mobility_std_by_state.append(
-        dfX.loc[dfX.state == state, [
-            val+'_std' for val in predictors]].values/100
-    )
+    mobility_by_state.append(dfX.loc[dfX.state == state, predictors].values/100)
+    mobility_std_by_state.append(dfX.loc[dfX.state == state, [val+'_std' for val in predictors]].values/100)
     count_by_state.append(survey_counts.loc[start_date:end_date, state].values)
-    respond_by_state.append(
-        survey_respond.loc[start_date:end_date, state].values)
+    respond_by_state.append(survey_respond.loc[start_date:end_date, state].values)
+    include_in_first_wave.append(dfX.loc[dfX.state == state, 'is_first_wave'].values)
 
 # SECOND PHASE
 sec_mobility_by_state = []
@@ -254,18 +260,11 @@ survey_counts = survey_counts_base.loc[:df2X.date.values[-1]]
 
 for state in sec_states:
 
-    sec_mobility_by_state.append(
-        df2X.loc[df2X.state == state, predictors].values/100)
-    sec_mobility_std_by_state.append(
-        df2X.loc[df2X.state == state, [
-            val+'_std' for val in predictors]].values/100
-    )
-    sec_count_by_state.append(
-        survey_counts.loc[sec_start_date:sec_end_date, state].values)
-    sec_respond_by_state.append(
-        survey_respond.loc[sec_start_date:sec_end_date, state].values)
-    include_in_sec_wave.append(
-        df2X.loc[df2X.state == state, 'is_sec_wave'].values)
+    sec_mobility_by_state.append(df2X.loc[df2X.state == state, predictors].values/100)
+    sec_mobility_std_by_state.append(df2X.loc[df2X.state == state, [val+'_std' for val in predictors]].values/100)
+    sec_count_by_state.append(survey_counts.loc[sec_start_date:sec_end_date, state].values)
+    sec_respond_by_state.append(survey_respond.loc[sec_start_date:sec_end_date, state].values)
+    include_in_sec_wave.append(df2X.loc[df2X.state == state, 'is_sec_wave'].values)
 
 # THIRD WAVE
 third_mobility_by_state = []
@@ -280,70 +279,58 @@ survey_counts = survey_counts_base.loc[:df3X.date.values[-1]]
 
 for state in third_states:
 
-    third_mobility_by_state.append(
-        df3X.loc[df3X.state == state, predictors].values/100)
-    third_mobility_std_by_state.append(
-        df3X.loc[df3X.state == state, [
-            val+'_std' for val in predictors]].values/100
-    )
-    third_count_by_state.append(
-        survey_counts.loc[third_start_date:third_end_date, state].values)
-    third_respond_by_state.append(
-        survey_respond.loc[third_start_date:third_end_date, state].values)
-    include_in_third_wave.append(
-        df3X.loc[df3X.state == state, 'is_third_wave'].values)
+    third_mobility_by_state.append(df3X.loc[df3X.state == state, predictors].values/100)
+    third_mobility_std_by_state.append(df3X.loc[df3X.state == state, [val+'_std' for val in predictors]].values/100)
+    third_count_by_state.append(survey_counts.loc[third_start_date:third_end_date, state].values)
+    third_respond_by_state.append(survey_respond.loc[third_start_date:third_end_date, state].values)
+    include_in_third_wave.append(df3X.loc[df3X.state == state, 'is_third_wave'].values)
 
 # policy boolean flag for after travel ban in each wave
-policy = dfX.loc[dfX.state == states_to_fit[0],
-                 'post_policy']     # this is the post ban policy
+policy = dfX.loc[dfX.state == states_to_fit[0],'post_policy']     # this is the post ban policy
 policy_sec_wave = [1]*df2X.loc[df2X.state == sec_states[0]].shape[0]
 policy_third_wave = [1]*df3X.loc[df3X.state == third_states[0]].shape[0]
 
 ######### loading and cleaning vaccine data #########
 
 # Load in vaccination data by state and date
-vaccination_by_state = pd.read_csv(
-    'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
+vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
 vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
 # display the latest available date in the NSW data (will be the same date between states)
-print("Latest date in vaccine data is {}".format(
-    vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
+print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
 
-vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (
-    vaccination_by_state.date < third_end_date)]  # Get only the dates we need.
-vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(
-    third_states)]  # Isolate fitting states
-vaccination_by_state = vaccination_by_state.pivot(
-    index='state', columns='date', values='effect')  # Convert to matrix form
+vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)]  # Get only the dates we need.
+vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
+vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
 # If we are missing recent vaccination data, fill it in with the most recent available data.
 latest_vacc_data = vaccination_by_state.columns[-1]
 
 if latest_vacc_data < pd.to_datetime(third_end_date):
-    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day)
-                                     for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
+    vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
 
 # Convert to simple array only useful to pass to stan
 vaccination_by_state_array = vaccination_by_state.to_numpy()
 
 # elementwise comparison of the third states with NSW and then convert to int
+is_ACT = (np.array(third_states) == 'ACT').astype(int)
 is_NSW = (np.array(third_states) == 'NSW').astype(int)
 
 # calculate how many days the end of august is after the third start date
-decay_start_date_third = (pd.to_datetime(
-    '2021-08-20') - pd.to_datetime(third_start_date)).days
-
-state_index = {state: i+1 for i, state in enumerate(states_to_fit)}
+decay_start_date_third = [
+    (pd.to_datetime('2021-08-20') - pd.to_datetime('2021-08-12')).days, 
+    (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days]
 
 # Make state by state arrays
-state_index = {state: i+1 for i, state in enumerate(states_to_fit)}
+state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 
 # input data block for stan model
 input_data = {
+    'j_total': len(states_to_fit_all_waves),
+    
     'N': dfX.loc[dfX.state == states_to_fit[0]].shape[0],
     'K': len(predictors),
-    'j': len(states_to_fit),
+    'j_first_wave': len(states_to_fit),
     'Reff': data_by_state['mean'].values,
     'Mob': mobility_by_state,
     'Mob_std': mobility_std_by_state,
@@ -379,17 +366,21 @@ input_data = {
     'count_md_third_wave': third_count_by_state,
     'respond_md_third_wave': third_respond_by_state,
 
+    'map_to_state_index_first': [state_index[state] for state in states_to_fit],
     'map_to_state_index_sec': [state_index[state] for state in sec_states],
     'map_to_state_index_third': [state_index[state] for state in third_states],
     # needed to convert this to primitive int for pystan
     'total_N_p_sec': sum([sum(x) for x in include_in_sec_wave]).item(),
     # needed to convert this to primitive int for pystan
     'total_N_p_third': sum([sum(x) for x in include_in_third_wave]).item(),
+    
+    'include_in_first_wave': include_in_first_wave,
     'include_in_sec_wave': include_in_sec_wave,
     'include_in_third_wave': include_in_third_wave,
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
 
+    'is_ACT': is_ACT,   # indicator for whether we are looking at ACT
     'is_NSW': is_NSW,   # indicator for whether we are looking at NSW
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
@@ -529,8 +520,12 @@ if run_inference or run_inference_only:
         # we read it right back in to fix formatting
         samples_mov_gamma = pd.read_csv("results/samples_mov_gamma.csv")
 
-    if run_inference_only:
-        sys.exit()
+# decide what to do next based on whether we want to plot
+if run_inference_only:
+    sys.exit()
+else:
+    # we read it right back in to fix formatting
+    samples_mov_gamma = pd.read_csv("results/samples_mov_gamma.csv")
 
 ######### plotting the results #########
 ######### ratio of imported to local cases #########
@@ -663,23 +658,19 @@ if df3X.shape[0] > 0:
 ######### plotting marginal posterior distributions of R0's #########
 
 fig, ax = plt.subplots(figsize=(12, 9))
-samples_mov_gamma['R_L_prior'] = np.random.gamma(
-    1.8*1.8/0.05, 0.05/1.8, size=samples_mov_gamma.shape[0])
+samples_mov_gamma['R_L_prior'] = np.random.gamma(1.8*1.8/0.05, 0.05/1.8, size=samples_mov_gamma.shape[0])
 
-samples_mov_gamma['R_I_prior'] = np.random.gamma(
-    0.5**2/0.2, .2/0.5, size=samples_mov_gamma.shape[0])
+samples_mov_gamma['R_I_prior'] = np.random.gamma(0.5**2/0.2, .2/0.5, size=samples_mov_gamma.shape[0])
 
 samples_mov_gamma['R_L_national'] = np.random.gamma(
     samples_mov_gamma.R_L.values ** 2 / samples_mov_gamma.sig.values,
     samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values)
 
-df_R_values = pd.melt(
-    samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]])
-# print(df_R_values.variable.unique())
+df_R_values = pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]])
+print(df_R_values.variable.unique())
 
 sns.violinplot(x='variable', y='value',
-               data=pd.melt(
-                   samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]]),
+               data=pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]]),
                ax=ax,
                cut=0)
 
@@ -688,7 +679,7 @@ ax.set_yticks([0, 2, 3], minor=False)
 ax.set_yticklabels([0, 2, 3], minor=False)
 ax.set_ylim((0, 3))
 # state labels in alphabetical
-ax.set_xticklabels(['R_I', 'R_L0 mean', 'R_L0 NSW', 'R_L0 QLD', 'R_L0 SA', 'R_L0 TAS', 'R_L0 VIC', 'R_L0 WA',
+ax.set_xticklabels(['R_I', 'R_L0 mean', 'R_L0 ACT', 'R_L0 NSW', 'R_L0 QLD', 'R_L0 SA', 'R_L0 TAS', 'R_L0 VIC', 'R_L0 WA',
                     'R_L0 prior', 'R_I prior', 'R_L0 national'])
 ax.set_xlabel('')
 ax.set_ylabel('Effective reproduction number')
@@ -700,8 +691,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png", dpi=144)
 # Making a new figure that doesn't include the priors
 fig, ax = plt.subplots(figsize=(12, 9))
 
-small_plot_cols = ['R_Li[1]', 'R_Li[2]', 'R_Li[3]',
-                   'R_Li[4]', 'R_Li[5]', 'R_Li[6]', 'R_I']
+small_plot_cols = ['R_Li['+str(i)+']' for i in range(1,8)] + ['R_I']
 
 sns.violinplot(x='variable', y='value',
                data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -713,7 +703,7 @@ ax.set_yticks([0, 2, 3], minor=False)
 ax.set_yticklabels([0, 2, 3], minor=False)
 ax.set_ylim((0, 3))
 # state labels in alphabetical
-ax.set_xticklabels(['$R_L0$ NSW', '$R_L0$ QLD', '$R_L0$ SA',
+ax.set_xticklabels(['$R_L0$ ACT', '$R_L0$ NSW', '$R_L0$ QLD', '$R_L0$ SA',
                    '$R_L0$ TAS', '$R_L0$ VIC', '$R_L0$ WA', '$R_I$'])
 ax.tick_params('x', rotation=90)
 ax.set_xlabel('')
@@ -728,8 +718,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") +
 # Making a new figure that doesn't include the priors
 fig, ax = plt.subplots(figsize=(12, 9))
 
-small_plot_cols = ['voc_effect_third_wave',
-                   'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
+small_plot_cols = ['voc_effect_third_wave', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
 
 sns.violinplot(x='variable', y='value',
                data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -786,8 +775,7 @@ plt.savefig(
 
 ######### generating and plotting TP plots #########
 
-RL_by_state = {state: samples_mov_gamma[
-    'R_Li['+str(i)+']'].values for state, i in state_index.items()}
+RL_by_state = {state: samples_mov_gamma['R_Li['+str(i)+']'].values for state, i in state_index.items()}
 ax3 = predict_plot(samples_mov_gamma, df.loc[(df.date >= start_date) & (df.date <= end_date)], gamma=True,
                    moving=True, split=split, grocery=True, ban=ban,
                    R=RL_by_state, var=True, md_arg=md,
@@ -797,8 +785,7 @@ for ax in ax3:
     for a in ax:
         a.set_ylim((0, 3))
         a.set_xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
-plt.savefig(
-    results_dir+data_date.strftime("%Y-%m-%d")+"total_Reff_allstates.png", dpi=144)
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"total_Reff_allstates.png", dpi=144)
 
 if df2X.shape[0] > 0:
     df['is_sec_wave'] = 0
@@ -822,32 +809,24 @@ if df2X.shape[0] > 0:
     fig.clear()
     plt.close(fig)
 
-
 if apply_vacc_to_R_L_hats:
     # Load in vaccination data by state and date and this time do NOT isolate by fitting states
-    vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
-    third_end_date = pd.to_datetime(
-        data_date) - pd.Timedelta(days=truncation_days)
-    vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (
-        vaccination_by_state.date < third_end_date)]  # Get only the dates we need.
-    vaccination_by_state = vaccination_by_state.pivot(
-        index='state', columns='date', values='effect')  # Convert to matrix form
+    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
+    vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)]  # Get only the dates we need.
+    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
     # If we are missing recent vaccination data, fill it in with the most recent available data.
     latest_vacc_data = vaccination_by_state.columns[-1]
     if latest_vacc_data < pd.to_datetime(third_end_date):
-        vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day)
-                                         for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
+        vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
 
 if df3X.shape[0] > 0:
     df['is_third_wave'] = 0
     for state in third_states:
-        df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(
-            third_date_range[state]
-        ).astype(int).values
+        df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values
     # plot only if there is third phase data - have to have third_phase=True
     ax4 = predict_plot(samples_mov_gamma, df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
@@ -858,8 +837,7 @@ if df3X.shape[0] > 0:
         for a in ax:
             a.set_ylim((0, 3))
             # a.set_xlim((start_date,end_date))
-    plt.savefig(
-        results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
+    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
 
     # remove plots from memory
     fig.clear()
@@ -871,9 +849,6 @@ dates = vaccination_by_state.columns
 
 fig, ax = plt.subplots(figsize=(15, 12), ncols=2,
                        nrows=4, sharey=True, sharex=True)
-state_vacc_map = {'NSW': '1',
-                  'QLD': '2',
-                  'VIC': '3'}
 
 for i, state in enumerate(states):
 
@@ -886,12 +861,10 @@ for i, state in enumerate(states):
         r = samples_mov_gamma.r_other
 
     # tile the states vaccination data from Curtin
-    vacc_tmp = np.tile(
-        vaccination_by_state.loc[state], (samples_mov_gamma.shape[0], 1)).T
+    vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0], 1)).T
     # find days after the third start date began that we want to apply the effect — currently this is fixed from the
     # 20th of Aug
-    heterogeneity_delay_start_day = (pd.to_datetime(
-        '2021-08-20') - pd.to_datetime(third_start_date)).days
+    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
     # create zero vector to fill in with vaccine effect
     vacc_eff = np.zeros_like(vacc_tmp)
 
@@ -909,33 +882,23 @@ for i, state in enumerate(states):
     row = i % 4
     col = i//4
 
-    ax[row, col].plot(
-        dates, vaccination_by_state.loc[state].values, label='data', color='C1')
-    ax[row, col].plot(dates, np.median(vacc_eff, axis=1),
-                      label='fit', color='C0')
-    ax[row, col].fill_between(dates, np.quantile(vacc_eff, 0.25, axis=1), np.quantile(
-        vacc_eff, 0.75, axis=1), color='C0', alpha=0.4)
-    ax[row, col].fill_between(dates, np.quantile(vacc_eff, 0.05, axis=1), np.quantile(
-        vacc_eff, 0.95, axis=1), color='C0', alpha=0.4)
+    ax[row, col].plot(dates, vaccination_by_state.loc[state].values, label='data', color='C1')
+    ax[row, col].plot(dates, np.median(vacc_eff, axis=1), label='fit', color='C0')
+    ax[row, col].fill_between(dates, np.quantile(vacc_eff, 0.25, axis=1), np.quantile(vacc_eff, 0.75, axis=1), color='C0', alpha=0.4)
+    ax[row, col].fill_between(dates, np.quantile(vacc_eff, 0.05, axis=1), np.quantile(vacc_eff, 0.95, axis=1), color='C0', alpha=0.4)
     ax[row, col].set_title(state)
     ax[row, col].tick_params(axis='x', rotation=90)
 
 ax[0, 0].set_ylabel('reduction in TP from vaccination')
 ax[1, 0].set_ylabel('reduction in TP from vaccination')
 
-plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") +
-            "vaccine_reduction_in_TP.png", dpi=144)
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_TP.png", dpi=144)
 
 ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 
 var_to_csv = predictors
-samples_mov_gamma[predictors] = samples_mov_gamma[[
-    'bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
-var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md',
-              'voc_effect_third_wave', 'eta_NSW', 'eta_other',
-              'r_NSW', 'r_other']
-var_to_csv = var_to_csv + predictors + \
-    ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit))]
+samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
+var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_third_wave', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
+var_to_csv = var_to_csv + predictors + ['R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))]
 
-samples_mov_gamma[var_to_csv].to_hdf(
-    'results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples')
+samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples')

@@ -171,7 +171,8 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
         states = sorted(list(states_initials.keys()))
         states.remove('Northern Territory')
-        states.remove('Australian Capital Territory')
+        if not third_phase:
+            states.remove('Australian Capital Territory')
         # no R_eff modelled for these states, skip
         # counter for brho_v
         pos = 1
@@ -183,13 +184,11 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
             elif third_phase:
                 df_state = df_state.loc[df_state.is_third_wave == 1]
             samples_sim = samples.sample(1000)
-            post_values = samples_sim[[
-                'bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
+            post_values = samples_sim[['bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
 
             if vaccination is not None:
-                vacc_sim = vaccination.loc[states_initials[state]
-                                           ].values[:df_state.shape[0]]
+                vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
                 vacc_sim = np.tile(vacc_sim, (1000, 1)).T
 
             if split:
@@ -206,8 +205,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                 if md_arg is None:
                     post_alphas = samples_sim[[
                         'alpha['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
-                    logodds = np.append(
-                        logodds, X2 @ (post_values + post_alphas), axis=0)
+                    logodds = np.append(logodds, X2 @ (post_values + post_alphas), axis=0)
                     md = 1
                 elif md_arg == 'power':
                     theta_md = samples_sim.theta_md.values  # 1 by samples shape
@@ -228,8 +226,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
                 else:
                     # take right size of md to be N by N
-                    md = np.tile(samples_sim['md'].values,
-                                 (df_state.shape[0], 1))
+                    md = np.tile(samples_sim['md'].values,(df_state.shape[0], 1))
 
                     # set initial pre ban values of md to 1
                     md[:logodds.shape[0], :] = 1
@@ -250,12 +247,12 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                         eta = samples_sim['eta_other']
                         r = samples_sim['r_other']
 
-                    # this just makes sure to set vaccination effect before the vaccination program to 1 -- should not be
-                    # required but is consistent with other parts of codebase
                     # find days after forecast began that we want to apply the effect — currently this is fixed from the
                     # 30th of Aug
-                    heterogeneity_delay_start_day = (pd.to_datetime(
-                        '2021-08-20') - pd.to_datetime(third_start_date)).days
+                    if state == 'ACT':
+                        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime('2021-08-12')).days
+                    else:
+                        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
 
                     vacc_post = np.zeros_like(vacc_sim)
 
@@ -268,8 +265,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                             # number of days after the heterogeneity should start to wane
                             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                             decay_factor = np.exp(-r*heterogeneity_delay_days)
-                            vacc_post[ii] = eta*decay_factor + \
-                                (1-eta*decay_factor)*vacc_sim[ii]
+                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_sim[ii]
 
                     for ii in range(vacc_post.shape[0]):
                         if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:
@@ -290,17 +286,15 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                             size=df_state.shape[0]
                         )
                 if type(R) == dict:
-                    if states_initials[state] != ['ACT', 'NT', 'TAS']:
+                    if states_initials[state] != ['NT']:
                         # if state, use inferred
                         sim_R = np.tile(
                             R[states_initials[state]][:samples_sim.shape[0]], (df_state.shape[0], 1))
                     else:
                         # if territory, use generic R_L
-                        sim_R = np.tile(samples_sim.R_L.values,
-                                        (df_state.shape[0], 1))
+                        sim_R = np.tile(samples_sim.R_L.values,(df_state.shape[0], 1))
                 else:
-                    sim_R = np.tile(samples_sim.R_L.values,
-                                    (df_state.shape[0], 1))
+                    sim_R = np.tile(samples_sim.R_L.values,(df_state.shape[0], 1))
 
                 if vaccination is not None:
                     mu_hat = 2 * md*sim_R * expit(logodds) * vacc_post
@@ -311,8 +305,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                     mu_hat = (1+samples_sim['winter'].values)*mu_hat
                 if rho:
                     if rho == 'data':
-                        rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T,
-                                           (1, samples_sim.shape[0]))
+                        rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))
                     else:
                         states_to_fitd = {s: i+1 for i, s in enumerate(rho)}
                         if states_initials[state] in states_to_fitd.keys():
@@ -371,8 +364,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                             rho_data = np.tile(
                                 df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))
 
-                    R_I_sim = np.tile(samples_sim.R_I.values,
-                                      (df_state.shape[0], 1))
+                    R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0], 1))
 
                     mu_hat = rho_data * R_I_sim + (1 - rho_data) * mu_hat
 

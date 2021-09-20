@@ -1,15 +1,17 @@
 data {
+    int j_total;
+    
     // data for the initial wave 
     int N;                                                      // data length num days
     int K;                                                      // Number of mobility indices
-    int j;                                                      // Number of states
-    matrix[N,j] Reff;                                           // response
-    matrix[N,K] Mob[j];                                         // Mobility indices
-    matrix[N,K] Mob_std[j];                                     // std of mobility
-    matrix[N,j] sigma2;                                         // Variances of R_eff from previous study
+    int j_first_wave;                                                      // Number of states in first wave
+    matrix[N,j_first_wave] Reff;                                           // response
+    matrix[N,K] Mob[j_first_wave];                                         // Mobility indices
+    matrix[N,K] Mob_std[j_first_wave];                                     // std of mobility
+    matrix[N,j_first_wave] sigma2;                                         // Variances of R_eff from previous study
     vector[N] policy;                                           // Indicators for post policy or not
-    matrix[N,j] local;                                          // local number of cases
-    matrix[N,j] imported;                                       // imported number of cases
+    matrix[N,j_first_wave] local;                                          // local number of cases
+    matrix[N,j_first_wave] imported;                                       // imported number of cases
  
     // data for the secondary wave 
     int N_sec_wave;                                             // length of VIC days
@@ -34,25 +36,28 @@ data {
     matrix[N_third_wave,j_third_wave] imported_third_wave;      // imported cases in VIC
 
     // data relating to mobility and microdistancing
-    vector[N] count_md[j];                                      // count of always
-    vector[N] respond_md[j];                                    // num respondants
+    vector[N] count_md[j_first_wave];                                      // count of always
+    vector[N] respond_md[j_first_wave];                                    // num respondants
     vector[N_sec_wave] count_md_sec_wave[j_sec_wave];           // count of always
     vector[N_sec_wave] respond_md_sec_wave[j_sec_wave];         // num respondants
     vector[N_third_wave] count_md_third_wave[j_third_wave];     // count of always
     vector[N_third_wave] respond_md_third_wave[j_third_wave];   // num respondants
 
+    int map_to_state_index_first[j_first_wave];                     // indices of second wave to map to first
     int map_to_state_index_sec[j_sec_wave];                     // indices of second wave to map to first
     int map_to_state_index_third[j_third_wave];                 // indices of second wave to map to first
     int total_N_p_sec;                                          // total number of data in sec wave, entire state first
     int total_N_p_third;                                        // total number of data in sec wave, entire state first
+    vector[N] include_in_first_wave[j_first_wave];                // dates include in first wave 
     vector[N_sec_wave] include_in_sec_wave[j_sec_wave];         // dates include in sec_wave 
     vector[N_third_wave] include_in_third_wave[j_third_wave];   // dates include in sec_wave 
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
     
+    int is_ACT[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
 
-    int decay_start_date_third;
+    int decay_start_date_third[2];
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data
 
 }
@@ -60,13 +65,13 @@ parameters {
     vector[K] bet;                                              // coefficients
     real<lower=0> R_I;                                          // base level imports,
     real<lower=0> R_L;                                          // base level local
-    vector<lower=0>[j] R_Li;                                    // state level estimates
+    vector<lower=0>[j_total] R_Li;                                    // state level estimates
     real<lower=0> sig;                                          // state level variance
     real<lower=0> theta_md;                                     // md weighting
-    matrix<lower=0,upper=1>[N,j] prop_md;                       // proportion who are md'ing
+    matrix<lower=0,upper=1>[N,j_first_wave] prop_md;                       // proportion who are md'ing
     vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec_wave;
     vector<lower=0,upper=1>[total_N_p_third] prop_md_third_wave;
-    matrix<lower=0,upper=1>[N,j] brho;                          // estimate of proportion of imported cases
+    matrix<lower=0,upper=1>[N,j_first_wave] brho;                          // estimate of proportion of imported cases
     vector<lower=0,upper=1>[total_N_p_sec] brho_sec_wave;       // estimate of proportion of imported cases
     vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;   // estimate of proportion of imported cases
 
@@ -80,20 +85,21 @@ parameters {
 
 }
 transformed parameters {
-    matrix<lower=0>[N,j] mu_hat;
+    matrix<lower=0>[N,j_first_wave] mu_hat;
     vector<lower=0>[total_N_p_sec] mu_hat_sec_wave;
     vector<lower=0>[total_N_p_third] mu_hat_third_wave;
-    matrix<lower=0>[N,j] md;                                    // micro distancing
+    matrix<lower=0>[N,j_first_wave] md;                                    // micro distancing
     vector<lower=0>[total_N_p_sec] md_sec_wave;
     vector<lower=0>[total_N_p_third] md_third_wave;
 
-    for (i in 1:j) {
+    for (i in 1:j_first_wave) {
         for (n in 1:N){
-            md[n,i] = pow(1+theta_md , -1*prop_md[n,i]);
-            //mean estimate
-            mu_hat[n,i] = brho[n,i]*R_I + (1-brho[n,i])*2*R_Li[i]*(
-            (1-policy[n]) + md[n,i]*policy[n] )*inv_logit(
-            Mob[i][n,:]*(bet)); 
+            if (include_in_first_wave[i][n]==1) {
+                md[n,i] = pow(1+theta_md , -1*prop_md[n,i]);
+                //mean estimate
+                mu_hat[n,i] = brho[n,i]*R_I + (1-brho[n,i])*2*R_Li[map_to_state_index_first[i]]*(
+                (1-policy[n]) + md[n,i]*policy[n] )*inv_logit(Mob[i][n,:]*(bet)); 
+            }
         }
     }
     for (i in 1:j_sec_wave){
@@ -127,6 +133,7 @@ transformed parameters {
             }
         }
     }
+
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
         int pos;
@@ -134,14 +141,15 @@ transformed parameters {
         real eta;
         real r;
         real decay_in_heterogeneity;
+        real decay_start_date_adjusted;
         
         if (i==1){
             pos=1;
-        }
-        else {
+        } else {
             //Add 1 to get to start of new group, not end of old group
             pos =pos_starts_third[i-1]+1;
-            }
+        }
+        
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
@@ -155,13 +163,23 @@ transformed parameters {
                     r = r_other;
                 }
                 
-                # applying the return to homogeneity in vaccination effect 
-                if (n >= decay_start_date_third){
-                    decay_in_heterogeneity = exp(-r*(n-decay_start_date_third));
+                // pick number of days after third start date, only difference is that ACT's third wave started 
+                // slightly later than NSW and VIC. This offset ensures that the exponent on the decay term is 
+                // appropriately sized. 
+                if (is_ACT[i] == 1){ 
+                    decay_start_date_adjusted = decay_start_date_third[1];
+                } else {
+                    decay_start_date_adjusted = decay_start_date_third[2];
+                }
+
+                // applying the return to homogeneity in vaccination effect 
+                if (n >= decay_start_date_adjusted){
+                    decay_in_heterogeneity = exp(-r*(n-decay_start_date_adjusted));
                     eta *= decay_in_heterogeneity;
                 }
 
-                // total vaccination effect still has this form
+                // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
+                // vaccination effect around the 20th of August 
                 vacc_effect_tot = eta + (1-eta) * vaccine_effect_data[i][n];
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
@@ -197,9 +215,9 @@ model {
     sig ~ exponential(50); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
-    for (i in 1:j) {
+    for (i in 1:j_first_wave) {
         for (n in 1:N){
-            prop_md[n,i] ~ beta(1 + count_md[i][n], 1+ respond_md[i][n] - count_md[i][n]);
+            prop_md[n,i] ~ beta(1 + count_md[i][n], 1 + respond_md[i][n] - count_md[i][n]);
             brho[n,i] ~ beta( 1+ imported[n,i], 1+ local[n,i]); //ratio imported/ (imported + local)
             mu_hat[n,i] ~ gamma( Reff[n,i]*Reff[n,i]/(sigma2[n,i]), Reff[n,i]/sigma2[n,i]); //Stan uses shape/inverse scale
         }
@@ -226,11 +244,10 @@ model {
     for (i in 1:j_third_wave){
         if (i==1){
             pos2=1;
-        }
-        else {
+        } else {
             //Add 1 to get to start of new group, not end of old group
             pos2 =pos_starts_third[i-1]+1; 
-            }
+        }
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
                 prop_md_third_wave[pos2] ~ beta(1 + count_md_third_wave[i][n], 1+ respond_md_third_wave[i][n] - count_md_third_wave[i][n]);

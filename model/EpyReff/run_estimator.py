@@ -123,8 +123,7 @@ if plot_time:
     ax[2].bar(xmids[:-1], height=ws, width=1)
     ax[2].set_title("Generation Interval")
 
-    plt.savefig('figs/Time_distributions'+file_date +
-                "tau_"+str(tau)+".png", dpi=400)
+    plt.savefig('figs/Time_distributions'+file_date +"tau_"+str(tau)+".png", dpi=400)
 
 
 df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv", index=False)
