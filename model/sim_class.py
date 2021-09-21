@@ -713,10 +713,13 @@ class Forecast:
         backcast_cases = (sum(df.local.values) - self.cases_to_subtract)
         nowcast_cases = (sum(df.local.values) - self.cases_to_subtract_now)
         
+        # max limits are just 1+factor * number of cases over a time horizon
         self.max_backcast_cases = max(100, backcast_cases * (1.0+backcast_factor) )
-        self.min_backcast_cases = max(0, backcast_cases * (1.0-backcast_factor))
-
         self.max_nowcast_cases = max(10, nowcast_cases * (1.0+nowcast_factor))
+        # min limits are 1-factor * number of cases over a time horizon. we take the maximum of 
+        # 0 and the estimated matching interval as there's the possibility for a negative number of
+        # cases if the factor >= 1. 
+        self.min_backcast_cases = max(0, backcast_cases * (1.0-backcast_factor))
         self.min_nowcast_cases = max(0, nowcast_cases * (1.0-nowcast_factor))
         
         print("Local cases in last 14 days is %i" % nowcast_cases)
