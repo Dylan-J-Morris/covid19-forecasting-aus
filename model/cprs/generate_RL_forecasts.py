@@ -333,7 +333,9 @@ for i, state in enumerate(states):
 
             # Constant Lockdown
             if scenario == "no_reversion":
-                current = np.random.normal(mu_current, std_baseline)
+                # use only more recent data to forecast
+                std_lockdown = np.std(prop[state].values[-24:-4])
+                current = np.random.normal(mu_current, std_lockdown)
 
             # No Lockdown
             elif scenario == "full_reversion":

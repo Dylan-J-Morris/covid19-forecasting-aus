@@ -405,7 +405,9 @@ class Forecast:
         self.daycount = 0
         while len(self.infected_queue) > 0:
             day_end = self.people[self.infected_queue[0]].detection_time
-            if day_end < self.forecast_date and (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases): 
+            over_check = (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases)
+            under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)
+            if day_end < self.forecast_date and (over_check or under_check): 
                 self.num_too_many += 1
                 self.bad_sim = True
                 break
@@ -512,9 +514,10 @@ class Forecast:
                 # to next check, otherwise will be doubling up on undetecteds
                 while len(self.infected_queue) > 0:
                     day_end = self.people[self.infected_queue[0]].detection_time
-
+                    over_check = (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases)
+                    under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)
+                    if day_end < self.forecast_date and (over_check or under_check): 
                     # check for exceeding max_cases
-                    if day_end < self.forecast_date and (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases):
                             self.num_too_many += 1
                             self.bad_sim = True
                             break
@@ -699,13 +702,26 @@ class Forecast:
         else:
             self.cases_to_subtract = 0
             self.cases_to_subtract_now = 0
+            
         #self.imported_total = sum(df.imported.values)
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
-        self.max_backcast_cases = max(100, 3*(sum(df.local.values) - self.cases_to_subtract))
+        
+        # +/- factors for number of cases to use in the current period to determine proximity to data
+        backcast_factor = 0.9
+        nowcast_factor = 0.4
+        
+        backcast_cases = (sum(df.local.values) - self.cases_to_subtract)
+        nowcast_cases = (sum(df.local.values) - self.cases_to_subtract_now)
+        
+        self.max_backcast_cases = max(100, backcast_cases * (1.0+backcast_factor) )
+        self.min_backcast_cases = max(0, backcast_cases * (1.0-backcast_factor))
 
-        self.max_nowcast_cases = max(10, 1.5*(sum(df.local.values) - self.cases_to_subtract_now))
-        print("Local cases in last 14 days is %i" % (sum(df.local.values) - self.cases_to_subtract_now))
+        self.max_nowcast_cases = max(10, nowcast_cases * (1.0+nowcast_factor))
+        self.min_nowcast_cases = max(0, nowcast_cases * (1.0-nowcast_factor))
+        
+        print("Local cases in last 14 days is %i" % nowcast_cases)
 
+        print('Min limits: ', self.min_backcast_cases, self.min_nowcast_cases)
         print('Max limits: ', self.max_cases, self.max_backcast_cases, self.max_nowcast_cases)
 
         self.actual = df.local.to_dict()
