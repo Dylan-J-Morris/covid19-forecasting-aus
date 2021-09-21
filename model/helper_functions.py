@@ -73,25 +73,26 @@ def read_in_NNDSS(date_string):
             df = pd.read_csv(file)
 
         if len(glob.glob(path)) == 0:
-            raise FileNotFoundError(
-                "Linelist no found. Did you want to use NNDSS?")
+            raise FileNotFoundError("Linelist no found. Did you want to use NNDSS?")
 
         df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
-        df['date_detection'] = pd.to_datetime(
-            df['date_detection'], errors='coerce')
+        df['date_detection'] = pd.to_datetime(df['date_detection'], errors='coerce')
+        df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
 
         df['date_inferred'] = df['date_onset']
-        df.loc[df['date_onset'].isna(), 'date_inferred'] = df.loc[df['date_onset'].isna(
-        )]['date_detection'] - timedelta(days=3)  # Fill missing days
+        df.loc[df['date_onset'].isna(), 'date_inferred'] = df.loc[df['date_onset'].isna(), 'date_detection'] - timedelta(days=3)  # Fill missing days
+        df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=5)  # Fill missing days
 
-        df['imported'] = [1 if stat ==
-                          'imported' else 0 for stat in df['import_status']]
+        df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported
         df['STATE'] = df['state']
         # df['NOTIFICATION_RECEIVE_DATE'] = df['date_detection'] # Only used by EpyReff. Possible improvement here.
 
         # added this to be consistent with the NNDSS data
         # df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
+        
+        df.to_csv("df.csv")
+        
         return df
 
 
