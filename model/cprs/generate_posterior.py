@@ -518,7 +518,7 @@ if run_inference or run_inference_only:
 # decide what to do next based on whether we want to plot
 if run_inference_only:
     sys.exit()
-else:
+elif not on_phoenix:
     # we read it right back in to fix formatting
     samples_mov_gamma = pd.read_csv("results/samples_mov_gamma.csv")
 
