@@ -328,12 +328,11 @@ for i, state in enumerate(states):
             mu_current = prop[state].values[-1]
 
             if scenario_date != '':
-                scenario_change_point = (pd.to_datetime(
-                    scenario_date) - data_date).days + extra_days_md
+                scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + extra_days_md
 
             # Constant Lockdown
             if scenario == "no_reversion":
-                # use only more recent data to forecast
+                # use only more recent data to forecast under a no-reversion scenario
                 std_lockdown = np.std(prop[state].values[-24:-4])
                 current = np.random.normal(mu_current, std_lockdown)
 

@@ -406,8 +406,8 @@ class Forecast:
         while len(self.infected_queue) > 0:
             day_end = self.people[self.infected_queue[0]].detection_time
             over_check = (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases)
-            under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)
-            if day_end < self.forecast_date and (over_check or under_check): 
+            # under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)
+            if day_end < self.forecast_date and (over_check): 
                 self.num_too_many += 1
                 self.bad_sim = True
                 break
@@ -515,8 +515,8 @@ class Forecast:
                 while len(self.infected_queue) > 0:
                     day_end = self.people[self.infected_queue[0]].detection_time
                     over_check = (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases)
-                    under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)
-                    if day_end < self.forecast_date and (over_check or under_check): 
+                    # under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)
+                    if day_end < self.forecast_date and (over_check): 
                     # check for exceeding max_cases
                             self.num_too_many += 1
                             self.bad_sim = True
@@ -707,24 +707,21 @@ class Forecast:
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
         
         # +/- factors for number of cases to use in the current period to determine proximity to data
-        backcast_factor = 0.9
-        nowcast_factor = 0.4
+        backcast_factor = 2.5
+        nowcast_factor = 1.5
         
         backcast_cases = (sum(df.local.values) - self.cases_to_subtract)
         nowcast_cases = (sum(df.local.values) - self.cases_to_subtract_now)
         
         # max limits are just 1+factor * number of cases over a time horizon
-        self.max_backcast_cases = max(100, backcast_cases * (1.0+backcast_factor) )
-        self.max_nowcast_cases = max(10, nowcast_cases * (1.0+nowcast_factor))
+        self.max_backcast_cases = max(100, backcast_cases * backcast_factor)
+        self.max_nowcast_cases = max(10, nowcast_cases * nowcast_factor)
         # min limits are 1-factor * number of cases over a time horizon. we take the maximum of 
         # 0 and the estimated matching interval as there's the possibility for a negative number of
         # cases if the factor >= 1. 
-        self.min_backcast_cases = max(0, backcast_cases * (1.0-backcast_factor))
-        self.min_nowcast_cases = max(0, nowcast_cases * (1.0-nowcast_factor))
         
         print("Local cases in last 14 days is %i" % nowcast_cases)
 
-        print('Min limits: ', self.min_backcast_cases, self.min_nowcast_cases)
         print('Max limits: ', self.max_cases, self.max_backcast_cases, self.max_nowcast_cases)
 
         self.actual = df.local.to_dict()
