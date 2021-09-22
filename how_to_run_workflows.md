@@ -10,7 +10,7 @@ In this markdown document we outline the requirements for both and provide the s
 **Note:** For normal (no scenario) modelling, you do not supply the scenario or scenario date to the functions/sbatch scripts. 
 
 ## Compiling the model code
-The simulation model is written in Cython which means that in order to compile the model a C-compiler is needed. Then to compile `sim_class_cython.pyx` run 
+The simulation model is written in Cython which means that in order to compile the model a C-compiler is needed. Then to compile `sim_class_cython.pyx` run
 ```
 python model/sim_class_cython_setup.py build_ext -b model 
 ```

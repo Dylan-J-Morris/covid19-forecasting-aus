@@ -91,8 +91,6 @@ def read_in_NNDSS(date_string):
         # added this to be consistent with the NNDSS data
         # df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
         
-        df.to_csv("df.csv")
-        
         return df
 
 
