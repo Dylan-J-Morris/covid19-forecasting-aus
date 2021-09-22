@@ -37,7 +37,7 @@ class Forecast:
 
     def __init__(self, current, state, start_date,
                  forecast_date, cases_file_date,
-                 VoC_flag='', scenario=''
+                 VoC_flag='', scenario='', end_time = None
                  ):
         """Create forecast object with parameters in preperation for running simulation.
 
@@ -94,6 +94,10 @@ class Forecast:
             self.test_campaign_factor = 1.5
         else:
             self.test_campaign_date = None
+            
+        self.end_time = end_time
+        self.num_too_many = 0
+        self.num_bad_sims = 0
 
         assert len(people) == sum(
             current), "Number of people entered does not equal sum of counts in current status"
