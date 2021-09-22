@@ -80,8 +80,7 @@ for state in states:
     lambda_state = lambda_dict[state]
     df_state_I = df_inc_zeros.xs((state, 'local'), level=('STATE', 'SOURCE'))
     # get Reproduciton numbers
-    a, b, R = Reff_from_case(
-        df_state_I.values, lambda_state, prior_a=prior_a, prior_b=prior_b, tau=tau)
+    a, b, R = Reff_from_case(df_state_I.values, lambda_state, prior_a=prior_a, prior_b=prior_b, tau=tau)
 
     # summarise for plots and file printing
     R_summary_states[state] = generate_summary(R)

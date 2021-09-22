@@ -9,6 +9,13 @@ In this markdown document we outline the requirements for both and provide the s
 
 **Note:** For normal (no scenario) modelling, you do not supply the scenario or scenario date to the functions/sbatch scripts. 
 
+## Compiling the model code
+The simulation model is written in Cython which means that in order to compile the model a C-compiler is needed. Then to compile `sim_class_cython.pyx` run 
+```
+python model/sim_class_cython_setup.py build_ext -b model 
+```
+which creates a shared object and this is what is referenced in `run_state.py`. The model in `sim_class_cython.pyx` is mostly written in python and should be relatively straightforward to understand. The real performance gains come from writing the `generate_cases` function with types and this results in an approximate 4x speedup. 
+
 ## Data
 1. In the covid forecasting directory (from github) create a data folder called `data`. 
 2. Create folder for the microdistancing surveys called `md`. This needs to contain `Barometer wave XX compliance.csv` files up to the current wave. 
@@ -52,9 +59,6 @@ python model/cprs/generate_RL_forecasts.py $DATADATE $SCENARIO $SCENARIODATE
 ```
 4. Now we loop over each state and simulate forward. 
 ```
-states=("TAS" "WA" "ACT" "NT") 
-states=("SA" "QLD" "TAS" "WA" "ACT" "NT")
-states=("NSW" "VIC")
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for STATE in "${states[@]}"
 do
