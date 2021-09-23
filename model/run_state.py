@@ -204,109 +204,7 @@ if __name__ == "__main__":
 
     print(state, " took: %f" %time_for_sim)
     
-    
-# def main():
-#     # initialise arrays
-
-#     import_sims = np.zeros(shape=(end_time, n_sims), dtype=float)
-#     import_sims_obs = np.zeros_like(import_sims)
-
-#     import_inci = np.zeros_like(import_sims)
-#     import_inci_obs = np.zeros_like(import_sims)
-
-#     asymp_inci = np.zeros_like(import_sims)
-#     asymp_inci_obs = np.zeros_like(import_sims)
-
-#     symp_inci = np.zeros_like(import_sims)
-#     symp_inci_obs = np.zeros_like(import_sims)
-
-#     bad_sim = np.zeros(shape=(n_sims), dtype=int)
-
-#     travel_seeds = np.zeros(shape=(end_time, n_sims), dtype=int)
-#     travel_induced_cases = np.zeros_like(travel_seeds)
-
-#     # ABC parameters
-#     metrics = np.zeros(shape=(n_sims), dtype=float)
-#     qs = np.zeros(shape=(n_sims), dtype=float)
-#     qa = np.zeros_like(qs)
-#     qi = np.zeros_like(qs)
-#     alpha_a = np.zeros_like(qs)
-#     alpha_s = np.zeros_like(qs)
-#     accept = np.zeros_like(qs)
-#     ps = np.zeros_like(qs)
-#     cases_after = np.zeros_like(bad_sim)
-
-#     forecast_object.read_in_cases()
-
-#     start_timer = timer()
-
-#     with tqdm(total=n_sims, leave=False, smoothing=0, miniters=1000) as pbar:
-#         for n in range(n_sims):
-#             cases, obs_cases, param_dict = forecast_object.simulate(end_time, n, n)
-        
-#             # cycle through all results and record into arrays
-#             n = param_dict['num_of_sim']
-#             if param_dict['bad_sim']:
-#                 # bad_sim True
-#                 bad_sim[n] = 1
-#             else:
-#                 # good sims
-#                 # record all parameters and metric
-#                 metrics[n] = param_dict['metric']
-#                 qs[n] = param_dict['qs']
-#                 qa[n] = param_dict['qa']
-#                 qi[n] = param_dict['qi']
-#                 alpha_a[n] = param_dict['alpha_a']
-#                 alpha_s[n] = param_dict['alpha_s']
-#                 accept[n] = param_dict['metric'] >= 0.8
-#                 cases_after[n] = param_dict['cases_after']
-#                 ps[n] = param_dict['ps']
-
-#                 # record cases appropriately
-#                 import_inci[:, n] = cases[:, 0]
-#                 asymp_inci[:, n] = cases[:, 1]
-#                 symp_inci[:, n] = cases[:, 2]
-
-#                 import_inci_obs[:, n] = obs_cases[:, 0]
-#                 asymp_inci_obs[:, n] = obs_cases[:, 1]
-#                 symp_inci_obs[:, n] = obs_cases[:, 2]
-#                 pbar.update()
-
-#     # convert arrays into df
-#     results = {
-#         'imports_inci': import_inci,
-#         'imports_inci_obs': import_inci_obs,
-#         'asymp_inci': asymp_inci,
-#         'asymp_inci_obs': asymp_inci_obs,
-#         'symp_inci': symp_inci,
-#         'symp_inci_obs': symp_inci_obs,
-#         'total_inci_obs': symp_inci_obs + asymp_inci_obs,
-#         'total_inci': symp_inci + asymp_inci,
-#         'all_inci': symp_inci + asymp_inci + import_inci,
-#         'bad_sim': bad_sim,
-#         'metrics': metrics,
-#         'accept': accept,
-#         'qs': qs,
-#         'qa': qa,
-#         'qi': qi,
-#         'alpha_a': alpha_a,
-#         'alpha_s': alpha_s,
-#         'cases_after': cases_after,
-#         'ps': ps,
-#     }
-    
-#     good_sims = n_sims-sum(bad_sim)
-    
-#     print("Number of good sims is %i" % good_sims)
-#     # results recorded into parquet as dataframe
-#     df = forecast_object.to_df(results)
-    
-#     end_timer = timer()
-#     time_for_sim = end_timer-start_timer
-
-#     print(state, " took: %f" %time_for_sim)
-    
-if __name__ == '__main__':
+# if __name__ == '__main__':
     # import cProfile, pstats
     # profiler = cProfile.Profile()
     # profiler.enable()
@@ -315,7 +213,7 @@ if __name__ == '__main__':
     # stats = pstats.Stats(profiler).sort_stats('ncalls')
     # stats.print_stats()
     # stats.dump_stats('stats_file.prof')
-    main()
+    # main()
     
     
     
