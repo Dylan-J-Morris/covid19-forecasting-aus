@@ -18,9 +18,9 @@ which creates a shared object and this is what is referenced in `run_state.py`. 
 ## Data
 1. In the covid forecasting directory (from github) create a data folder called `data`. 
 2. Create folder for the microdistancing surveys called `md`. This needs to contain `Barometer wave XX compliance.csv` files up to the current wave. 
-3. Download latest NNDSS data or linelist from Mediaflux. Put in `\data`.
-4. Put `vaccine_effect_timeseries.csv` in `\data`.
-5. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `\data`.
+3. Download latest NNDSS data or linelist from Mediaflux. Put in `/data`.
+4. Put `vaccine_effect_timeseries.csv` in `/data`.
+5. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `/data`.
 
 ## What you need installed
 Need `pip install matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy`.
