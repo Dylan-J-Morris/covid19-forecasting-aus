@@ -15,7 +15,7 @@ def read_in_NNDSS(date_string):
 
     from datetime import timedelta
     import glob
-    from params import use_linelist, assume_local_cases_if_unknown
+    from params import use_linelist, assume_local_cases_if_unknown, use_imputed_data
 
     if not use_linelist:
         # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
@@ -67,29 +67,40 @@ def read_in_NNDSS(date_string):
     else:
         # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / imported status vetted by a human. This can be a lot more reliable during an outbreak.
 
-        case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
-        path = "data/*linelist_"+case_file_date+"*.csv"
-        for file in glob.glob(path):  # Allows us to use the * option
-            df = pd.read_csv(file)
+        if use_imputed_data:
+            
+            case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
+            path = "data/imputed_linelist_"+case_file_date+"*.csv"
+            for file in glob.glob(path):  # Allows us to use the * option
+                df = pd.read_csv(file)
 
-        if len(glob.glob(path)) == 0:
-            raise FileNotFoundError("Linelist no found. Did you want to use NNDSS?")
+            if len(glob.glob(path)) == 0:
+                raise FileNotFoundError("Imputed linelist not found. Did you want to use NNDSS or the calculated linelist?")
 
-        df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
-        df['date_detection'] = pd.to_datetime(df['date_detection'], errors='coerce')
-        df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+            df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
+            df['date_inferred'] = df['date_onset']
+            df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
+            df['local'] = 1 - df.imported
+            df['STATE'] = df['state']
+            
+        else:
+            case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
+            path = "data/interim_linelist_"+case_file_date+"*.csv"
+            for file in glob.glob(path):  # Allows us to use the * option
+                df = pd.read_csv(file)
 
-        df['date_inferred'] = df['date_onset']
-        df.loc[df['date_onset'].isna(), 'date_inferred'] = df.loc[df['date_onset'].isna(), 'date_detection'] - timedelta(days=3)  # Fill missing days
-        df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=5)  # Fill missing days
+            if len(glob.glob(path)) == 0:
+                raise FileNotFoundError("Calculated linelist not found. Did you want to use NNDSS or the imputed linelist?")
 
-        df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
-        df['local'] = 1 - df.imported
-        df['STATE'] = df['state']
-        # df['NOTIFICATION_RECEIVE_DATE'] = df['date_detection'] # Only used by EpyReff. Possible improvement here.
-
-        # added this to be consistent with the NNDSS data
-        # df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
+            df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
+            df['date_detection'] = pd.to_datetime(df['date_detection'], errors='coerce')
+            df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+            df['date_inferred'] = df['date_onset']
+            df.loc[df['date_onset'].isna(), 'date_inferred'] = df.loc[df['date_onset'].isna(), 'date_detection'] - timedelta(days=3)  # Fill missing days
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=5)  # Fill missing days
+            df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
+            df['local'] = 1 - df.imported
+            df['STATE'] = df['state']
         
         return df
 
