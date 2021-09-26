@@ -55,8 +55,7 @@ def read_in_NNDSS(date_string):
         # IMPORTANT NOTE: State of infection is determined by the STATE column, not the PLACE_OF_ACQUISITION column
 
         # Set imported cases, local cases have 1101 as first 4 digits.
-        df['imported'] = df.PLACE_OF_ACQUISITION.apply(
-            lambda x: 1 if x[:4] != '1101' else 0)
+        df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4] != '1101' else 0)
         df['local'] = 1 - df.imported
 
         return df
@@ -101,7 +100,6 @@ def read_in_NNDSS(date_string):
                 
                 # calculate the number of people missing an onset date 
                 n_delays = df['date_inferred'].isna().sum()
-                print(n_delays)
                 rep_delay = offset_rd + np.random.gamma(shape=shape_rd, scale=scale_rd, size=(n_delays))
                 # convert to timedelta
                 rep_delay_days = np.ceil(rep_delay)*timedelta(days=1)

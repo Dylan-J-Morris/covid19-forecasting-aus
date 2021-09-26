@@ -254,7 +254,7 @@ for i, state in enumerate(states):
 
     if i % 2 == 0:
         ax.set_ylabel("Observed \n local cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
@@ -291,7 +291,7 @@ for i, state in enumerate(states):
     ax, ax2 = plot_results(df_results.loc[state], ['total_inci_obs'], ax_arg=(ax, ax2), summary=True, Reff=Reff.loc[state, R_plot])
 
     ax.set_ylabel("Observed \n local cases")
-    ax2.set_ylabel("Local Reff")
+    ax2.set_ylabel("TP")
     ax.set_title(state)
     plt.tight_layout()
     plt.savefig("figs/single_state_plots/"+state+"local_inci_" + str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
@@ -323,7 +323,7 @@ for i, state in enumerate(states):
     #    ax.set_ylim((0,100))
     if i % 2 == 0:
         ax.set_ylabel("Total \nlocal cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
@@ -357,7 +357,7 @@ for i, state in enumerate(states):
     #    ax.set_ylim((0,100))
     if i % 2 == 0:
         ax.set_ylabel("Asymp \ntotal cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
@@ -388,7 +388,7 @@ for i, state in enumerate(states):
     #    ax.set_ylim((0,100))
     if i % 2 == 0:
         ax.set_ylabel("Observed \nimported cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
@@ -419,7 +419,7 @@ for i, state in enumerate(states):
     # ax.set_ylim(top=70)
     if i % 2 == 0:
         ax.set_ylabel("Total Imported cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])

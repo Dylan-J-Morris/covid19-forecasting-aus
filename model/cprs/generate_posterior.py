@@ -90,19 +90,22 @@ df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.
 # some days have no cases, so need to fillna
 df_Reff['rho_moving'] = df_Reff.rho_moving.fillna(method='bfill')
 
+# save the output of the merging to see what's happening with the shifts
+df_Reff.to_csv("results/df_Reff.csv")
+
 # shift counts to align with infection date not symptom date
 # dates should be complete at this point, no days skipped
 # will be some end days with NaN, but that should be fine since
 # we don't use the most recent 10 days
-df_Reff['local'] = df_Reff.local.shift(periods=-5)
-df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
-df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
-df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
+# df_Reff['local'] = df_Reff.local.shift(periods=-5)
+# df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
+# df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
+# df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
 df_Reff['local'] = df_Reff.local.fillna(0)
 df_Reff['imported'] = df_Reff.imported.fillna(0)
 
 # save the output of the merging to see what's happening with the shifts
-# df_Reff.to_csv("results/df_Reff.csv")
+df_Reff.to_csv("results/df_Reff_shift.csv")
 
 ######### Read in Google mobility results #########
 sys.path.insert(0, '../')
@@ -131,8 +134,8 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 # Third wave inputs
-# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
-third_states = sorted(['NSW', 'VIC'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
+# third_states = sorted(['NSW', 'VIC'])
 # Subtract 10 days to avoid right truncation
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
@@ -182,9 +185,9 @@ sec_date_range = {
 
 # choose dates for each state for third wave
 third_date_range = {
-    # 'ACT': pd.date_range(start='2021-08-12', end=third_end_date).values,
+    'ACT': pd.date_range(start='2021-08-12', end=third_end_date).values,
     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
-    # 'QLD': pd.date_range(start=third_start_date, end='2021-08-25').values,
+    'QLD': pd.date_range(start=third_start_date, end='2021-08-25').values,
     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values
 }
 
@@ -850,7 +853,7 @@ for i, state in enumerate(states):
     # tile the states vaccination data from Curtin
     vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0], 1)).T
     # find days after the third start date began that we want to apply the effect — currently this is fixed from the
-    # 20th of Aug
+    # 20th of Aug and is not a problem with ACT as this is just a plot of the posterior vaccine effect
     heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
     # create zero vector to fill in with vaccine effect
     vacc_eff = np.zeros_like(vacc_tmp)
@@ -876,7 +879,7 @@ for i, state in enumerate(states):
     ax[row, col].set_title(state)
     ax[row, col].tick_params(axis='x', rotation=90)
 
-ax[0, 0].set_ylabel('reduction in TP from vaccination')
+# ax[0, 0].set_ylabel('reduction in TP from vaccination')
 ax[1, 0].set_ylabel('reduction in TP from vaccination')
 
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_TP.png", dpi=144)

@@ -191,11 +191,10 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
 
             if vaccination is not None:
-                # if states_initials[state] == 'ACT':
-                #     vacc_sim = vaccination.loc[states_initials[state]].values[-df_state.shape[0]:]
-                # else:
-                #     vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
-                vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
+                if states_initials[state] == 'ACT':
+                    vacc_sim = vaccination.loc[states_initials[state]].values[-df_state.shape[0]:]
+                else:
+                    vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
                 vacc_sim = np.tile(vacc_sim, (1000, 1)).T
 
             if split:

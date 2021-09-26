@@ -235,8 +235,7 @@ for i, state in enumerate(states):
                 # Make baseline cov for generating points
                 cov_baseline = np.cov(Rmed[-42:-28, :], rowvar=False)
                 mu_current = Rmed[-1, :]
-                mu_victoria = np.array(
-                    [-55.35057887, -22.80891056, -46.59531636, -75.99942378, -44.71119293])
+                mu_victoria = np.array([-55.35057887, -22.80891056, -46.59531636, -75.99942378, -44.71119293])
 
                 mu_baseline = np.mean(Rmed[-42:-28, :], axis=0)
 
@@ -301,8 +300,7 @@ for i, state in enumerate(states):
     mu_diffs = np.mean(md_diffs)
     std_diffs = np.std(md_diffs)
 
-    extra_days_md = (pd.to_datetime(
-        df_google.date.values[-1]) - pd.to_datetime(prop[state].index.values[-1])).days
+    extra_days_md = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(prop[state].index.values[-1])).days
 
     # Set all values to current value.
     current = [prop[state].values[-1]] * 1000
@@ -381,10 +379,11 @@ for i, state in enumerate(states):
         new_vacc_forecast = []
         # Forecast mobility forward sequentially by day.
         for i in range(n_forecast + extra_days_vacc):
-            # Generate step realisations in training trend direction
-            trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
+            # Generate step realisations in training trend direction but apply an increase the variance that is a 
+            # function of the number of days after the forecast date. This inflates the uncertainty moving forwards.
+            trend_force = np.random.normal(mu_diffs, std_diffs*np.exp(i/(n_forecast+extra_days_vacc)), size=1000)
             # no regression to baseline for vaccination or scenario modelling yet
-            current = current+trend_force
+            current = current + trend_force
             new_vacc_forecast.append(current)
 
         vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together

@@ -151,7 +151,7 @@ cdef class Forecast:
                 self.symptomatic_detection_prob*self.ps +
                 self.asymptomatic_detection_prob*(1-self.ps)
             )
-            num_symp = np.random.binomial(n=int(self.current[2]), p=prob_symp_given_detect)
+            num_symp = np.random.default_rng(seed).binomial(n=int(self.current[2]), p=prob_symp_given_detect)
             for person in range(int(self.current[2])):
                 self.infected_queue.append(len(self.people))
 
@@ -168,17 +168,17 @@ cdef class Forecast:
 
         # num undetected is nbinom (num failures given num detected)
         if self.current[2] == 0:
-            num_undetected_s = np.random.negative_binomial(1, self.symptomatic_detection_prob)
+            num_undetected_s = np.random.default_rng(seed).negative_binomial(1, self.symptomatic_detection_prob)
         else:
-            num_undetected_s = np.random.negative_binomial(self.current[2], self.symptomatic_detection_prob)
+            num_undetected_s = np.random.default_rng(seed).negative_binomial(self.current[2], self.symptomatic_detection_prob)
 
         total_s = num_undetected_s + self.current[2]
 
         # infer some non detected asymp at initialisation
         if total_s == 0:
-            num_undetected_a = np.random.negative_binomial(1, self.ps)
+            num_undetected_a = np.random.default_rng(seed).negative_binomial(1, self.ps)
         else:
-            num_undetected_a = np.random.negative_binomial(total_s, self.ps)
+            num_undetected_a = np.random.default_rng(seed).negative_binomial(total_s, self.ps)
 
         # simulate cases that will be detected within the next week
         if curr_time == 0:
@@ -242,9 +242,9 @@ cdef class Forecast:
 
         # Check parent category
         if self.people[parent_key].category == 'S':  # Symptomatic
-            num_offspring = np.random.negative_binomial(n=k, p=1 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
+            num_offspring = np.random.default_rng(seed).negative_binomial(n=k, p=1 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
         elif self.people[parent_key].category == 'A':  # Asymptomatic
-            num_offspring = np.random.negative_binomial(n=k, p=1 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
+            num_offspring = np.random.default_rng(seed).negative_binomial(n=k, p=1 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
         else:  # Imported
             Reff = self.R_I
             # Apply vaccine reduction for hotel quarantine workers
@@ -261,9 +261,9 @@ cdef class Forecast:
 
             if self.people[parent_key].infection_time < self.quarantine_change_date:
                 # factor of 3 times infectiousness prequarantine changes
-                num_offspring = np.random.negative_binomial(n=k, p=1 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
+                num_offspring = np.random.default_rng(seed).negative_binomial(n=k, p=1 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
             else:
-                num_offspring = np.random.negative_binomial(n=k, p=1 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
+                num_offspring = np.random.default_rng(seed).negative_binomial(n=k, p=1 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
 
         if num_offspring > 0:
 
@@ -369,10 +369,10 @@ cdef class Forecast:
             a = self.a_dict[day]
             b = self.b_dict[day]
             # Dij = number of observed imported infectious individuals
-            Dij = np.random.negative_binomial(a, 1-1/(b+1))
+            Dij = np.random.default_rng(seed).negative_binomial(a, 1-1/(b+1))
             # Uij = number of *unobserved* imported infectious individuals
             unobserved_a = 1 if Dij == 0 else Dij
-            Uij = np.random.negative_binomial(unobserved_a, p=self.qi)
+            Uij = np.random.default_rng(seed).negative_binomial(unobserved_a, p=self.qi)
 
             unobs_imports.append(Uij)
             new_imports.append(Dij + Uij)
@@ -489,7 +489,7 @@ cdef class Forecast:
                             self.symptomatic_detection_prob*self.ps +
                             self.asymptomatic_detection_prob*(1-self.ps)
                         )
-                        num_symp = np.random.binomial(n=int(self.current[2]),p=prob_symp_given_detect)
+                        num_symp = np.random.default_rng(seed).binomial(n=int(self.current[2]),p=prob_symp_given_detect)
                         # distribute observed cases over 3 days
                         # Triangularly
                         self.observed_cases[max(0, day), 2] += num_symp//2
@@ -751,8 +751,8 @@ cdef class Forecast:
         nowcast_cases = (sum(df.local.values) - self.cases_to_subtract_now)
         
         # max limits are just 1+factor * number of cases over a time horizon
-        self.max_backcast_cases = max(100, backcast_cases * (1.0 + backcast_factor))
-        self.max_nowcast_cases = max(10, nowcast_cases * (1.0 + nowcast_factor))
+        self.max_backcast_cases = max(100, backcast_cases * 3.0)
+        self.max_nowcast_cases = max(10, nowcast_cases * 1.5)
         # self.max_backcast_cases = max(100, backcast_cases * (1.0 + backcast_factor) + nowcast_cases * (1.0 + nowcast_factor))
         # self.min_backcast_cases = max(0, backcast_cases * (1.0 - backcast_factor) + nowcast_cases * (1.0 - nowcast_factor))
         # self.max_nowcast_cases = max(10, nowcast_cases * (1.0 + nowcast_factor))
@@ -811,8 +811,8 @@ cdef class Forecast:
         """
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """
-        self.inf_times = np.random.gamma(i/j, j, size=size)  # shape and scale
-        self.detect_times = np.random.gamma(m/n, n, size=size)
+        self.inf_times = np.random.default_rng(seed).gamma(i/j, j, size=size)  # shape and scale
+        self.detect_times = np.random.default_rng(seed).gamma(m/n, n, size=size)
 
     def iter_inf_time(self):
         """
@@ -834,7 +834,7 @@ cdef class Forecast:
         Given number of new cases generated, assign them to symptomatic (S) with probability ps
         """
         # repeated Bernoulli trials is a Binomial (assuming independence of development of symptoms)
-        symp_cases = np.random.binomial(n=num_new_cases, p=self.ps)
+        symp_cases = np.random.default_rng(seed).binomial(n=num_new_cases, p=self.ps)
 
         return symp_cases
 
