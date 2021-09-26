@@ -50,14 +50,12 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 # gamma draws take arguments (shape, scale)
 
-
-def draw_inf_dates(df_linelist, shape_rd=2.77, scale_rd=3.17, offset_rd=0,
-                   shape_inc=5.807, scale_inc=0.948, offset_inc=1, nreplicates=1):
+def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, nreplicates=1):
 
     notification_dates = df_linelist['date_inferred']
     nsamples = notification_dates.shape[0]
 
-    from params import use_imputed_data
+    from params import use_imputed_data, apply_delay_at_read
 
     #    DEFINE DELAY DISTRIBUTION
     #     mean_rd = 5.47
@@ -77,11 +75,6 @@ def draw_inf_dates(df_linelist, shape_rd=2.77, scale_rd=3.17, offset_rd=0,
     
     # infection date is id_nd_diff days before notification date. This is also a long vector.
     id_nd_diff = inc_period
-    
-    # if not using the imputed data, the reporting delay is already accounted for
-    if not use_imputed_data: 
-        rep_delay = offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))
-        id_nd_diff += rep_delay
 
     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
     whole_day_diff = np.ceil(id_nd_diff)
@@ -204,6 +197,7 @@ def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07,
     lambda_t = np.zeros(shape=(infection_dates.shape[0]-trunc_days+1, infection_dates.shape[1]))
     for n in range(infection_dates.shape[1]):
         lambda_t[:, n] = np.convolve(infection_dates[:, n], ws, mode='valid')
+        
     return lambda_t
 
 
@@ -425,5 +419,5 @@ def plot_all_states(R_summ_states, df_interim, dates,
     if save:
         import os
         os.makedirs("figs/EpyReff/", exist_ok=True)
-        plt.savefig("figs/EpyReff/Reff_tau_"+str(tau) + "_"+date+".pdf", format='pdf')
+        plt.savefig("figs/EpyReff/Reff_tau_"+str(tau) + "_"+date+".png", dpi=300)
     return fig, ax

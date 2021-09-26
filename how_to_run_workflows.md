@@ -42,6 +42,18 @@ SCENARIO='no_reversion'
 SCENARIODATE='2021-09-20'       
 ```
 
+```
+python model/EpyReff/run_estimator.py $DATADATE
+python model/cprs/generate_posterior.py $DATADATE 
+python model/cprs/generate_RL_forecasts.py $DATADATE $SCENARIO $SCENARIODATE
+states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+for STATE in "${states[@]}"
+do
+    python model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG "${SCENARIO}${SCENARIODATE}"
+done
+python model/collate_states.py ${NSIMS} ${DATADATE} $VOCFLAG "${SCENARIO}${SCENARIODATE}"
+```
+
 ## Running the model locally 
 1. Run EpyReff. If using the linelist you need to set `use_linelist=True` in `params.py`.
 ```

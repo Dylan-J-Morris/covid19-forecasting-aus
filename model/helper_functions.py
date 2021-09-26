@@ -13,9 +13,10 @@ def read_in_NNDSS(date_string):
         A dataframe of all NNDSS data.
     """
 
+    import numpy as np
     from datetime import timedelta
     import glob
-    from params import use_linelist, assume_local_cases_if_unknown, use_imputed_data
+    from params import use_linelist, assume_local_cases_if_unknown, use_imputed_data, apply_delay_at_read
 
     if not use_linelist:
         # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
@@ -35,17 +36,13 @@ def read_in_NNDSS(date_string):
                 "NNDSS no found. Did you want to use a linelist? Or is the file named wrong?")
 
         # Fixes errors in updated python versions
-        df.TRUE_ONSET_DATE = pd.to_datetime(
-            df.TRUE_ONSET_DATE, errors='coerce')
-        df.NOTIFICATION_DATE = pd.to_datetime(
-            df.NOTIFICATION_DATE, errors='coerce')
+        df.TRUE_ONSET_DATE = pd.to_datetime(df.TRUE_ONSET_DATE, errors='coerce')
+        df.NOTIFICATION_DATE = pd.to_datetime(df.NOTIFICATION_DATE, errors='coerce')
 
         # Find most representative date
         df['date_inferred'] = df.TRUE_ONSET_DATE
-        df.loc[df.TRUE_ONSET_DATE.isna(), 'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna(
-        )].NOTIFICATION_DATE - timedelta(days=5)
-        df.loc[df.date_inferred.isna(), 'date_inferred'] = df.loc[df.date_inferred.isna(
-        )].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
+        df.loc[df.TRUE_ONSET_DATE.isna(), 'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
+        df.loc[df.date_inferred.isna(), 'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
 
         # The first 4 digits is the country code. We use this to determin if the cases is local or imported. We can choose which assumption we keep. This should be set to true during local outbreak waves.
         if assume_local_cases_if_unknown:
@@ -84,6 +81,7 @@ def read_in_NNDSS(date_string):
             df['STATE'] = df['state']
             
         else:
+            
             case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
             path = "data/interim_linelist_"+case_file_date+"*.csv"
             for file in glob.glob(path):  # Allows us to use the * option
@@ -93,11 +91,25 @@ def read_in_NNDSS(date_string):
                 raise FileNotFoundError("Calculated linelist not found. Did you want to use NNDSS or the imputed linelist?")
 
             df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
-            df['date_detection'] = pd.to_datetime(df['date_detection'], errors='coerce')
             df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
             df['date_inferred'] = df['date_onset']
-            df.loc[df['date_onset'].isna(), 'date_inferred'] = df.loc[df['date_onset'].isna(), 'date_detection'] - timedelta(days=3)  # Fill missing days
-            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=5)  # Fill missing days
+            
+            if apply_delay_at_read:
+                shape_rd = 2
+                scale_rd = 1
+                offset_rd = 1
+                
+                # calculate the number of people missing an onset date 
+                n_delays = df['date_inferred'].isna().sum()
+                print(n_delays)
+                rep_delay = offset_rd + np.random.gamma(shape=shape_rd, scale=scale_rd, size=(n_delays))
+                # convert to timedelta
+                rep_delay_days = np.ceil(rep_delay)*timedelta(days=1)
+                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rep_delay_days  # Fill missing days
+            else: 
+                df.loc[df['date_onset'].isna(), 'date_inferred'] = df.loc[df['date_onset'].isna(), 'date_detection'] - timedelta(days=3)  # Fill missing days
+                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=3)  # Fill missing days
+                
             df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
             df['local'] = 1 - df.imported
             df['STATE'] = df['state']

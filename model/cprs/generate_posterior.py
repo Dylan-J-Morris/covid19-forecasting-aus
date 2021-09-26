@@ -80,7 +80,6 @@ df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"t
 df_Reff['date'] = df_Reff.INFECTION_DATES
 df_Reff['state'] = df_Reff.STATE
 
-
 ######### Read in NNDSS/linelist data #########
 # If this errors it may be missing a leading zero on the date.
 df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'))
@@ -132,8 +131,8 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 # Third wave inputs
-# third_states=sorted(['NSW','VIC','QLD'])
-third_states = sorted(['NSW', 'VIC', 'QLD', 'ACT'])
+# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
+third_states = sorted(['NSW', 'VIC'])
 # Subtract 10 days to avoid right truncation
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
@@ -183,9 +182,9 @@ sec_date_range = {
 
 # choose dates for each state for third wave
 third_date_range = {
-    'ACT': pd.date_range(start='2021-08-12', end=third_end_date).values,
+    # 'ACT': pd.date_range(start='2021-08-12', end=third_end_date).values,
     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
-    'QLD': pd.date_range(start=third_start_date, end=third_end_date).values,
+    # 'QLD': pd.date_range(start=third_start_date, end='2021-08-25').values,
     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values
 }
 
@@ -201,8 +200,7 @@ for state in sec_states:
 
 df3X['is_third_wave'] = 0
 for state in third_states:
-    df3X.loc[df3X.state == state, 'is_third_wave'] = df3X.loc[df3X.state == state].date.isin(
-        third_date_range[state]).astype(int).values
+    df3X.loc[df3X.state == state, 'is_third_wave'] = df3X.loc[df3X.state == state].date.isin(third_date_range[state]).astype(int).values
 
 data_by_state = {}
 sec_data_by_state = {}
@@ -320,6 +318,10 @@ decay_start_date_third = [
 # Make state by state arrays
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 
+# this is the number of days ACT's third wave began after both NSW and VIC. Allows for an offset between the 
+# start dates 
+days_late_third_wave = (pd.to_datetime('2021-08-12') - pd.to_datetime(third_start_date)).days
+
 # input data block for stan model
 input_data = {
     'j_total': len(states_to_fit_all_waves),
@@ -378,6 +380,7 @@ input_data = {
 
     'is_ACT': is_ACT,   # indicator for whether we are looking at ACT
     'is_NSW': is_NSW,   # indicator for whether we are looking at NSW
+    'days_late_third_wave': days_late_third_wave,
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
@@ -394,6 +397,7 @@ if testing_inference:
 else:
     num_chains = 4
     num_samples = 4000
+    
 # to run the inference set run_inference to True in params
 if run_inference or run_inference_only:
 
@@ -569,11 +573,7 @@ if df2X.shape[0] > 0:
     pos = 1
     for i, state in enumerate(sec_states):
         # Google mobility only up to a certain date, so take only up to that value
-        dates = df2X.loc[(df2X.state == state) & (
-            df2X.is_sec_wave == 1
-        )].date.values
-        # df_Reff.loc[(df_Reff.date>=sec_start_date) &
-        #                    (df_Reff.state==state)&(df_Reff.date<=sec_end_date)].date
+        dates = df2X.loc[(df2X.state == state) & (df2X.is_sec_wave == 1)].date.values
         rho_samples = samples_mov_gamma[
             ['brho_sec_wave['+str(j)+']'
              for j in range(pos, pos+df2X.loc[df2X.state == state].is_sec_wave.sum())]
@@ -613,8 +613,6 @@ if df3X.shape[0] > 0:
     for i, state in enumerate(third_states):
         # Google mobility only up to a certain date, so take only up to that value
         dates = df3X.loc[(df3X.state == state) & (df3X.is_third_wave == 1)].date.values
-        # df_Reff.loc[(df_Reff.date>=sec_start_date) &
-        #                    (df_Reff.state==state)&(df_Reff.date<=sec_end_date)].date
         rho_samples = samples_mov_gamma[
             ['brho_third_wave['+str(j)+']'
              for j in range(pos, pos+df3X.loc[df3X.state == state].is_third_wave.sum())]
@@ -692,6 +690,8 @@ ax.set_yticks([0, 2, 3], minor=False)
 ax.set_yticklabels([0, 2, 3], minor=False)
 ax.set_ylim((0, 3))
 # state labels in alphabetical
+# ax.set_xticklabels(['$R_L0$ ACT', '$R_L0$ NSW', '$R_L0$ QLD', '$R_L0$ SA',
+#                    '$R_L0$ TAS', '$R_L0$ VIC', '$R_L0$ WA', '$R_I$'])
 ax.set_xticklabels(['$R_L0$ ACT', '$R_L0$ NSW', '$R_L0$ QLD', '$R_L0$ SA',
                    '$R_L0$ TAS', '$R_L0$ VIC', '$R_L0$ WA', '$R_I$'])
 ax.tick_params('x', rotation=90)
@@ -811,8 +811,8 @@ if apply_vacc_to_R_L_hats:
 if df3X.shape[0] > 0:
     df['is_third_wave'] = 0
     for state in third_states:
-        df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values
-        
+        df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values    
+    
     # plot only if there is third phase data - have to have third_phase=True
     ax4 = predict_plot(samples_mov_gamma, df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
                        gamma=True, moving=True, split=split, grocery=True, ban=ban,

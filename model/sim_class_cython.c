@@ -14855,15 +14855,15 @@ static PyObject *__pyx_pf_16sim_class_cython_8Forecast_22read_in_cases(struct __
   /* "sim_class_cython.pyx":747
  * 
  *         # +/- factors for number of cases to use in the current period to determine proximity to data
- *         backcast_factor = 1.5             # <<<<<<<<<<<<<<
+ *         backcast_factor = 2.5             # <<<<<<<<<<<<<<
  *         nowcast_factor = 0.5
  * 
  */
-  __pyx_v_backcast_factor = 1.5;
+  __pyx_v_backcast_factor = 2.5;
 
   /* "sim_class_cython.pyx":748
  *         # +/- factors for number of cases to use in the current period to determine proximity to data
- *         backcast_factor = 1.5
+ *         backcast_factor = 2.5
  *         nowcast_factor = 0.5             # <<<<<<<<<<<<<<
  * 
  *         backcast_cases = (sum(df.local.values) - self.cases_to_subtract)

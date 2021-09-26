@@ -184,13 +184,17 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
             if second_phase:
                 df_state = df_state.loc[df_state.is_sec_wave == 1]
             elif third_phase:
-                df_state = df_state.loc[df_state.is_third_wave == 1]
+                df_state = df_state.loc[df_state.is_third_wave == 1] 
                 
             samples_sim = samples.sample(1000)
             post_values = samples_sim[['bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
 
             if vaccination is not None:
+                # if states_initials[state] == 'ACT':
+                #     vacc_sim = vaccination.loc[states_initials[state]].values[-df_state.shape[0]:]
+                # else:
+                #     vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
                 vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
                 vacc_sim = np.tile(vacc_sim, (1000, 1)).T
 
@@ -206,8 +210,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                 logodds = X1 @ post_values
 
                 if md_arg is None:
-                    post_alphas = samples_sim[[
-                        'alpha['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
+                    post_alphas = samples_sim[['alpha['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
                     logodds = np.append(logodds, X2 @ (post_values + post_alphas), axis=0)
                     md = 1
                 elif md_arg == 'power':
@@ -230,10 +233,8 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                 else:
                     # take right size of md to be N by N
                     md = np.tile(samples_sim['md'].values,(df_state.shape[0], 1))
-
                     # set initial pre ban values of md to 1
                     md[:logodds.shape[0], :] = 1
-
                     # make logodds by appending post ban values
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
 
@@ -243,7 +244,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                     # the str(i+1) is required because the state indexing starts at 0
 
                     # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-                    if state == 'NSW':
+                    if states_initials[state] == 'NSW':
                         eta = samples_sim['eta_NSW']
                         r = samples_sim['r_NSW']
                     else:
@@ -252,12 +253,23 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
                     # find days after forecast began that we want to apply the effect. From conversations with James and Nic we 
                     # think the heterogeneity / assortativity was more prominent before late August (hence the fixed date)
-                    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+                    if states_initials[state] == 'ACT':
+                        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime('2021-08-12')).days
+                    else:
+                        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
                     
+                    # this will hold the posterior VE, with adjustement factors
                     vacc_post = np.zeros_like(vacc_sim)
 
                     # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
                     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
+                    
+                    # if states_initials[state] == 'ACT':
+                    #     print(heterogeneity_delay_start_day)
+                    #     pd.DataFrame(eta).to_csv('eta.csv')
+                    #     pd.DataFrame(r).to_csv('r.csv')
+                        # pd.DataFrame(vacc_sim).to_csv('vacc_sim.csv')
+                    
                     for ii in range(vacc_post.shape[0]):
                         if ii < heterogeneity_delay_start_day:
                             vacc_post[ii] = eta + (1-eta)*vacc_sim[ii]
@@ -293,6 +305,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                 else:
                     sim_R = np.tile(samples_sim.R_L.values,(df_state.shape[0], 1))
 
+                print(state)
                 if vaccination is not None:
                     mu_hat = 2 * md*sim_R * expit(logodds) * vacc_post
                 else:
@@ -331,9 +344,6 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                                 # now modify the mu_hat
                                 mu_hat *= voc_multiplier
 
-                                if states_initials[state] == "SA" and third_phase:
-                                    pd.DataFrame(voc_multiplier).to_csv("results/third_wave_fit/voc.csv")
-
                                 pos = pos + df.loc[df.state == states_initials[state]].is_third_wave.sum()
 
                             else:
@@ -342,6 +352,13 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                         else:
                             print("Using data as inference not done on {}".format(state))
                             rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))
+                            
+                        # if states_initials[state] == 'ACT':
+                        #     pd.DataFrame(md).to_csv('md.csv')
+                        #     pd.DataFrame(logodds).to_csv('logodds.csv')
+                        #     pd.DataFrame(vacc_post).to_csv('vacc_post.csv')
+                        #     pd.DataFrame(sim_R).to_csv('sim_R.csv')
+                        #     pd.DataFrame(voc_multiplier).to_csv('voc_multiplier.csv')
 
                     R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0], 1))
 
@@ -406,9 +423,7 @@ def read_in_cases(case_file_date):
 
     df_NNDSS = read_in_NNDSS(case_file_date)
 
-    df_state = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']].groupby(
-        ['STATE', 'date_inferred']).sum()
+    df_state = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']].groupby(['STATE', 'date_inferred']).sum()
 
-    df_state['rho'] = [0 if (i+l == 0) else i/(i+l)
-                       for l, i in zip(df_state.local, df_state.imported)]
+    df_state['rho'] = [0 if (i+l == 0) else i/(i+l) for l, i in zip(df_state.local, df_state.imported)]
     return df_state

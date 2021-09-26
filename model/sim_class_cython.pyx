@@ -744,7 +744,7 @@ cdef class Forecast:
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
         
         # +/- factors for number of cases to use in the current period to determine proximity to data
-        backcast_factor = 1.5
+        backcast_factor = 2.5
         nowcast_factor = 0.5
         
         backcast_cases = (sum(df.local.values) - self.cases_to_subtract)

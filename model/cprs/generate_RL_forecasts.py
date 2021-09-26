@@ -333,8 +333,9 @@ for i, state in enumerate(states):
             # Constant Lockdown
             if scenario == "no_reversion":
                 # use only more recent data to forecast under a no-reversion scenario
-                std_lockdown = np.std(prop[state].values[-24:-4])
-                current = np.random.normal(mu_current, std_lockdown)
+                # std_lockdown = np.std(prop[state].values[-24:-4])
+                # current = np.random.normal(mu_current, std_lockdown)
+                current = np.random.normal(mu_current, std_baseline)
 
             # No Lockdown
             elif scenario == "full_reversion":
@@ -368,15 +369,12 @@ for i, state in enumerate(states):
     if apply_vacc_to_R_L_hats:
         # Forecasting vaccine effect -- might need small refactoring going forward to avoid using .loc
         # Get a baseline value of vaccination
-        mu_overall = np.mean(
-            vaccination_by_state.loc[state].values[-n_baseline:])
-        vacc_diffs = np.diff(
-            vaccination_by_state.loc[state].values[-n_training:])
+        mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:])
+        vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
         mu_diffs = np.mean(vacc_diffs)
         std_diffs = np.std(vacc_diffs)
 
-        extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(
-            vaccination_by_state.loc[state].index.values[-1])).days
+        extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
 
         # Set all values to current value.
         current = [vaccination_by_state.loc[state].values[-1]] * 1000
@@ -387,7 +385,6 @@ for i, state in enumerate(states):
             trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
             # no regression to baseline for vaccination or scenario modelling yet
             current = current+trend_force
-
             new_vacc_forecast.append(current)
 
         vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
@@ -395,8 +392,7 @@ for i, state in enumerate(states):
         vacc_sims = np.maximum(0, vacc_sims)
 
         # get dates
-        dd_vacc = [vaccination_by_state.loc[state].index[-1] +
-                   timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
+        dd_vacc = [vaccination_by_state.loc[state].index[-1] + timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
 
     for j, var in enumerate(predictors+['md_prop']+['vaccination']):
         # Record data

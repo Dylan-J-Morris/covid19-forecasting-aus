@@ -58,7 +58,6 @@ df_linel = tidy_cases_lambda(df_interim)
 
 # generate possible infection dates from the notification data
 df_inf = draw_inf_dates(df_linel, nreplicates=1000,
-                        shape_rd=shape_rd, scale_rd=scale_rd, offset_rd=offset_rd,
                         shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc,
                         )
 
