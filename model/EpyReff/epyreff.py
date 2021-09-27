@@ -52,9 +52,8 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, shape_rd=2, scale_rd=1, offset_rd=1, nreplicates=1):
 
+    from params import use_imputed_linelist
     notification_dates = df_linelist['date_inferred']
-    # extract boolean indicator of when the confirmation date was used
-    is_confirmation_date = df_linelist['is_confirmation'].to_numpy()
     
     # the above are the same size so this works
     nsamples = notification_dates.shape[0]
@@ -72,12 +71,18 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
     # scale_inc = (scale_inc)**2/shape_inc #scale**2 = var / shape
     #shape_inc =(scale_inc)**2/scale_inc**2
 
-    # first construct an array to set the notification delays to 0 when we have the accurate onset date
-    is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
+    if not use_imputed_linelist:
+        # extract boolean indicator of when the confirmation date was used
+        is_confirmation_date = df_linelist['is_confirmation'].to_numpy()
+        # first construct an array to set the notification delays to 0 when we have the accurate onset date
+        is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
+        # note that when we draw from the reporting delay distribution, we set the delays to 0 if we have an onset date
+        rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
+    else: 
+        rd_period = 0
+    
     # Draw from distributions - these are long vectors
     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
-    # note that when we draw from the reporting delay distribution, we set the delays to 0 if we have an onset date
-    rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
     
     # infection date is id_nd_diff days before notification date. This is also a long vector.
     # id_nd_diff = inc_period + is_confirmation_date_rep * rd_period

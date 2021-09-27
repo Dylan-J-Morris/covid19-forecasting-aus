@@ -1,8 +1,10 @@
 ##### Key parameters
 use_linelist = True
+use_imputed_linelist = True
 on_phoenix = False   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
+
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)

@@ -15,7 +15,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False):
     import numpy as np
     from datetime import timedelta
     import glob
-    from params import use_linelist, assume_local_cases_if_unknown
+    from params import use_linelist, assume_local_cases_if_unknown, use_imputed_linelist
 
     if not use_linelist:
         # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
@@ -63,8 +63,11 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False):
         # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / imported status vetted by a human. This can be a lot more reliable during an outbreak.
             
         case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
-        # path = "data/interim_linelist_"+case_file_date+"*.csv"
-        path = "data/imputed_linelist_2021-09-20.csv"
+        if use_imputed_linelist:
+            path = "data/imputed_linelist_2021-09-20.csv"
+        else:
+            path = "data/interim_linelist_"+case_file_date+"*.csv"
+            
         for file in glob.glob(path):  # Allows us to use the * option
             df = pd.read_csv(file)
 
@@ -73,15 +76,18 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False):
 
         # take the representative dates 
         df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
-        df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
         # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
         df['date_inferred'] = df['date_onset']
-        # create boolean of when confirmation dates used
-        df['is_confirmation'] = df['date_onset'].isna()
         
-        # if apply_delay_at_read:
-            # fill missing days with the confirmation date, noting that this is adjusted when used
-            # df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=3)
+        # if not using the imputed linelist, take the confirmation date and adjust it 
+        if not use_imputed_linelist:
+            # create boolean of when confirmation dates used
+            df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+            df['is_confirmation'] = df['date_onset'].isna()
+        
+            if apply_delay_at_read:
+                # fill missing days with the confirmation date, noting that this is adjusted when used
+                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=3)
         
         df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported

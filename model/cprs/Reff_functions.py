@@ -420,7 +420,7 @@ def read_in_cases(case_file_date, apply_delay_at_read=False):
     from datetime import timedelta
     import glob
 
-    df_NNDSS = read_in_NNDSS(case_file_date)
+    df_NNDSS = read_in_NNDSS(case_file_date, apply_delay_at_read=apply_delay_at_read)
 
     df_state = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']].groupby(['STATE', 'date_inferred']).sum()
 
