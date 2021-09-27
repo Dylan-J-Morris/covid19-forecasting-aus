@@ -127,6 +127,10 @@ df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv", index=False)
 file_date_updated = dt_date
 file_date_updated = file_date_updated.strftime("%Y-%m-%d")
 
+# read in an adjusted file
+df_NNDSS = read_in_NNDSS(dt_date.strftime("%d%b%Y"), apply_delay_at_read=True)
+df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
+
 fig, ax = plot_all_states(R_summary_states, df_interim, dates,
                           start='2020-03-01', end=file_date_updated, save=True,
                           tau=tau, date=date, nowcast_truncation=-truncation_days

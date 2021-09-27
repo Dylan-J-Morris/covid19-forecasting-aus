@@ -80,6 +80,8 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
     # scale_inc = (scale_inc)**2/shape_inc #scale**2 = var / shape
     #shape_inc =(scale_inc)**2/scale_inc**2
 
+    # here we apply the delay at the point of applying the incubation 
+    # as we are taking a posterior sample 
     if not use_imputed_linelist:
         # extract boolean indicator of when the confirmation date was used
         is_confirmation_date = df_linelist['is_confirmation'].to_numpy()

@@ -95,10 +95,10 @@ df_Reff.to_csv("results/df_Reff.csv")
 
 # shift counts to align with infection date by subtracting the mean incubation period noting that 
 # we should have the complete onset dates at this point
-# df_Reff['local'] = df_Reff.local.shift(periods=-5)
-# df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
-# df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
-# df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
+df_Reff['local'] = df_Reff.local.shift(periods=0)
+df_Reff['imported'] = df_Reff.imported.shift(periods=0)
+df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=0)
+df_Reff['rho'] = df_Reff.rho.shift(periods=0)
 df_Reff['local'] = df_Reff.local.fillna(0)
 df_Reff['imported'] = df_Reff.imported.fillna(0)
 

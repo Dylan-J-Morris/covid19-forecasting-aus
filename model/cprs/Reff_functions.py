@@ -421,8 +421,9 @@ def read_in_cases(case_file_date, apply_delay_at_read=False, apply_inc_at_read=F
     import glob
 
     df_NNDSS = read_in_NNDSS(case_file_date, apply_delay_at_read=apply_delay_at_read, apply_inc_at_read=apply_inc_at_read)
-
+    
     df_state = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']].groupby(['STATE', 'date_inferred']).sum()
 
     df_state['rho'] = [0 if (i+l == 0) else i/(i+l) for l, i in zip(df_state.local, df_state.imported)]
+    
     return df_state

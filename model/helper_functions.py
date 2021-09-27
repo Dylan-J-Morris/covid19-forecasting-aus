@@ -76,31 +76,55 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
 
         # take the representative dates 
         df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
-        # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
-        df['date_inferred'] = df['date_onset']
         
-        # if not using the imputed linelist, take the confirmation date and adjust it 
-        if not use_imputed_linelist:
-            # create boolean of when confirmation dates used
-            df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
-            df['is_confirmation'] = df['date_onset'].isna()
-        
-            if apply_delay_at_read:
-                # calculate number of delays to sample 
-                n_delays = df['date_inferred'].isna().sum()
-                rd = 1 + np.random.gamma(shape=2, scale=1, size=n_delays)
-                rd = rd * timedelta(days=1)
+        if apply_inc_at_read:
+            # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
+            n_infs = df['date_onset'].shape[0]
+            inc = np.random.gamma(shape=5.807, scale=0.948, size=n_infs)
+            # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior 
+            # doesnt work properly
+            inc = np.ceil(inc) * timedelta(days=1)
+            df['date_inferred'] = df['date_onset'] - inc
+            
+            # if not using the imputed linelist, take the confirmation date and adjust it 
+            if not use_imputed_linelist:
+                # create boolean of when confirmation dates used
+                df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+                df['is_confirmation'] = df['date_onset'].isna()
+            
+                if apply_delay_at_read:
+                    # calculate number of delays to sample 
+                    n_delays = df['date_inferred'].isna().sum()
+                    rd = 1 + np.random.gamma(shape=2, scale=1, size=n_delays)
+                    rd = np.ceil(rd) * timedelta(days=1)
+                    
+                    # fill missing days with the confirmation date, noting that this is adjusted when used
+                    df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rd
+                else:
+                    df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation']
+            
+            else: 
+                # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
+                df['date_inferred'] = df['date_onset']
                 
-                # fill missing days with the confirmation date, noting that this is adjusted when used
-                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rd
-            else:
-                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation']
+                # if not using the imputed linelist, take the confirmation date and adjust it 
+                if not use_imputed_linelist:
+                    # create boolean of when confirmation dates used
+                    df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+                    df['is_confirmation'] = df['date_onset'].isna()
                 
-            if apply_inc_at_read:
-                n_infs = df.loc[:, 'date_inferred'].shape[0]
-                inc = np.random.gamma(shape=5.807, scale=0.948, size=n_infs) * timedelta(days=1)
-                df.loc[:, 'date_inferred'] = df.loc[:, 'date_inferred'] - inc
-        
+                    if apply_delay_at_read:
+                        # calculate number of delays to sample 
+                        n_delays = df['date_inferred'].isna().sum()
+                        rd = 1 + np.random.gamma(shape=2, scale=1, size=n_delays)
+                        rd = np.ceil(rd) * timedelta(days=1)
+                        
+                        # fill missing days with the confirmation date, noting that this is adjusted when used
+                        df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rd
+                    else:
+                        df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation']
+                
+            
         df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported
         df['STATE'] = df['state']

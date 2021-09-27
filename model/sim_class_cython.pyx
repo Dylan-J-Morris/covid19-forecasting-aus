@@ -698,7 +698,7 @@ cdef class Forecast:
         from datetime import timedelta
         import glob
 
-        df = read_in_NNDSS(self.cases_file_date)  # Call helper_function
+        df = read_in_NNDSS(self.cases_file_date, apply_delay_at_read=True)  # Call helper_function
 
         self.import_cases_model(df)
 
