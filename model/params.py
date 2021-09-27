@@ -1,8 +1,6 @@
 ##### Key parameters
 use_linelist = True
-use_imputed_data = False
-apply_delay_at_read = True
-on_phoenix = True   # flag for running on phoenix
+on_phoenix = False   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
 

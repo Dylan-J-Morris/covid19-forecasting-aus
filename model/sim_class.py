@@ -223,6 +223,7 @@ class Forecast:
         The parent_key parameter lets us find the parent from the array self.people 
         containing the objects from the branching process.
         """
+        import sys
         # Check parent category
         if self.people[parent_key].category == 'S':  # Symptomatic
             num_offspring = nbinom.rvs(n=k, p=1 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
@@ -776,7 +777,8 @@ class Forecast:
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """
         self.inf_times = np.random.gamma(i/j, j, size=size)  # shape and scale
-        self.detect_times = np.random.gamma(m/n, n, size=size)
+        # self.detect_times = np.random.gamma(m/n, n, size=size)
+        self.detect_times = 1 + np.random.gamma(2, 1, size=size)
 
     def iter_inf_time(self):
         """

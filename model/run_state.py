@@ -1,7 +1,7 @@
-from sim_class import *
 import sys
 sys.path.insert(0,'model')
-# from sim_class_cython import *
+# from sim_class import *
+from sim_class_cython import *
 from params import start_date, num_forecast_days, ncores, testing_sim  # External parameters
 import pandas as pd
 from sys import argv
@@ -28,7 +28,7 @@ scenario = ''
 if len(argv) > 5:  # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
     scenario = argv[5]
 
-print("Simulating state " + state)
+# print("Simulating state " + state)
 
 
 # Get total number of simulation days
@@ -72,8 +72,8 @@ elif start_date == "2020-12-01":
     }
 elif start_date == "2021-06-01":
     current = {  # based on locally acquired cases in the days preceding the start date
-        'ACT': [0, 0, 0],
-        'NSW': [20, 0, 2],
+        'ACT': [3, 0, 0],
+        'NSW': [25, 0, 2],
         'NT': [0, 0, 0],
         'QLD': [14, 0, 1],
         'SA': [0, 0, 0],

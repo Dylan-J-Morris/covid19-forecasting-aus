@@ -138,7 +138,7 @@ def read_in_Reff(file_date, forecast_R=None, VoC_flag='', scenario=''):
     return df_forecast
 
 
-def read_in_cases(cases_file_date):
+def read_in_cases(cases_file_date, apply_delay_at_read=True):
     """
     Read in NNDSS case file data
     """
@@ -146,7 +146,9 @@ def read_in_cases(cases_file_date):
     from datetime import timedelta
     import glob
 
-    df_NNDSS = read_in_NNDSS(cases_file_date)
+    # read in the cases by applying the appropriate delays to the confirmation dates in the data, this should
+    # mean that the plots align more appropriately
+    df_NNDSS = read_in_NNDSS(cases_file_date, apply_delay_at_read=apply_delay_at_read)
 
     df_cases_state_time = df_NNDSS.groupby(['STATE', 'date_inferred'])[['imported', 'local']].sum()
     df_cases_state_time.reset_index(inplace=True)

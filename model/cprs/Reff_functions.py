@@ -413,7 +413,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
     return ax
 
 
-def read_in_cases(case_file_date):
+def read_in_cases(case_file_date, apply_delay_at_read=False):
     """
     Read in NNDSS data and from data, find rho
     """

@@ -82,7 +82,7 @@ df_Reff['state'] = df_Reff.STATE
 
 ######### Read in NNDSS/linelist data #########
 # If this errors it may be missing a leading zero on the date.
-df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'))
+df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'), apply_delay_at_read=True)
 
 df_Reff = df_Reff.merge(df_state, how='left', left_on=['state', 'date'], right_on=['STATE', 'date_inferred'])  # how = left to use Reff days, NNDSS missing dates
 df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.rolling(7, 1).mean())  # minimum number of 1
@@ -93,14 +93,12 @@ df_Reff['rho_moving'] = df_Reff.rho_moving.fillna(method='bfill')
 # save the output of the merging to see what's happening with the shifts
 df_Reff.to_csv("results/df_Reff.csv")
 
-# shift counts to align with infection date not symptom date
-# dates should be complete at this point, no days skipped
-# will be some end days with NaN, but that should be fine since
-# we don't use the most recent 10 days
-# df_Reff['local'] = df_Reff.local.shift(periods=-5)
-# df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
-# df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
-# df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
+# shift counts to align with infection date by subtracting the mean incubation period noting that 
+# we should have the complete onset dates at this point
+df_Reff['local'] = df_Reff.local.shift(periods=-5)
+df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
+df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
+df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
 df_Reff['local'] = df_Reff.local.fillna(0)
 df_Reff['imported'] = df_Reff.imported.fillna(0)
 
@@ -113,9 +111,7 @@ sys.path.insert(0, '../')
 df_google = read_in_google(
     local=not download_google_automatically, moving=True)
 
-df = df_google.merge(
-    df_Reff[['date', 'state', 'mean', 'lower', 'upper', 'top', 'bottom', 'std', 'rho', 'rho_moving', 'local', 'imported']], 
-    on=['date', 'state'], how='inner')
+df = df_google.merge(df_Reff[['date', 'state', 'mean', 'lower', 'upper', 'top', 'bottom', 'std', 'rho', 'rho_moving', 'local', 'imported']], on=['date', 'state'], how='inner')
 
 ######### Create useable dataset #########
 # ACT and NT not in original estimates, need to extrapolated

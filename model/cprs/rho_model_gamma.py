@@ -200,12 +200,12 @@ transformed parameters {
 model {
     int pos2;
 
-    bet ~ normal(0,0.5);
+    bet ~ normal(0,1.0);
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_effect_sec_wave ~ gamma(1.3*1.3/0.05, 1.3/0.05);
-    voc_effect_third_wave ~ gamma(2.6*2.6/0.05, 2.6/0.05);
+    voc_effect_sec_wave ~ gamma(1.3*1.3/0.1, 1.3/0.1);
+    voc_effect_third_wave ~ gamma(2.7*2.7/0.1, 2.7/0.1);
     
     // assume a hierarchical structure on the vaccine effect 
     eta_NSW ~ beta(2, 7);           // mean of 2/9
