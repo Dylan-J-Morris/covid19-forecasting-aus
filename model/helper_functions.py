@@ -89,25 +89,17 @@ def read_in_NNDSS(date_string):
             if len(glob.glob(path)) == 0:
                 raise FileNotFoundError("Calculated linelist not found. Did you want to use NNDSS or the imputed linelist?")
 
+            # take the representative dates 
             df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
             df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+            # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
             df['date_inferred'] = df['date_onset']
+            # create boolean of when confirmation dates used
+            df['is_confirmation'] = df['date_onset'].isna()
+            # convert to timedelta
+            rep_delay_days = timedelta(days=1)
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rep_delay_days  # Fill missing days
             
-            if apply_delay_at_read:
-                shape_rd = 2
-                scale_rd = 1
-                offset_rd = 1
-                
-                # calculate the number of people missing an onset date 
-                n_delays = df['date_inferred'].isna().sum()
-                rep_delay = offset_rd + np.random.gamma(shape=shape_rd, scale=scale_rd, size=(n_delays))
-                # convert to timedelta
-                rep_delay_days = np.ceil(rep_delay)*timedelta(days=1)
-                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rep_delay_days  # Fill missing days
-            else: 
-                df.loc[df['date_onset'].isna(), 'date_inferred'] = df.loc[df['date_onset'].isna(), 'date_detection'] - timedelta(days=3)  # Fill missing days
-                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=3)  # Fill missing days
-                
             df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
             df['local'] = 1 - df.imported
             df['STATE'] = df['state']

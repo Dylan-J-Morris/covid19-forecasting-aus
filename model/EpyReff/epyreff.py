@@ -24,7 +24,7 @@ def read_cases_lambda(case_file_date):
     df_NNDSS = read_in_NNDSS(case_file_date)
 
     # df_interim = df_NNDSS[['NOTIFICATION_RECEIVE_DATE','STATE','imported','local']]
-    df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
+    df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
     return(df_interim)
 
 
@@ -39,27 +39,27 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
     # Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
     # i.e. create linelist data
-    df_linel = df_linel.melt(id_vars=['date_inferred', 'STATE'], var_name='SOURCE', value_name='n_cases')
+    df_linel = df_linel.melt(id_vars=['date_inferred','STATE', 'is_confirmation'], var_name='SOURCE', value_name='n_cases')
     # df_linel = df_linel.melt(id_vars = ['NOTIFICATION_RECEIVE_DATE','STATE'], var_name = 'SOURCE',value_name='n_cases')
 
     # Reset index or the joining doesn't work
     df_linel = df_linel[df_linel.n_cases != 0]
     df_linel = df_linel.reset_index(drop=True)
     
-    return(df_linel)
+    return df_linel
 
 # gamma draws take arguments (shape, scale)
 
-def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, nreplicates=1):
+def draw_inf_dates(df_linelist, is_confirmation_date, shape_inc=5.807, scale_inc=0.948, offset_inc=0, shape_rd=2, scale_rd=1, offset_rd=1, nreplicates=1):
 
     notification_dates = df_linelist['date_inferred']
+    
+    # the above are the same size so this works
     nsamples = notification_dates.shape[0]
 
-    from params import use_imputed_data, apply_delay_at_read
-
     #    DEFINE DELAY DISTRIBUTION
-    #     mean_rd = 5.47
-    #     sd_rd = 4.04
+    #     mean_rd = 2.0
+    #     sd_rd = 1.0
     #scale_rd = shape_rd/(scale_rd)**2
     #shape_rd = shape_rd/scale_rd
 
@@ -71,10 +71,13 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
     #shape_inc =(scale_inc)**2/scale_inc**2
 
     # Draw from distributions - these are long vectors
+    is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
+    rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
     
     # infection date is id_nd_diff days before notification date. This is also a long vector.
-    id_nd_diff = inc_period
+    # id_nd_diff = inc_period + is_confirmation_date_rep * rd_period
+    id_nd_diff = inc_period + rd_period
 
     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
     whole_day_diff = np.ceil(id_nd_diff)
@@ -94,6 +97,7 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
 
     # Uncomment this if theres errors
     #print([df_linelist.shape, infdates_df.shape])
+    df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
 
     # Combine infection dates and original dataframe
     df_inf = pd.concat([df_linelist, infdates_df], axis=1, verify_integrity=True)
