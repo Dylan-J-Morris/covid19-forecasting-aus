@@ -97,9 +97,9 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
                 df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation']
                 
             if apply_inc_at_read:
-                n_infs = df.loc[df['date_inferred']].shape[0]
+                n_infs = df.loc[:, 'date_inferred'].shape[0]
                 inc = np.random.gamma(shape=5.807, scale=0.948, size=n_infs) * timedelta(days=1)
-                df.loc[df['date_inferred']] = df.loc[df['date_inferred']] - inc
+                df.loc[:, 'date_inferred'] = df.loc[:, 'date_inferred'] - inc
         
         df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported
