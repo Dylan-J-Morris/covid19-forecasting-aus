@@ -50,9 +50,11 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 # gamma draws take arguments (shape, scale)
 
-def draw_inf_dates(df_linelist, is_confirmation_date, shape_inc=5.807, scale_inc=0.948, offset_inc=0, shape_rd=2, scale_rd=1, offset_rd=1, nreplicates=1):
+def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, shape_rd=2, scale_rd=1, offset_rd=1, nreplicates=1):
 
     notification_dates = df_linelist['date_inferred']
+    # extract boolean indicator of when the confirmation date was used
+    is_confirmation_date = df_linelist['is_confirmation'].to_numpy()
     
     # the above are the same size so this works
     nsamples = notification_dates.shape[0]
@@ -70,9 +72,11 @@ def draw_inf_dates(df_linelist, is_confirmation_date, shape_inc=5.807, scale_inc
     # scale_inc = (scale_inc)**2/shape_inc #scale**2 = var / shape
     #shape_inc =(scale_inc)**2/scale_inc**2
 
-    # Draw from distributions - these are long vectors
+    # first construct an array to set the notification delays to 0 when we have the accurate onset date
     is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
+    # Draw from distributions - these are long vectors
     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
+    # note that when we draw from the reporting delay distribution, we set the delays to 0 if we have an onset date
     rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
     
     # infection date is id_nd_diff days before notification date. This is also a long vector.
@@ -97,6 +101,9 @@ def draw_inf_dates(df_linelist, is_confirmation_date, shape_inc=5.807, scale_inc
 
     # Uncomment this if theres errors
     #print([df_linelist.shape, infdates_df.shape])
+    
+    # need to remove the confirmation boolean variable from the df to ensure that the 
+    # rest of epyreff runs as per normal 
     df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
 
     # Combine infection dates and original dataframe

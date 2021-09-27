@@ -96,9 +96,8 @@ def read_in_NNDSS(date_string):
             df['date_inferred'] = df['date_onset']
             # create boolean of when confirmation dates used
             df['is_confirmation'] = df['date_onset'].isna()
-            # convert to timedelta
-            rep_delay_days = timedelta(days=1)
-            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rep_delay_days  # Fill missing days
+            # fill missing days with the confirmation date, noting that this is adjusted when used
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation']
             
             df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
             df['local'] = 1 - df.imported

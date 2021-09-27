@@ -52,17 +52,11 @@ df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
 
 # generate dataframe with id_vars date and state, variable SOURCE and number of cases
 df_linel = tidy_cases_lambda(df_interim)
-is_confirmation = df_linel['is_confirmation'].to_numpy()
-
-# infer extra cases in last 10 days by the reporting delay distribution
-
 
 # generate possible infection dates from the notification data
-df_inf = draw_inf_dates(df_linel, is_confirmation_date=is_confirmation, nreplicates=1000,
+df_inf = draw_inf_dates(df_linel, nreplicates=1000,
                         shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc,
                         )
-
-print(df_inf)
 
 # reindex dataframe to include all dates,
 # return df with index (STATE, INFECTION_DATE, SOURCE), columns are samples
