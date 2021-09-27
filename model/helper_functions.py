@@ -64,7 +64,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False):
             
         case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
         if use_imputed_linelist:
-            path = "data/imputed_linelist_2021-09-20.csv"
+            path = "data/imputed_linelist.csv"
         else:
             path = "data/interim_linelist_"+case_file_date+"*.csv"
             
