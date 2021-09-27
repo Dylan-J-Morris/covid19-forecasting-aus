@@ -82,7 +82,7 @@ df_Reff['state'] = df_Reff.STATE
 
 ######### Read in NNDSS/linelist data #########
 # If this errors it may be missing a leading zero on the date.
-df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'), apply_delay_at_read=True)
+df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'), apply_delay_at_read=True, apply_inc_at_read=True)
 
 df_Reff = df_Reff.merge(df_state, how='left', left_on=['state', 'date'], right_on=['STATE', 'date_inferred'])  # how = left to use Reff days, NNDSS missing dates
 df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.rolling(7, 1).mean())  # minimum number of 1
@@ -95,10 +95,10 @@ df_Reff.to_csv("results/df_Reff.csv")
 
 # shift counts to align with infection date by subtracting the mean incubation period noting that 
 # we should have the complete onset dates at this point
-df_Reff['local'] = df_Reff.local.shift(periods=-5)
-df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
-df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
-df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
+# df_Reff['local'] = df_Reff.local.shift(periods=-5)
+# df_Reff['imported'] = df_Reff.imported.shift(periods=-5)
+# df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=-5)
+# df_Reff['rho'] = df_Reff.rho.shift(periods=-5)
 df_Reff['local'] = df_Reff.local.fillna(0)
 df_Reff['imported'] = df_Reff.imported.fillna(0)
 

@@ -413,14 +413,14 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
     return ax
 
 
-def read_in_cases(case_file_date, apply_delay_at_read=False):
+def read_in_cases(case_file_date, apply_delay_at_read=False, apply_inc_at_read=False):
     """
     Read in NNDSS data and from data, find rho
     """
     from datetime import timedelta
     import glob
 
-    df_NNDSS = read_in_NNDSS(case_file_date, apply_delay_at_read=apply_delay_at_read)
+    df_NNDSS = read_in_NNDSS(case_file_date, apply_delay_at_read=apply_delay_at_read, apply_inc_at_read=apply_inc_at_read)
 
     df_state = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']].groupby(['STATE', 'date_inferred']).sum()
 
