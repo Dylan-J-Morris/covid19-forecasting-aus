@@ -9,6 +9,7 @@ from datetime import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from params import use_imputed_linelist 
 import matplotlib
 matplotlib.use('Agg')
 
@@ -23,12 +24,16 @@ def read_cases_lambda(case_file_date):
     """
     df_NNDSS = read_in_NNDSS(case_file_date)
 
+    if use_imputed_linelist:
+        df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
+    else:
+        df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
     # df_interim = df_NNDSS[['NOTIFICATION_RECEIVE_DATE','STATE','imported','local']]
-    df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
     return(df_interim)
 
 
 def tidy_cases_lambda(interim_data, remove_territories=True):
+    
     # Remove non-existent notification dates
     interim_data = interim_data[~np.isnat(interim_data.date_inferred)]
     # interim_data = interim_data[~np.isnat(interim_data.NOTIFICATION_RECEIVE_DATE)]
@@ -39,7 +44,11 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
     # Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
     # i.e. create linelist data
-    df_linel = df_linel.melt(id_vars=['date_inferred','STATE', 'is_confirmation'], var_name='SOURCE', value_name='n_cases')
+    
+    if use_imputed_linelist:
+        df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
+    else:
+        df_linel = df_linel.melt(id_vars=['date_inferred','STATE', 'is_confirmation'], var_name='SOURCE', value_name='n_cases')
     # df_linel = df_linel.melt(id_vars = ['NOTIFICATION_RECEIVE_DATE','STATE'], var_name = 'SOURCE',value_name='n_cases')
 
     # Reset index or the joining doesn't work
@@ -107,9 +116,10 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
     # Uncomment this if theres errors
     #print([df_linelist.shape, infdates_df.shape])
     
-    # need to remove the confirmation boolean variable from the df to ensure that the 
-    # rest of epyreff runs as per normal 
-    df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
+    if not use_imputed_linelist:
+        # need to remove the confirmation boolean variable from the df to ensure that the 
+        # rest of epyreff runs as per normal 
+        df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
 
     # Combine infection dates and original dataframe
     df_inf = pd.concat([df_linelist, infdates_df], axis=1, verify_integrity=True)
