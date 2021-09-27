@@ -770,20 +770,16 @@ for typ in forecast_type:
 
             if state == 'NSW':
                 # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-                eta = np.tile(samples['eta_NSW'],
-                              (df_state.shape[0], mob_samples))
+                eta = np.tile(samples['eta_NSW'], (df_state.shape[0], mob_samples))
                 # rate of return to homogeneity - chosen to return after 28 days
                 r = np.tile(samples['r_NSW'], (df_state.shape[0], mob_samples))
             else:
-                eta = np.tile(samples['eta_other'],
-                              (df_state.shape[0], mob_samples))
-                r = np.tile(samples['r_other'],
-                            (df_state.shape[0], mob_samples))
+                eta = np.tile(samples['eta_other'], (df_state.shape[0], mob_samples))
+                r = np.tile(samples['r_other'], (df_state.shape[0], mob_samples))
 
             # find days after forecast began that we want to apply the effect — currently this is fixed from the
             # 30th of Aug
-            heterogeneity_delay_start_day = (pd.to_datetime(
-                '2021-08-20') - pd.to_datetime(start_date)).days
+            heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(start_date)).days
 
             vacc_post = np.zeros_like(vacc_data_full)
 
@@ -796,8 +792,7 @@ for typ in forecast_type:
                     # number of days after the heterogeneity should start to wane
                     heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                     decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
-                    vacc_post[ii] = eta[ii]*decay_factor + \
-                        (1-eta[ii]*decay_factor)*vacc_data_full[ii]
+                    vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_data_full[ii]
 
             # last thing to do is modify the vacc_post values before the start of vaccination
             for ii in range(vacc_post.shape[0]):

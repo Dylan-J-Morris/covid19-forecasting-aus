@@ -1,21 +1,17 @@
 ##### Key parameters
 use_linelist = True
-use_imputed_linelist = True
+use_imputed_linelist = False
 on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
-
+testing_inference = True
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
-    # use this to test the inference methods, fewer chains and samples => easy to debug and check summary output
-    testing_inference = False
     # this flag will run the inference only and quit after it's done
     testing_sim = False      # this flag will tet the simulation algorithm
 else: 
     ncores = 4     # number of cores to use (this is relevant for the simulation)
-    # use this to test the inference methods, fewer chains and samples => easy to debug and check summary output
-    testing_inference = True
     # this flag will run the inference only and quit after it's done
     testing_sim = False      # this flag will tet the simulation algorithm
 

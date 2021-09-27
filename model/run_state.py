@@ -1,6 +1,7 @@
 import sys
 sys.path.insert(0,'model')
 # from sim_class import *
+# from sim_class_update import *
 from sim_class_cython import *
 from params import start_date, num_forecast_days, ncores, testing_sim  # External parameters
 import pandas as pd

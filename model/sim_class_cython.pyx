@@ -22,6 +22,7 @@ class Person:
     """
     Individuals in the forecast
     """
+
     def __init__(self, parent, infection_time, detection_time, recovery_time, category: str):
         """
         Category is one of 'I','A','S' for Imported, Asymptomatic and Symptomatic
@@ -120,7 +121,7 @@ cdef class Forecast:
 
         assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
 
-    def initialise_sim(self, rng, curr_time=0):
+    cdef void initialise_sim(self, rng, np.int_t curr_time=0):
         """
         Given some number of cases in self.initial_state (copied),
         simulate undetected cases in each category and their
@@ -134,7 +135,7 @@ cdef class Forecast:
 
             # N samples for each of infection and detection times
             # Grab now and iterate through samples to save simulation
-            self.generate_times(rng=rng, size=50000)
+            self.generate_times(size=50000)
             self.get_inf_time = self.iter_inf_time()
             self.get_detect_time = self.iter_detect_time()
 
@@ -232,12 +233,13 @@ cdef class Forecast:
 
         self.Reff = Reff_lookupstate
 
-    cdef inline void generate_new_cases(self, np.int_t parent_key, np.float_t Reff, np.float_t k, rng, travel=False):
+    cdef inline void generate_new_cases(self, rng, np.int_t parent_key, np.float_t Reff, np.float_t k, travel=False):
         """
         Generate offspring for each parent, check if they travel. 
         The parent_key parameter lets us find the parent from the array self.people 
         containing the objects from the branching process.
         """
+
         cdef np.int_t num_offspring, num_sympcases, new_case
         cdef np.float_t inf_time, detection_rv, detection_time, detect_prob
         cdef str category
@@ -253,9 +255,9 @@ cdef class Forecast:
             # Apply vaccine reduction for hotel quarantine workers
             if self.people[parent_key].infection_time >= self.hotel_quarantine_vaccine_start:
                 # p_{v,h} is the proportion of hotel quarantine workers vaccinated
-                p_vh = 0.9+beta.rvs(2, 4)*9/100
+                p_vh = 0.9+rng.beta(2, 4)*9/100
                 # v_{e,h} is the overall vaccine effectiveness
-                v_eh = 0.83+beta.rvs(2, 2)*14/100
+                v_eh = 0.83+rng.beta(2, 2)*14/100
                 Reff *= (1-p_vh*v_eh)
 
             # Apply increase escape rate due to Delta variant.
@@ -270,10 +272,9 @@ cdef class Forecast:
 
         if num_offspring > 0:
 
-            num_sympcases = self.new_symp_cases(num_offspring, rng=rng)
+            num_sympcases = self.new_symp_cases(num_new_cases=num_offspring, rng=rng)
             if self.people[parent_key].category == 'A':
                 child_times = []
-                
             for new_case in range(num_offspring):
                 # define each offspring
 
@@ -291,6 +292,7 @@ cdef class Forecast:
                     # within forecast time
                     detection_rv = random()
                     detect_time = inf_time + next(self.get_detect_time)
+
                     recovery_time = 0  # for now not tracking recoveries
 
                     if new_case <= num_sympcases-1:  # minus 1 as new_case ranges from 0 to num_offspring-1
@@ -329,7 +331,6 @@ cdef class Forecast:
                                 detect_prob = min(0.95, self.asymptomatic_detection_prob*self.test_campaign_factor)
                         else:
                             detect_prob = self.asymptomatic_detection_prob
-                            
                         if detection_rv < detect_prob:
                             # case detected
                             #detect_time = inf_time + next(self.get_detect_time)
@@ -348,7 +349,14 @@ cdef class Forecast:
                     # add person to tracked people
                     self.people[len(self.people)] = Person(parent_key, inf_time, detect_time, recovery_time, category)
 
-    def prep_containers_for_sim(self, end_time, sim, rng):
+    def simulate(self, end_time, sim, seed):
+        """
+        Simulate forward until end_time
+        """
+        # set seed in the generator, this will get passed to the class methods and is much more efficient 
+        # compared to the scipy method. Yes it was checked that numpy and scipy produce the same RVs.
+        rng = Generator(PCG64(seed))
+        
         self.num_of_sim = sim
         self.read_in_Reff()
         # generate storage for cases
@@ -363,7 +371,6 @@ cdef class Forecast:
         # Record day 0 cases
         self.cases[0, :] = self.current.copy()
 
-    def import_simulate(self, end_time, rng):
         # Generate imported cases
         new_imports = []
         unobs_imports = []
@@ -397,7 +404,6 @@ cdef class Forecast:
                     if day <= end_time:
                         self.cases[max(0, day-1), 0] += 1
 
-    def init_inf_queue(self, end_time):
         # Create queue for infected people
         self.infected_queue = deque()
         # Assign people to infected queue
@@ -412,9 +418,19 @@ cdef class Forecast:
                     # imports shouldn't count for extinction counts
                     self.cases_after += 1
                     print("cases after at initialisation")
-                
-    def simulation_part_1(self, end_time, rng):
+
+            # Cases already recorded at initialise_sim() by addding to
+            # self.current
+
+        # Record initial inferred obs including importations.
+        self.inferred_initial_obs = self.observed_cases[0, :].copy()
+        #print(self.inferred_initial_obs, self.current)
+
+        # General simulation through time by proceeding through queue
+        # of infecteds
+        n_resim = 0
         self.bad_sim = False
+        reinitialising_window = 3
         self.daycount = 0
         while len(self.infected_queue) > 0:
             day_end = self.people[self.infected_queue[0]].detection_time
@@ -462,12 +478,8 @@ cdef class Forecast:
                 # generate new cases with times
                 parent_key = self.infected_queue.popleft()
                 # recorded within generate new cases
-                self.generate_new_cases(parent_key, Reff=Reff, k=self.k, rng=rng)
+                self.generate_new_cases(rng=rng, parent_key=parent_key, Reff=Reff, k=self.k)
                 
-    def simulation_part_2(self, end_time, rng):
-        # set the number of resims that have occurred as well as the window to look at to readjust the model
-        n_resim = 0
-        reinitialising_window = 3
         # self.people.clear()
         if self.bad_sim == False:
             # Check simulation for discrepancies
@@ -516,7 +528,7 @@ cdef class Forecast:
                         self.cases[max(0, day-2), 2] += num_asymp//6
 
                         self.initialise_sim(curr_time=day, rng=rng)
-                        #print("Reinitialising with %i new cases "  % self.current[2] )
+                        # print("Reinitialising with %i new cases "  % self.current[2] )
 
                         # reset days to zero
                         self.daycount = 0
@@ -570,68 +582,43 @@ cdef class Forecast:
                             break
                         # generate new cases with times
                         parent_key = self.infected_queue.popleft()
-                        self.generate_new_cases(parent_key, Reff=Reff, k=self.k, rng=rng)
+                        self.generate_new_cases(rng=rng, parent_key=parent_key, Reff=Reff, k=self.k)
                         #missed_outbreak = max(1,missed_outbreak*0.9)
                 else:
                     # pass in here if while queue loop completes
                     continue
                 # only reach here if while loop breaks, so break the data check
                 break
-
-    def simulate(self, end_time, sim, seed):
-        """
-        Simulate forward until end_time
-        """
-        # set seed in the generator, this will get passed to the class methods and is much more efficient 
-        # compared to the scipy method. Yes it was checked that numpy and scipy produce the same RVs.
-        rng = Generator(PCG64(seed))
-
-        # initialise the simulation and containers
-        self.prep_containers_for_sim(end_time, sim, rng=rng)
-        # this runs the importation part of the simulation
-        self.import_simulate(end_time, rng=rng)
-        # initialise the infected queue
-        # Cases already recorded at initialise_sim() by addding to
-        # self.current
-        self.init_inf_queue(end_time)
-
-        # Record initial inferred obs including importations.
-        self.inferred_initial_obs = self.observed_cases[0, :].copy()
-
-        # General simulation through time by proceeding through queue
-        # of infecteds
-        self.simulation_part_1(end_time, rng=rng)
-        
-        self.simulation_part_2(end_time, rng=rng)
         
         self.people.clear()
         gc.collect()
-        
         if self.bad_sim:
             # return NaN arrays for all bad_sims
             self.cumulative_cases = np.empty_like(self.cases)
             self.cumulative_cases[:] = np.nan
-            return (
-                self.cumulative_cases, self.cumulative_cases, {
-                    'qs': self.symptomatic_detection_prob,
-                    'metric': np.nan,
-                    'qa': self.asymptomatic_detection_prob,
-                    'qi': self.qi,
-                    'alpha_a': self.alpha_a,
-                    'alpha_s': self.alpha_s,
-                    # 'accept':self.accept,
-                    'ps': self.ps,
-                    'bad_sim': self.bad_sim,
-                    'cases_after': self.cases_after,
-                    'num_of_sim': self.num_of_sim,
+            return (self.cumulative_cases, self.cumulative_cases, {
+                'qs': self.symptomatic_detection_prob,
+                'metric': np.nan,
+                'qa': self.asymptomatic_detection_prob,
+                'qi': self.qi,
+                'alpha_a': self.alpha_a,
+                'alpha_s': self.alpha_s,
+                # 'accept':self.accept,
+                'ps': self.ps,
+                'bad_sim': self.bad_sim,
+                'cases_after': self.cases_after,
+                'num_of_sim': self.num_of_sim,
             }
             )
         else:
             # good sim
+
             # Perform metric for ABC
             # self.get_metric(end_time)
+
             return (
-                self.cases.copy(), self.observed_cases.copy(), {
+                self.cases.copy(),
+                self.observed_cases.copy(), {
                     'qs': self.symptomatic_detection_prob,
                     'metric': np.nan,
                     'qa': self.asymptomatic_detection_prob,
@@ -678,7 +665,7 @@ cdef class Forecast:
 
         return df_results
 
-    def data_check(self, day):
+    cdef data_check(self, np.int_t day):
         """
         A metric to calculate how far the simulation is from the actual data
         """
@@ -703,7 +690,7 @@ cdef class Forecast:
             #print("No cases on day %i" % day)
             return False
 
-    def read_in_cases(self, apply_delay_at_read=True):
+    def read_in_cases(self):
         """
         Read in NNDSS case data to measure incidence against simulation. Nothing is returned as results are saved in object.
         """
@@ -711,9 +698,7 @@ cdef class Forecast:
         from datetime import timedelta
         import glob
 
-        # read in the NNDSS data and apply the delay at read meaning that the returned dataframe contains symptom onset dates 
-        # for all cases
-        df = read_in_NNDSS(self.cases_file_date, apply_delay_at_read=apply_delay_at_read)  # Call helper_function
+        df = read_in_NNDSS(self.cases_file_date)  # Call helper_function
 
         self.import_cases_model(df)
 
@@ -750,28 +735,26 @@ cdef class Forecast:
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
         
         # +/- factors for number of cases to use in the current period to determine proximity to data
-        backcast_factor = 2.5
-        nowcast_factor = 0.5
+        backcast_factor = 3
+        nowcast_factor = 1.5
         
         backcast_cases = (sum(df.local.values) - self.cases_to_subtract)
         nowcast_cases = (sum(df.local.values) - self.cases_to_subtract_now)
         
         # max limits are just 1+factor * number of cases over a time horizon
-        self.max_backcast_cases = max(100, backcast_cases * 3.0)
-        self.max_nowcast_cases = max(10, nowcast_cases * 1.5)
-        # self.max_backcast_cases = max(100, backcast_cases * (1.0 + backcast_factor) + nowcast_cases * (1.0 + nowcast_factor))
-        # self.min_backcast_cases = max(0, backcast_cases * (1.0 - backcast_factor) + nowcast_cases * (1.0 - nowcast_factor))
-        # self.max_nowcast_cases = max(10, nowcast_cases * (1.0 + nowcast_factor))
-        # self.min_nowcast_cases = max(0, nowcast_cases * (1.0 - nowcast_factor)) 
+        self.max_backcast_cases = max(100, backcast_cases * backcast_factor)
+        self.max_nowcast_cases = max(10, nowcast_cases * nowcast_factor)
+        # min limits are 1-factor * number of cases over a time horizon. we take the maximum of 
+        # 0 and the estimated matching interval as there's the possibility for a negative number of
+        # cases if the factor >= 1. 
         
         print("Local cases in last 14 days is %i" % nowcast_cases)
 
-        # print('Min limits: ', self.min_backcast_cases, self.min_nowcast_cases)
         print('Max limits: ', self.max_cases, self.max_backcast_cases, self.max_nowcast_cases)
 
         self.actual = df.local.to_dict()
 
-    def import_cases_model(self, df):
+    cdef import_cases_model(self, df):
         """
         This function takes the NNDSS/linelist data and creates a set of parameters to generate imported (overseas acquired) cases over time.
 
@@ -783,7 +766,6 @@ cdef class Forecast:
             # subtract 4 from date to infer period of entry when infected
             date = date-timedelta(days=4)
             n_days_into_sim = (date - self.start_date).days
-            
             return n_days_into_sim
 
         prior_alpha = 0.5  # Changed from 1 to lower prior (26/03/2021)
@@ -813,15 +795,18 @@ cdef class Forecast:
         # Set all betas to prior plus effective period size of 1
         self.b_dict = {i: prior_beta+1 for i in range(self.end_time)}
 
-    def generate_times(self, rng,  i=3.64, j=3.07, size=50000):
+    cdef inline void generate_times(self, np.int_t size=50000):
         """
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """
-        self.inf_times = rng.gamma(i/j, j, size=size)  # shape and scale
+        cdef np.float_t i=3.64
+        cdef np.float_t j=3.07
+        cdef np.float_t m=5.505 
+        cdef np.float_t n=0.948
 
-        # detection time is infection time + incubation period as we assume that the actual case dates are the 
-        # symptom onset dates and this is what the local inci plot shows
-        self.detect_times = rng.gamma(5.807, 0.948, size=size)
+        self.inf_times = np.random.gamma(i/j, j, size=size)  # shape and scale
+        # self.detect_times = np.random.gamma(m/n, n, size=size)
+        self.detect_times = np.random.gamma(5.807, 0.958, size=size)
 
     def iter_inf_time(self):
         """
@@ -837,14 +822,13 @@ cdef class Forecast:
         for time in cycle(self.detect_times):
             yield time
 
-
-    def new_symp_cases(self, num_new_cases: int, rng):
+    cdef np.int_t new_symp_cases(self, rng, np.int_t num_new_cases):
         """
         Given number of new cases generated, assign them to symptomatic (S) with probability ps
         """
         # repeated Bernoulli trials is a Binomial (assuming independence of development of symptoms)
+        cdef np.int_t symp_cases
+
         symp_cases = rng.binomial(n=num_new_cases, p=self.ps)
 
         return symp_cases
-
-    

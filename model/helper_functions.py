@@ -86,8 +86,15 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False):
             df['is_confirmation'] = df['date_onset'].isna()
         
             if apply_delay_at_read:
+                # calculate number of delays to sample 
+                n_delays = df['date_inferred'].isna().sum()
+                rd = 1 + np.random.gamma(shape=2, scale=1, size=n_delays)
+                rd = rd * timedelta(days=1)
+                
                 # fill missing days with the confirmation date, noting that this is adjusted when used
-                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - timedelta(days=3)
+                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rd
+            else:
+                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation']
         
         df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported

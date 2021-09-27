@@ -48,7 +48,7 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
     if use_imputed_linelist:
         df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
     else:
-        df_linel = df_linel.melt(id_vars=['date_inferred','STATE', 'is_confirmation'], var_name='SOURCE', value_name='n_cases')
+        df_linel = df_linel.melt(id_vars=['date_inferred','STATE','is_confirmation'], var_name='SOURCE', value_name='n_cases')
     # df_linel = df_linel.melt(id_vars = ['NOTIFICATION_RECEIVE_DATE','STATE'], var_name = 'SOURCE',value_name='n_cases')
 
     # Reset index or the joining doesn't work
