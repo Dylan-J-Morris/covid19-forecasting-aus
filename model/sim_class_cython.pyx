@@ -2,7 +2,7 @@ import cython
 cimport cython 
 import numpy as np
 cimport numpy as np
-from  numpy.random import Generator, PCG64
+from numpy.random import Generator, PCG64
 from numpy cimport random
 import pandas as pd
 from scipy.stats import nbinom, erlang, beta, binom, gamma, poisson, norm
@@ -735,7 +735,7 @@ cdef class Forecast:
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
         
         # +/- factors for number of cases to use in the current period to determine proximity to data
-        backcast_factor = 3
+        backcast_factor = 4
         nowcast_factor = 1.5
         
         backcast_cases = (sum(df.local.values) - self.cases_to_subtract)
@@ -754,7 +754,7 @@ cdef class Forecast:
 
         self.actual = df.local.to_dict()
 
-    cdef import_cases_model(self, df):
+    def import_cases_model(self, df):
         """
         This function takes the NNDSS/linelist data and creates a set of parameters to generate imported (overseas acquired) cases over time.
 
@@ -799,12 +799,8 @@ cdef class Forecast:
         """
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """
-        cdef np.float_t i=3.64
-        cdef np.float_t j=3.07
-        cdef np.float_t m=5.505 
-        cdef np.float_t n=0.948
 
-        self.inf_times = np.random.gamma(i/j, j, size=size)  # shape and scale
+        self.inf_times = np.random.gamma(3.64/3.07, 3.07, size=size)  # shape and scale
         # self.detect_times = np.random.gamma(m/n, n, size=size)
         self.detect_times = np.random.gamma(5.807, 0.958, size=size)
 
@@ -822,7 +818,7 @@ cdef class Forecast:
         for time in cycle(self.detect_times):
             yield time
 
-    cdef np.int_t new_symp_cases(self, rng, np.int_t num_new_cases):
+    cdef inline np.int_t new_symp_cases(self, rng, np.int_t num_new_cases):
         """
         Given number of new cases generated, assign them to symptomatic (S) with probability ps
         """
