@@ -51,11 +51,6 @@ if apply_vacc_to_R_L_hats:
 
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
-    # If we are missing recent vaccination data, fill it in with the most recent available data.
-    latest_vacc_data = vaccination_by_state.columns[-1]
-    if latest_vacc_data < pd.to_datetime(third_end_date):
-        vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
-
     # Convert to simple array for indexing
     vaccination_by_state_array = vaccination_by_state.to_numpy()
 
@@ -209,8 +204,7 @@ for i, state in enumerate(states):
             # Generate a single forward realisation of trend
             trend_force = np.random.multivariate_normal(mu, cov)
             # Generate a single forward realisation of baseline regression
-            regression_to_baseline_force = np.random.multivariate_normal(
-                0.05*(R_baseline_mean - current), cov)
+            regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov)
 
             new_forcast_points = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Find overall simulation step
             current = new_forcast_points
@@ -351,7 +345,7 @@ for i, state in enumerate(states):
              timedelta(days=x) for x in range(1, n_forecast+extra_days_md+1)]
 
     if apply_vacc_to_R_L_hats:
-        # Forecasting vaccine effect -- might need small refactoring going forward to avoid using .loc
+        # Forecasting vaccine effect
         # Get a baseline value of vaccination
         mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:])
         vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
@@ -364,10 +358,21 @@ for i, state in enumerate(states):
         current = [vaccination_by_state.loc[state].values[-1]] * 1000
         new_vacc_forecast = []
         # Forecast mobility forward sequentially by day.
-        for i in range(n_forecast + extra_days_vacc):
+        total_forecasting_days = n_forecast + extra_days_vacc
+        for i in range(total_forecasting_days):
             # Generate step realisations in training trend direction but apply an increase the variance that is a 
             # function of the number of days after the forecast date. This inflates the uncertainty moving forwards.
-            trend_force = np.random.normal(mu_diffs, std_diffs*np.exp(i/(n_forecast+extra_days_vacc)), size=1000)
+            # trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
+            
+            # apply a decay to the change in the vaccine effect into the forecast period which
+            # essentially causes an asymptote. Damping (i.e. dividing by 100) is applied as we 
+            # are already working with small changes in the order of 3 decimal places. 
+            mu_diffs_adj = mu_diffs*np.exp(-i/50)
+            # applying an increase to the uncertainty of the vaccination program into the forecasting period
+            # which acts as a way of us being increasingly unsure as to where the limit of VE might be
+            std_diffs_adj = std_diffs*np.exp(i/10)
+            trend_force = np.random.normal(mu_diffs_adj, std_diffs_adj, size=1000)
+            
             # no regression to baseline for vaccination or scenario modelling yet
             current = current + trend_force
             new_vacc_forecast.append(current)
@@ -591,21 +596,17 @@ if apply_vacc_to_R_L_hats:
 
 if apply_vacc_to_R_L_hats:
     # now we read in the vaccine time series again...
-    vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
-    vaccination_by_state = vaccination_by_state.pivot(
-        index='state', columns='date', values='effect')  # Convert to matrix form
+    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
     # the above part only deals with data after the vaccination program begins -- we also need to account
     # for a fixed effect of 1.0 before that
     start_date = '2020-03-01'
-    before_vacc_dates = pd.date_range(
-        start_date, vaccination_by_state.columns[0] - timedelta(days=1), freq='d')
+    before_vacc_dates = pd.date_range(start_date, vaccination_by_state.columns[0] - timedelta(days=1), freq='d')
 
     # this is just a df of ones with all the missing dates as indices (8 comes from 8 jurisdictions)
-    before_vacc_Reff_reduction = pd.DataFrame(
-        np.ones((8, len(before_vacc_dates))))
+    before_vacc_Reff_reduction = pd.DataFrame(np.ones((8, len(before_vacc_dates))))
     before_vacc_Reff_reduction.columns = before_vacc_dates
     before_vacc_Reff_reduction.index = vaccination_by_state.index
 
@@ -613,8 +614,7 @@ if apply_vacc_to_R_L_hats:
     vacc_df = pd.concat([before_vacc_Reff_reduction.T, vaccination_by_state.T])
 
     # merge the dfs of the past and forecasted values on the date
-    df_vaccination = pd.concat(
-        [vacc_df, df_forecast_vaccination.set_index('date')])
+    df_vaccination = pd.concat([vacc_df, df_forecast_vaccination.set_index('date')])
     # save the forecasted vaccination line
     os.makedirs("results/forecasting/", exist_ok=True)
     df_vaccination.to_csv("results/forecasting/forecasted_vaccination.csv")
@@ -672,6 +672,7 @@ fig.text(0.5, 0.04,
          'Date',
          ha='center', va='center',
          fontsize=20)
+
 plt.tight_layout(rect=[0.05, 0.04, 1, 1])
 fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d") +
             scenario+scenario_date+"/md_factor.png", dpi=144)
@@ -962,6 +963,7 @@ for typ in forecast_type:
         state_Rs['std'].extend(np.std(R_L, axis=1))
 
         state_R[state] = R_L
+        
     typ_state_R[typ] = state_R
 
 
@@ -972,15 +974,11 @@ for state in states:
     state_Rs['state'].extend([state]*df_state.shape[0])
     state_Rs['type'].extend(['R_I']*df_state.shape[0])
     state_Rs['date'].extend(dd.values)
-    state_Rs['lower'].extend(
-        np.repeat(np.percentile(R_I, 25), df_state.shape[0]))
+    state_Rs['lower'].extend(np.repeat(np.percentile(R_I, 25), df_state.shape[0]))
     state_Rs['median'].extend(np.repeat(np.median(R_I), df_state.shape[0]))
-    state_Rs['upper'].extend(
-        np.repeat(np.percentile(R_I, 75), df_state.shape[0]))
-    state_Rs['top'].extend(
-        np.repeat(np.percentile(R_I, 95), df_state.shape[0]))
-    state_Rs['bottom'].extend(
-        np.repeat(np.percentile(R_I, 5), df_state.shape[0]))
+    state_Rs['upper'].extend(np.repeat(np.percentile(R_I, 75), df_state.shape[0]))
+    state_Rs['top'].extend(np.repeat(np.percentile(R_I, 95), df_state.shape[0]))
+    state_Rs['bottom'].extend(np.repeat(np.percentile(R_I, 5), df_state.shape[0]))
     state_Rs['mean'].extend(np.repeat(np.mean(R_I), df_state.shape[0]))
     state_Rs['std'].extend(np.repeat(np.std(R_I), df_state.shape[0]))
 
@@ -1032,26 +1030,22 @@ for i, state in enumerate(plot_states):
 
     ax[row, col].plot(plot_df.date, plot_df['mean'])
 
-    ax[row, col].fill_between(
-        plot_df.date, plot_df['lower'], plot_df['upper'], alpha=0.4, color='C0')
-    ax[row, col].fill_between(
-        plot_df.date, plot_df['bottom'], plot_df['top'], alpha=0.4, color='C0')
+    ax[row, col].fill_between(plot_df.date, plot_df['lower'], plot_df['upper'], alpha=0.4, color='C0')
+    ax[row, col].fill_between(plot_df.date, plot_df['bottom'], plot_df['top'], alpha=0.4, color='C0')
 
     ax[row, col].tick_params('x', rotation=90)
     ax[row, col].set_title(state)
     ax[row, col].set_yticks([1], minor=True,)
     ax[row, col].set_yticks([0, 2, 3], minor=False)
     ax[row, col].set_yticklabels([0, 2, 3], minor=False)
-    ax[row, col].yaxis.grid(which='minor', linestyle='--',
-                            color='black', linewidth=2)
+    ax[row, col].yaxis.grid(which='minor', linestyle='--', color='black', linewidth=2)
     ax[row, col].set_ylim((0, 3))
 
     ax[row, col].set_xticks([plot_df.date.values[-n_forecast]], minor=True)
     # create a plot window over the last six months
     ax[row, col].set_xlim((pd.to_datetime(today) - timedelta(days=6*28),
                           pd.to_datetime(today) + timedelta(days=num_forecast_days)))
-    ax[row, col].xaxis.grid(which='minor', linestyle='-.',
-                            color='grey', linewidth=1)
+    ax[row, col].xaxis.grid(which='minor', linestyle='-.', color='grey', linewidth=1)
 # fig.autofmt_xdate()
 fig.text(
     0.03, 0.5,
@@ -1074,14 +1068,13 @@ plt.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario +
 
 # now we save the posterior stuff
 
-df_Rhats = df_Rhats[['state', 'date', 'type', 'median',
+df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 
                      'bottom', 'lower', 'upper', 'top']+[i for i in range(2000)]]
 # df_Rhats.columns = ['state','date','type','median',
 # 'bottom','lower','upper','top']  + [i for i in range(1000)]
 
 df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
-df_hdf = df_hdf.append(
-    df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
+df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
 df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d') + scenario+scenario_date+'.h5', key='Reff')
