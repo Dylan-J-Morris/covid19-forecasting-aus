@@ -57,7 +57,6 @@ data {
     
     int is_ACT[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
-    int days_late_third_wave;                                   // number of days that ACT's outbreak started after NSW and VIC 
 
     int decay_start_date_third[2];
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data

@@ -4,7 +4,7 @@ use_imputed_linelist = False
 on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
-testing_inference = True
+testing_inference = False
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)

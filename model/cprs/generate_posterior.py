@@ -95,10 +95,10 @@ df_Reff.to_csv("results/df_Reff.csv")
 
 # shift counts to align with infection date by subtracting the mean incubation period noting that 
 # we should have the complete onset dates at this point
-df_Reff['local'] = df_Reff.local.shift(periods=0)
-df_Reff['imported'] = df_Reff.imported.shift(periods=0)
-df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=0)
-df_Reff['rho'] = df_Reff.rho.shift(periods=0)
+# df_Reff['local'] = df_Reff.local.shift(periods=0)
+# df_Reff['imported'] = df_Reff.imported.shift(periods=0)
+# df_Reff['rho_moving'] = df_Reff.rho_moving.shift(periods=0)
+# df_Reff['rho'] = df_Reff.rho.shift(periods=0)
 df_Reff['local'] = df_Reff.local.fillna(0)
 df_Reff['imported'] = df_Reff.imported.fillna(0)
 
@@ -379,7 +379,6 @@ input_data = {
 
     'is_ACT': is_ACT,   # indicator for whether we are looking at ACT
     'is_NSW': is_NSW,   # indicator for whether we are looking at NSW
-    'days_late_third_wave': days_late_third_wave,
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
