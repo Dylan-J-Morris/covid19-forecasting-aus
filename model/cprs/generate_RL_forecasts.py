@@ -43,22 +43,18 @@ df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 
 # Load in vaccination data by state and date which should have the same date as the NNDSS/linelist data
 if apply_vacc_to_R_L_hats:
-    vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
-    third_end_date = pd.to_datetime(
-        data_date) - pd.Timedelta(days=truncation_days)
+    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
     # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
 
-    vaccination_by_state = vaccination_by_state.pivot(
-        index='state', columns='date', values='effect')  # Convert to matrix form
+    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
     # If we are missing recent vaccination data, fill it in with the most recent available data.
     latest_vacc_data = vaccination_by_state.columns[-1]
     if latest_vacc_data < pd.to_datetime(third_end_date):
-        vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day)
-                                         for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
+        vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
 
     # Convert to simple array for indexing
     vaccination_by_state_array = vaccination_by_state.to_numpy()
@@ -128,10 +124,8 @@ else:
     n_forecast = num_forecast_days
 
 training_start_date = datetime(2020, 3, 1, 0, 0)
-print("Forecast ends at {} days after 1st March".format(
-    (pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + num_forecast_days))
-print("Final date is {}".format(pd.to_datetime(
-    today) + timedelta(days=num_forecast_days)))
+print("Forecast ends at {} days after 1st March".format((pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + num_forecast_days))
+print("Final date is {}".format(pd.to_datetime(today) + timedelta(days=num_forecast_days)))
 df_google = df_google.loc[df_google.date >= training_start_date]
 outdata = {
     'date': [],
@@ -157,10 +151,10 @@ var = 'Proportion people always microdistancing'
 fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
 axes.append(ax_states)
 figs.append(fig)
+
 if apply_vacc_to_R_L_hats:
     var = 'Reduction in Reff due to vaccination'
-    fig, ax_states = plt.subplots(
-        figsize=(7, 8), nrows=4, ncols=2, sharex=True)
+    fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
     axes.append(ax_states)
     figs.append(fig)
 
@@ -182,10 +176,7 @@ for i, state in enumerate(states):
     Rmed_array = np.zeros(shape=(rows, len(predictors), mob_samples))
     for j, var in enumerate(predictors):
         for n in range(mob_samples):
-            Rmed_array[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0,
-                                                                                                          scale=df_google[
-                                                                                                              df_google['state'] == state][var+'_std'],
-                                                                                                          )
+            Rmed_array[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0, scale=df_google[df_google['state'] == state][var+'_std'])
     dates = df_google[df_google['state'] == state]['date']
 
     # cap min and max at historical or (-50,0)
@@ -221,8 +212,7 @@ for i, state in enumerate(states):
             regression_to_baseline_force = np.random.multivariate_normal(
                 0.05*(R_baseline_mean - current), cov)
 
-            new_forcast_points = current+p_force*trend_force + \
-                (1-p_force)*regression_to_baseline_force  # Find overall simulation step
+            new_forcast_points = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Find overall simulation step
             current = new_forcast_points
 
             # Apply minimum and maximum
@@ -240,15 +230,13 @@ for i, state in enumerate(states):
                 mu_baseline = np.mean(Rmed[-42:-28, :], axis=0)
 
                 if scenario_date != '':
-                    scenario_change_point = (pd.to_datetime(
-                        scenario_date) - data_date).days + (n_forecast-42)
+                    scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
 
                 # Constant Lockdown
                 if scenario[:12] == "no_reversion":
                     # take a continuous median to account for noise in recent observations (such as sunny days)
                     mu_current = np.mean(Rmed[-7:, :], axis=0)
-                    new_forcast_points = np.random.multivariate_normal(
-                        mu_current, cov_baseline)
+                    new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
 
                 if scenario[:12] == "no_reversion_continuous_lockdown":
                     # add the new scenario here
@@ -258,12 +246,10 @@ for i, state in enumerate(states):
                 # No Lockdown
                 elif scenario == "full_reversion":
                     if i < scenario_change_point:
-                        new_forcast_points = np.random.multivariate_normal(
-                            mu_current, cov_baseline)
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
                     else:
                         # Revert to values the week before lockdown started
-                        new_forcast_points = np.random.multivariate_normal(
-                            mu_baseline, cov_baseline)
+                        new_forcast_points = np.random.multivariate_normal(mu_baseline, cov_baseline)
 
                 # Temporary Lockdown
                 elif scenario == "half_reversion":
@@ -941,8 +927,7 @@ for typ in forecast_type:
         # print("Including the voc effects into the R_L forecasts")
         # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now)
         # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
-        voc_multiplier = np.tile(
-            samples['voc_effect_third_wave'].values, (df_state.shape[0], mob_samples))
+        voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0], mob_samples))
         # now we just modify the values before the introduction of the voc to be 1.0
         if apply_voc_to_R_L_hats:
             for ii in range(voc_multiplier.shape[0]):
@@ -953,7 +938,7 @@ for typ in forecast_type:
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
-        if typ == 'R_L' and state == 'ACT':
+        if typ == 'R_L' and state == 'SA':
             mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
             pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
             pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_ACT_no_rev.csv')

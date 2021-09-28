@@ -108,8 +108,7 @@ df_Reff.to_csv("results/df_Reff_shift.csv")
 ######### Read in Google mobility results #########
 sys.path.insert(0, '../')
 
-df_google = read_in_google(
-    local=not download_google_automatically, moving=True)
+df_google = read_in_google(local=not download_google_automatically, moving=True)
 
 df = df_google.merge(df_Reff[['date', 'state', 'mean', 'lower', 'upper', 'top', 'bottom', 'std', 'rho', 'rho_moving', 'local', 'imported']], on=['date', 'state'], how='inner')
 
@@ -292,7 +291,7 @@ vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 # display the latest available date in the NSW data (will be the same date between states)
 print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
 
-vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)]  # Get only the dates we need.
+vaccination_by_state = vaccination_by_state[(vaccination_by_state.date >= third_start_date) & (vaccination_by_state.date <= third_end_date)]  # Get only the dates we need.
 vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
 vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
@@ -312,7 +311,8 @@ is_NSW = (np.array(third_states) == 'NSW').astype(int)
 # calculate how many days the end of august is after the third start date
 decay_start_date_third = [
     (pd.to_datetime('2021-08-20') - pd.to_datetime('2021-08-12')).days, 
-    (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days]
+    (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+    ]
 
 # Make state by state arrays
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
@@ -803,7 +803,7 @@ if apply_vacc_to_R_L_hats:
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
     third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
-    vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)]  # Get only the dates we need.
+    vaccination_by_state = vaccination_by_state[(vaccination_by_state.date >= third_start_date) & (vaccination_by_state.date <= third_end_date)]  # Get only the dates we need.
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
     # If we are missing recent vaccination data, fill it in with the most recent available data.
@@ -837,8 +837,7 @@ if df3X.shape[0] > 0:
 
 dates = vaccination_by_state.columns
 
-fig, ax = plt.subplots(figsize=(15, 12), ncols=2,
-                       nrows=4, sharey=True, sharex=True)
+fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
 
 for i, state in enumerate(states):
 
