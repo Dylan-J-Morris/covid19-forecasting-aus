@@ -9,6 +9,7 @@ from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vac
 from sys import argv
 from datetime import timedelta, datetime
 from scipy.special import expit
+from scipy.stats import truncnorm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -266,8 +267,7 @@ for i, state in enumerate(states):
             # Set this day in this simulation to the forecast realisation
             sims[i, :, n] = new_forcast_points
 
-    dd = [dates.tolist()[-1] + timedelta(days=x)
-          for x in range(1, n_forecast+1)]
+    dd = [dates.tolist()[-1] + timedelta(days=x) for x in range(1, n_forecast+1)]
 
     sims_med = np.median(sims, axis=2)  # N by predictors
     sims_q25 = np.percentile(sims, 25, axis=2)
@@ -356,6 +356,7 @@ for i, state in enumerate(states):
 
         # Set all values to current value.
         current = [vaccination_by_state.loc[state].values[-1]] * 1000
+        current_tmp = [vaccination_by_state.loc[state].values[-1]] * 1000
         new_vacc_forecast = []
         # Forecast mobility forward sequentially by day.
         total_forecasting_days = n_forecast + extra_days_vacc
@@ -370,11 +371,12 @@ for i, state in enumerate(states):
             mu_diffs_adj = mu_diffs*np.exp(-i/50)
             # applying an increase to the uncertainty of the vaccination program into the forecasting period
             # which acts as a way of us being increasingly unsure as to where the limit of VE might be
-            std_diffs_adj = std_diffs*np.exp(i/10)
+            std_diffs_adj = std_diffs
             trend_force = np.random.normal(mu_diffs_adj, std_diffs_adj, size=1000)
             
             # no regression to baseline for vaccination or scenario modelling yet
             current = current + trend_force
+            
             new_vacc_forecast.append(current)
 
         vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
@@ -941,8 +943,10 @@ for typ in forecast_type:
         # with and without effects of mding
         if typ == 'R_L' and state == 'SA':
             mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
+            mu_hat_rev = sim_R * voc_multiplier
             pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
-            pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_ACT_no_rev.csv')
+            pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
+            pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)

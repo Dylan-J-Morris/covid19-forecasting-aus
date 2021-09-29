@@ -128,8 +128,8 @@ start_date = '2020-03-01'
 end_date = '2020-03-31'
 
 # Second wave inputs
-# sec_states = sorted(['NSW'])
-sec_states = sorted(['NSW', 'VIC'])
+sec_states = sorted(['NSW'])
+# sec_states = sorted(['NSW', 'VIC'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
@@ -180,7 +180,7 @@ first_date_range = {
 # choose dates for each state for sec wave
 sec_date_range = {
     'NSW': pd.date_range(start=sec_start_date, end=sec_end_date).values,
-    'VIC': pd.date_range(start=sec_start_date, end='2020-10-30').values
+    # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-30').values
 }
 
 # choose dates for each state for third wave
@@ -461,7 +461,7 @@ if run_inference or run_inference_only:
 
         df_fit = fit.to_frame()
 
-        df_fit.to_csv("results/raw_posterior_output.csv")
+        # df_fit.to_csv("results/raw_posterior_output.csv")
 
         for name in names:
             dot_pos = name.find('.')
