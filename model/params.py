@@ -5,15 +5,14 @@ on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
 testing_inference = False
+testing_sim = False      # this flag will tet the simulation algorithm
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
     # this flag will run the inference only and quit after it's done
-    testing_sim = False      # this flag will tet the simulation algorithm
 else: 
     ncores = 4     # number of cores to use (this is relevant for the simulation)
     # this flag will run the inference only and quit after it's done
-    testing_sim = False      # this flag will tet the simulation algorithm
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
 third_start_date = '2021-06-15'
@@ -35,7 +34,7 @@ case_insertion_threshold = 5
 download_google_automatically = False
 assume_local_cases_if_unknown = True
 # number of days to remove to stop the issues with the right-truncation
-truncation_days = 10
+truncation_days = 12
 
 ##### Simulation parameters/transmission parameters
 k = 0.15  # Heterogeneity parameter for a negative binomial offspring distribution
