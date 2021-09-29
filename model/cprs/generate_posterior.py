@@ -1,6 +1,8 @@
 ######### imports #########
 
 # new version of pystan
+from datetime import time, timedelta
+from math import trunc
 import sys
 from Reff_constants import *
 from Reff_functions import *
@@ -30,7 +32,9 @@ else:
 
 print('Performing inference on state level Reff')
 data_date = pd.to_datetime(argv[1])  # Define data date
-print(data_date.strftime('%d%b%Y'))
+print("Data date is {}".format(data_date.strftime('%d%b%Y')))
+fit_date = pd.to_datetime(data_date-timedelta(days=truncation_days))
+print("Last date in fitting {}".format(fit_date.strftime('%d%b%Y')))
 # note: 2020-09-09 won't work (for some reason)
 
 ######### Read in microdistancing (md) surveys #########
@@ -124,7 +128,8 @@ start_date = '2020-03-01'
 end_date = '2020-03-31'
 
 # Second wave inputs
-sec_states = sorted(['NSW'])
+# sec_states = sorted(['NSW'])
+sec_states = sorted(['NSW', 'VIC'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
@@ -175,7 +180,7 @@ first_date_range = {
 # choose dates for each state for sec wave
 sec_date_range = {
     'NSW': pd.date_range(start=sec_start_date, end=sec_end_date).values,
-    # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-30').values
+    'VIC': pd.date_range(start=sec_start_date, end='2020-10-30').values
 }
 
 # choose dates for each state for third wave

@@ -56,7 +56,6 @@ data {
     
     int is_ACT[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
-    int days_late_third_wave;                                   // number of days that ACT's outbreak started after NSW and VIC 
 
     int decay_start_date_third[2];
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data
@@ -203,12 +202,12 @@ model {
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_effect_sec_wave ~ gamma(1.3*1.3/0.05, 1.3/0.05);
-    voc_effect_third_wave ~ gamma(2.9*2.9/0.05, 2.9/0.05);
+    voc_effect_sec_wave ~ gamma(1.3*1.3/0.1, 1.3/0.1);
+    voc_effect_third_wave ~ gamma(2.7*2.7/0.1, 2.7/0.1);
     
     // assume a hierarchical structure on the vaccine effect 
-    eta_NSW ~ beta(2, 7);           // mean of 2/(2+2) = 0.5 => more pessimistic
-    eta_other ~ beta(2, 7);         // mean of 2/(2+5) = 0.28 => less pessimistic 
+    eta_NSW ~ beta(2, 7);           // mean of 2/9
+    eta_other ~ beta(2, 7);         // mean of 2/9
 
     // want it to have mean 0.16 => log-mean is log(0.16)
     r_NSW ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
@@ -216,7 +215,7 @@ model {
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(50); //mean is 1/50=0.02
+    sig ~ exponential(60); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j_first_wave) {
@@ -250,7 +249,7 @@ model {
             pos2=1;
         } else {
             //Add 1 to get to start of new group, not end of old group
-            pos2 =pos_starts_third[i-1]+1; 
+            pos2=pos_starts_third[i-1]+1; 
         }
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){

@@ -14,7 +14,6 @@ matplotlib.use('Agg')
 
 plt.style.use("seaborn-poster")
 
-
 def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=None,
                  plotpath=False, legend=False, summary=False, forecast_days=35):
     if ax_arg is None:
@@ -73,14 +72,12 @@ def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=N
                 n = 0
                 good_sims = df.loc[~df.isna().any(axis=1)].index.get_level_values("sim")
                 while True:
-
                     ax.plot(df.columns, df.loc[(var, good_sims[n])], label=var, alpha=0.8, color='C0', linewidth=0.5)
                     n += 1
-                    if n > 2000:
+                    if n >= 2000 or n >= good_sims.shape[0]:
                         break
             else:
-                ax.plot(df.columns, df.transpose()[
-                        var].quantile(0.5, axis=1), label=var)
+                ax.plot(df.columns, df.transpose()[var].quantile(0.5, axis=1), label=var)
 
             ax.set_xticks([df.columns.values[-1*forecast_days]], minor=True)
             ax.xaxis.grid(b=True, which='minor', linestyle='--', alpha=0.6, color='black')
@@ -185,14 +182,12 @@ days = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days
 
 # check if any dates are incorrect
 try:
-    num_bad_dates = df_cases_state_time.loc[
-        (df_cases_state_time.date_inferred <= '2020-01-01')].shape[0]
+    num_bad_dates = df_cases_state_time.loc[(df_cases_state_time.date_inferred <= '2020-01-01')].shape[0]
     assert num_bad_dates == 0, "Data contains {} bad dates".format(
         num_bad_dates)
 except AssertionError:
     print("Bad dates include:")
-    print(df_cases_state_time.loc[
-        (df_cases_state_time.date_inferred <= '2020-01-01')])
+    print(df_cases_state_time.loc[(df_cases_state_time.date_inferred <= '2020-01-01')])
 
 
 end_date = pd.to_datetime(
@@ -201,13 +196,11 @@ end_date = pd.to_datetime(
 print("forecast up to: {}".format(end_date))
 
 
-df_results = pd.read_parquet("results/quantiles"+forecast_type+start_date+"sim_"+str(
-    n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
+df_results = pd.read_parquet("results/quantiles"+forecast_type+start_date+"sim_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
 
 
 df_cases_state_time = df_cases_state_time[df_cases_state_time.date_inferred != 'None']
-df_cases_state_time.date_inferred = pd.to_datetime(
-    df_cases_state_time.date_inferred)
+df_cases_state_time.date_inferred = pd.to_datetime(df_cases_state_time.date_inferred)
 
 df_results = pd.melt(df_results, id_vars=['state', 'date', 'type'],
                      value_vars=['bottom', 'lower', 'median', 'upper', 'top',
@@ -462,8 +455,7 @@ for i, state in enumerate(states):
     if len(set(good_sims[state])) == 0:
         # no accepted sim, skip
         continue
-    ax = plot_results(df_raw, ['total_inci_obs'],
-                      ax_arg=ax, summary=False, plotpath=True)
+    ax = plot_results(df_raw, ['total_inci_obs'], ax_arg=ax, summary=False, plotpath=True)
     spag_ylim = ax.get_ylim()
 
     if (state == 'VIC') or (state == 'NSW'):
