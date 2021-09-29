@@ -736,7 +736,7 @@ cdef class Forecast:
         
         # +/- factors for number of cases to use in the current period to determine proximity to data
         backcast_factor = 4
-        nowcast_factor = 1.5
+        nowcast_factor = 2.0
         
         backcast_cases = (sum(df.local.values) - self.cases_to_subtract)
         nowcast_cases = (sum(df.local.values) - self.cases_to_subtract_now)
@@ -754,7 +754,7 @@ cdef class Forecast:
 
         self.actual = df.local.to_dict()
 
-    def import_cases_model(self, df):
+    cdef import_cases_model(self, df):
         """
         This function takes the NNDSS/linelist data and creates a set of parameters to generate imported (overseas acquired) cases over time.
 
@@ -773,6 +773,7 @@ cdef class Forecast:
 
         df['date_index'] = df.date_inferred.apply(get_date_index)
         df_state = df[df['STATE'] == self.state]
+        
         counts_by_date = df_state.groupby('date_index').imported.sum()
 
         # Replace our value for $a$ with an exponential moving average
@@ -780,6 +781,7 @@ cdef class Forecast:
         smoothing_factor = 0.1
         # exponential moving average start
         current_ema = counts_by_date.get(-11, default=0)
+        
         # Loop through each day up to forecast - 4 (as recent imports are not discovered yet)
         for j in range(-10, self.forecast_date-4):
             count_on_day = counts_by_date.get(j, default=0)

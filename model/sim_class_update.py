@@ -214,7 +214,8 @@ class Forecast:
             Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
 
         self.Reff = Reff_lookupstate
-
+        
+    # @profile
     def generate_new_cases(self, rng, parent_key, Reff, k, travel=False):
         """
         Generate offspring for each parent, check if they travel. 
@@ -324,7 +325,7 @@ class Forecast:
 
                     # add person to tracked people
                     self.people[len(self.people)] = Person(parent_key, inf_time, detect_time, recovery_time, category)
-
+    
     def simulate(self, end_time, sim, seed):
         """
         Simulate forward until end_time
