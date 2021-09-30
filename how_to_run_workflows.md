@@ -11,9 +11,9 @@ In this markdown document we outline the requirements for both and provide the s
 ## Compiling the model code
 The simulation model is written using Cython which means that in order to compile the model a C-compiler is needed. To compile `sim_class_cython.pyx` run,
 ```
-python model/sim_class_cython_setup.py build_ext -b model 
+python model/sim_class_cython_setup.py
 ```
-which creates a shared object and this is what is referenced in `run_state.py`. The flag `build_ext -b model` builds the shared object and stores it in `/model` (Note that there will be some warnings when building this but they relate to building Numpy under cython and can be ignored. There will also be some additional files produced but they are just the compiled c-code). The model in `sim_class_cython.pyx` is mostly written in python and should be relatively straightforward to understand. The real performance gains come from using Cython on the `generate_cases` function which results in an approximate 4x speedup over base Python implementation. 
+which creates a shared object and this is what is referenced in `run_state.py`. This builds the shared object and stores it in `/model` (Note that there will be some warnings when building this but they relate to building Numpy under cython and can be ignored. There will also be some additional files produced but they are just the compiled c-code). The model in `sim_class_cython.pyx` is mostly written in python and should be relatively straightforward to understand. The real performance gains come from using Cython on the `generate_cases` function which results in an approximate 4x speedup over base Python implementation. 
 
 ## Data
 1. In the covid forecasting directory (from github) create a data folder called `data`. 
