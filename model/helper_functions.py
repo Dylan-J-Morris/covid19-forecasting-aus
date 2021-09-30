@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=False):
+def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=False, for_epyreff=False):
     """
     A general function to read in the NNDSS data. Alternatively this can be manually set to read in the linelist instead.
     Args:
@@ -59,6 +59,28 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
 
         return df
 
+    elif for_epyreff:
+        
+        case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
+        path = "data/interim_linelist_"+case_file_date+"*.csv"
+            
+        for file in glob.glob(path):  # Allows us to use the * option
+            df = pd.read_csv(file)
+
+        if len(glob.glob(path)) == 0:
+            raise FileNotFoundError("Calculated linelist not found. Did you want to use NNDSS or the imputed linelist?")
+
+        # take the representative dates 
+        df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
+        df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+        df['date_inferred'] = df['date_confirmation']
+        
+        df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
+        df['local'] = 1 - df.imported
+        df['STATE'] = df['state']
+        
+        return df
+    
     else:
         # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / imported status vetted by a human. This can be a lot more reliable during an outbreak.
             

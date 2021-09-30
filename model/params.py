@@ -15,9 +15,9 @@ else:
     # this flag will run the inference only and quit after it's done
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
-third_start_date = '2021-06-15'
-start_date = '2021-05-15'  # Start date of forecast
-VoC_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase
+third_start_date = '2021-06-01'
+start_date = '2021-05-10'  # Start date of forecast
+VoC_start_date = '2021-06-01'  # Date from which to apply the VoC Reff increase
 vaccination_start_date = '2021-02-22'
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35

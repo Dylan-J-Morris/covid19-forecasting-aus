@@ -593,8 +593,7 @@ if apply_vacc_to_R_L_hats:
     df_forecast_vaccination = df_forecast_vaccination.reset_index()
     df_forecast_vaccination_std = df_forecast_vaccination_std.reset_index()
     df_forecast_vaccination.date = pd.to_datetime(df_forecast_vaccination.date)
-    df_forecast_vaccination_std.date = pd.to_datetime(
-        df_forecast_vaccination_std.date)
+    df_forecast_vaccination_std.date = pd.to_datetime(df_forecast_vaccination_std.date)
 
 if apply_vacc_to_R_L_hats:
     # now we read in the vaccine time series again...
@@ -627,12 +626,7 @@ if apply_vacc_to_R_L_hats:
 expo_decay = True
 theta_md = np.tile(df_samples['theta_md'].values, (df_md['NSW'].shape[0], 1))
 
-fig, ax = plt.subplots(figsize=(12, 9), nrows=4,
-                       ncols=2, sharex=True, sharey=True)
-
-pd.DataFrame(df_out).to_csv("results/forecasting/mob.csv")
-pd.DataFrame(df_vaccination).to_csv("results/forecasting/vaccination.csv")
-pd.DataFrame(df_md).to_csv("results/forecasting/md.csv")
+fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
 
 for i, state in enumerate(plot_states):
     # np.random.normal(df_md[state].values, df_md_std.values)
@@ -641,8 +635,6 @@ for i, state in enumerate(plot_states):
         md = ((1+theta_md).T**(-1 * prop_sim)).T
     else:
         md = (2*expit(-1*theta_md*prop_sim[:, np.newaxis]))
-
-    pd.DataFrame(md).to_csv("results/forecasting/md.csv")
 
     row = i//2
     col = i % 2
@@ -827,8 +819,7 @@ for typ in forecast_type:
                 logodds = X1 @ post_values
 
                 if typ == 'R_L':
-                    df2 = df_state.loc[(df_state.date > ban)
-                                       & (df_state.date < new_pol)]
+                    df2 = df_state.loc[(df_state.date > ban) & (df_state.date < new_pol)]
                     df3 = df_state.loc[df_state.date >= new_pol]
                     X2 = df2[predictors]
                     X3 = df3[predictors]
@@ -843,8 +834,7 @@ for typ in forecast_type:
                     #md = np.append(md, ((1+theta_md).T**(-1* prop3)).T, axis=0)
 
                 elif typ == 'R_L0':
-                    df2 = df_state.loc[(df_state.date > ban)
-                                       & (df_state.date < new_pol)]
+                    df2 = df_state.loc[(df_state.date > ban) & (df_state.date < new_pol)]
                     df3 = df_state.loc[df_state.date >= new_pol]
                     X2 = df2[predictors]
                     X3 = np.zeros_like(df3[predictors])
@@ -886,8 +876,7 @@ for typ in forecast_type:
                     logodds3 = X3 @ post_values
 
                     logodds_sample = np.append(logodds1, logodds2, axis=0)
-                    logodds_sample = np.append(
-                        logodds_sample, logodds3, axis=0)
+                    logodds_sample = np.append(logodds_sample, logodds3, axis=0)
 
                 elif typ == 'R_L0':
 
@@ -907,8 +896,7 @@ for typ in forecast_type:
                     logodds3 = X3 @ post_values
 
                     logodds_sample = np.append(logodds1, logodds2, axis=0)
-                    logodds_sample = np.append(
-                        logodds_sample, logodds3, axis=0)
+                    logodds_sample = np.append(logodds_sample, logodds3, axis=0)
 
                 else:
                     # forecast as before, no changes to md

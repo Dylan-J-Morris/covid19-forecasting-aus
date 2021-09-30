@@ -136,8 +136,7 @@ class Forecast:
                 self.symptomatic_detection_prob*self.ps +
                 self.asymptomatic_detection_prob*(1-self.ps)
             )
-            num_symp = binom.rvs(
-                n=int(self.current[2]), p=prob_symp_given_detect)
+            num_symp = binom.rvs(n=int(self.current[2]), p=prob_symp_given_detect)
             for person in range(int(self.current[2])):
                 self.infected_queue.append(len(self.people))
 
@@ -156,8 +155,7 @@ class Forecast:
         if self.current[2] == 0:
             num_undetected_s = nbinom.rvs(1, self.symptomatic_detection_prob)
         else:
-            num_undetected_s = nbinom.rvs(
-                self.current[2], self.symptomatic_detection_prob)
+            num_undetected_s = nbinom.rvs(self.current[2], self.symptomatic_detection_prob)
 
         total_s = num_undetected_s + self.current[2]
 
@@ -199,8 +197,7 @@ class Forecast:
         df_forecast = self.Reff_all
 
         # Get R_I values and store in object.
-        self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & (
-            df_forecast.state == self.state), self.num_of_sim % 2000].values[0]
+        self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & (df_forecast.state == self.state), self.num_of_sim % 2000].values[0]
 
         # Get only R_L forecasts
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']

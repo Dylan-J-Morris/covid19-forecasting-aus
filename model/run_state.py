@@ -71,15 +71,15 @@ elif start_date == "2020-12-01":
         'VIC': [0, 0, 0],
         'WA': [0, 0, 0],
     }
-elif start_date == "2021-05-15":
+elif start_date == "2021-05-10":
     current = {  # based on locally acquired cases in the days preceding the start date
         'ACT': [3, 0, 0],
-        'NSW': [25, 0, 2],
+        'NSW': [3, 0, 10],
         'NT': [0, 0, 0],
         'QLD': [14, 0, 1],
         'SA': [0, 0, 0],
         'TAS': [0, 0, 0],
-        'VIC': [3, 0, 0],
+        'VIC': [0, 0, 3],
         'WA': [18, 0, 2],
     }
 else:
@@ -194,9 +194,7 @@ if __name__ == "__main__":
         'ps': ps,
     }
     
-    good_sims = n_sims-sum(bad_sim)
-    
-    print("Number of good sims is %i" % good_sims)
+    print("Number of bad sims is %i" % sum(bad_sim))
     # results recorded into parquet as dataframe
     df = forecast_object.to_df(results)
     
@@ -214,7 +212,6 @@ if __name__ == "__main__":
     # stats = pstats.Stats(profiler).sort_stats('ncalls')
     # stats.print_stats()
     # stats.dump_stats('stats_file.prof')
-    # main()
     
     
     

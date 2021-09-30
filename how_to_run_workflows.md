@@ -109,4 +109,8 @@ jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch
 jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
 ```
 
+```
+one_state=$(sbatch --parsable sbatch_run_scripts/phoenix_one_state.sh ${STATE} ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
+```
+
 
