@@ -198,12 +198,12 @@ transformed parameters {
 model {
     int pos2;
 
-    bet ~ normal(0,1.0);
+    bet ~ normal(0,0.5);
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_effect_sec_wave ~ gamma(1.3*1.3/0.1, 1.3/0.1);
-    voc_effect_third_wave ~ gamma(2.7*2.7/0.1, 2.7/0.1);
+    voc_effect_sec_wave ~ gamma(1.3*1.3/0.5, 1.3/0.5);
+    voc_effect_third_wave ~ gamma(2.7*2.7/0.5, 2.7/0.5);
     
     // assume a hierarchical structure on the vaccine effect 
     eta_NSW ~ beta(2, 7);           // mean of 2/9
@@ -215,7 +215,7 @@ model {
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(60); //mean is 1/50=0.02
+    sig ~ exponential(50); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j_first_wave) {

@@ -1,5 +1,4 @@
 import numpy as np
-from  numpy.random import Generator, PCG64
 import pandas as pd
 from scipy.stats import nbinom, erlang, beta, binom, gamma, poisson
 from math import floor
@@ -11,11 +10,10 @@ from params import case_insertion_threshold
 from collections import deque
 from math import ceil
 import gc
-from numpy.random import random
 from itertools import cycle
 
 from timeit import default_timer as timer
-
+import line_profiler
 class Person:
     """
     Individuals in the forecast
@@ -103,7 +101,7 @@ class Forecast:
         assert len(people) == sum(
             current), "Number of people entered does not equal sum of counts in current status"
 
-    def initialise_sim(self, rng, curr_time=0):
+    def initialise_sim(self, curr_time=0):
         """
         Given some number of cases in self.initial_state (copied),
         simulate undetected cases in each category and their
@@ -137,7 +135,7 @@ class Forecast:
                 self.symptomatic_detection_prob*self.ps +
                 self.asymptomatic_detection_prob*(1-self.ps)
             )
-            num_symp = rng.binomial(n=int(self.current[2]), p=prob_symp_given_detect)
+            num_symp = np.random.binomial(n=int(self.current[2]), p=prob_symp_given_detect)
             for person in range(int(self.current[2])):
                 self.infected_queue.append(len(self.people))
 
@@ -154,17 +152,17 @@ class Forecast:
 
         # num undetected is nbinom (num failures given num detected)
         if self.current[2] == 0:
-            num_undetected_s = rng.negative_binomial(1, self.symptomatic_detection_prob)
+            num_undetected_s = np.random.negative_binomial(1, self.symptomatic_detection_prob)
         else:
-            num_undetected_s = rng.negative_binomial(self.current[2], self.symptomatic_detection_prob)
+            num_undetected_s = np.random.negative_binomial(self.current[2], self.symptomatic_detection_prob)
 
         total_s = num_undetected_s + self.current[2]
 
         # infer some non detected asymp at initialisation
         if total_s == 0:
-            num_undetected_a = rng.negative_binomial(1, self.ps)
+            num_undetected_a = np.random.negative_binomial(1, self.ps)
         else:
-            num_undetected_a = rng.negative_binomial(total_s, self.ps)
+            num_undetected_a = np.random.negative_binomial(total_s, self.ps)
 
         # simulate cases that will be detected within the next week
         if curr_time == 0:
@@ -216,7 +214,7 @@ class Forecast:
         self.Reff = Reff_lookupstate
         
     # @profile
-    def generate_new_cases(self, rng, parent_key, Reff, k, travel=False):
+    def generate_new_cases(self, parent_key, Reff, k, travel=False):
         """
         Generate offspring for each parent, check if they travel. 
         The parent_key parameter lets us find the parent from the array self.people 
@@ -224,17 +222,17 @@ class Forecast:
         """
         # Check parent category
         if self.people[parent_key].category == 'S':  # Symptomatic
-            num_offspring = rng.negative_binomial(n=k, p=1 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
+            num_offspring = np.random.negative_binomial(n=k, p=1 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
         elif self.people[parent_key].category == 'A':  # Asymptomatic
-            num_offspring = rng.negative_binomial(n=k, p=1 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
+            num_offspring = np.random.negative_binomial(n=k, p=1 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
         else:  # Imported
             Reff = self.R_I
             # Apply vaccine reduction for hotel quarantine workers
             if self.people[parent_key].infection_time >= self.hotel_quarantine_vaccine_start:
                 # p_{v,h} is the proportion of hotel quarantine workers vaccinated
-                p_vh = 0.9+rng.beta(2, 4)*9/100
+                p_vh = 0.9+np.random.beta(2, 4)*9/100
                 # v_{e,h} is the overall vaccine effectiveness
-                v_eh = 0.83+rng.beta(2, 2)*14/100
+                v_eh = 0.83+np.random.beta(2, 2)*14/100
                 Reff *= (1-p_vh*v_eh)
 
             # Apply increase escape rate due to Delta variant.
@@ -243,13 +241,13 @@ class Forecast:
 
             if self.people[parent_key].infection_time < self.quarantine_change_date:
                 # factor of 3 times infectiousness prequarantine changes
-                num_offspring = rng.negative_binomial(n=k, p=1 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
+                num_offspring = np.random.negative_binomial(n=k, p=1 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
             else:
-                num_offspring = rng.negative_binomial(n=k, p=1 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
+                num_offspring = np.random.negative_binomial(n=k, p=1 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
 
         if num_offspring > 0:
 
-            num_sympcases = self.new_symp_cases(num_new_cases=num_offspring, rng=rng)
+            num_sympcases = self.new_symp_cases(num_new_cases=num_offspring)
             if self.people[parent_key].category == 'A':
                 child_times = []
             for new_case in range(num_offspring):
@@ -267,7 +265,7 @@ class Forecast:
                     self.cases_after = self.cases_after + 1
                 else:
                     # within forecast time
-                    detection_rv = random()
+                    detection_rv = np.random.random()
                     detect_time = inf_time + next(self.get_detect_time)
 
                     recovery_time = 0  # for now not tracking recoveries
@@ -332,7 +330,7 @@ class Forecast:
         """
         # set seed in the generator, this will get passed to the class methods and is much more efficient 
         # compared to the scipy method. Yes it was checked that numpy and scipy produce the same RVs.
-        rng = Generator(PCG64(seed))
+        np.random.seed(seed)
         
         self.num_of_sim = sim
         self.read_in_Reff()
@@ -342,7 +340,7 @@ class Forecast:
         self.observed_cases[0, :] = self.initial_state.copy()
 
         # Initalise undetected cases and add them to current
-        self.initialise_sim(rng=rng)
+        self.initialise_sim()
         # number of cases after end time
         self.cases_after = 0  # gets incremented in generate new cases
         # Record day 0 cases
@@ -356,10 +354,10 @@ class Forecast:
             a = self.a_dict[day]
             b = self.b_dict[day]
             # Dij = number of observed imported infectious individuals
-            Dij = rng.negative_binomial(a, 1-1/(b+1))
+            Dij = np.random.negative_binomial(a, 1-1/(b+1))
             # Uij = number of *unobserved* imported infectious individuals
             unobserved_a = 1 if Dij == 0 else Dij
-            Uij = rng.negative_binomial(unobserved_a, p=self.qi)
+            Uij = np.random.negative_binomial(unobserved_a, p=self.qi)
 
             unobs_imports.append(Uij)
             new_imports.append(Dij + Uij)
@@ -455,7 +453,7 @@ class Forecast:
                 # generate new cases with times
                 parent_key = self.infected_queue.popleft()
                 # recorded within generate new cases
-                self.generate_new_cases(rng=rng, parent_key=parent_key, Reff=Reff, k=self.k)
+                self.generate_new_cases(parent_key=parent_key, Reff=Reff, k=self.k)
                 
         # self.people.clear()
         if self.bad_sim == False:
@@ -481,7 +479,7 @@ class Forecast:
                             self.symptomatic_detection_prob*self.ps +
                             self.asymptomatic_detection_prob*(1-self.ps)
                         )
-                        num_symp = rng.binomial(n=int(self.current[2]),p=prob_symp_given_detect)
+                        num_symp = np.random.binomial(n=int(self.current[2]),p=prob_symp_given_detect)
                         # distribute observed cases over 3 days
                         # Triangularly
                         self.observed_cases[max(0, day), 2] += num_symp//2
@@ -504,7 +502,7 @@ class Forecast:
                         self.observed_cases[max(0, day-2), 2] += num_asymp//6
                         self.cases[max(0, day-2), 2] += num_asymp//6
 
-                        self.initialise_sim(curr_time=day, rng=rng)
+                        self.initialise_sim(curr_time=day)
                         # print("Reinitialising with %i new cases "  % self.current[2] )
 
                         # reset days to zero
@@ -559,7 +557,7 @@ class Forecast:
                             break
                         # generate new cases with times
                         parent_key = self.infected_queue.popleft()
-                        self.generate_new_cases(rng=rng, parent_key=parent_key, Reff=Reff, k=self.k)
+                        self.generate_new_cases(parent_key=parent_key, Reff=Reff, k=self.k)
                         #missed_outbreak = max(1,missed_outbreak*0.9)
                 else:
                     # pass in here if while queue loop completes
@@ -712,7 +710,7 @@ class Forecast:
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
         
         # +/- factors for number of cases to use in the current period to determine proximity to data
-        backcast_factor = 3
+        backcast_factor = 4.0
         nowcast_factor = 1.5
         
         backcast_cases = (sum(df.local.values) - self.cases_to_subtract)
@@ -794,12 +792,12 @@ class Forecast:
         for time in cycle(self.detect_times):
             yield time
 
-    def new_symp_cases(self, rng, num_new_cases: int):
+    def new_symp_cases(self, num_new_cases: int):
         """
         Given number of new cases generated, assign them to symptomatic (S) with probability ps
         """
         # repeated Bernoulli trials is a Binomial (assuming independence of development of symptoms)
 
-        symp_cases = rng.binomial(n=num_new_cases, p=self.ps)
+        symp_cases = np.random.binomial(n=num_new_cases, p=self.ps)
 
         return symp_cases

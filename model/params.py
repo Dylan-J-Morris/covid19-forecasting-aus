@@ -16,7 +16,7 @@ else:
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
 third_start_date = '2021-06-15'
-start_date = '2021-06-01'  # Start date of forecast
+start_date = '2021-05-15'  # Start date of forecast
 VoC_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase
 vaccination_start_date = '2021-02-22'
 # Number of days after data date to forecast (usually 35)
