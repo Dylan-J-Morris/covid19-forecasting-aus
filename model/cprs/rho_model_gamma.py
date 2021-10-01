@@ -32,13 +32,13 @@ data {
     matrix[N_third_wave,K] Mob_third_wave[j_third_wave];        // Mob for VIC June
     matrix[N_third_wave,K] Mob_third_wave_std[j_third_wave];    // std of mobility
     matrix[N_third_wave,j_third_wave] sigma2_third_wave;        // variance of R_eff from previous study
-    vector[N_third_wave] policy_third_wave;                     // micro distancing compliance
+    vector[N_third_wave] policy_third_wave;                     // micro distancing compliance a boolean
     matrix[N_third_wave,j_third_wave] local_third_wave;         // local cases in VIC
     matrix[N_third_wave,j_third_wave] imported_third_wave;      // imported cases in VIC
 
     // data relating to mobility and microdistancing
-    vector[N] count_md[j_first_wave];                                      // count of always
-    vector[N] respond_md[j_first_wave];                                    // num respondants
+    vector[N] count_md[j_first_wave];                           // count of always
+    vector[N] respond_md[j_first_wave];                         // num respondants
     vector[N_sec_wave] count_md_sec_wave[j_sec_wave];           // count of always
     vector[N_sec_wave] respond_md_sec_wave[j_sec_wave];         // num respondants
     vector[N_third_wave] count_md_third_wave[j_third_wave];     // count of always
@@ -164,11 +164,13 @@ transformed parameters {
         // pick number of days after third start date, only difference is that ACT's third wave started 
         // slightly later than NSW and VIC. This offset ensures that the exponent on the decay term is 
         // appropriately sized. 
-        if (is_ACT[i] == 1){ 
-            decay_start_date_adjusted = decay_start_date_third[1];
-        } else {
-            decay_start_date_adjusted = decay_start_date_third[2];
-        }
+        // if (is_ACT[i] == 1){ 
+        //     decay_start_date_adjusted = decay_start_date_third[1];
+        // } else {
+        //     decay_start_date_adjusted = decay_start_date_third[2];
+        // }
+        
+        decay_start_date_adjusted = decay_start_date_third[2];
 
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
@@ -199,12 +201,12 @@ transformed parameters {
 model {
     int pos2;
 
-    bet ~ normal(0,1.0);
+    bet ~ normal(0,0.5);
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    voc_effect_sec_wave ~ gamma(1.3*1.3/0.1, 1.3/0.1);
-    voc_effect_third_wave ~ gamma(2.7*2.7/0.1, 2.7/0.1);
+    voc_effect_sec_wave ~ gamma(1.3*1.3/0.5, 1.3/0.5);
+    voc_effect_third_wave ~ gamma(2.7*2.7/0.5, 2.7/0.5);
     
     // assume a hierarchical structure on the vaccine effect 
     eta_NSW ~ beta(2, 7);           // mean of 2/9
@@ -216,7 +218,7 @@ model {
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(60); //mean is 1/50=0.02
+    sig ~ exponential(100); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j_first_wave) {

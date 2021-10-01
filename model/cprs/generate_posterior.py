@@ -128,7 +128,7 @@ start_date = '2020-03-01'
 end_date = '2020-03-31'
 
 # Second wave inputs
-# sec_states = sorted(['NSW'])
+sec_states = sorted(['NSW'])
 sec_states = sorted(['NSW', 'VIC'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
@@ -169,18 +169,18 @@ df3X = df.loc[third_wave_mask].sort_values('date')
 # choose dates for the first wave — this is kinda redundant but ensures a common format of 
 # data between waves. 
 first_date_range = {
-    "NSW": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
-    "QLD": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
-    "SA": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
-    "TAS": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
-    "VIC": pd.date_range(start='2020-03-01', end='2020-03-31').values, 
-    "WA": pd.date_range(start='2020-03-01', end='2020-03-31').values
+    "NSW": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "QLD": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "SA": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "TAS": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "VIC": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "WA": pd.date_range(start='2020-03-01', end=end_date).values
 }
 
 # choose dates for each state for sec wave
 sec_date_range = {
-    'NSW': pd.date_range(start=sec_start_date, end='2020-10-28').values,
-    'VIC': pd.date_range(start=sec_start_date, end='2021-01-19').values
+    'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').values,
+    'VIC': pd.date_range(start=sec_start_date, end='2020-10-28').values
 }
 
 # choose dates for each state for third wave
@@ -305,6 +305,7 @@ latest_vacc_data = vaccination_by_state.columns[-1]
 
 if latest_vacc_data < pd.to_datetime(third_end_date):
     vaccination_by_state = pd.concat([vaccination_by_state]+[pd.Series(vaccination_by_state[latest_vacc_data], name=day) for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
+    
 
 # Convert to simple array only useful to pass to stan
 vaccination_by_state_array = vaccination_by_state.to_numpy()
@@ -325,6 +326,9 @@ state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 # this is the number of days ACT's third wave began after both NSW and VIC. Allows for an offset between the 
 # start dates 
 days_late_third_wave = (pd.to_datetime('2021-08-12') - pd.to_datetime(third_start_date)).days
+
+# for i in range(len(include_in_third_wave)):
+#     print(include_in_third_wave[i].shape)
 
 # input data block for stan model
 input_data = {

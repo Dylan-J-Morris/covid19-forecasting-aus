@@ -217,8 +217,11 @@ cdef class Forecast:
 
         df_forecast = self.Reff_all
 
+        # sample a random index from the forecasted TP's which is used in the simulation
+        sample_ind = np.random.randint(df_forecast.shape[0])
+
         # Get R_I values and store in object.
-        self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & (df_forecast.state == self.state), self.num_of_sim % 2000].values[0]
+        self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & (df_forecast.state == self.state), sample_ind].values[0]
 
         # Get only R_L forecasts
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
@@ -231,9 +234,7 @@ cdef class Forecast:
             # instead of mean and std, take all columns as samples of Reff
             # convert key to days since start date for easier indexing
             newkey = (key - self.start_date).days
-            Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
-
-        print(Reff_lookupstate)
+            Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), sample_ind]
 
         self.Reff = Reff_lookupstate
     
@@ -556,7 +557,7 @@ cdef class Forecast:
                     # check for exceeding max_cases
                             self.num_too_many += 1
                             self.bad_sim = True
-                            print("Breaking in second instance with num cases: ", str(self.inf_backcast_counter))
+                            # print("Breaking in second instance with num cases: ", str(self.inf_backcast_counter))
                             break
                     else:
                         if self.inf_forecast_counter > self.max_cases:

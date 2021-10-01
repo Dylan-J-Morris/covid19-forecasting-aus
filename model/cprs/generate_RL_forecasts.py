@@ -712,13 +712,6 @@ state_key = {
     'WA': '7',
 }
 
-# this key is just used so that the right vaccination multiplier gets used in the calculation
-vacc_state_key = {
-    'NSW': '1',
-    'QLD': '2',
-    'VIC': '3',
-}
-
 for typ in forecast_type:
     state_R = {}
     for state in states:
@@ -929,24 +922,24 @@ for typ in forecast_type:
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
-        if typ == 'R_L' and state == 'VIC':
-            pd.DataFrame(md).to_csv('results/forecasting/md.csv')
-            pd.DataFrame(2*expit(logodds)).to_csv('results/forecasting/macro.csv')
-            pd.DataFrame(sim_R).to_csv('results/forecasting/sim_R.csv')
-            pd.DataFrame(vacc_post).to_csv('results/forecasting/vacc_post.csv')
-            pd.DataFrame(voc_multiplier).to_csv('results/forecasting/voc_multiplier.csv')
+        if typ == 'R_L' and state == 'SA':
+            # pd.DataFrame(md).to_csv('results/forecasting/md.csv')
+            # pd.DataFrame(2*expit(logodds)).to_csv('results/forecasting/macro.csv')
+            # pd.DataFrame(sim_R).to_csv('results/forecasting/sim_R.csv')
+            # pd.DataFrame(vacc_post).to_csv('results/forecasting/vacc_post.csv')
+            # pd.DataFrame(voc_multiplier).to_csv('results/forecasting/voc_multiplier.csv')
             
-            # mobility_effects = 2*md*expit(logodds)
-            # mobility_only = 2*expit(logodds)
-            # micro_only = md
-            # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
-            # mu_hat_rev = sim_R * voc_multiplier
-            # pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
-            # pd.DataFrame(mobility_effects).to_csv('results/forecasting/mob_effs.csv')
-            # pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
-            # pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
-            # pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
-            # pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
+            mobility_effects = 2*md*expit(logodds)
+            mobility_only = 2*expit(logodds)
+            micro_only = md
+            mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
+            mu_hat_rev = sim_R * voc_multiplier
+            pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
+            pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
+            pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
+            pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
+            pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
+            pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)
@@ -1072,8 +1065,9 @@ plt.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario +
 
 # now we save the posterior stuff
 
-df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 
-                     'bottom', 'lower', 'upper', 'top']+[i for i in range(2000)]]
+print(df_Rhats.shape)
+
+df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top']+[i for i in range(10000)]]
 # df_Rhats.columns = ['state','date','type','median',
 # 'bottom','lower','upper','top']  + [i for i in range(1000)]
 

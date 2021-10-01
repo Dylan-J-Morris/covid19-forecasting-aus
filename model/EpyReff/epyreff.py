@@ -21,9 +21,9 @@ def read_cases_lambda(case_file_date):
     """
     Read in NNDSS data
     """
-    df_NNDSS = read_in_NNDSS(case_file_date, for_epyreff=True)
-    # df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
-    df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
+    df_NNDSS = read_in_NNDSS(case_file_date)
+    df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
+    # df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
     # df_interim = df_NNDSS[['NOTIFICATION_RECEIVE_DATE','STATE','imported','local']]
     return(df_interim)
 
@@ -44,8 +44,8 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
     # if use_imputed_linelist:
     #     df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
     # else:
-    #     df_linel = df_linel.melt(id_vars=['date_inferred','STATE','is_confirmation'], var_name='SOURCE', value_name='n_cases')
-    df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
+    df_linel = df_linel.melt(id_vars=['date_inferred','STATE','is_confirmation'], var_name='SOURCE', value_name='n_cases')
+    # df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
     # df_linel = df_linel.melt(id_vars = ['NOTIFICATION_RECEIVE_DATE','STATE'], var_name = 'SOURCE',value_name='n_cases')
 
     # Reset index or the joining doesn't work
@@ -80,17 +80,12 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
     # here we apply the delay at the point of applying the incubation 
     # as we are taking a posterior sample 
     # if not use_imputed_linelist:
-    #     # extract boolean indicator of when the confirmation date was used
-    #     is_confirmation_date = df_linelist['is_confirmation'].to_numpy()
-    #     # first construct an array to set the notification delays to 0 when we have the accurate onset date
-    #     is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
-    #     # note that when we draw from the reporting delay distribution, we set the delays to 0 if we have an onset date
-    #     rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
-    # else: 
-    #     rd_period = 0
-    
+    # extract boolean indicator of when the confirmation date was used
+    is_confirmation_date = df_linelist['is_confirmation'].to_numpy()
+    # first construct an array to set the notification delays to 0 when we have the accurate onset date
+    is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
     # note that when we draw from the reporting delay distribution, we set the delays to 0 if we have an onset date
-    rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates)))
+    rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
 
     # Draw from distributions - these are long vectors
     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
@@ -121,7 +116,7 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
     # if not use_imputed_linelist:
     #     # need to remove the confirmation boolean variable from the df to ensure that the 
     #     # rest of epyreff runs as per normal 
-    #     df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
+    df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
 
     # Combine infection dates and original dataframe
     df_inf = pd.concat([df_linelist, infdates_df], axis=1, verify_integrity=True)

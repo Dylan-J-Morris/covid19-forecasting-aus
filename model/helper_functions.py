@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=False, for_epyreff=False):
+def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=False):
     """
     A general function to read in the NNDSS data. Alternatively this can be manually set to read in the linelist instead.
     Args:
@@ -15,7 +15,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
     import numpy as np
     from datetime import timedelta
     import glob
-    from params import use_linelist, assume_local_cases_if_unknown, use_imputed_linelist
+    from params import use_linelist, assume_local_cases_if_unknown
 
     if not use_linelist:
         # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
@@ -59,8 +59,9 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
 
         return df
 
-    elif for_epyreff:
-        
+    else:
+        # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / imported status vetted by a human. This can be a lot more reliable during an outbreak.
+            
         case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
         path = "data/interim_linelist_"+case_file_date+"*.csv"
             
@@ -72,68 +73,41 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
 
         # take the representative dates 
         df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
+        # create boolean of when confirmation dates used
         df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
-        df['date_inferred'] = df['date_confirmation']
+        df['is_confirmation'] = df['date_onset'].isna()
+
+        # set the known onset dates 
+        df['date_inferred'] = df['date_onset']
         
-        df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
-        df['local'] = 1 - df.imported
-        df['STATE'] = df['state']
-        
-        return df
-    
-    else:
-        # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / imported status vetted by a human. This can be a lot more reliable during an outbreak.
+        if apply_delay_at_read:
+            # calculate number of delays to sample 
+            n_delays = df['date_inferred'].isna().sum()
+            # sample that number of delays from the distribution and take the ceiling. 
+            # This was fitted to the third and second wave data, looking at the common differences 
+            # between onsets and confirmations
+            shape_rd = 1.28
+            scale_rd = 2.31
+            offset_rd = 0
+            rd = offset_rd + np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays)
+            rd = np.round(rd) * timedelta(days=1)
             
-        case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
-        if use_imputed_linelist:
-            path = "data/imputed_linelist.csv"
+            # fill missing days with the confirmation date, noting that this is adjusted when used
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rd
         else:
-            path = "data/interim_linelist_"+case_file_date+"*.csv"
+            # just apply the confirmation date and let EpyReff handle the delay distribution 
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] 
             
-        for file in glob.glob(path):  # Allows us to use the * option
-            df = pd.read_csv(file)
-
-        if len(glob.glob(path)) == 0:
-            raise FileNotFoundError("Calculated linelist not found. Did you want to use NNDSS or the imputed linelist?")
-
-        # take the representative dates 
-        df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
-        
+        # now we apply the incubation period to the inferred onset date. Note that this should never be done in the 
+        # absence of the delay 
         if apply_inc_at_read:
             # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
-            n_infs = df['date_onset'].shape[0]
+            n_infs = df['date_inferred'].shape[0]
             inc = np.random.gamma(shape=5.807, scale=0.948, size=n_infs)
             # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior 
             # doesnt work properly
-            inc = np.ceil(inc) * timedelta(days=1)
-            df['date_inferred'] = df['date_onset'] - inc
-            
-            # if not using the imputed linelist, take the confirmation date and adjust it 
-            if not use_imputed_linelist:
-                # create boolean of when confirmation dates used
-                df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
-                df['is_confirmation'] = df['date_onset'].isna()
-            
-                if apply_delay_at_read:
-                    # calculate number of delays to sample 
-                    n_delays = df['date_inferred'].isna().sum()
-                    rd = 1 + np.random.gamma(shape=2, scale=1, size=n_delays)
-                    rd = np.ceil(rd) * timedelta(days=1)
-                    
-                    # fill missing days with the confirmation date, noting that this is adjusted when used
-                    df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rd
-            
-        else: 
-            # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
-            df['date_inferred'] = df['date_onset']
-            
-            # if not using the imputed linelist, take the confirmation date and adjust it 
-            if not use_imputed_linelist:
-                # create boolean of when confirmation dates used
-                df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
-                df['is_confirmation'] = df['date_onset'].isna()
-                df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation']
-            
+            inc = np.round(inc) * timedelta(days=1)
+            df['date_inferred'] = df['date_inferred'] - inc
             
         df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported
@@ -181,23 +155,18 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
             index_map = df_forecast.index[row_bool_to_apply_VoC]
             # Index 9 and onwards are the 2000 Reff samples.
             df_slice_after_VoC = df_forecast.iloc[index_map, 8:]
-            multiplier = beta.rvs(
-                7, 7, size=df_slice_after_VoC.shape) + 2.6 - 0.5  # Mean 2.1 Delta
+            multiplier = beta.rvs(7, 7, size=df_slice_after_VoC.shape) + 2.6 - 0.5  # Mean 2.1 Delta
 
         df_forecast.iloc[index_map, 8:] = df_slice_after_VoC*multiplier
 
     if use_vaccine_effect:
         # Load in vaccination effect data
-        vaccination_by_state = pd.read_csv(
-            'data/vaccine_effect_timeseries.csv', parse_dates=['date'])
-        vaccination_by_state = vaccination_by_state[[
-            'state', 'date', 'overall_transmission_effect']]
+        vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+        vaccination_by_state = vaccination_by_state[['state', 'date', 'overall_transmission_effect']]
 
         # Make datetime objs into strings
-        vaccination_by_state['date_str'] = pd.to_datetime(
-            vaccination_by_state['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
-        df_forecast['date_str'] = pd.to_datetime(
-            df_forecast['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+        vaccination_by_state['date_str'] = pd.to_datetime(vaccination_by_state['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+        df_forecast['date_str'] = pd.to_datetime(df_forecast['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
 
         # Filling in future days will the same vaccination level as current.
         for state, forecast_df_state in df_forecast.groupby('state'):

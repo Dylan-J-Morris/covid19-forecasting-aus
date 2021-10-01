@@ -27,8 +27,8 @@ shape_inc = 5.807  # taken from Lauer et al. 2020 #1.62/0.418
 scale_inc = 0.948  # 0.418
 offset_inc = 0
 
-shape_rd = 1.82
-scale_rd = 2.88
+shape_rd = 1.28
+scale_rd = 2.31
 offset_rd = 0
 
 shape_gen = 3.64/3.07
@@ -55,7 +55,7 @@ df_linel = tidy_cases_lambda(df_interim)
 
 # generate possible infection dates from the notification data
 df_inf = draw_inf_dates(df_linel, nreplicates=1000,
-                        shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc,
+                        shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc, shape_rd=shape_rd, scale_rd=scale_rd
                         )
 
 # reindex dataframe to include all dates,
