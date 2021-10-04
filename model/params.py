@@ -4,7 +4,7 @@ use_imputed_linelist = False
 on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
-testing_inference = True
+testing_inference = False
 testing_sim = False      # this flag will tet the simulation algorithm
 
 if on_phoenix:
