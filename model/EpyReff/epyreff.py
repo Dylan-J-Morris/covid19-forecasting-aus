@@ -242,16 +242,13 @@ def generate_summary(samples, dates_by='rows'):
     mean = np.mean(samples, axis=ax)
     bottom, lower, median, upper, top = np.quantile(samples, (0.05, 0.25, 0.5, 0.75, 0.95), axis=ax)
     std = np.std(samples, axis=ax)
-    output = {
-        'mean': mean,
-        'std': std,
-        'bottom': bottom,
-        'lower': lower,
-        'median': median,
-        'upper': upper,
-        'top': top,
-
-    }
+    output = {'mean': mean,
+              'std': std,
+              'bottom': bottom,
+              'lower': lower,
+              'median': median,
+              'upper': upper,
+              'top': top}
     return output
 
 
@@ -350,13 +347,11 @@ def plot_all_states(R_summ_states, df_interim, dates,
                 df_cases.loc[df_cases.STATE == state, 'local'] +
                 df_cases.loc[df_cases.STATE == state, 'imported'],
                 color='grey',
-                alpha=0.3
-                )
+                alpha=0.3)
         ax2.bar(df_cases.loc[df_cases.STATE == state, 'date_inferred'],
                 df_cases.loc[df_cases.STATE == state, 'local'],
                 color='grey',
-                alpha=0.8
-                )
+                alpha=0.8)
 
         # Set common labels
         fig.text(0.5, 0.01, 'Date', ha='center', va='center',

@@ -117,6 +117,7 @@ end_date = '2020-03-31'
 
 # Second wave inputs
 sec_states = sorted(['NSW', 'VIC'])
+# sec_states = sorted(['NSW'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
@@ -173,9 +174,9 @@ sec_date_range = {
 # choose dates for each state for third wave
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-12', end=third_end_date).values,
-    'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
+    'NSW': pd.date_range(start='2021-06-01', end=third_end_date).values,
     'QLD': pd.date_range(start=third_start_date, end=third_end_date).values,
-    'VIC': pd.date_range(start=third_start_date, end=third_end_date).values
+    'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
 }
 
 dfX['is_first_wave'] = 0

@@ -71,7 +71,7 @@ elif start_date == "2020-12-01":
         'VIC': [0, 0, 0],
         'WA': [0, 0, 0],
     }
-elif start_date == "2021-05-10":
+elif start_date == '2021-04-01':
     current = {  # based on locally acquired cases in the days preceding the start date
         'ACT': [3, 0, 0],
         'NSW': [3, 0, 10],
@@ -121,17 +121,6 @@ if __name__ == "__main__":
     travel_seeds = np.zeros(shape=(end_time, n_sims), dtype=int)
     travel_induced_cases = np.zeros_like(travel_seeds)
 
-    # ABC parameters
-    metrics = np.zeros(shape=(n_sims), dtype=float)
-    qs = np.zeros(shape=(n_sims), dtype=float)
-    qa = np.zeros_like(qs)
-    qi = np.zeros_like(qs)
-    alpha_a = np.zeros_like(qs)
-    alpha_s = np.zeros_like(qs)
-    accept = np.zeros_like(qs)
-    ps = np.zeros_like(qs)
-    cases_after = np.zeros_like(bad_sim)
-
     forecast_object.read_in_cases()
 
     start_timer = timer()
@@ -144,18 +133,6 @@ if __name__ == "__main__":
             if param_dict['bad_sim']:
                 # bad_sim True
                 bad_sim[n] = 1
-            else:
-                # good sims
-                # record all parameters and metric
-                metrics[n] = param_dict['metric']
-                qs[n] = param_dict['qs']
-                qa[n] = param_dict['qa']
-                qi[n] = param_dict['qi']
-                alpha_a[n] = param_dict['alpha_a']
-                alpha_s[n] = param_dict['alpha_s']
-                accept[n] = param_dict['metric'] >= 0.8
-                cases_after[n] = param_dict['cases_after']
-                ps[n] = param_dict['ps']
 
             # record cases appropriately
             import_inci[:, n] = cases[:, 0]
@@ -181,16 +158,7 @@ if __name__ == "__main__":
         'total_inci_obs': symp_inci_obs + asymp_inci_obs,
         'total_inci': symp_inci + asymp_inci,
         'all_inci': symp_inci + asymp_inci + import_inci,
-        'bad_sim': bad_sim,
-        'metrics': metrics,
-        'accept': accept,
-        'qs': qs,
-        'qa': qa,
-        'qi': qi,
-        'alpha_a': alpha_a,
-        'alpha_s': alpha_s,
-        'cases_after': cases_after,
-        'ps': ps,
+        'bad_sim': bad_sim
     }
     
     print("Number of bad sims is %i" % sum(bad_sim))

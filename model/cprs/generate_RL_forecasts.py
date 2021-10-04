@@ -5,7 +5,8 @@ import sys
 sys.path.insert(0, '../')
 from Reff_functions import *
 from Reff_constants import *
-from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date
+from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, \
+    vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date
 from sys import argv
 from datetime import timedelta, datetime
 from scipy.special import expit
@@ -44,11 +45,15 @@ df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 
 # Load in vaccination data by state and date which should have the same date as the NNDSS/linelist data
 if apply_vacc_to_R_L_hats:
-    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+ 
+                                       data_date.strftime('%Y-%m-%d')+
+                                       '.csv', 
+                                       parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
     third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
-    # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date > third_start_date) & (vaccination_by_state.date < third_end_date)] # Get only the dates we need.
+    # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date >= third_start_date) & 
+    #                                             (vaccination_by_state.date <= third_end_date)] # Get only the dates we need.
 
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
@@ -111,10 +116,9 @@ df_google.date = pd.to_datetime(df_google.date)
 
 # forecast time parameters
 today = data_date.strftime('%Y-%m-%d')
+
+# add days to forecast if we are missing data 
 if df_google.date.values[-1] < data_date:
-    # check if google has dates up to now
-    # df_google is sorted by date
-    # if not add days to the forecast
     n_forecast = num_forecast_days + (data_date - df_google.date.values[-1]).days
 else:
     n_forecast = num_forecast_days
@@ -137,8 +141,7 @@ predictors.remove('residential_7days')
 axes = []
 figs = []
 for var in predictors:
-    fig, ax_states = plt.subplots(
-        figsize=(7, 8), nrows=4, ncols=2, sharex=True)
+    fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
     axes.append(ax_states)
     # fig.suptitle(var)
     figs.append(fig)
@@ -173,6 +176,7 @@ for i, state in enumerate(states):
     for j, var in enumerate(predictors):
         for n in range(mob_samples):
             Rmed_array[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0, scale=df_google[df_google['state'] == state][var+'_std'])
+            
     dates = df_google[df_google['state'] == state]['date']
 
     # cap min and max at historical or (-50,0)
@@ -197,9 +201,6 @@ for i, state in enumerate(states):
         for i in range(n_forecast):
 
             # Proportion of trend_force to regression_to_baseline_force
-            # if state == 'WA':  # Force return to baseline immediately
-            #     p_force = 0
-            # else:
             p_force = (n_forecast-i)/(n_forecast)
 
             # Generate a single forward realisation of trend
@@ -231,7 +232,7 @@ for i, state in enumerate(states):
                 if scenario[:12] == "no_reversion":
                     # take a continuous median to account for noise in recent observations (such as sunny days)
                     # mu_current = np.mean(Rmed[-7:, :], axis=0)
-                    cov_baseline = np.cov(Rmed[-28:, :], rowvar=False)
+                    # cov_baseline = np.cov(Rmed[-28:, :], rowvar=False)
                     new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
 
                 if scenario[:12] == "no_reversion_continuous_lockdown":
@@ -280,7 +281,8 @@ for i, state in enumerate(states):
     mu_diffs = np.mean(md_diffs)
     std_diffs = np.std(md_diffs)
 
-    extra_days_md = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(prop[state].index.values[-1])).days
+    extra_days_md = (pd.to_datetime(df_google.date.values[-1]) - 
+                     pd.to_datetime(prop[state].index.values[-1])).days
 
     # Set all values to current value.
     current = [prop[state].values[-1]] * 1000
@@ -292,10 +294,8 @@ for i, state in enumerate(states):
         # Generate step realisations in training trend direction
         trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
         # Generate realisations that draw closer to baseline
-        regression_to_baseline_force = np.random.normal(
-            0.05*(mu_overall - current), std_diffs)
-        current = current+p_force*trend_force + \
-            (1-p_force)*regression_to_baseline_force  # Balance forces
+        regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
+        current = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
 
         # SCENARIO MODELLING
         # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
@@ -329,8 +329,7 @@ for i, state in enumerate(states):
                     current = np.random.normal(mu_current, std_baseline)
                 else:
                     # Revert to values halfway between the before and after
-                    current = np.random.normal(
-                        (mu_current + mu_baseline)/2, std_baseline)
+                    current = np.random.normal((mu_current + mu_baseline)/2, std_baseline)
 
             # # Stage 4
             # Not yet implemented
@@ -341,7 +340,7 @@ for i, state in enumerate(states):
     md_sims = np.minimum(1, md_sims)
     md_sims = np.maximum(0, md_sims)
 
-    dd_md = [prop[state].index[-1] +
+    dd_md = [prop[state].index[-1] + 
              timedelta(days=x) for x in range(1, n_forecast+extra_days_md+1)]
 
     if apply_vacc_to_R_L_hats:
@@ -352,19 +351,16 @@ for i, state in enumerate(states):
         mu_diffs = np.mean(vacc_diffs)
         std_diffs = np.std(vacc_diffs)
 
-        extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
+        extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - 
+                           pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
 
-        # Set all values to current value.
+        # Set all values to current value but this will be filled 
         current = [vaccination_by_state.loc[state].values[-1]] * 1000
         current_tmp = [vaccination_by_state.loc[state].values[-1]] * 1000
         new_vacc_forecast = []
         # Forecast mobility forward sequentially by day.
         total_forecasting_days = n_forecast + extra_days_vacc
         for i in range(total_forecasting_days):
-            # Generate step realisations in training trend direction but apply an increase the variance that is a 
-            # function of the number of days after the forecast date. This inflates the uncertainty moving forwards.
-            # trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
-            
             # apply a decay to the change in the vaccine effect into the forecast period which
             # essentially causes an asymptote. Damping (i.e. dividing by 100) is applied as we 
             # are already working with small changes in the order of 3 decimal places. 
@@ -373,10 +369,8 @@ for i, state in enumerate(states):
             # which acts as a way of us being increasingly unsure as to where the limit of VE might be
             std_diffs_adj = std_diffs
             trend_force = np.random.normal(mu_diffs_adj, std_diffs_adj, size=1000)
-            
             # no regression to baseline for vaccination or scenario modelling yet
             current = current + trend_force
-            
             new_vacc_forecast.append(current)
 
         vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
@@ -384,7 +378,8 @@ for i, state in enumerate(states):
         vacc_sims = np.maximum(0, vacc_sims)
 
         # get dates
-        dd_vacc = [vaccination_by_state.loc[state].index[-1] + timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
+        dd_vacc = [vaccination_by_state.loc[state].index[-1] + 
+                   timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
 
     for j, var in enumerate(predictors+['md_prop']+['vaccination']):
         # Record data
@@ -417,46 +412,30 @@ for i, state in enumerate(states):
 
             if var == 'md_prop':
                 # md plot
-                axs[rownum, colnum].plot(
-                    prop[state].index, prop[state].values, lw=1)
-                # axs[rownum,colnum].fill_between(dates,
-                #                                np.percentile(Rmed_array[:,j,:], 25, axis =1),
-                #                                np.percentile(Rmed_array[:,j,:], 75, axis =1),
-                #                               alpha=0.5)
-
-                axs[rownum, colnum].plot(
-                    dd_md, np.median(md_sims, axis=1), 'k', lw=1)
-                axs[rownum, colnum].fill_between(dd_md, np.quantile(md_sims, 0.25, axis=1),
+                axs[rownum, colnum].plot(prop[state].index, prop[state].values, lw=1)
+                axs[rownum, colnum].plot(dd_md, np.median(md_sims, axis=1), 'k', lw=1)
+                axs[rownum, colnum].fill_between(dd_md, 
+                                                 np.quantile(md_sims, 0.25, axis=1),
                                                  np.quantile(md_sims, 0.75, axis=1), color='k', alpha=0.1)
 
             elif var == 'vaccination':
                 # vaccination plot
-                axs[rownum, colnum].plot(
-                    vaccination_by_state.loc[state].index, vaccination_by_state.loc[state].values, lw=1)
-                # axs[rownum,colnum].fill_between(dates,
-                #                                np.percentile(Rmed_array[:,j,:], 25, axis =1),
-                #                                np.percentile(Rmed_array[:,j,:], 75, axis =1),
-                #                               alpha=0.5)
-
-                axs[rownum, colnum].plot(
-                    dd_vacc, np.median(vacc_sims, axis=1), 'k', lw=1)
+                axs[rownum, colnum].plot(vaccination_by_state.loc[state].index, 
+                                         vaccination_by_state.loc[state].values, lw=1)
+                axs[rownum, colnum].plot(dd_vacc, np.median(vacc_sims, axis=1), 'k', lw=1)
                 axs[rownum, colnum].fill_between(dd_vacc, np.quantile(vacc_sims, 0.25, axis=1),
                                                  np.quantile(vacc_sims, 0.75, axis=1), color='k', alpha=0.1)
 
             else:
                 # all other predictors
-                axs[rownum, colnum].plot(
-                    dates, df_google[df_google['state'] == state][var].values, lw=1)
+                axs[rownum, colnum].plot(dates, df_google[df_google['state'] == state][var].values, lw=1)
                 axs[rownum, colnum].fill_between(dates,
-                                                 np.percentile(
-                                                     Rmed_array[:, j, :], 25, axis=1),
-                                                 np.percentile(
-                                                     Rmed_array[:, j, :], 75, axis=1),
+                                                 np.percentile(Rmed_array[:, j, :], 25, axis=1),
+                                                 np.percentile(Rmed_array[:, j, :], 75, axis=1),
                                                  alpha=0.5)
 
                 axs[rownum, colnum].plot(dd, sims_med[:, j], 'k', lw=1)
-                axs[rownum, colnum].fill_between(
-                    dd, sims_q25[:, j], sims_q75[:, j], color='k', alpha=0.1)
+                axs[rownum, colnum].fill_between(dd, sims_q25[:, j], sims_q75[:, j], color='k', alpha=0.1)
 
             # axs[rownum,colnum].axvline(dd[-num_forecast_days], ls = '--', color = 'black', lw=1)            # plotting a vertical line at the end of the data date
             # axs[rownum,colnum].axvline(dd[-(num_forecast_days+truncation_days)], ls = '-.', color='grey', lw=1)            # plotting a vertical line at the forecast date
@@ -470,59 +449,43 @@ for i, state in enumerate(states):
             axs[rownum, colnum].tick_params('both', labelsize=8)
 
             # plot the start date of the data and indicators of the data we are actually fitting to (in grey)
-            axs[rownum, colnum].axvline(
-                data_date, ls='-.', color='black', lw=1)
-            axs[rownum, colnum].axvline(
-                third_start_date, ls='--', color='grey', lw=1)
-            axs[rownum, colnum].axvline(
-                data_date - timedelta(days=truncation_days), ls='--', color='grey', lw=1)
+            axs[rownum, colnum].axvline(data_date, ls='-.', color='black', lw=1)
+            axs[rownum, colnum].axvline(third_start_date, ls='--', color='green', lw=1)
+            axs[rownum, colnum].axvline(data_date - timedelta(days=truncation_days), ls='--', color='red', lw=1)
 
             if j < len(predictors):
-                axs[rownum, colnum].set_ylabel(
-                    predictors[j].replace('_', ' ')[:-5], fontsize=7)
+                axs[rownum, colnum].set_ylabel(predictors[j].replace('_', ' ')[:-5], fontsize=7)
             elif var == 'md_prop':
-                axs[rownum, colnum].set_ylabel(
-                    'Proportion of respondents\n micro-distancing', fontsize=7)
+                axs[rownum, colnum].set_ylabel('Proportion of respondents\n micro-distancing', fontsize=7)
             elif var == 'vaccination':
-                axs[rownum, colnum].set_ylabel(
-                    'Vaccine reduction in Reff', fontsize=7)
+                axs[rownum, colnum].set_ylabel('Reduction in TP \n from vaccination', fontsize=7)
+                
     state_Rmed[state] = Rmed_array
     state_sims[state] = sims
 
-os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d") +
-            scenario+scenario_date, exist_ok=True)
+os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d") + scenario+scenario_date, 
+            exist_ok=True)
 for i, fig in enumerate(figs):
-    fig.text(0.5, 0.02,
-             'Date',
-             ha='center', va='center',
-             fontsize=15)
+    fig.text(0.5, 0.02, 'Date', ha='center', va='center', fontsize=15)
 
     if i < len(predictors):       # this plots the google mobility forecasts
-
-        # fig.text(0.03, 0.5,
-        # predictors[i].replace('_',' ')[:-5],
-        # ha='center', va='center',
-        # rotation='vertical',
-        # fontsize=15)
         fig.tight_layout()
-        fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/"+str(predictors[i])+scenario+scenario_date+".png", dpi=400)
+        fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+
+                    scenario+scenario_date+"/"+str(predictors[i])+scenario+scenario_date+".png", 
+                    dpi=400)
 
     elif i == len(predictors):      # this plots the microdistancing forecasts
-        # fig.text(0.03, 0.5,
-        # 'Proportion of respondents\n micro-distancing',
-        # ha='center', va='center',
-        # rotation='vertical',
-        # fontsize=15)
         fig.tight_layout()
-        fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/micro_dist.png", dpi=400)
+        fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+
+                    scenario+scenario_date+"/micro_dist.png", 
+                    dpi=400)
 
     else:       # finally this plots the vaccination forecasts
 
         fig.tight_layout()
-        fig.savefig(
-            "figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario+scenario_date+"/vaccination.png", dpi=400)
+        fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+
+                    scenario+scenario_date+"/vaccination.png", 
+                    dpi=400)
 
 
 df_out = pd.DataFrame.from_dict(outdata)
@@ -535,27 +498,20 @@ if apply_vacc_to_R_L_hats:
 # pull out md and vaccination in 2 steps cause not sure how to do it by a list
 df_out = df_out.loc[df_out.type != 'md_prop']
 
-df_forecast = pd.pivot_table(df_out, columns=['type'], index=[
-                             'date', 'state'], values=['mean'])
-df_std = pd.pivot_table(df_out, columns=['type'], index=[
-                        'date', 'state'], values=['std'])
+df_forecast = pd.pivot_table(df_out, columns=['type'], index=['date', 'state'], values=['mean'])
+df_std = pd.pivot_table(df_out, columns=['type'], index=['date', 'state'], values=['std'])
 
-df_forecast_md = pd.pivot_table(df_md, columns=['state'], index=[
-                                'date'], values=['mean'])
-df_forecast_md_std = pd.pivot_table(
-    df_md, columns=['state'], index=['date'], values=['std'])
+df_forecast_md = pd.pivot_table(df_md, columns=['state'], index=['date'], values=['mean'])
+df_forecast_md_std = pd.pivot_table(df_md, columns=['state'], index=['date'], values=['std'])
 
 # align with google order in columns
-df_forecast = df_forecast.reindex(
-    [('mean', val) for val in predictors], axis=1)
+df_forecast = df_forecast.reindex([('mean', val) for val in predictors], axis=1)
 df_std = df_std.reindex([('std', val) for val in predictors], axis=1)
 df_forecast.columns = predictors  # remove the tuple name of columns
 df_std.columns = predictors
 
-df_forecast_md = df_forecast_md.reindex(
-    [('mean', state) for state in states], axis=1)
-df_forecast_md_std = df_forecast_md_std.reindex(
-    [('std', state) for state in states], axis=1)
+df_forecast_md = df_forecast_md.reindex([('mean', state) for state in states], axis=1)
+df_forecast_md_std = df_forecast_md_std.reindex([('std', state) for state in states], axis=1)
 
 df_forecast_md.columns = states
 df_forecast_md_std.columns = states
@@ -572,22 +528,17 @@ df_std.date = pd.to_datetime(df_std.date)
 df_forecast_md.date = pd.to_datetime(df_forecast_md.date)
 df_forecast_md_std.date = pd.to_datetime(df_forecast_md_std.date)
 
-df_R = df_google[['date', 'state']+mov_values +
-                 [val+'_std' for val in mov_values]]
+df_R = df_google[['date', 'state']+mov_values + [val+'_std' for val in mov_values]]
 df_R = pd.concat([df_R, df_forecast], ignore_index=True, sort=False)
 df_R['policy'] = (df_R.date >= '2020-03-20').astype('int8')
 
 df_md = pd.concat([prop, df_forecast_md.set_index('date')])
 
 if apply_vacc_to_R_L_hats:
-    df_forecast_vaccination = pd.pivot_table(
-        df_vaccination, columns=['state'], index=['date'], values=['mean'])
-    df_forecast_vaccination_std = pd.pivot_table(
-        df_vaccination, columns=['state'], index=['date'], values=['std'])
-    df_forecast_vaccination = df_forecast_vaccination.reindex(
-        [('mean', state) for state in states], axis=1)
-    df_forecast_vaccination_std = df_forecast_vaccination_std.reindex(
-        [('std', state) for state in states], axis=1)
+    df_forecast_vaccination = pd.pivot_table(df_vaccination, columns=['state'], index=['date'], values=['mean'])
+    df_forecast_vaccination_std = pd.pivot_table(df_vaccination, columns=['state'], index=['date'], values=['std'])
+    df_forecast_vaccination = df_forecast_vaccination.reindex([('mean', state) for state in states], axis=1)
+    df_forecast_vaccination_std = df_forecast_vaccination_std.reindex([('std', state) for state in states], axis=1)
     df_forecast_vaccination.columns = states
     df_forecast_vaccination_std.columns = states
     df_forecast_vaccination = df_forecast_vaccination.reset_index()
@@ -597,7 +548,9 @@ if apply_vacc_to_R_L_hats:
 
 if apply_vacc_to_R_L_hats:
     # now we read in the vaccine time series again...
-    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', parse_dates=['date'])
+    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+
+                                       data_date.strftime('%Y-%m-%d')+'.csv', 
+                                       parse_dates=['date'])
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
@@ -620,9 +573,6 @@ if apply_vacc_to_R_L_hats:
     os.makedirs("results/forecasting/", exist_ok=True)
     df_vaccination.to_csv("results/forecasting/forecasted_vaccination.csv")
 
-#prop_std = pd.DataFrame(np.random.beta(1+survey_counts, 1+survey_respond), columns = survey_counts.columns, index = prop.index)
-#df_md_std = pd.concat([prop_std,df_forecast_md_std.set_index('date')])
-
 expo_decay = True
 theta_md = np.tile(df_samples['theta_md'].values, (df_md['NSW'].shape[0], 1))
 
@@ -639,8 +589,7 @@ for i, state in enumerate(plot_states):
     row = i//2
     col = i % 2
 
-    ax[row, col].plot(df_md[state].index, np.median(
-        md, axis=1), label='Microdistancing')
+    ax[row, col].plot(df_md[state].index, np.median(md, axis=1), label='Microdistancing')
     ax[row, col].fill_between(df_md[state].index, np.quantile(md, 0.25, axis=1), np.quantile(md, 0.75, axis=1),
                               label='Microdistancing',
                               alpha=0.4,
@@ -652,8 +601,7 @@ for i, state in enumerate(plot_states):
     ax[row, col].set_title(state)
     ax[row, col].tick_params('x', rotation=45)
 
-    ax[row, col].set_xticks(
-        [df_md[state].index.values[-n_forecast-extra_days_md]], minor=True,)
+    ax[row, col].set_xticks([df_md[state].index.values[-n_forecast-extra_days_md]], minor=True,)
     ax[row, col].xaxis.grid(which='minor', linestyle='-.',
                             color='grey', linewidth=1)
 
@@ -668,8 +616,9 @@ fig.text(0.5, 0.04,
          fontsize=20)
 
 plt.tight_layout(rect=[0.05, 0.04, 1, 1])
-fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d") +
-            scenario+scenario_date+"/md_factor.png", dpi=144)
+fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d") + 
+            scenario+scenario_date+"/md_factor.png", 
+            dpi=144)
 
 
 df_R = df_R.sort_values('date')
@@ -732,12 +681,9 @@ for typ in forecast_type:
                            (df_state.shape[0], mob_samples))
         if expo_decay:
             md = ((1+theta_md).T**(-1*prop_sim)).T
-        # else:
-        #    md = (2*expit(-1*theta_md*prop_sim[:,np.newaxis]))
-
+            
+            
         if apply_vacc_to_R_L_hats:
-            # only have fit the effect to NSW, QLD and VIC
-            # if state in {'NSW', 'QLD', 'VIC'}:
 
             # first we tile the vaccine data to get an array of size (T, mob_samples) (hence the transposing)
             vacc_data_full = np.tile(vacc_sim, (mob_samples**2, 1)).T
@@ -779,21 +725,10 @@ for typ in forecast_type:
         for n in range(mob_samples):
             # add gaussian noise to predictors before forecast
             # df_state.loc[
-            df_state.loc[df_state.date < mob_forecast_date,
-                         predictors] = state_Rmed[state][:, :, n]/100
-            # df_state.date<mob_forecast_date,predictors]/100 + np.random.normal(
-            # loc= 0, scale = df_state.loc[
-            #    (df_state.date<mob_forecast_date),
-            #    [val+'_std' for val in predictors]].values/100)
+            df_state.loc[df_state.date < mob_forecast_date, predictors] = state_Rmed[state][:, :, n]/100
 
             # add gaussian noise to predictors after forecast
-            df_state.loc[df_state.date >= mob_forecast_date,
-                         predictors] = state_sims[state][:, :, n]/100
-            # df_state.loc[
-            #   df_state.date>=mob_forecast_date,predictors]/100 + np.random.normal(
-            #   loc= 0, scale = df_std.loc[(df_std.state==state,predictors)].values/100)
-
-            #dd = df_state.date
+            df_state.loc[df_state.date >= mob_forecast_date, predictors] = state_sims[state][:, :, n]/100
 
             # sample the right R_L
             if state == "NT":
@@ -817,14 +752,8 @@ for typ in forecast_type:
                     X2 = df2[predictors]
                     X3 = df3[predictors]
 
-                    # halve effect of md
-                    #md[(X1.shape[0]+df2.shape[0]):,:] = 1- 0.5 *( 1 - md[(X1.shape[0]+df2.shape[0]):,:])
-
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
                     logodds = np.append(logodds, X3 @ post_values, axis=0)
-
-                    #md = np.append(md, ((1+theta_md).T**(-1* prop2)).T, axis=0)
-                    #md = np.append(md, ((1+theta_md).T**(-1* prop3)).T, axis=0)
 
                 elif typ == 'R_L0':
                     df2 = df_state.loc[(df_state.date > ban) & (df_state.date < new_pol)]
@@ -846,7 +775,6 @@ for typ in forecast_type:
                     X2 = df2[predictors]
 
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
-                    # df_state.loc[df_state.date>'2020-03-15',predictors].values/100 @ samples[predictors].values.T, axis = 0)
 
             else:
                 # concatenate to pre-existing logodds martrix
@@ -861,9 +789,6 @@ for typ in forecast_type:
 
                     prop2 = df_md.loc[ban:new_pol, state].values
                     prop3 = df_md.loc[new_pol:, state].values
-
-                    # halve effect of md
-                    #md[(X1.shape[0]+df2.shape[0]):,:] = 1- 0.5 *( 1 - md[(X1.shape[0]+df2.shape[0]):,:])
 
                     logodds2 = X2 @ post_values
                     logodds3 = X3 @ post_values
@@ -880,7 +805,6 @@ for typ in forecast_type:
                     X3 = np.zeros_like(df3[predictors])
 
                     # social mobility all at baseline implies R_l = R_L0
-
                     # md has no effect after June 1st
 
                     md[(X1.shape[0]+df2.shape[0]):, :] = 1
@@ -903,12 +827,6 @@ for typ in forecast_type:
                 # concatenate to previous
                 logodds = np.concatenate((logodds, logodds_sample), axis=1)
 
-        if apply_vacc_to_R_L_hats:
-            R_L = 2 * md * sim_R * expit(logodds) * vacc_post
-        else:
-            R_L = 2 * md * sim_R * expit(logodds)
-
-        # print("Including the voc effects into the R_L forecasts")
         # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now)
         # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
         voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0], mob_samples))
@@ -918,7 +836,10 @@ for typ in forecast_type:
                 if ii < df_state.loc[df_state.date < VoC_start_date].shape[0]:
                     voc_multiplier[ii] = 1.0
 
-            R_L *= voc_multiplier
+        if apply_vacc_to_R_L_hats:
+            R_L = 2 * md * sim_R * expit(logodds) * vacc_post * voc_multiplier
+        else:
+            R_L = 2 * md * sim_R * expit(logodds) * voc_multiplier
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
@@ -1014,8 +935,7 @@ df_Rhats = df_Rhats.reset_index()
 df_Rhats.state = df_Rhats.state.astype(str)
 df_Rhats.type = df_Rhats.type.astype(str)
 
-fig, ax = plt.subplots(figsize=(12, 9), nrows=4,
-                       ncols=2, sharex=True, sharey=True)
+fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
 
 for i, state in enumerate(plot_states):
 
@@ -1043,33 +963,26 @@ for i, state in enumerate(plot_states):
     ax[row, col].set_xlim((pd.to_datetime(today) - timedelta(days=6*28),
                           pd.to_datetime(today) + timedelta(days=num_forecast_days)))
     ax[row, col].xaxis.grid(which='minor', linestyle='-.', color='grey', linewidth=1)
-# fig.autofmt_xdate()
-fig.text(
-    0.03, 0.5,
-    'Transmission potential',
-    va='center', ha='center',
-    rotation='vertical',
-    fontsize=20
-)
-fig.text(
-    0.525, 0.02,
-    'Date',
-    va='center', ha='center',
-    fontsize=20
-)
+
+fig.text(0.03, 0.5, 'Transmission potential', va='center', ha='center', rotation='vertical', fontsize=20)
+fig.text(0.525, 0.02, 'Date', va='center', ha='center', fontsize=20)
 plt.tight_layout(rect=[0.04, 0.04, 1, 1])
-os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d") +
-            scenario+scenario_date, exist_ok=True)
-plt.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+scenario +
-            scenario_date+"/soc_mob_R_L_hats"+data_date.strftime('%Y-%m-%d')+".png", dpi=102)
+os.makedirs("figs/mobility_forecasts/"+
+            data_date.strftime("%Y-%m-%d") +
+            scenario+
+            scenario_date, 
+            exist_ok=True)
+plt.savefig("figs/mobility_forecasts/"+
+            data_date.strftime("%Y-%m-%d")+
+            scenario+
+            scenario_date+
+            "/soc_mob_R_L_hats"+
+            data_date.strftime('%Y-%m-%d')+
+            ".png", 
+            dpi=102)
 
 # now we save the posterior stuff
-
-print(df_Rhats.shape)
-
 df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top']+[i for i in range(10000)]]
-# df_Rhats.columns = ['state','date','type','median',
-# 'bottom','lower','upper','top']  + [i for i in range(1000)]
 
 df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])

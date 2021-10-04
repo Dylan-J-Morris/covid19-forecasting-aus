@@ -1,7 +1,7 @@
 ##### Key parameters
 use_linelist = True
 use_imputed_linelist = False
-on_phoenix = False   # flag for running on phoenix
+on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
 testing_inference = True
@@ -15,9 +15,9 @@ else:
     # this flag will run the inference only and quit after it's done
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
-third_start_date = '2021-07-01'
-start_date = '2021-05-10'  # Start date of forecast
-VoC_start_date = '2021-06-01'  # Date from which to apply the VoC Reff increase
+third_start_date = '2021-06-01'
+start_date = '2021-04-01'  # Start date of forecast
+VoC_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase
 vaccination_start_date = '2021-02-22'
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35
@@ -48,7 +48,7 @@ local_detection = {
     'VIC': 0.95,
     'WA': 0.95,
     'ACT': 0.95,
-    'NT': 0.95,
+    'NT': 0.95
 }
 
 # Also known as qa, this is the probability of detecting an asymptomatic case.
@@ -60,7 +60,7 @@ a_local_detection = {
     'VIC': 0.15,
     'WA': 0.1,
     'ACT': 0.1,
-    'NT': 0.1,
+    'NT': 0.1
 }
 
 qi_d = {
@@ -71,7 +71,7 @@ qi_d = {
     'VIC': 0.98,
     'WA': 0.98,
     'ACT': 0.98,
-    'NT': 0.98,
+    'NT': 0.98
 }
 
 # alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe there are significant differences between hotel quarentine effectiveness between states.

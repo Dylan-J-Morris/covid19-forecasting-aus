@@ -6,7 +6,7 @@ from scipy.stats import gamma
 from sys import argv
 from epyreff import *
 # this is not used in the estimation routine, it just lets the plot know what we ignore
-from params import truncation_days, third_start_date
+from params import truncation_days, third_start_date, start_date
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -131,6 +131,6 @@ df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
 
 
 fig, ax = plot_all_states(R_summary_states, df_interim, dates,
-                          start=third_start_date, end=file_date_updated, save=True,
+                          start=start_date, end=file_date_updated, save=True,
                           tau=tau, date=date, nowcast_truncation=-truncation_days)
 plt.close()
