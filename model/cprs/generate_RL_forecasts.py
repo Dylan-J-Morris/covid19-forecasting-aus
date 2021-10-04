@@ -230,13 +230,13 @@ for i, state in enumerate(states):
                 # Constant Lockdown
                 if scenario[:12] == "no_reversion":
                     # take a continuous median to account for noise in recent observations (such as sunny days)
-                    mu_current = np.mean(Rmed[-7:, :], axis=0)
+                    # mu_current = np.mean(Rmed[-7:, :], axis=0)
+                    cov_baseline = np.cov(Rmed[-28:, :], rowvar=False)
                     new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
 
                 if scenario[:12] == "no_reversion_continuous_lockdown":
                     # add the new scenario here
-                    new_forcast_points = np.random.multivariate_normal(
-                        mu_current, cov_baseline)
+                    new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
 
                 # No Lockdown
                 elif scenario == "full_reversion":
@@ -922,24 +922,24 @@ for typ in forecast_type:
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
-        if typ == 'R_L' and state == 'SA':
-            # pd.DataFrame(md).to_csv('results/forecasting/md.csv')
-            # pd.DataFrame(2*expit(logodds)).to_csv('results/forecasting/macro.csv')
-            # pd.DataFrame(sim_R).to_csv('results/forecasting/sim_R.csv')
-            # pd.DataFrame(vacc_post).to_csv('results/forecasting/vacc_post.csv')
-            # pd.DataFrame(voc_multiplier).to_csv('results/forecasting/voc_multiplier.csv')
+        if typ == 'R_L' and state == 'VIC':
+            pd.DataFrame(md).to_csv('results/forecasting/md.csv')
+            pd.DataFrame(2*expit(logodds)).to_csv('results/forecasting/macro.csv')
+            pd.DataFrame(sim_R).to_csv('results/forecasting/sim_R.csv')
+            pd.DataFrame(vacc_post).to_csv('results/forecasting/vacc_post.csv')
+            pd.DataFrame(voc_multiplier).to_csv('results/forecasting/voc_multiplier.csv')
             
-            mobility_effects = 2*md*expit(logodds)
-            mobility_only = 2*expit(logodds)
-            micro_only = md
-            mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
-            mu_hat_rev = sim_R * voc_multiplier
-            pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
-            pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
-            pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
-            pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
-            pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
-            pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
+            # mobility_effects = 2*md*expit(logodds)
+            # mobility_only = 2*expit(logodds)
+            # micro_only = md
+            # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
+            # mu_hat_rev = sim_R * voc_multiplier
+            # pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
+            # pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
+            # pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
+            # pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
+            # pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
+            # pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)

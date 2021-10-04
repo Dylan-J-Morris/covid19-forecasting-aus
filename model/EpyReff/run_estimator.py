@@ -6,7 +6,7 @@ from scipy.stats import gamma
 from sys import argv
 from epyreff import *
 # this is not used in the estimation routine, it just lets the plot know what we ignore
-from params import truncation_days
+from params import truncation_days, third_start_date
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,13 +55,12 @@ df_linel = tidy_cases_lambda(df_interim)
 
 # generate possible infection dates from the notification data
 df_inf = draw_inf_dates(df_linel, nreplicates=1000,
-                        shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc, shape_rd=shape_rd, scale_rd=scale_rd
-                        )
+                        shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc, 
+                        shape_rd=shape_rd, scale_rd=scale_rd, offset_rd=offset_rd)
 
 # reindex dataframe to include all dates,
 # return df with index (STATE, INFECTION_DATE, SOURCE), columns are samples
 df_inc_zeros = index_by_infection_date(df_inf)
-
 
 # get all lambdas
 lambda_dict = lambda_all_states(df_inc_zeros,
@@ -90,7 +89,6 @@ for state in states:
 
 # make folder to record files
 os.makedirs("results/EpyReff/", exist_ok=True)
-
 
 if plot_time:
     # plot assumed distributions
@@ -131,8 +129,8 @@ file_date_updated = file_date_updated.strftime("%Y-%m-%d")
 df_NNDSS = read_in_NNDSS(dt_date.strftime("%d%b%Y"), apply_delay_at_read=True)
 df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
 
+
 fig, ax = plot_all_states(R_summary_states, df_interim, dates,
-                          start='2020-03-01', end=file_date_updated, save=True,
-                          tau=tau, date=date, nowcast_truncation=-truncation_days
-                          )
+                          start=third_start_date, end=file_date_updated, save=True,
+                          tau=tau, date=date, nowcast_truncation=-truncation_days)
 plt.close()

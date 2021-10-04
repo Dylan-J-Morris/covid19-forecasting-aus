@@ -23,16 +23,12 @@ def read_cases_lambda(case_file_date):
     """
     df_NNDSS = read_in_NNDSS(case_file_date)
     df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
-    # df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
-    # df_interim = df_NNDSS[['NOTIFICATION_RECEIVE_DATE','STATE','imported','local']]
     return(df_interim)
-
 
 def tidy_cases_lambda(interim_data, remove_territories=True):
     
     # Remove non-existent notification dates
     interim_data = interim_data[~np.isnat(interim_data.date_inferred)]
-    # interim_data = interim_data[~np.isnat(interim_data.NOTIFICATION_RECEIVE_DATE)]
 
     # Filter out territories
     if(remove_territories):
@@ -40,13 +36,7 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
     # Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
     # i.e. create linelist data
-    
-    # if use_imputed_linelist:
-    #     df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
-    # else:
     df_linel = df_linel.melt(id_vars=['date_inferred','STATE','is_confirmation'], var_name='SOURCE', value_name='n_cases')
-    # df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
-    # df_linel = df_linel.melt(id_vars = ['NOTIFICATION_RECEIVE_DATE','STATE'], var_name = 'SOURCE',value_name='n_cases')
 
     # Reset index or the joining doesn't work
     df_linel = df_linel[df_linel.n_cases != 0]
@@ -58,70 +48,48 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, shape_rd=2, scale_rd=1, offset_rd=1, nreplicates=1):
 
-    from params import use_imputed_linelist
+    # these aren't really notification dates, they are a combination of onset and confirmation dates 
     notification_dates = df_linelist['date_inferred']
     
     # the above are the same size so this works
     nsamples = notification_dates.shape[0]
 
-    #    DEFINE DELAY DISTRIBUTION
-    #     mean_rd = 2.0
-    #     sd_rd = 1.0
-    #scale_rd = shape_rd/(scale_rd)**2
-    #shape_rd = shape_rd/scale_rd
-
-    # DEFINE INCUBATION PERIOD DISTRIBUTION
-    # Taken from Lauer et al 2020
-    #     mean_inc = 5.5 days
-    #     sd_inc = 1.52
-    # scale_inc = (scale_inc)**2/shape_inc #scale**2 = var / shape
-    #shape_inc =(scale_inc)**2/scale_inc**2
-
-    # here we apply the delay at the point of applying the incubation 
+    # apply the delay at the point of applying the incubation 
     # as we are taking a posterior sample 
-    # if not use_imputed_linelist:
     # extract boolean indicator of when the confirmation date was used
     is_confirmation_date = df_linelist['is_confirmation'].to_numpy()
-    # first construct an array to set the notification delays to 0 when we have the accurate onset date
+    # first construct an array to set the notification delays to 0 when we have the true onset date
     is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
-    # note that when we draw from the reporting delay distribution, we set the delays to 0 if we have an onset date
     rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
 
-    # Draw from distributions - these are long vectors
+    # Draw from incubation distribution
     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
     
     # infection date is id_nd_diff days before notification date. This is also a long vector.
-    # id_nd_diff = inc_period + is_confirmation_date_rep * rd_period
     id_nd_diff = inc_period + rd_period
 
     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
     whole_day_diff = np.ceil(id_nd_diff)
     time_day_diffmat = whole_day_diff.astype('timedelta64[D]').reshape((nsamples, nreplicates))
 
-    # Vector must be coerced into a nsamples by nreplicates array. Then each column must be subtracted from notification_dates.
-    # Subtract days off of notification dates.
-
     # notification_dates is repeated as a column nreplicates times.
     notification_mat = np.tile(notification_dates, (nreplicates, 1)).T
-
+    
+    # infection dates are just the difference 
     infection_dates = notification_mat - time_day_diffmat
 
     # Make infection dates into a dataframe
     datecolnames = [*map(str, range(nreplicates))]
     infdates_df = pd.DataFrame(infection_dates, columns=datecolnames)
-
-    # Uncomment this if theres errors
-    #print([df_linelist.shape, infdates_df.shape])
     
-    # if not use_imputed_linelist:
-    #     # need to remove the confirmation boolean variable from the df to ensure that the 
-    #     # rest of epyreff runs as per normal 
+    # need to remove the confirmation boolean variable from the df to ensure that the 
+    # rest of epyreff runs as per normal 
     df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
 
     # Combine infection dates and original dataframe
     df_inf = pd.concat([df_linelist, infdates_df], axis=1, verify_integrity=True)
 
-    return(df_inf)
+    return df_inf
 
 
 def index_by_infection_date(infections_wide):
@@ -138,10 +106,7 @@ def index_by_infection_date(infections_wide):
     # Rename the index.
     df_combined.index.set_names(["STATE", "INFECTION_DATE", "SOURCE"], inplace=True)
 
-    # return(df_combined)
-
     # INCLUDE ALL DAYS WITH ZERO INFECTIONS IN THE INDEX AS WELL.
-
     # Reindex to include days with zero total infections.
     local_infs = df_combined.xs('local', level='SOURCE')
     imported_infs = df_combined.xs('imported', level='SOURCE')
@@ -203,9 +168,6 @@ def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07,
     """
     from scipy.stats import gamma
 
-    #scale_gen = mean_gen/(sd_gen)**2
-    #shape_gen = mean_gen/scale_gen
-
     # Find midpoints for discretisation
     xmids = [x+shift for x in range(trunc_days+1)]
     # double check parameterisation of scipy
@@ -232,9 +194,10 @@ def lambda_all_states(df_infection, trunc_days=21, **kwargs):
 
     lambda_dict = {}
     for state in statelist:
-        # state = 'NSW'
         df_total_infections = df_infection.groupby(['STATE', 'INFECTION_DATE']).agg(sum)
-        lambda_dict[state] = generate_lambda(df_total_infections.loc[state].values, trunc_days=trunc_days,**kwargs)
+        lambda_dict[state] = generate_lambda(df_total_infections.loc[state].values, 
+                                             trunc_days=trunc_days,
+                                             **kwargs)
 
     return lambda_dict
 
@@ -253,24 +216,13 @@ def Reff_from_case(cases_by_infection, lamb, prior_a=1, prior_b=5, tau=7, sample
     # Generation interval length 20
     csum_incidence = csum_incidence[(trunc_days-1):, :]
     csum_lambda = np.cumsum(lamb, axis=0)
-
-    # pd.DataFrame(csum_incidence).to_csv("results/csum_incidence.csv")
-    # pd.DataFrame(csum_lambda).to_csv("results/csum_lambda.csv")
-
     roll_sum_incidence = csum_incidence[tau:, :] - csum_incidence[:-tau, :]
     roll_sum_lambda = csum_lambda[tau:, :] - csum_lambda[:-tau, :]
-
-    # pd.DataFrame(roll_sum_incidence).to_csv("results/roll_sum_incidence.csv")
-    # pd.DataFrame(roll_sum_lambda).to_csv("results/roll_sum_lambda.csv")
     a = prior_a + roll_sum_incidence
     b = 1/(1/prior_b + roll_sum_lambda)
-
     R = np.random.gamma(a, b)  # shape, scale
 
     # Need to empty R when there is too few cases...
-
-    # Use array inputs to output to same size
-    # inputs are T-tau by N, output will be T-tau by N
 
     return a, b, R
 
@@ -325,8 +277,8 @@ def plot_Reff(Reff: dict, dates=None, ax_arg=None, truncate=None, **kwargs):
     if truncate is None:
         ax.plot(dates, Reff['mean'], color=curr_color, **kwargs)
 
-        ax.fill_between(dates, Reff['lower'],Reff['upper'], alpha=0.4, color=curr_color)
-        ax.fill_between(dates, Reff['bottom'],Reff['top'], alpha=0.4, color=curr_color)
+        ax.fill_between(dates, Reff['lower'], Reff['upper'], alpha=0.4, color=curr_color)
+        ax.fill_between(dates, Reff['bottom'], Reff['top'], alpha=0.4, color=curr_color)
     else:
         ax.plot(dates[truncate[0]:truncate[1]], Reff['mean'][truncate[0]:truncate[1]], color=curr_color, **kwargs)
 
@@ -362,9 +314,8 @@ def plot_all_states(R_summ_states, df_interim, dates,
 
     date_filter = pd.date_range(start=start, end=end)
 
-    # prepare NNDSS cases
+    # prepare NNDSS cases where here we are plotting the inferred onset data
     df_cases = df_interim.groupby(['date_inferred', 'STATE']).agg(sum)
-    # df_cases = df_interim.groupby(['NOTIFICATION_RECEIVE_DATE','STATE']).agg(sum)
     df_cases = df_cases.reset_index()
 
     fig, ax = plt.subplots(nrows=2, ncols=4,sharex=True, sharey=True,figsize=(15, 12))
@@ -374,10 +325,6 @@ def plot_all_states(R_summ_states, df_interim, dates,
         col = i % 4
 
         R_summary = R_summ_states[state]
-
-        #a,b,R = Reff_from_case(df_state_I.values,lambda_state,prior_a=1, prior_b=2, tau=tau)
-
-        #R_summary = generate_summary(R)
 
         fig, ax[row, col] = plot_Reff(R_summary,
                                       dates=dates[state],
@@ -410,16 +357,6 @@ def plot_all_states(R_summ_states, df_interim, dates,
                 color='grey',
                 alpha=0.8
                 )
-        # ax2.bar(df_cases.loc[df_cases.STATE==state,'NOTIFICATION_RECEIVE_DATE'],
-        #         df_cases.loc[df_cases.STATE==state,'local']+df_cases.loc[df_cases.STATE==state,'imported'],
-        #     color='grey',
-        #         alpha=0.3
-        #     )
-        # ax2.bar(df_cases.loc[df_cases.STATE==state,'NOTIFICATION_RECEIVE_DATE'],
-        #         df_cases.loc[df_cases.STATE==state,'local'],
-        #     color='grey',
-        #         alpha=0.8
-        #     )
 
         # Set common labels
         fig.text(0.5, 0.01, 'Date', ha='center', va='center',
@@ -431,13 +368,6 @@ def plot_all_states(R_summ_states, df_interim, dates,
         fig.text(0.95, 0.5, 'Local Cases', ha='center', va='center',
                  rotation=270,
                  fontsize=20)
-        # plot old LSHTM estimates
-        #df_june = df_L_R.loc[(df_L_R.date_of_analysis=='2020-07-27')&(df_L_R.state==state)]
-        #df = df_june.loc[(df_june.date.isin(date_filter))]
-
-        #ax[row,col].plot(df.date, df['median'], label='Old LSHTM',color='C1')
-        #ax[row,col].fill_between(df.date, df['bottom'], df['top'],color='C1', alpha=0.3)
-        #ax[row,col].fill_between(df.date, df['lower'], df['upper'],color='C1', alpha=0.3)
 
     if save:
         import os

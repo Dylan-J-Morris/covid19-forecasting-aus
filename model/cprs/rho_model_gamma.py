@@ -58,7 +58,7 @@ data {
     int is_ACT[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
 
-    int decay_start_date_third[2];
+    int decay_start_date_third;
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data
 
 }
@@ -160,27 +160,16 @@ transformed parameters {
             eta = eta_other;
             r = r_other;
         }
-        
-        // pick number of days after third start date, only difference is that ACT's third wave started 
-        // slightly later than NSW and VIC. This offset ensures that the exponent on the decay term is 
-        // appropriately sized. 
-        // if (is_ACT[i] == 1){ 
-        //     decay_start_date_adjusted = decay_start_date_third[1];
-        // } else {
-        //     decay_start_date_adjusted = decay_start_date_third[2];
-        // }
-        
-        decay_start_date_adjusted = decay_start_date_third[2];
 
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
 
                 // applying the return to homogeneity in vaccination effect 
-                if (n < decay_start_date_adjusted){
+                if (n < decay_start_date_third){
                     decay_in_heterogeneity = 1;
                 } else{
-                    decay_in_heterogeneity = exp(-r*(n-decay_start_date_adjusted));
+                    decay_in_heterogeneity = exp(-r*(n-decay_start_date_third));
                 }
                 
                 eta_tmp = eta*decay_in_heterogeneity;
