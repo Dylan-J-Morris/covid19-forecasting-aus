@@ -88,7 +88,7 @@ else:
 
 ####### Create simulation.py object ########
 
-offspring_type = 'NB'
+offspring_type = 'Poi'
 
 forecast_object = Forecast(current[state],
                            state, start_date, forecast_date=forecast_date,
