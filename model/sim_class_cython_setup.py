@@ -17,14 +17,12 @@ for ff in ("*.c", "*.html"):
         except FileNotFoundError:
             pass
 
-ext_modules = [
-    Extension(
-        "sim_class_cython",
-        ["sim_class_cython.pyx"]
-        # /MD for multithread DLL
-    )
-]
+ext_modules = [Extension("sim_class_cython", ["sim_class_cython.pyx"])]
 
 os.chdir('model')
 
-setup(name="sim_class_cython", ext_modules=cythonize(ext_modules, annotate=True, language_level = 3), include_dirs=[numpy.get_include()])
+setup(name="sim_class_cython", 
+      ext_modules=cythonize(ext_modules, 
+                            annotate=True, 
+                            language_level = 3), 
+      include_dirs=[numpy.get_include()])

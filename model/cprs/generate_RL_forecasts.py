@@ -958,11 +958,12 @@ for i, state in enumerate(plot_states):
     ax[row, col].yaxis.grid(which='minor', linestyle='--', color='black', linewidth=2)
     ax[row, col].set_ylim((0, 3))
 
-    ax[row, col].set_xticks([plot_df.date.values[-n_forecast]], minor=True)
+    # ax[row, col].set_xticks([plot_df.date.values[-n_forecast]], minor=True)
+    ax[row, col].axvline(data_date, ls='-.', color='black', lw=1)
     # create a plot window over the last six months
     ax[row, col].set_xlim((pd.to_datetime(today) - timedelta(days=6*28),
                           pd.to_datetime(today) + timedelta(days=num_forecast_days)))
-    ax[row, col].xaxis.grid(which='minor', linestyle='-.', color='grey', linewidth=1)
+    ax[row, col].xaxis.grid(which='minor', linestyle='-.', color='grey', linewidth=2)
 
 fig.text(0.03, 0.5, 'Transmission potential', va='center', ha='center', rotation='vertical', fontsize=20)
 fig.text(0.525, 0.02, 'Date', va='center', ha='center', fontsize=20)
@@ -979,7 +980,7 @@ plt.savefig("figs/mobility_forecasts/"+
             "/soc_mob_R_L_hats"+
             data_date.strftime('%Y-%m-%d')+
             ".png", 
-            dpi=102)
+            dpi=144)
 
 # now we save the posterior stuff
 df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top']+[i for i in range(10000)]]

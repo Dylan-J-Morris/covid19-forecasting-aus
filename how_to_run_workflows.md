@@ -34,12 +34,12 @@ The `on_phoenix` flag tells the model to use a slightly older version of Pystan 
 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ```
-DATADATE='2021-09-28'   # Date of NNDSS data file
+DATADATE='2021-10-05'   # Date of NNDSS data file
 NSIMS=20000             # Total number of simulations to run should be > 5000
 VOCFLAG='Delta'
 SCENARIO='no_reversion'
 # set date of scenario. Does not matter for no-reversion and is just used to name files. 
-SCENARIODATE='2021-09-28'       
+SCENARIODATE='2021-10-05'       
 ```
 
 ```

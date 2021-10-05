@@ -37,7 +37,25 @@ assume_local_cases_if_unknown = True
 truncation_days = 12
 
 ##### Simulation parameters/transmission parameters
-k = 0.15  # Heterogeneity parameter for a negative binomial offspring distribution
+# incubation period: taken from Lauer et al. 2020
+shape_inc = 5.807  
+scale_inc = 0.948
+offset_inc = 0
+## reporting delay distribution: empirically estimated from the case data using MLE
+# looked at duration between symptom onset and cofnirmation for cases where this was 
+# feasible and truncated this to be between 0 and 30 (plenty of retropsective cases with negatives etc)
+shape_rd = 1.28
+scale_rd = 2.31
+offset_rd = 0
+## generation interval: 
+# generation inteval changed Oct 5 2021
+# shape_gen = 3.64/3.07
+# scale_gen = 3.07
+shape_gen = 2.75
+scale_gen = 1.00
+
+# Heterogeneity parameter for a negative binomial offspring distribution
+k = 0.15  
 
 # Also known as qs, this is the probability of detecting an symptomatic case. This will go up during major testing drives. Increasing qs increases the observed outbreak.
 local_detection = {

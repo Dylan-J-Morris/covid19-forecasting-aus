@@ -190,7 +190,7 @@ transformed parameters {
 model {
     int pos2;
 
-    bet ~ normal(0,0.5);
+    bet ~ normal(0,1.0);
     theta_md ~ lognormal(0,0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
@@ -207,7 +207,7 @@ model {
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(100); //mean is 1/50=0.02
+    sig ~ exponential(50); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j_first_wave) {

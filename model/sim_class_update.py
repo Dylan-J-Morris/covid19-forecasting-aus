@@ -571,42 +571,16 @@ class Forecast:
             # return NaN arrays for all bad_sims
             self.cumulative_cases = np.empty_like(self.cases)
             self.cumulative_cases[:] = np.nan
-            return (self.cumulative_cases, self.cumulative_cases, {
-                'qs': self.symptomatic_detection_prob,
-                'metric': np.nan,
-                'qa': self.asymptomatic_detection_prob,
-                'qi': self.qi,
-                'alpha_a': self.alpha_a,
-                'alpha_s': self.alpha_s,
-                # 'accept':self.accept,
-                'ps': self.ps,
-                'bad_sim': self.bad_sim,
-                'cases_after': self.cases_after,
-                'num_of_sim': self.num_of_sim,
-            }
-            )
+            return (self.cumulative_cases, self.cumulative_cases,
+                    {'num_of_sim': self.num_of_sim,
+                     'bad_sim': self.bad_sim}) 
+            
         else:
             # good sim
-
-            # Perform metric for ABC
-            # self.get_metric(end_time)
-
-            return (
-                self.cases.copy(),
-                self.observed_cases.copy(), {
-                    'qs': self.symptomatic_detection_prob,
-                    'metric': np.nan,
-                    'qa': self.asymptomatic_detection_prob,
-                    'qi': self.qi,
-                    'alpha_a': self.alpha_a,
-                    'alpha_s': self.alpha_s,
-                    # 'accept':self.metric>=0.8,
-                    'ps': self.ps,
-                    'bad_sim': self.bad_sim,
-                    'cases_after': self.cases_after,
-                    'num_of_sim': self.num_of_sim,
-                }
-            )
+            print("Good sim!")
+            return (self.cases.copy(), self.observed_cases.copy(),
+                    {'num_of_sim': self.num_of_sim,
+                     'bad_sim': self.bad_sim})
 
     def to_df(self, results):
         """

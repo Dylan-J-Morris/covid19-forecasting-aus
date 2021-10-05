@@ -318,7 +318,7 @@ class Forecast:
                                     elif detect_time > self.forecast_date - 60:
                                         self.inf_backcast_counter += 1
                                 self.observed_cases[max(0, ceil(detect_time)-1), 1] += 1
-
+                                
                     # add new infected to queue
                     self.infected_queue.append(len(self.people))
 
@@ -406,6 +406,7 @@ class Forecast:
         reinitialising_window = 3
         self.daycount = 0
         while len(self.infected_queue) > 0:
+            
             day_end = self.people[self.infected_queue[0]].detection_time
             over_check = (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases)
             # under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)

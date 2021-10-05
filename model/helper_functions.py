@@ -16,6 +16,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
     from datetime import timedelta
     import glob
     from params import use_linelist, assume_local_cases_if_unknown
+    from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
 
     if not use_linelist:
         # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
@@ -86,10 +87,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
             # sample that number of delays from the distribution and take the ceiling. 
             # This was fitted to the third and second wave data, looking at the common differences 
             # between onsets and confirmations
-            shape_rd = 1.28
-            scale_rd = 2.31
-            offset_rd = 0
-            rd = offset_rd + np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays)
+            rd = np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays)
             rd = np.round(rd) * timedelta(days=1)
             
             # fill missing days with the confirmation date, noting that this is adjusted when used
@@ -103,7 +101,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
         if apply_inc_at_read:
             # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
             n_infs = df['date_inferred'].shape[0]
-            inc = np.random.gamma(shape=5.807, scale=0.948, size=n_infs)
+            inc = np.random.gamma(shape=shape_inc, scale=scale_inc, size=n_infs)
             # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior 
             # doesnt work properly
             inc = np.round(inc) * timedelta(days=1)

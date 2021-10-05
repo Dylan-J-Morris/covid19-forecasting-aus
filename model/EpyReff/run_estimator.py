@@ -6,7 +6,9 @@ from scipy.stats import gamma
 from sys import argv
 from epyreff import *
 # this is not used in the estimation routine, it just lets the plot know what we ignore
-from params import truncation_days, third_start_date, start_date
+from params import truncation_days, third_start_date, start_date 
+
+from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,17 +24,6 @@ tau = 4
 prior_a = 1
 prior_b = 2
 trunc_days = 21
-
-shape_inc = 5.807  # taken from Lauer et al. 2020 #1.62/0.418
-scale_inc = 0.948  # 0.418
-offset_inc = 0
-
-shape_rd = 1.28
-scale_rd = 2.31
-offset_rd = 0
-
-shape_gen = 3.64/3.07
-scale_gen = 3.07
 offset = 0
 shift = 0
 
