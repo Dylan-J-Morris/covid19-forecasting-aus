@@ -88,10 +88,12 @@ else:
 
 ####### Create simulation.py object ########
 
+offspring_type = 'NB'
+
 forecast_object = Forecast(current[state],
                            state, start_date, forecast_date=forecast_date,
                            cases_file_date=case_file_date,
-                           VoC_flag=VoC_flag, scenario=scenario, end_time = end_time, which_k = argv[6]
+                           VoC_flag=VoC_flag, scenario=scenario, end_time = end_time, which_k = offspring_type
                            )
 
 ############ Run Simulations in parallel and return ############
