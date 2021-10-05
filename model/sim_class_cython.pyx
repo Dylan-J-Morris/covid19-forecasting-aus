@@ -15,6 +15,8 @@ from math import ceil
 import gc
 from itertools import cycle
 
+from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
+
 cdef class Person:
     """
     Individuals in the forecast
@@ -46,23 +48,20 @@ cdef class Forecast:
     cdef start_date, forecast_date, cases_file_date, quarantine_change_date, hotel_quarantine_vaccine_start, VoC_on_imported_effect_start, test_campaign_date,
     cdef np.float_t alpha_i, qi, symptomatic_detection_prob, asymptomatic_detection_prob, k, qua_ai, gam, ps, R_I, test_campaign_factor
     cdef np.float_t alpha_s, alpha_a
-    cdef np.int_t inf_backcast_counter, inf_nowcast_counter, inf_forecast_counter, num_of_sim, num_bad_sims, num_too_many, end_time
+    cdef np.int_t num_of_sim, num_bad_sims, num_too_many, end_time
     cdef infected_queue
     cdef Reff_all     # this is a deque so cant state type
-    cdef np.int_t cases_to_subtract, cases_to_subtract_now, max_cases, max_nowcast_cases, max_backcast_cases
+    cdef np.int_t max_cases
     cdef np.int_t actual_3_day_total, cases_after
     cdef np.ndarray cumulative_cases, observed_cases, cases, inferred_initial_obs
-    cdef np.int_t bad_sim, daycount
+    cdef np.int_t bad_sim, daycount, inf_forecast_counter
     cdef dict people     # this is an array of people objects — not sure how to type that though
-    cdef np.ndarray inf_times, detect_times
+    cdef np.ndarray inf_times, detect_times, cases_in_windows, max_cases_in_windows, min_cases_in_windows, symp_cases_in_window, symp_cases_total, window_sizes
     cdef get_inf_time, get_detect_time
-    
-    cdef np.int_t cases_to_subtract_long, max_longbackcast_cases, inf_longbackcast_counter
 
     def __init__(self, current, state, start_date,
                  forecast_date, cases_file_date, end_time = None,
-                 VoC_flag='', scenario=''
-                 ):
+                 VoC_flag='', scenario='', which_k='NB'):
         """Create forecast object with parameters in preperation for running simulation.
 
         Args:
@@ -90,7 +89,12 @@ cdef class Forecast:
         self.qi = qi_d[state]
         self.symptomatic_detection_prob = local_detection[state]
         self.asymptomatic_detection_prob = a_local_detection[state]
-        self.k = k  # Hard coded
+        if which_k == 'NB':
+            print("Using Negative-Binomial offspring distribution.")
+            self.k = 0.15  # Hard coded
+        elif which_k == 'Poi': 
+            print("Using Poisson offspring distribution.")
+            self.k = 250
         # self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quarantine version of alpha_i.
         self.qua_ai = 1
         self.gam = 1/2
@@ -145,10 +149,9 @@ cdef class Forecast:
             self.get_detect_time = self.iter_detect_time()
 
             # counters for terminating early
-            self.inf_backcast_counter = 0
-            self.inf_longbackcast_counter = 0
-            self.inf_nowcast_counter = 0
             self.inf_forecast_counter = 0
+            # this inits the number of detections (onset events) in each window to match size of max_cases_in_windows
+            self.symp_cases_in_window = np.zeros_like(self.max_cases_in_windows)
 
             # assign infection time to those discovered
             # obs time is day =0
@@ -223,7 +226,7 @@ cdef class Forecast:
         # Get R_I values and store in object.
         self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
                                    (df_forecast.state == self.state), 
-                                   self.num_of_sim % df_forecast.shape[0]].values[0]
+                                   self.num_of_sim % 10000].values[0]
 
         # Get only R_L forecasts
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
@@ -236,7 +239,7 @@ cdef class Forecast:
             # instead of mean and std, take all columns as samples of Reff
             # convert key to days since start date for easier indexing
             newkey = (key - self.start_date).days
-            Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % df_forecast.shape[0]]
+            Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 10000]
 
         self.Reff = Reff_lookupstate
     
@@ -320,16 +323,7 @@ cdef class Forecast:
                         if detection_rv < detect_prob:
                             # case detected
                             # only care about detected cases
-                            if detect_time < self.cases.shape[0]:
-                                if detect_time < self.forecast_date:
-                                    if detect_time > self.forecast_date - 14:
-                                        self.inf_nowcast_counter += 1
-                                    elif detect_time > self.forecast_date - 60:
-                                        self.inf_backcast_counter += 1
-                                    # elif detect_time > self.forecast_date - 90 and detect_time < self.forecast_date - 60:
-                                    #     self.inf_longbackcast_counter += 1
-                                        
-                                self.observed_cases[max(0, ceil(detect_time)-1), 2] += 1
+                            self.increment_counters(detect_time, category)
 
                     else:
                         category = 'A'
@@ -348,17 +342,7 @@ cdef class Forecast:
                         if detection_rv < detect_prob:
                             # case detected
                             #detect_time = inf_time + next(self.get_detect_time)
-                            if detect_time < self.cases.shape[0]:
-                                # counters increment before data date
-                                if detect_time < self.forecast_date:
-                                    if detect_time > self.forecast_date - 14:
-                                        self.inf_nowcast_counter += 1
-                                    elif detect_time > self.forecast_date - 60:
-                                        self.inf_backcast_counter += 1
-                                    # elif detect_time > self.forecast_date - 90 and detect_time < self.forecast_date - 60:
-                                    #     self.inf_longbackcast_counter += 1
-                                        
-                                self.observed_cases[max(0, ceil(detect_time)-1), 1] += 1
+                            self.increment_counters(detect_time, category)
 
                     # add new infected to queue
                     self.infected_queue.append(len(self.people))
@@ -381,8 +365,10 @@ cdef class Forecast:
         self.observed_cases = np.zeros_like(self.cases)
         self.observed_cases[0, :] = self.initial_state.copy()
         
+        # initialise the time 
+        curr_time = 0.0
         # Initalise undetected cases and add them to current
-        self.initialise_sim()
+        self.initialise_sim(curr_time=curr_time)
         # number of cases after end time
         self.cases_after = 0  # gets incremented in generate new cases
         # Record day 0 cases
@@ -448,20 +434,8 @@ cdef class Forecast:
         self.daycount = 0
         while len(self.infected_queue) > 0:
             day_end = self.people[self.infected_queue[0]].detection_time
-            # over_check = (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases)
-            over_check = (
-                self.inf_backcast_counter > self.max_backcast_cases or 
-                self.inf_nowcast_counter > self.max_nowcast_cases )
-                #or 
-                #self.inf_longbackcast_counter > self.max_longbackcast_cases
-            # )
-            # under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)
-            if day_end < self.forecast_date and (over_check): 
-                fail_type = ((self.inf_backcast_counter > self.max_backcast_cases)*"backcast" + 
-                             (self.inf_nowcast_counter > self.max_nowcast_cases)*"nowcast" )
-                             #+ 
-                             #(self.inf_longbackcast_counter > self.max_longbackcast_cases)*"long-backcast")
-                print("Bad sim with fail in "+fail_type)
+            over_check = self.check_over_cases()
+            if (day_end < self.forecast_date) and over_check: 
                 self.num_too_many += 1
                 self.bad_sim = True
                 break
@@ -554,7 +528,7 @@ cdef class Forecast:
                         # reset days to zero
                         self.daycount = 0
 
-                if n_resim > 20:
+                if n_resim > 10:
                     # print("This sim reinitilaised %i times" % n_resim)
                     self.bad_sim = True
                     n_resim = 0
@@ -564,23 +538,12 @@ cdef class Forecast:
                 # to next check, otherwise will be doubling up on undetecteds
                 while len(self.infected_queue) > 0:
                     day_end = self.people[self.infected_queue[0]].detection_time
-                    # over_check = (self.inf_backcast_counter > self.max_backcast_cases or self.inf_nowcast_counter > self.max_nowcast_cases)
-                    over_check = (self.inf_backcast_counter > self.max_backcast_cases or 
-                                  self.inf_nowcast_counter > self.max_nowcast_cases)
-                                  #or 
-                                  #self.inf_longbackcast_counter > self.max_longbackcast_cases)
-                    # under_check = (self.inf_backcast_counter < self.min_backcast_cases or self.inf_nowcast_counter < self.min_nowcast_cases)
-                    if day_end < self.forecast_date and (over_check): 
+                    over_check = self.check_over_cases()
+                    if (day_end < self.forecast_date) and over_check: 
                     # check for exceeding max_cases
-                            self.num_too_many += 1
-                            self.bad_sim = True
-                            fail_type = ((self.inf_backcast_counter > self.max_backcast_cases)*"backcast" + 
-                                         (self.inf_nowcast_counter > self.max_nowcast_cases)*"nowcast" )
-                                         # + 
-                                         # (self.inf_longbackcast_counter > self.max_longbackcast_cases)*"long-backcast")
-                            print("Bad sim with fail in "+fail_type)
-                            # print("Breaking in second instance with num cases: ", str(self.inf_backcast_counter))
-                            break
+                        self.num_too_many += 1
+                        self.bad_sim = True
+                        break
                     else:
                         if self.inf_forecast_counter > self.max_cases:
                             day_inf = self.people[self.infected_queue[0]].infection_time
@@ -588,7 +551,6 @@ cdef class Forecast:
 
                             self.observed_cases[ceil(day_inf):, 2] = self.observed_cases[ceil(day_inf)-2, 2]
                             self.num_too_many += 1
-                            print("Bad sim with fail in forecast")
                             
                             break
                         
@@ -626,8 +588,14 @@ cdef class Forecast:
         self.people.clear()
         gc.collect()
         
+        # now we run a check to cutoff any sims that were too few cases — probably want to implement this better but this 
+        # works for now 
+        self.final_check()
+        
         if self.bad_sim:
             # return NaN arrays for all bad_sims
+            print("Bad sim...")
+            print(np.sum(self.observed_cases, axis=0))
             self.cumulative_cases = np.empty_like(self.cases)
             self.cumulative_cases[:] = np.nan
             return (self.cumulative_cases, self.cumulative_cases,
@@ -637,9 +605,53 @@ cdef class Forecast:
         else:
             # good sim
             print("Good sim!")
+            print(np.sum(self.observed_cases, axis=0))
             return (self.cases.copy(), self.observed_cases.copy(),
                     {'num_of_sim': self.num_of_sim,
                      'bad_sim': self.bad_sim})
+
+    cdef inline np.int_t check_over_cases(self):
+        
+        cdef np.int_t i
+        cdef np.int_t exceed = 0
+        
+        # look for whether we have exceeded the cases in any window 
+        for i in range(len(self.symp_cases_in_window)):
+            if self.symp_cases_in_window[i] > self.max_cases_in_windows[i]:
+                exceed = 1
+                break
+        
+        return exceed
+        
+    cdef inline np.int_t final_check(self): 
+        
+        cdef np.int_t i 
+        cdef np.int_t under = 0
+        
+        # loop over the windows and check to see how far below we are
+        for i in range(len(self.symp_cases_in_window)):
+            if self.symp_cases_in_window[i] < self.min_cases_in_windows[i]:
+                self.bad_sim = True
+                break
+            
+    cdef inline void increment_counters(self, np.float_t detect_time, str category):
+
+        cdef np.int_t n
+
+        # if detect time in window
+        if detect_time < self.cases.shape[0]:
+            # loop over the windows
+            for n in range(len(self.window_sizes)):
+                # window sizes is cumulative so find which one we're in and increment
+                if detect_time < self.window_sizes[n]:
+                    self.symp_cases_in_window[n] += 1
+                    break
+                    
+            # add case to observed
+            if category == "S":
+                self.observed_cases[max(0, ceil(detect_time)-1), 2] += 1
+            elif category == "A":
+                self.observed_cases[max(0, ceil(detect_time)-1), 1] += 1
 
     def to_df(self, results):
         """
@@ -728,47 +740,77 @@ cdef class Forecast:
         # needed to be more careful with the reindexing as using the date inferred value
         df = df.reindex(range(self.end_time), columns={'imported', 'local'}, fill_value=0)
 
-        # calculate window of cases to measure against
-        if df.index.values[-1] > 90:
-            # if final day of data is later than day 90, then remove first 90 days
-            forecast_days = self.end_time-self.forecast_date
-            self.cases_to_subtract = sum(df.local.values[:-1*(60+forecast_days)])
-            self.cases_to_subtract_now = sum(df.local.values[:-1*(14+forecast_days)])
-        else:
-            self.cases_to_subtract = 0
-            self.cases_to_subtract_now = 0
-            
-        #self.imported_total = sum(df.imported.values)
-        self.max_cases = max(100000, 2*(sum(df.local.values) + sum(df.imported.values)))
+        # first we calculate the length of the sliding windows and the number of cases in each window
+        self.calculate_counts_in_windows(df)
+        # using the calcualted case counts, we determine maximum limits in each window
+        self.calculate_limits()
+        forecast_days = self.end_time-self.forecast_date
         
-        # +/- factors for number of cases to use in the current period to determine proximity to data
-        long_backcast_factor = 3.0
-        backcast_factor = 4.0
-        nowcast_factor = 1.5
-        
-        # long_backcast_cases = (sum(df.local.values[]))
-        # long_backcast_cases = (sum(df.local.values) - self.cases_to_subtract_long)
-        backcast_cases = (sum(df.local.values) - self.cases_to_subtract)
-        nowcast_cases = (sum(df.local.values) - self.cases_to_subtract_now)
-        
-        # max limits are just 1+factor * number of cases over a time horizon
-        # self.max_longbackcast_cases = max(100, long_backcast_cases * long_backcast_factor)
-        self.max_backcast_cases = max(100, backcast_cases * backcast_factor)
-        self.max_nowcast_cases = max(10, nowcast_cases * nowcast_factor)
-        # min limits are 1-factor * number of cases over a time horizon. we take the maximum of 
-        # 0 and the estimated matching interval as there's the possibility for a negative number of
-        # cases if the factor >= 1. 
-        
-        print("Local cases in last 14 days is %i" % nowcast_cases)
-
-        # print('Max limits: ', self.max_cases, self.max_backcast_cases, self.max_nowcast_cases)
-        print('Max limits: ', 
-              self.max_cases, 
-              self.max_longbackcast_cases, 
-              self.max_backcast_cases, 
-              self.max_nowcast_cases)
+        print("Local cases in last 14 days is %i" % sum(df.local.values[-1*(14+forecast_days):]))
 
         self.actual = df.local.to_dict()
+        
+    def calculate_counts_in_windows(self, df):
+        
+        # number of days we are forecasting for
+        forecast_days = self.end_time-self.forecast_date
+        # get the index of the last date in the data
+        cases_in_window = np.array([])
+        # sum the nowcast cases
+        cases_in_window = np.append(cases_in_window, sum(df.local.values[-1*(14+forecast_days):]))
+        # get the number of days the simulation is run for (with data) where we subtract 14 
+        # as this is the nowcast 
+        n_days = self.forecast_date - 14
+        # number of windows is integer division of n_days by 30
+        n_windows = n_days // 30
+        # get the number of days in the first window 
+        n_days_first_window = n_days - 30*n_windows
+        # the last window is for the nowcast and consists of the last two weeks before the forecast date
+        window_sizes = np.array([14])
+        
+        for n in range(n_windows):
+            # we initially end at the beginning of the nowcast (so -(14+forecast_days)) and 
+            # add on a month per window. 
+            start_index = -(14+forecast_days+30*(n+1))
+            # we initially end at the beginning of the nowcast (so -(14+forecast_days)) and 
+            # add on a month-1 per window. 
+            end_index = -(14+forecast_days+30*n)-1
+            cases_in_window = np.append(cases_in_window, 
+                                        sum(df.local.values[start_index:end_index]))
+            window_sizes = np.append(window_sizes, 30)
+        
+        if n_days_first_window != 0:
+            # the last index is the number of windows+1
+            end_index = -(14+forecast_days+30*(n_windows+1))-1
+            # now add in the cases in the last window 
+            cases_in_window = np.append(cases_in_window, sum(df.local.values[:end_index]))
+            window_sizes = np.append(window_sizes, n_days_first_window)
+
+        # we take the cumulative sum of the window sizes 
+        self.window_sizes = np.cumsum(np.flip(window_sizes))
+        # set these in the overall forecast object
+        self.cases_in_windows = np.flip(cases_in_window)
+        
+        print("Observation windows length: ", self.window_sizes)
+        print("Number of cases in each window: ", self.cases_in_windows)
+        
+    def calculate_limits(self):
+    
+        # max cases factors
+        limit_factor_backcasts = 3
+        limit_factor_nowcast = 1.5
+        self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
+        self.min_cases_in_windows = np.zeros_like(self.cases_in_windows)
+        # backcasts all have same limit
+        self.max_cases_in_windows[:-1] = np.maximum(100, limit_factor_backcasts * self.cases_in_windows[:-1])
+        # nowcast is different 
+        self.max_cases_in_windows[-1] = np.maximum(10, limit_factor_nowcast * self.cases_in_windows[-1])
+        
+        # now we calculate the lower limit, this is used to exclude forecasts following simulation 
+        low_limit_backcast = 0.5
+        low_limit_nowcast = 1/3
+        self.min_cases_in_windows[:-1] = np.maximum(0, low_limit_backcast*self.cases_in_windows[:-1])
+        self.min_cases_in_windows[-1] = np.maximum(0, low_limit_nowcast*self.cases_in_windows[-1])
 
     cdef void import_cases_model(self, df):
         """
@@ -818,9 +860,8 @@ cdef class Forecast:
         """
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """
-
-        self.inf_times = np.random.gamma(3.64/3.07, 3.07, size=size)  # shape and scale
-        self.detect_times = np.random.gamma(5.807, 0.958, size=size)
+        self.inf_times = np.random.gamma(shape_gen, scale_gen, size=size)  # shape and scale
+        self.detect_times = np.random.gamma(shape_inc, scale_inc, size=size)
 
     def iter_inf_time(self):
         """
