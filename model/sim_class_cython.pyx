@@ -61,7 +61,7 @@ cdef class Forecast:
 
     def __init__(self, current, state, start_date,
                  forecast_date, cases_file_date, end_time = None,
-                 VoC_flag='', scenario='', which_k='NB'):
+                 VoC_flag='', scenario=''):
         """Create forecast object with parameters in preperation for running simulation.
 
         Args:
@@ -89,12 +89,10 @@ cdef class Forecast:
         self.qi = qi_d[state]
         self.symptomatic_detection_prob = local_detection[state]
         self.asymptomatic_detection_prob = a_local_detection[state]
-        if which_k == 'NB':
-            print("Using Negative-Binomial offspring distribution.")
-            self.k = 0.15  # Hard coded
-        elif which_k == 'Poi': 
-            print("Using Poisson offspring distribution.")
-            self.k = 250
+        # print("Using Negative-Binomial offspring distribution.")
+        # self.k = 0.15  # Hard coded
+        print("Using Poisson offspring distribution.")
+        self.k = 250
         # self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quarantine version of alpha_i.
         self.qua_ai = 1
         self.gam = 1/2
