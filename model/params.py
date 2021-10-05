@@ -34,7 +34,7 @@ case_insertion_threshold = 5
 download_google_automatically = False
 assume_local_cases_if_unknown = True
 # number of days to remove to stop the issues with the right-truncation
-truncation_days = 12
+truncation_days = 15
 
 ##### Simulation parameters/transmission parameters
 # incubation period: taken from Lauer et al. 2020
