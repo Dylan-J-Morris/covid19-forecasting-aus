@@ -93,7 +93,7 @@ offspring_type = 'Poi'
 forecast_object = Forecast(current[state],
                            state, start_date, forecast_date=forecast_date,
                            cases_file_date=case_file_date,
-                           VoC_flag=VoC_flag, scenario=scenario, end_time = end_time, which_k = offspring_type
+                           VoC_flag=VoC_flag, scenario=scenario, end_time = end_time, which_k = 'Poi'
                            )
 
 ############ Run Simulations in parallel and return ############
