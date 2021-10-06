@@ -90,9 +90,9 @@ cdef class Forecast:
         self.symptomatic_detection_prob = local_detection[state]
         self.asymptomatic_detection_prob = a_local_detection[state]
         # print("Using Negative-Binomial offspring distribution.")
-        self.k = 0.15  # Hard coded
+        # self.k = 0.15  # Hard coded
         print("Using Poisson offspring distribution.")
-        # self.k = 250
+        self.k = 250
         # self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quarantine version of alpha_i.
         self.qua_ai = 1
         self.gam = 1/2
