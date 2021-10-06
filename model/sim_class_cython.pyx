@@ -802,7 +802,7 @@ cdef class Forecast:
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 0.5
-        low_limit_nowcast = 1/3
+        low_limit_nowcast = 2/3
         self.min_cases_in_windows[:-1] = np.maximum(0, low_limit_backcast*self.cases_in_windows[:-1])
         self.min_cases_in_windows[-1] = np.maximum(0, low_limit_nowcast*self.cases_in_windows[-1])
         

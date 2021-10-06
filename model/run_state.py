@@ -15,9 +15,10 @@ import multiprocessing as mp
 if mp.cpu_count() < ncores:
     print("=========================")
     print("Machine does not have target number of cores available.")
-    print("Might need to turn on_phoenix off")
+    print("Might need to turn on_phoenix off...")
+    print("Running with: ", mp.cpu_count()/2, " cores.")
     print("=========================")
-    sys.exit()
+    ncores = int(mp.cpu_count() / 2)
 
 
 from timeit import default_timer as timer
