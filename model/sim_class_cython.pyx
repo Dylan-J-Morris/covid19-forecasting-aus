@@ -220,7 +220,7 @@ cdef class Forecast:
         # Get R_I values and store in object.
         self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
                                    (df_forecast.state == self.state), 
-                                   self.num_of_sim % 10000].values[0]
+                                   self.num_of_sim % 4000].values[0]
 
         # Get only R_L forecasts
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
@@ -233,7 +233,7 @@ cdef class Forecast:
             # instead of mean and std, take all columns as samples of Reff
             # convert key to days since start date for easier indexing
             newkey = (key - self.start_date).days
-            Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 10000]
+            Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 4000]
 
         self.Reff = Reff_lookupstate
     
