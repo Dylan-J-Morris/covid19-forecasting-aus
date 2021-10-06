@@ -582,7 +582,8 @@ cdef class Forecast:
         
         # now we run a check to cutoff any sims that were too few cases — probably want to implement this better but this 
         # works for now 
-        self.final_check()
+        if not self.bad_sim:
+            self.final_check()
         
         if self.bad_sim:
             # return NaN arrays for all bad_sims
@@ -610,6 +611,7 @@ cdef class Forecast:
         for i in range(len(self.sim_cases_in_window)):
             if self.sim_cases_in_window[i] > self.max_cases_in_windows[i]:
                 exceed = 1
+                print("Breaking in window: ", i, " with ", self.sim_cases_in_window[i] - self.max_cases_in_windows[i], " too many.")
                 break
         
         return exceed
@@ -622,8 +624,13 @@ cdef class Forecast:
         # loop over the windows and check to see whether we are below the windows
         for i in range(len(self.sim_cases_in_window)):
             if self.sim_cases_in_window[i] < self.min_cases_in_windows[i]:
+                print("Breaking in window: ", i, " with ", self.min_cases_in_windows[i] - self.sim_cases_in_window[i], " too few.")
                 self.bad_sim = True
                 break
+        #for i in range(self.end_time):
+        #    if self.observed_cases[i, 2] < max(0, ((1/2)*self.actual[i])):
+        #        self.bad_sim = True
+        #        break
             
     cdef inline void increment_counters(self, np.float_t detect_time, str category):
         # increment the counters for the different regions of time when we have cases
@@ -794,7 +801,7 @@ cdef class Forecast:
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
         limit_factor_backcasts = 2.5
-        limit_factor_nowcast = 1.5
+        limit_factor_nowcast = 2.0
         # backcasts all have same limit
         self.max_cases_in_windows[:-1] = np.maximum(100, limit_factor_backcasts * self.cases_in_windows[:-1])
         # nowcast is different 

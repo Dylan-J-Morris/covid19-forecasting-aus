@@ -458,10 +458,10 @@ for i, state in enumerate(states):
     ax = plot_results(df_raw, ['total_inci_obs'], ax_arg=ax, summary=False, plotpath=True)
     spag_ylim = ax.get_ylim()
 
-    if (state == 'VIC') or (state == 'NSW'):
-        ax.set_ylim((0, 100))
-    elif spag_ylim[1] > ylims[1]:
-        ax.set_ylim((ylims[0], 5*ylims[1]))
+    # if (state == 'VIC') or (state == 'NSW'):
+    #     ax.set_ylim((0, 100))
+    # elif spag_ylim[1] > ylims[1]:
+    #     ax.set_ylim((ylims[0], 5*ylims[1]))
 
     if i % 2 == 0:
         ax.set_ylabel("Observed \n local cases")
