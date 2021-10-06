@@ -56,7 +56,7 @@ cdef class Forecast:
     cdef np.ndarray cumulative_cases, observed_cases, cases, inferred_initial_obs
     cdef np.int_t bad_sim, daycount, inf_forecast_counter
     cdef dict people     # this is an array of people objects — not sure how to type that though
-    cdef np.ndarray inf_times, detect_times, cases_in_windows, max_cases_in_windows, min_cases_in_windows, symp_cases_in_window, symp_cases_total, window_sizes
+    cdef np.ndarray inf_times, detect_times, cases_in_windows, max_cases_in_windows, min_cases_in_windows, sim_cases_in_window, symp_cases_total, window_sizes
     cdef get_inf_time, get_detect_time
 
     def __init__(self, current, state, start_date,
@@ -90,9 +90,9 @@ cdef class Forecast:
         self.symptomatic_detection_prob = local_detection[state]
         self.asymptomatic_detection_prob = a_local_detection[state]
         # print("Using Negative-Binomial offspring distribution.")
-        # self.k = 0.15  # Hard coded
+        self.k = 0.15  # Hard coded
         print("Using Poisson offspring distribution.")
-        self.k = 250
+        # self.k = 250
         # self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quarantine version of alpha_i.
         self.qua_ai = 1
         self.gam = 1/2
@@ -149,7 +149,7 @@ cdef class Forecast:
             # counters for terminating early
             self.inf_forecast_counter = 0
             # this inits the number of detections (onset events) in each window to match size of max_cases_in_windows
-            self.symp_cases_in_window = np.zeros_like(self.max_cases_in_windows)
+            self.sim_cases_in_window = np.zeros_like(self.cases_in_windows)
 
             # assign infection time to those discovered
             # obs time is day =0
@@ -217,10 +217,6 @@ cdef class Forecast:
         import pandas as pd
 
         df_forecast = self.Reff_all
-
-        # sample a random index from the forecasted TP's which is used in the simulation
-        # sample_ind = np.random.randint(df_forecast.shape[0])
-
         # Get R_I values and store in object.
         self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
                                    (df_forecast.state == self.state), 
@@ -363,10 +359,8 @@ cdef class Forecast:
         self.observed_cases = np.zeros_like(self.cases)
         self.observed_cases[0, :] = self.initial_state.copy()
         
-        # initialise the time 
-        curr_time = 0.0
         # Initalise undetected cases and add them to current
-        self.initialise_sim(curr_time=curr_time)
+        self.initialise_sim()
         # number of cases after end time
         self.cases_after = 0  # gets incremented in generate new cases
         # Record day 0 cases
@@ -599,7 +593,6 @@ cdef class Forecast:
             return (self.cumulative_cases, self.cumulative_cases,
                     {'num_of_sim': self.num_of_sim,
                      'bad_sim': self.bad_sim}) 
-            
         else:
             # good sim
             print("Good sim!")
@@ -609,41 +602,43 @@ cdef class Forecast:
                      'bad_sim': self.bad_sim})
 
     cdef inline np.int_t check_over_cases(self):
-        
+        # checks to see if we go over the maximum allowed cases in a given window
         cdef np.int_t i
         cdef np.int_t exceed = 0
         
-        # look for whether we have exceeded the cases in any window 
-        for i in range(len(self.symp_cases_in_window)):
-            if self.symp_cases_in_window[i] > self.max_cases_in_windows[i]:
+        # loop over windows and check for whether we have exceeded the cases in any window 
+        for i in range(len(self.sim_cases_in_window)):
+            if self.sim_cases_in_window[i] > self.max_cases_in_windows[i]:
                 exceed = 1
                 break
         
         return exceed
         
-    cdef inline np.int_t final_check(self): 
-        
+    cdef inline void final_check(self): 
+        # does a final check for undershoot in the simulation compared to the data
         cdef np.int_t i 
         cdef np.int_t under = 0
         
-        # loop over the windows and check to see how far below we are
-        for i in range(len(self.symp_cases_in_window)):
-            if self.symp_cases_in_window[i] < self.min_cases_in_windows[i]:
+        # loop over the windows and check to see whether we are below the windows
+        for i in range(len(self.sim_cases_in_window)):
+            if self.sim_cases_in_window[i] < self.min_cases_in_windows[i]:
                 self.bad_sim = True
                 break
             
     cdef inline void increment_counters(self, np.float_t detect_time, str category):
-
+        # increment the counters for the different regions of time when we have cases
         cdef np.int_t n
 
-        # if detect time in window
+        # check to see if case in forecast window
         if detect_time < self.cases.shape[0]:
-            # loop over the windows
-            for n in range(len(self.window_sizes)):
-                # window sizes is cumulative so find which one we're in and increment
-                if detect_time < self.window_sizes[n]:
-                    self.symp_cases_in_window[n] += 1
-                    break
+            # check to see if case before the forecast date 
+            if detect_time < self.forecast_date:
+                # loop over the windows
+                for n in range(len(self.window_sizes)):
+                    # window sizes is cumulative so find which one we're in and increment
+                    if detect_time < self.window_sizes[n]:
+                        self.sim_cases_in_window[n] += 1
+                        break
                     
             # add case to observed
             if category == "S":
@@ -741,7 +736,7 @@ cdef class Forecast:
         # first we calculate the length of the sliding windows and the number of cases in each window
         self.calculate_counts_in_windows(df)
         # using the calcualted case counts, we determine maximum limits in each window
-        self.calculate_limits()
+        self.calculate_limits(df)
         forecast_days = self.end_time-self.forecast_date
         
         print("Local cases in last 14 days is %i" % sum(df.local.values[-1*(14+forecast_days):]))
@@ -784,6 +779,7 @@ cdef class Forecast:
             cases_in_window = np.append(cases_in_window, sum(df.local.values[:end_index]))
             window_sizes = np.append(window_sizes, n_days_first_window)
 
+        print(np.flip(window_sizes))
         # we take the cumulative sum of the window sizes 
         self.window_sizes = np.cumsum(np.flip(window_sizes))
         # set these in the overall forecast object
@@ -792,13 +788,13 @@ cdef class Forecast:
         print("Observation windows length: ", self.window_sizes)
         print("Number of cases in each window: ", self.cases_in_windows)
         
-    def calculate_limits(self):
+    def calculate_limits(self, df):
     
-        # max cases factors
-        limit_factor_backcasts = 3
-        limit_factor_nowcast = 1.5
-        self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         self.min_cases_in_windows = np.zeros_like(self.cases_in_windows)
+        self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
+        # max cases factors
+        limit_factor_backcasts = 2.5
+        limit_factor_nowcast = 1.5
         # backcasts all have same limit
         self.max_cases_in_windows[:-1] = np.maximum(100, limit_factor_backcasts * self.cases_in_windows[:-1])
         # nowcast is different 
@@ -809,6 +805,8 @@ cdef class Forecast:
         low_limit_nowcast = 1/3
         self.min_cases_in_windows[:-1] = np.maximum(0, low_limit_backcast*self.cases_in_windows[:-1])
         self.min_cases_in_windows[-1] = np.maximum(0, low_limit_nowcast*self.cases_in_windows[-1])
+        
+        self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
 
     cdef void import_cases_model(self, df):
         """

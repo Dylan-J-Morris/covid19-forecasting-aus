@@ -1,7 +1,6 @@
 import sys
+from typing import MutableMapping
 sys.path.insert(0,'model')
-# from sim_class import *
-# from sim_class_update import *
 from sim_class_cython import *
 from params import start_date, num_forecast_days, ncores, testing_sim  # External parameters
 import pandas as pd
@@ -9,6 +8,17 @@ from sys import argv
 from numpy.random import beta, gamma
 from tqdm import tqdm
 import multiprocessing as mp
+
+# Check for the number of cores on the machine and break early. This is 
+# needed to avoid issues for running locally as running with 12 cores
+# can result in freezes/crashes 
+if mp.cpu_count() < ncores:
+    print("=========================")
+    print("Machine does not have target number of cores available.")
+    print("Might need to turn on_phoenix off")
+    print("=========================")
+    sys.exit()
+
 
 from timeit import default_timer as timer
 
