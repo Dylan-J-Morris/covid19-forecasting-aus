@@ -16,8 +16,9 @@ for ff in ("*.c", "*.html"):
             os.remove(f)
         except FileNotFoundError:
             pass
-
-ext_modules = [Extension("sim_class_cython", ["sim_class_cython.pyx"])]
+        
+ext_modules = [Extension("sim_class_cython", 
+                         ["sim_class_cython.pyx"])]
 
 os.chdir('model')
 

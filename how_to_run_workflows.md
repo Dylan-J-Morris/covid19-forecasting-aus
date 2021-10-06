@@ -38,7 +38,7 @@ The `on_phoenix` flag tells the model to use a slightly older version of Pystan 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ```
 DATADATE='2021-10-05'   # Date of NNDSS data file
-NSIMS=20000             # Total number of simulations to run should be > 5000
+NSIMS=30000             # Total number of simulations to run should be > 5000
 VOCFLAG='Delta'
 SCENARIO='no_reversion'
 # set date of scenario. Does not matter for no-reversion and is just used to name files. 
@@ -50,6 +50,7 @@ python model/EpyReff/run_estimator.py $DATADATE
 python model/cprs/generate_posterior.py $DATADATE 
 python model/cprs/generate_RL_forecasts.py $DATADATE $SCENARIO $SCENARIODATE
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+states=("NSW" "VIC")
 for STATE in "${states[@]}"
 do
     python model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG "${SCENARIO}${SCENARIODATE}"
@@ -110,6 +111,12 @@ jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${
 jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
 jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
 jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
+```
+
+If running **JUST** the sims.
+```
+jid_simulate_b=$(sbatch --parsable sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
+jid_savefigs_and_csv_b=$(sbatch --parsable --dependency=afterok:$jid_simulate_b sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
 ```
 
 ```
