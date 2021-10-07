@@ -76,16 +76,14 @@ cdef class Forecast:
         """
         from params import local_detection, a_local_detection, qi_d, alpha_i, k
 
-        self.print_at_iterations = True
+        self.print_at_iterations = False
 
         self.state = state
         self.end_time = end_time
+        self.start_date = pd.to_datetime(start_date, format='%Y-%m-%d')
         
         # start date sets day 0 in script to start_date
-        if state in {'VIC'}:    
-            self.start_date = pd.to_datetime('2021-08-01', format='%Y-%m-%d')
-        else:
-            self.start_date = pd.to_datetime(start_date, format='%Y-%m-%d')
+        if state not in {'VIC'}:    
             self.initial_state = current.copy()  # Observed cases on start day
             # Create an object list of Persons based on observed cases on start day/
             people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2]
@@ -151,7 +149,6 @@ cdef class Forecast:
             self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
             
         else:
-        
             pass
     
     @cython.boundscheck(False)  # Deactivate bounds checking
@@ -268,8 +265,7 @@ cdef class Forecast:
                 # convert key to days since start date for easier indexing
                 newkey = (key - self.start_date).days
                 Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
-
-            print(Reff_lookupstate.shape)
+                
             self.Reff = Reff_lookupstate
         
         else: 
@@ -889,8 +885,8 @@ cdef class Forecast:
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 1/3
         low_limit_nowcast = 0.5
-        self.min_cases_in_windows[:-1] = np.maximum(0, low_limit_backcast*self.cases_in_windows[:-1])
-        self.min_cases_in_windows[-1] = np.maximum(0, low_limit_nowcast*self.cases_in_windows[-1])
+        self.min_cases_in_windows[:-1] = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[:-1]))
+        self.min_cases_in_windows[-1] = np.maximum(0, np.floor(low_limit_nowcast*self.cases_in_windows[-1]))
         
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
 

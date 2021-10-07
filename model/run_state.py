@@ -45,7 +45,8 @@ if len(argv) > 5:  # Add an optional scenario flag to load in specific Reff scen
 # Get total number of simulation days
 end_date = pd.to_datetime(forecast_date, format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 if state == 'VIC':
-    end_time = (pd.to_datetime('2021-08-01') - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days
+    start_date = pd.to_datetime('2021-08-01') 
+    end_time = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days
 else:
     end_time = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days
     
@@ -108,12 +109,19 @@ elif start_date == '2021-05-15':
         'WA': [18, 0, 2],
     }
 else:
-    print("Start date not implemented")
+    current = {  # based on locally acquired cases in the days preceding the start date
+        'ACT': [3, 0, 0],
+        'NSW': [3, 0, 10],
+        'NT': [0, 0, 0],
+        'QLD': [14, 0, 1],
+        'SA': [0, 0, 0],
+        'TAS': [0, 0, 0],
+        'VIC': [0, 0, 0],
+        'WA': [18, 0, 2],
+    }
 
 
 ####### Create simulation.py object ########
-
-offspring_type = 'Poi'
 
 forecast_object = Forecast(current[state],
                            state, start_date, forecast_date=forecast_date,
