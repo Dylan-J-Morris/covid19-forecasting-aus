@@ -42,10 +42,13 @@ if len(argv) > 5:  # Add an optional scenario flag to load in specific Reff scen
 
 # print("Simulating state " + state)
 
-
 # Get total number of simulation days
 end_date = pd.to_datetime(forecast_date, format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
-end_time = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days
+if state == 'VIC':
+    end_time = (pd.to_datetime('2021-08-01') - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days
+else:
+    end_time = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days
+    
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y")  # Convert date to format used in case file
 
 # Initialise the number of cases as 1st of March data incidence

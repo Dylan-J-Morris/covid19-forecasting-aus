@@ -58,6 +58,7 @@ cdef class Forecast:
     cdef dict people     # this is an array of people objects — not sure how to type that though
     cdef np.ndarray inf_times, detect_times, cases_in_windows, max_cases_in_windows, min_cases_in_windows, sim_cases_in_window, symp_cases_total, window_sizes
     cdef get_inf_time, get_detect_time
+    cdef print_at_iterations
 
     def __init__(self, current, state, start_date,
                  forecast_date, cases_file_date, end_time = None,
@@ -75,15 +76,21 @@ cdef class Forecast:
         """
         from params import local_detection, a_local_detection, qi_d, alpha_i, k
 
-        self.end_time = end_time
-        self.initial_state = current.copy()  # Observed cases on start day
-        # Create an object list of Persons based on observed cases on start day/
-        people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2]
-        self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
+        self.print_at_iterations = True
 
         self.state = state
+        self.end_time = end_time
+        
         # start date sets day 0 in script to start_date
-        self.start_date = pd.to_datetime(start_date, format='%Y-%m-%d')
+        if state in {'VIC'}:    
+            self.start_date = pd.to_datetime('2021-08-01', format='%Y-%m-%d')
+        else:
+            self.start_date = pd.to_datetime(start_date, format='%Y-%m-%d')
+            self.initial_state = current.copy()  # Observed cases on start day
+            # Create an object list of Persons based on observed cases on start day/
+            people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2]
+            self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
+
         self.alpha_i = alpha_i[state]
         # Probability of *unobserved* imported infectious individuals
         self.qi = qi_d[state]
@@ -124,13 +131,28 @@ cdef class Forecast:
         self.num_bad_sims = 0
         self.num_too_many = 0
 
-        assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
+        # assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
     
-    # def rare_event_simulation_init(self):
-    # 
-    #     if self.state in {'VIC'}:
+    def rare_event_simulation_init(self):
+        
+        if self.state in {'VIC'}:
             
-
+            # initial conditions — hardcoded for now
+            I = np.array([1., 1., 0., 1., 0., 2., 1., 0., 0., 0., 2., 0.])
+            A = np.array([0., 0., 0., 1., 1., 0., 2., 0., 0., 0., 0., 1.])
+            S = np.array([10.,  5., 12., 13., 12., 10.,  3.,  4.,  9.,  9.,  2.,  9.])
+            # sample from the initial conditions
+            ind = np.random.randint(len(I))
+            # set current
+            current = [I[ind], A[ind], S[ind]]
+            self.initial_state = current.copy()  # Observed cases on start day
+            # Create an object list of Persons based on observed cases on start day
+            people = ['I']*int(current[0]) + ['A']*int(current[1]) + ['S']*int(current[2])
+            self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
+            
+        else:
+        
+            pass
     
     @cython.boundscheck(False)  # Deactivate bounds checking
     @cython.wraparound(False) 
@@ -224,30 +246,7 @@ cdef class Forecast:
 
         df_forecast = self.Reff_all
         
-        if self.state == 'VIC':
-            good_indices = np.array([ 0,  4,  5,  6,  9, 11, 13, 15, 16, 16, 16, 17]) % 2000
-            ind = good_indices[self.num_of_sim % len(good_indices)]
-            
-            # Get R_I values and store in object.
-            self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
-                                        (df_forecast.state == self.state), 
-                                        ind].values[0]
-
-            # Get only R_L forecasts
-            df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
-            df_forecast = df_forecast.set_index(['state', 'date'])
-            
-            dfReff_dict = df_forecast.loc[self.state,[0, 1]].to_dict(orient='index')
-
-            Reff_lookupstate = {}
-            for key, stats in dfReff_dict.items():
-                # instead of mean and std, take all columns as samples of Reff
-                # convert key to days since start date for easier indexing
-                newkey = (key - self.start_date).days
-                Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
-
-            self.Reff = Reff_lookupstate
-        elif self.state == 'NSW':
+        if self.state == 'NSW':
         
             good_indices = pd.read_csv('results/good_indices_NSW.csv').to_numpy()[0]
             ind = good_indices[self.num_of_sim % len(good_indices)] % 2000
@@ -270,6 +269,7 @@ cdef class Forecast:
                 newkey = (key - self.start_date).days
                 Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
 
+            print(Reff_lookupstate.shape)
             self.Reff = Reff_lookupstate
         
         else: 
@@ -410,6 +410,8 @@ cdef class Forecast:
         # compared to the scipy method. Yes it was checked that numpy and scipy produce the same RVs.
         np.random.seed(seed)
         self.num_of_sim = sim
+        
+        self.rare_event_simulation_init()
         
         self.read_in_Reff()
         # generate storage for cases
@@ -645,8 +647,9 @@ cdef class Forecast:
         
         if self.bad_sim:
             # return NaN arrays for all bad_sims
-            # print("Bad sim...")
-            # print(np.sum(self.observed_cases, axis=0))
+            if self.print_at_iterations:
+                print("Bad sim...")
+                print(np.sum(self.observed_cases, axis=0))
             self.cumulative_cases = np.empty_like(self.cases)
             self.cumulative_cases[:] = np.nan
             return (self.cumulative_cases, self.cumulative_cases,
@@ -654,8 +657,9 @@ cdef class Forecast:
                      'bad_sim': self.bad_sim}) 
         else:
             # good sim
-            # print("Good sim!")
-            # print(np.sum(self.observed_cases, axis=0))
+            if self.print_at_iterations:
+                print("Good sim!")
+                print(np.sum(self.observed_cases, axis=0))
             return (self.cases.copy(), self.observed_cases.copy(),
                     {'num_of_sim': self.num_of_sim,
                      'bad_sim': self.bad_sim})
