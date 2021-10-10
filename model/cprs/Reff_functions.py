@@ -126,15 +126,15 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
             logodds = X1 @ post_values
         if gamma:
             if type(md) == np.ndarray:
-                mu_hat = 2 * expit(logodds) * policy*md
+                mu_hat = 2 * expit(logodds) * policy * md
             else:
                 mu_hat = 2 * expit(logodds)
 
             if type(delta) == np.ndarray:
                 delta = np.random.choice(delta, size=df_state.shape[0])
+                
             R = np.random.choice(R, size=df_state.shape[0])
-            R_eff_hat = np.random.gamma(
-                shape=R * mu_hat*delta, scale=1.0/delta)
+            R_eff_hat = np.random.gamma(shape=R * mu_hat*delta, scale=1.0/delta)
         else:
             # Use normal distribution
             mu_hat = R * 2 * expit(logodds)
@@ -217,6 +217,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                     # each row is a date, column a new sample
                     theta_md = np.tile(theta_md, (df_state.shape[0], 1))
                     md = ((1+theta_md).T**(-1 * prop_sim)).T
+                    # set preban md values to 1
                     md[:logodds.shape[0]] = 1
                     # make logodds by appending post ban values
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
@@ -262,13 +263,6 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
                     # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
                     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
-                    
-                    # if states_initials[state] == 'ACT':
-                    #     print(heterogeneity_delay_start_day)
-                    #     pd.DataFrame(eta).to_csv('eta.csv')
-                    #     pd.DataFrame(r).to_csv('r.csv')
-                        # pd.DataFrame(vacc_sim).to_csv('vacc_sim.csv')
-                    
                     for ii in range(vacc_post.shape[0]):
                         if ii < heterogeneity_delay_start_day:
                             vacc_post[ii] = eta + (1-eta)*vacc_sim[ii]
@@ -304,7 +298,6 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                 else:
                     sim_R = np.tile(samples_sim.R_L.values,(df_state.shape[0], 1))
 
-                print(state)
                 if vaccination is not None:
                     mu_hat = 2 * md*sim_R * expit(logodds) * vacc_post
                 else:
@@ -352,16 +345,20 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                             print("Using data as inference not done on {}".format(state))
                             rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))
                             
-                        # if states_initials[state] == 'ACT':
-                        #     pd.DataFrame(md).to_csv('md.csv')
-                        #     pd.DataFrame(logodds).to_csv('logodds.csv')
-                        #     pd.DataFrame(vacc_post).to_csv('vacc_post.csv')
-                        #     pd.DataFrame(sim_R).to_csv('sim_R.csv')
-                        #     pd.DataFrame(voc_multiplier).to_csv('voc_multiplier.csv')
 
                     R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0], 1))
-
+                    
                     mu_hat = rho_data * R_I_sim + (1 - rho_data) * mu_hat
+                    
+                    if third_phase and states_initials[state] == 'VIC':
+                        os.makedirs('results/fit/', exist_ok=True)
+                        pd.DataFrame(md).to_csv('results/fit/md.csv')
+                        pd.DataFrame(logodds).to_csv('results/fit/logodds.csv')
+                        pd.DataFrame(vacc_post).to_csv('results/fit/vacc_post.csv')
+                        pd.DataFrame(sim_R).to_csv('results/fit/sim_R.csv')
+                        pd.DataFrame(R_I_sim).to_csv('results/fit/R_I_sim.csv')
+                        pd.DataFrame(rho_data).to_csv('results/fit/rho_data.csv')
+                        pd.DataFrame(voc_multiplier).to_csv('results/fit/voc_multiplier.csv')
 
                 if var is not None:
                     # Place the data derived delta here

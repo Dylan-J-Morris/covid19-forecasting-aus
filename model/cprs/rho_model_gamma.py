@@ -55,7 +55,7 @@ data {
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
     
-    int is_ACT[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
+    int is_VIC[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
 
     int decay_start_date_third;
