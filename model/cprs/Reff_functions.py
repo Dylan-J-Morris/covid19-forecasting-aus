@@ -106,10 +106,9 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
             logodds = X1 @ post_values
 
             if md is None:
-                post_alphas = samples[['alpha['+str(i)+']' for i in range(
-                    1, 1+len(value_vars))]].sample(df_state.shape[0]).values.T
-                logodds = np.append(
-                    logodds, X2 @ (post_values + post_alphas), axis=0)
+                post_alphas = samples[['alpha['+str(i)+']' 
+                                       for i in range(1, 1+len(value_vars))]].sample(df_state.shape[0]).values.T
+                logodds = np.append(logodds, X2 @ (post_values + post_alphas), axis=0)
             else:
                 # take right size of md
                 md = np.random.choice(md, size=df_state.shape[0])
@@ -150,15 +149,11 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
         # plot actual R_eff
         ax.plot(df_state.date, df_state['mean'], label='R_eff from Price et al')
-        ax.fill_between(
-            df_state.date, df_state['bottom'], df_state['top'], color='C0', alpha=0.3)
+        ax.fill_between(df_state.date, df_state['bottom'], df_state['top'], color='C0', alpha=0.3)
 
-        ax.plot(df_state.date, df_hat.quantile(
-            0.5, axis=0), label='R_eff_hat', color='C1')
-        ax.fill_between(df_state.date, df_hat.quantile(
-            0.25, axis=0), df_hat.quantile(0.75, axis=0), color='C1', alpha=0.3)
-        ax.fill_between(df_state.date, df_hat.quantile(
-            0.05, axis=0), df_hat.quantile(0.95, axis=0), color='C1', alpha=0.3)
+        ax.plot(df_state.date, df_hat.quantile(0.5, axis=0), label='R_eff_hat', color='C1')
+        ax.fill_between(df_state.date, df_hat.quantile(0.25, axis=0), df_hat.quantile(0.75, axis=0), color='C1', alpha=0.3)
+        ax.fill_between(df_state.date, df_hat.quantile(0.05, axis=0), df_hat.quantile(0.95, axis=0), color='C1', alpha=0.3)
 
         # grid line at R_eff =1
         ax.set_yticks([1], minor=True,)
@@ -326,7 +321,12 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                             elif third_phase:
                                 # use brho_v
 
-                                rho_data = samples_sim[['brho_third_wave['+str(j)+']' for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
+                                rho_data = samples_sim[['brho_third_wave['+str(j)+']' 
+                                                        for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
+                                if states_initials[state] == 'VIC':
+                                    TP_adjustment_factors = samples_sim[['TP_local_adjustment_factor['+str(j)+']' 
+                                                                         for j in range(1, 1+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
+                                    mu_hat *= TP_adjustment_factors
 
                                 voc_multiplier = samples_sim[['voc_effect_third_wave']].values.T
                                 # now we just modify the values before the introduction of the voc to be 1.0
@@ -352,6 +352,7 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                     
                     if third_phase and states_initials[state] == 'VIC':
                         os.makedirs('results/fit/', exist_ok=True)
+                        pd.DataFrame(TP_adjustment_factors).to_csv('results/fit/TP_adjustment_factors.csv')
                         pd.DataFrame(md).to_csv('results/fit/md.csv')
                         pd.DataFrame(logodds).to_csv('results/fit/logodds.csv')
                         pd.DataFrame(vacc_post).to_csv('results/fit/vacc_post.csv')

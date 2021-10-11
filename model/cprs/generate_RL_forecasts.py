@@ -127,13 +127,11 @@ training_start_date = datetime(2020, 3, 1, 0, 0)
 print("Forecast ends at {} days after 1st March".format((pd.to_datetime(today) - pd.to_datetime(training_start_date)).days + num_forecast_days))
 print("Final date is {}".format(pd.to_datetime(today) + timedelta(days=num_forecast_days)))
 df_google = df_google.loc[df_google.date >= training_start_date]
-outdata = {
-    'date': [],
-    'type': [],
-    'state': [],
-    'mean': [],
-    'std': [],
-}
+outdata = {'date': [],
+           'type': [],
+           'state': [],
+           'mean': [],
+           'std': []}
 predictors = mov_values.copy()
 predictors.remove('residential_7days')
 
@@ -551,6 +549,8 @@ if apply_vacc_to_R_L_hats:
     vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+
                                        data_date.strftime('%Y-%m-%d')+'.csv', 
                                        parse_dates=['date'])
+    # there are a couple NA's early on in the time series but is likely due to slightly different start dates
+    vaccination_by_state.fillna(1, inplace=True)
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
     vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
@@ -664,6 +664,7 @@ state_key = {
 for typ in forecast_type:
     state_R = {}
     for state in states:
+    # for state in {'VIC'}:
         # for state in {'NSW'}:
         # sort df_R by date so that rows are dates
 
@@ -681,8 +682,7 @@ for typ in forecast_type:
                            (df_state.shape[0], mob_samples))
         if expo_decay:
             md = ((1+theta_md).T**(-1*prop_sim)).T
-            
-            
+        
         if apply_vacc_to_R_L_hats:
 
             # first we tile the vaccine data to get an array of size (T, mob_samples) (hence the transposing)
@@ -734,7 +734,7 @@ for typ in forecast_type:
             if state == "NT":
                 sim_R = np.tile(samples.R_L.values, (df_state.shape[0], mob_samples))
             else:
-                sim_R = np.tile(samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0], mob_samples))
+                sim_R = np.tile(samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0], mob_samples))                
 
             df1 = df_state.loc[df_state.date <= ban]
             X1 = df1[predictors]  # N by K
@@ -841,14 +841,38 @@ for typ in forecast_type:
         else:
             R_L = 2 * md * sim_R * expit(logodds) * voc_multiplier
 
+        if state == 'VIC':
+            # number of extra forecast days
+            third_days = (third_end_date - third_start_date).days
+            TP_adjustment_factors = samples[['TP_local_adjustment_factor['+str(j)+']' 
+                                                    for j in range(1, third_days+1)]].values.T
+            
+            before_days = (third_start_date-pd.to_datetime(start_date)).days
+            # apply 1's before
+            TP_adj_before = np.ones((before_days, TP_adjustment_factors.shape[1])) 
+            TP_adjustment_factors = np.concatenate((TP_adj_before, TP_adjustment_factors))
+            # now we add in padding after the forecast (this is just 1's assuming our 
+            # model is correct )
+            after_days = sim_R.shape[0] - TP_adjustment_factors.shape[0]
+            TP_adj_after = np.ones((after_days, TP_adjustment_factors.shape[1])) 
+            TP_adjustment_factors = np.concatenate((TP_adjustment_factors, TP_adj_after))
+            
+            # tile to make same shape as other parameters
+            TP_adjustment_factors = np.tile(TP_adjustment_factors, 100)
+
+            # adjust the local TP
+            R_L *= TP_adjustment_factors
+
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
         if typ == 'R_L' and state == 'VIC':
-            pd.DataFrame(md).to_csv('results/forecasting/md.csv')
-            pd.DataFrame(2*expit(logodds)).to_csv('results/forecasting/macro.csv')
-            pd.DataFrame(sim_R).to_csv('results/forecasting/sim_R.csv')
-            pd.DataFrame(vacc_post).to_csv('results/forecasting/vacc_post.csv')
-            pd.DataFrame(voc_multiplier).to_csv('results/forecasting/voc_multiplier.csv')
+            os.makedirs("results/forecasted/", exist_ok=True)
+            pd.DataFrame(TP_adjustment_factors).to_csv('results/forecasted/TP_adjustment.csv')
+            pd.DataFrame(md).to_csv('results/forecasted/md.csv')
+            pd.DataFrame(2*expit(logodds)).to_csv('results/forecasted/macro.csv')
+            pd.DataFrame(sim_R).to_csv('results/forecasted/sim_R.csv')
+            pd.DataFrame(vacc_post).to_csv('results/forecasted/vacc_post.csv')
+            pd.DataFrame(voc_multiplier).to_csv('results/forecasted/voc_multiplier.csv')
             
             # mobility_effects = 2*md*expit(logodds)
             # mobility_only = 2*expit(logodds)
@@ -983,7 +1007,7 @@ plt.savefig("figs/mobility_forecasts/"+
             dpi=144)
 
 # now we save the posterior stuff
-df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top']+[i for i in range(10000)]]
+df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top']+[i for i in range(2000)]]
 
 df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])

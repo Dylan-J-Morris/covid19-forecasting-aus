@@ -139,8 +139,7 @@ def index_by_infection_date(infections_wide):
     for aus_state in statelist:
         state_data = imported_infs.xs(aus_state, level='STATE')
         alldates = pd.date_range(start_date, maxdates)
-        imported_statedict[aus_state] = state_data.reindex(
-            alldates, fill_value=0)
+        imported_statedict[aus_state] = state_data.reindex(alldates, fill_value=0)
 
     # Convert dictionaries to data frames
     df_local_inc_zeros = pd.concat(local_statedict)

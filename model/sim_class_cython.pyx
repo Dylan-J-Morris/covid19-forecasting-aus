@@ -83,11 +83,10 @@ cdef class Forecast:
         self.start_date = pd.to_datetime(start_date, format='%Y-%m-%d')
         
         # start date sets day 0 in script to start_date
-        if state not in {'VIC'}:    
-            self.initial_state = current.copy()  # Observed cases on start day
-            # Create an object list of Persons based on observed cases on start day/
-            people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2]
-            self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
+        self.initial_state = current.copy()  # Observed cases on start day
+        # Create an object list of Persons based on observed cases on start day/
+        people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2]
+        self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
 
         self.alpha_i = alpha_i[state]
         # Probability of *unobserved* imported infectious individuals
@@ -132,24 +131,24 @@ cdef class Forecast:
         # assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
     
     def rare_event_simulation_init(self):
-        
-        if self.state in {'VIC'}:
-            
-            # initial conditions — hardcoded for now
-            I = np.array([1., 1., 0., 1., 0., 2., 1., 0., 0., 0., 2., 0.])
-            A = np.array([0., 0., 0., 1., 1., 0., 2., 0., 0., 0., 0., 1.])
-            S = np.array([10.,  5., 12., 13., 12., 10.,  3.,  4.,  9.,  9.,  2.,  9.])
-            # sample from the initial conditions
-            ind = np.random.randint(len(I))
-            # set current
-            current = [I[ind], A[ind], S[ind]]
-            self.initial_state = current.copy()  # Observed cases on start day
-            # Create an object list of Persons based on observed cases on start day
-            people = ['I']*int(current[0]) + ['A']*int(current[1]) + ['S']*int(current[2])
-            self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
-            
-        else:
-            pass
+        pass
+        # if self.state in {'VIC'}:
+    #  
+        #     # initial conditions — hardcoded for now
+        #     I = np.array([1., 1., 0., 1., 0., 2., 1., 0., 0., 0., 2., 0.])
+        #     A = np.array([0., 0., 0., 1., 1., 0., 2., 0., 0., 0., 0., 1.])
+        #     S = np.array([10.,  5., 12., 13., 12., 10.,  3.,  4.,  9.,  9.,  2.,  9.])
+        #     # sample from the initial conditions
+        #     ind = np.random.randint(len(I))
+        #     # set current
+        #     current = [I[ind], A[ind], S[ind]]
+        #     self.initial_state = current.copy()  # Observed cases on start day
+        #     # Create an object list of Persons based on observed cases on start day
+        #     people = ['I']*int(current[0]) + ['A']*int(current[1]) + ['S']*int(current[2])
+        #     self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
+    #  
+        # else:
+        #     pass
     
     @cython.boundscheck(False)  # Deactivate bounds checking
     @cython.wraparound(False) 

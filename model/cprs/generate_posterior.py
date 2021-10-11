@@ -120,6 +120,7 @@ sec_end_date = '2021-01-19'
 
 # Third wave inputs
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
+# third_states = sorted(['NSW', 'VIC', 'ACT'])
 # third_states = sorted(['VIC'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
@@ -163,7 +164,7 @@ first_date_range = {"NSW": pd.date_range(start='2020-03-01', end=end_date).value
 
 # choose dates for each state for sec wave
 sec_date_range = {'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').values,
-                  'VIC': pd.date_range(start=sec_start_date, end='2020-10-28').values}
+                  'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values}
 
 # choose dates for each state for third wave
 third_date_range = {'ACT': pd.date_range(start='2021-08-12', end=third_end_date).values,
@@ -275,6 +276,8 @@ policy_third_wave = [1]*df3X.loc[df3X.state == third_states[0]].shape[0]
 # Load in vaccination data by state and date
 vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
                                    parse_dates=['date'])
+# there are a couple NA's early on in the time series but is likely due to slightly different start dates
+vaccination_by_state.fillna(1, inplace=True)
 vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
 # display the latest available date in the NSW data (will be the same date between states)
@@ -305,6 +308,10 @@ decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_st
 
 # Make state by state arrays
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
+
+third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
+VIC_tough_period = np.array((third_wave_dates >= pd.to_datetime('2021-07-10')) * 
+                            (third_wave_dates <= pd.to_datetime('2021-08-01'))).astype(int)
 
 # save local and imported cases 
 pd.DataFrame(third_data_by_state['local'].values).to_csv("local.csv")
@@ -368,6 +375,7 @@ input_data = {
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
 
     'is_VIC': is_VIC,   # indicator for whether we are looking at ACT
+    'VIC_tough_period': VIC_tough_period,
     'is_NSW': is_NSW,   # indicator for whether we are looking at NSW
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
@@ -409,7 +417,7 @@ if run_inference or run_inference_only:
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
                                                    'voc_effect_sec_wave', 'voc_effect_third_wave', 
-                                                   'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
+                                                   'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
     else:
 
         # compile the stan model
@@ -429,7 +437,7 @@ if run_inference or run_inference_only:
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                 'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
                                                 'voc_effect_sec_wave', 'voc_effect_third_wave', 
-                                                'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
+                                                'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
 
         match_list_names = summary_df.index.to_list()
 
@@ -753,7 +761,6 @@ plt.tight_layout()
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi=288)
 
 ######### generating and plotting TP plots #########
-
 RL_by_state = {state: samples_mov_gamma['R_Li['+str(i)+']'].values for state, i in state_index.items()}
 ax3 = predict_plot(samples_mov_gamma, df.loc[(df.date >= start_date) & 
                                              (df.date <= end_date)], 
@@ -793,6 +800,8 @@ if apply_vacc_to_R_L_hats:
     # Load in vaccination data by state and date and this time do NOT isolate by fitting states
     vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
                                        parse_dates=['date'])
+    # there are a couple NA's early on in the time series but is likely due to slightly different start dates
+    vaccination_by_state.fillna(1, inplace=True)
     vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
     third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
@@ -894,5 +903,7 @@ samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']'
 var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_third_wave', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
 var_to_csv = var_to_csv + predictors + ['R_Li['+str(i+1)+']' 
                                         for i in range(len(states_to_fit_all_waves))]
+var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' 
+                           for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples')

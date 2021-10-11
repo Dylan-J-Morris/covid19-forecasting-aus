@@ -56,6 +56,7 @@ data {
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
     
     int is_VIC[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
+    int VIC_tough_period[N_third_wave];                                   // indicator vector of which state is NSW in the third wave
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
 
     int decay_start_date_third;
@@ -83,6 +84,7 @@ parameters {
     real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
     real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
     real<lower=0> r_other;                                      // parameter for decay to heterogeneity
+    vector<lower=0>[N_third_wave] TP_local_adjustment_factor;                   // parameter for decay to heterogeneity
 
 }
 transformed parameters {
@@ -94,42 +96,36 @@ transformed parameters {
     vector<lower=0>[total_N_p_third] md_third_wave;
 
     for (i in 1:j_first_wave) {
+        real TP_local;
+        real social_measures;
         for (n in 1:N){
             if (include_in_first_wave[i][n]==1) {
                 md[n,i] = pow(1+theta_md , -1*prop_md[n,i]);
+                social_measures = ((1-policy[n]) + md[n,i]*policy[n])*inv_logit(Mob[i][n,:]*(bet));
                 //mean estimate
-                mu_hat[n,i] = brho[n,i]*R_I + (1-brho[n,i])*2*R_Li[map_to_state_index_first[i]]*(
-                (1-policy[n]) + md[n,i]*policy[n] )*inv_logit(Mob[i][n,:]*(bet)); 
+                TP_local = 2*R_Li[map_to_state_index_first[i]]*social_measures;
+                mu_hat[n,i] = brho[n,i]*R_I + (1-brho[n,i])*TP_local; 
             }
         }
     }
     for (i in 1:j_sec_wave){
         // define these within the scope of the loop only
         int pos;
+        real TP_local;
+        real social_measures;
         if (i==1){
             pos=1;
         }
         else {
             //Add 1 to get to start of new group, not end of old group
-            pos =pos_starts_sec[i-1]+1;
-            }
+            pos = pos_starts_sec[i-1]+1;
+        }
         for (n in 1:N_sec_wave){
             if (include_in_sec_wave[i][n]==1){        
-                md_sec_wave[pos] = pow(1+theta_md ,-1*prop_md_sec_wave[pos]);
-                if (map_to_state_index_sec[i] == 5) {       // include VIC separately
-                    mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*(2*R_Li[
-                    map_to_state_index_sec[i]
-                    ])*(
-                    (1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n] )*inv_logit(
-                    Mob_sec_wave[i][n,:]*(bet))*voc_effect_sec_wave; //mean estimate
-                }
-                else {
-                    mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*2*R_Li[
-                    map_to_state_index_sec[i]
-                    ]*(
-                    (1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n] )*inv_logit(
-                    Mob_sec_wave[i][n,:]*(bet))*voc_effect_sec_wave; //mean estimate
-                }
+                md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
+                social_measures = ((1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n])*inv_logit(Mob_sec_wave[i][n,:]*(bet));
+                TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures*voc_effect_sec_wave; //mean estimate
+                mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*TP_local;
                 pos += 1;
             }
         }
@@ -137,6 +133,8 @@ transformed parameters {
 
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
+        real TP_local;
+        real social_measures; 
         int pos;
         real vacc_effect_tot;
         real eta;
@@ -177,11 +175,14 @@ transformed parameters {
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
                 vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
+                social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
+                TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_third_wave*vacc_effect_tot;
+                            
+                if (is_VIC[i] == 1 && VIC_tough_period[n] == 1) {
+                    TP_local *= TP_local_adjustment_factor[n]; 
+                } 
                 
-                mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + 
-                    (1-brho_third_wave[pos])*2*R_Li[map_to_state_index_third[i]]*
-                    ((1-policy_third_wave[n]) + md_third_wave[pos]*policy_third_wave[n])*
-                    inv_logit(Mob_third_wave[i][n,:]*(bet))*voc_effect_third_wave*vacc_effect_tot;
+                mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*TP_local;
                 pos += 1;
             }
         }
@@ -190,8 +191,8 @@ transformed parameters {
 model {
     int pos2;
 
-    bet ~ normal(0,1.0);
-    theta_md ~ lognormal(0,0.5);
+    bet ~ normal(0, 0.5);
+    theta_md ~ lognormal(0, 0.1);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     voc_effect_sec_wave ~ gamma(1.3*1.3/0.5, 1.3/0.5);
@@ -207,14 +208,15 @@ model {
 
     R_L ~ gamma(1.8*1.8/0.01,1.8/0.01); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(50); //mean is 1/50=0.02
+    sig ~ exponential(70); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j_first_wave) {
         for (n in 1:N){
-            prop_md[n,i] ~ beta(1 + count_md[i][n], 1 + respond_md[i][n] - count_md[i][n]);
-            brho[n,i] ~ beta( 1+ imported[n,i], 1+ local[n,i]); //ratio imported/ (imported + local)
-            mu_hat[n,i] ~ gamma( Reff[n,i]*Reff[n,i]/(sigma2[n,i]), Reff[n,i]/sigma2[n,i]); //Stan uses shape/inverse scale
+            prop_md[n,i] ~ beta(1 + count_md[i][n], 
+                                1 + respond_md[i][n] - count_md[i][n]);
+            brho[n,i] ~ beta(1 + imported[n,i], 1+ local[n,i]); //ratio imported/ (imported + local)
+            mu_hat[n,i] ~ gamma(Reff[n,i]*Reff[n,i]/(sigma2[n,i]), Reff[n,i]/sigma2[n,i]); //Stan uses shape/inverse scale
         }
     }
     
@@ -228,15 +230,19 @@ model {
             }
         for (n in 1:N_sec_wave){
             if (include_in_sec_wave[i][n]==1){
-                prop_md_sec_wave[pos2] ~ beta(1 + count_md_sec_wave[i][n], 1+ respond_md_sec_wave[i][n] - count_md_sec_wave[i][n]);
-                brho_sec_wave[pos2] ~ beta( 1+ imported_sec_wave[n,i], 1+ local_sec_wave[n,i]); //ratio imported/ (imported + local)
-                mu_hat_sec_wave[pos2] ~ gamma( Reff_sec_wave[n,i]*Reff_sec_wave[n,i]/(sigma2_sec_wave[n,i]), Reff_sec_wave[n,i]/sigma2_sec_wave[n,i]);
+                prop_md_sec_wave[pos2] ~ beta(1+count_md_sec_wave[i][n], 
+                                              1+respond_md_sec_wave[i][n]-count_md_sec_wave[i][n]);
+                brho_sec_wave[pos2] ~ beta(1+imported_sec_wave[n,i], 
+                                           1+local_sec_wave[n,i]); //ratio imported/ (imported + local)   
+                mu_hat_sec_wave[pos2] ~ gamma(Reff_sec_wave[n,i]*Reff_sec_wave[n,i]/(sigma2_sec_wave[n,i]), 
+                                              Reff_sec_wave[n,i]/sigma2_sec_wave[n,i]);
                 pos2+=1;
             }
         }
     }
 
     for (i in 1:j_third_wave){
+        real c = 3;
         if (i==1){
             pos2=1;
         } else {
@@ -245,72 +251,25 @@ model {
         }
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
-                prop_md_third_wave[pos2] ~ beta(1 + count_md_third_wave[i][n], 1+ respond_md_third_wave[i][n] - count_md_third_wave[i][n]);
-                brho_third_wave[pos2] ~ beta( 1+ imported_third_wave[n,i], 1+ local_third_wave[n,i]); //ratio imported/ (imported + local)
-                mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
+                prop_md_third_wave[pos2] ~ beta(1+count_md_third_wave[i][n], 
+                                                1+respond_md_third_wave[i][n]-count_md_third_wave[i][n]);
+                brho_third_wave[pos2] ~ beta(0.5+c*imported_third_wave[n,i], 
+                                             0.5+c*local_third_wave[n,i]); //ratio imported/ (imported + local)
+                mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), 
+                                                Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
+                                                
+                // apply different smoothing effect based on the time. This acts as a noise factor somewhat 
+                // and enables us to revert to the TP from Epyreff
+                if (is_VIC[i] == 1){
+                    if (VIC_tough_period[n] == 1){
+                        TP_local_adjustment_factor[n] ~ normal(1, 0.5);
+                    } else {
+                        TP_local_adjustment_factor[n] ~ normal(1, 0.05);
+                    }
+                } 
                 pos2+=1;
             }
         }
     }
 }
-
-// model {
-//     int pos2;
-
-//     target += normal_lpdf(bet | 0, 1.0);
-//     target += lognormal_lpdf(theta_md | 0, 0.5);
-//     target += gamma_lpdf(voc_effect_sec_wave | 1.3*1.3/0.05, 1.3/0.05);
-//     target += gamma_lpdf(voc_effect_third_wave | 2.9*2.9/0.05, 2.9/0.05);
-//     target += beta_lpdf(eta_NSW | 2, 7); 
-//     target += beta_lpdf(eta_other | 2, 7); 
-//     target += lognormal_lpdf(r_NSW | log(0.16), 0.1);
-//     target += lognormal_lpdf(r_other | log(0.16), 0.1);
-//     target += gamma_lpdf(R_L | 1.8*1.8/0.01,1.8/0.01);
-//     target += gamma_lpdf(R_I | 0.5*0.5/0.2,0.5/0.2);
-//     target += exponential_lpdf(sig | 50);
-//     target += gamma_lpdf(R_Li | R_L*R_L/sig, R_L/sig);
-
-//     for (i in 1:j_first_wave) {
-//         for (n in 1:N){
-//             target += beta_lpdf(prop_md[n,i] | 1 + count_md[i][n], 1 + respond_md[i][n] - count_md[i][n]);
-//             target += beta_lpdf(brho[n,i] | 1+ imported[n,i], 1+ local[n,i]); //ratio imported/ (imported + local)
-//             target += gamma_lpdf(mu_hat[n,i] | Reff[n,i]*Reff[n,i]/(sigma2[n,i]), Reff[n,i]/sigma2[n,i]); //Stan uses shape/inverse scale
-//         }
-//     }
-    
-//     for (i in 1:j_sec_wave){
-//         if (i==1){
-//             pos2=1;
-//         }
-//         else {
-//             //Add 1 to get to start of new group, not end of old group
-//             pos2 =pos_starts_sec[i-1]+1; 
-//             }
-//         for (n in 1:N_sec_wave){
-//             if (include_in_sec_wave[i][n]==1){
-//                 target += beta_lpdf(prop_md_sec_wave[pos2] | 1 + count_md_sec_wave[i][n], 1+ respond_md_sec_wave[i][n] - count_md_sec_wave[i][n]);
-//                 target += beta_lpdf(brho_sec_wave[pos2] | 1+ imported_sec_wave[n,i], 1+ local_sec_wave[n,i]); //ratio imported/ (imported + local)
-//                 target += gamma_lpdf(mu_hat_sec_wave[pos2] | Reff_sec_wave[n,i]*Reff_sec_wave[n,i]/(sigma2_sec_wave[n,i]), Reff_sec_wave[n,i]/sigma2_sec_wave[n,i]);
-//                 pos2+=1;
-//             }
-//         }
-//     }
-
-//     for (i in 1:j_third_wave){
-//         if (i==1){
-//             pos2=1;
-//         } else {
-//             //Add 1 to get to start of new group, not end of old group
-//             pos2 =pos_starts_third[i-1]+1; 
-//         }
-//         for (n in 1:N_third_wave){
-//             if (include_in_third_wave[i][n]==1){
-//                 target += beta_lpdf(prop_md_third_wave[pos2] | 1 + count_md_third_wave[i][n], 1+ respond_md_third_wave[i][n] - count_md_third_wave[i][n]);
-//                 target += beta_lpdf(brho_third_wave[pos2] | 1+ imported_third_wave[n,i], 1+ local_third_wave[n,i]); //ratio imported/ (imported + local)
-//                 target += gamma_lpdf(mu_hat_third_wave[pos2] | Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
-//                 pos2+=1;
-//             }
-//         }
-//     }
-// }
 """
