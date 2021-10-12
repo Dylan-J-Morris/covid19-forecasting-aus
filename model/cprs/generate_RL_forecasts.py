@@ -218,10 +218,12 @@ for i, state in enumerate(states):
             if len(argv) > 2:
                 # Make baseline cov for generating points
                 cov_baseline = np.cov(Rmed[-42:-28, :], rowvar=False)
+                # cov_baseline = np.cov(Rmed[-140:-120, :], rowvar=False)
                 mu_current = Rmed[-1, :]
                 mu_victoria = np.array([-55.35057887, -22.80891056, -46.59531636, -75.99942378, -44.71119293])
 
-                mu_baseline = np.mean(Rmed[-42:-28, :], axis=0)
+                # mu_baseline = np.mean(Rmed[-42:-28, :], axis=0)
+                mu_baseline = 0*np.mean(Rmed[-42:-28, :], axis=0)
 
                 if scenario_date != '':
                     scenario_change_point = (pd.to_datetime(scenario_date) - data_date).days + (n_forecast-42)
@@ -242,17 +244,24 @@ for i, state in enumerate(states):
                     if i < scenario_change_point:
                         new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
                     else:
-                        # Revert to values the week before lockdown started
-                        new_forcast_points = np.random.multivariate_normal(mu_baseline, cov_baseline)
+                        # baseline is within lockdown period so take a new baseline of 0's and trend towards this
+                        R_baseline_0 = np.zeros_like(R_baseline_mean)
+                        # the force we trend towards the baseline above with
+                        p_force = (n_forecast-i)/(n_forecast)
+                        trend_force = np.random.multivariate_normal(mu, cov) # Generate a single forward realisation of trend
+                        regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_0 - current), cov) # Generate a single forward realisation of baseline regression
+                        new_forcast_points = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Find overall simulation step
+                        current = new_forcast_points
+                        # Apply minimum and maximum
+                        new_forcast_points = np.maximum(minRmed, new_forcast_points)
+                        new_forcast_points = np.minimum(maxRmed, new_forcast_points)
 
                 # Temporary Lockdown
                 elif scenario == "half_reversion":
                     if i < scenario_change_point:
-                        new_forcast_points = np.random.multivariate_normal(
-                            mu_current, cov_baseline)
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
                     else:
-                        new_forcast_points = np.random.multivariate_normal(
-                            (mu_current + mu_baseline)/2, cov_baseline)
+                        new_forcast_points = np.random.multivariate_normal((mu_current + mu_baseline)/2, cov_baseline)
 
                 # Stage 4
                 if scenario == "stage4":
@@ -865,26 +874,26 @@ for typ in forecast_type:
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
-        if typ == 'R_L' and state == 'VIC':
+        if typ == 'R_L' and state == 'NSW':
             os.makedirs("results/forecasted/", exist_ok=True)
-            pd.DataFrame(TP_adjustment_factors).to_csv('results/forecasted/TP_adjustment.csv')
-            pd.DataFrame(md).to_csv('results/forecasted/md.csv')
-            pd.DataFrame(2*expit(logodds)).to_csv('results/forecasted/macro.csv')
-            pd.DataFrame(sim_R).to_csv('results/forecasted/sim_R.csv')
-            pd.DataFrame(vacc_post).to_csv('results/forecasted/vacc_post.csv')
-            pd.DataFrame(voc_multiplier).to_csv('results/forecasted/voc_multiplier.csv')
+            # pd.DataFrame(TP_adjustment_factors).to_csv('results/forecasted/TP_adjustment.csv')
+            # pd.DataFrame(md).to_csv('results/forecasted/md.csv')
+            # pd.DataFrame(2*expit(logodds)).to_csv('results/forecasted/macro.csv')
+            # pd.DataFrame(sim_R).to_csv('results/forecasted/sim_R.csv')
+            # pd.DataFrame(vacc_post).to_csv('results/forecasted/vacc_post.csv')
+            # pd.DataFrame(voc_multiplier).to_csv('results/forecasted/voc_multiplier.csv')
             
-            # mobility_effects = 2*md*expit(logodds)
-            # mobility_only = 2*expit(logodds)
-            # micro_only = md
-            # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
-            # mu_hat_rev = sim_R * voc_multiplier
-            # pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
-            # pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
-            # pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
-            # pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
-            # pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
-            # pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
+            mobility_effects = 2*md*expit(logodds)
+            mobility_only = 2*expit(logodds)
+            micro_only = md
+            mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
+            mu_hat_rev = sim_R * voc_multiplier
+            pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
+            pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
+            pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
+            pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
+            pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
+            pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)
