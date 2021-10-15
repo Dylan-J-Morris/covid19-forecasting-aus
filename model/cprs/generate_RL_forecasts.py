@@ -1,6 +1,8 @@
 import glob
 import os
 import sys
+
+from numpy.core.fromnumeric import std
 # these imports and usings need to be in the same order 
 sys.path.insert(0, '../')
 from Reff_functions import *
@@ -241,6 +243,8 @@ for i, state in enumerate(states):
 
                 # No Lockdown
                 elif scenario == "full_reversion":
+                    # a full reversion scenario changes the social mobility and microdistancing 
+                    # behaviours at the scenario change date and then applies a return to baseline force 
                     if i < scenario_change_point:
                         new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
                     else:
@@ -255,6 +259,16 @@ for i, state in enumerate(states):
                         # Apply minimum and maximum
                         new_forcast_points = np.maximum(minRmed, new_forcast_points)
                         new_forcast_points = np.minimum(maxRmed, new_forcast_points)
+                        
+                elif scenario == "immediately_baseline":
+                    # this scenario is used to return instantly to the baseline levels 
+                    if i < scenario_change_point:
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
+                    else:
+                        # baseline is within lockdown period so take a new baseline of 0's and trend towards this
+                        R_baseline_0 = np.zeros_like(R_baseline_mean)
+                        # jump immediately to baseline
+                        new_forcast_points = np.random.multivariate_normal(R_baseline_0, cov_baseline)
 
                 # Temporary Lockdown
                 elif scenario == "half_reversion":
@@ -327,8 +341,25 @@ for i, state in enumerate(states):
                 if i < scenario_change_point:
                     current = np.random.normal(mu_current, std_baseline)
                 else:
-                    # Revert to values the week before lockdown started
-                    current = np.random.normal(mu_baseline, std_baseline)
+                    mu_baseline_0 = 0.2
+                    # Proportion of trend_force to regression_to_baseline_force
+                    p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md)
+                    # take a mean of the differences over the last 2 weeks
+                    mu_diffs = np.mean(np.diff(prop[state].values[-14:]), axis=0)
+                    # Generate step realisations in training trend direction
+                    trend_force = np.random.normal(mu_diffs, std_baseline)
+                    # Generate realisations that draw closer to baseline
+                    regression_to_baseline_force = np.random.normal(0.1*(mu_baseline_0 - mu_current), std_baseline)
+                    current = mu_current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
+            
+            elif scenario == "immediately_baseline":
+                # this scenario is an immediate return to baseline values 
+                if i < scenario_change_point:
+                    current = np.random.normal(mu_current, std_baseline)
+                else:
+                    mu_baseline_0 = 0.2
+                    # jump immediately to baseline
+                    current = np.random.normal(mu_baseline_0, std_baseline)
 
             # Temporary Lockdown
             elif scenario == "half_reversion":  # No Lockdown
@@ -847,6 +878,7 @@ for typ in forecast_type:
 
         if apply_vacc_to_R_L_hats:
             R_L = 2 * md * sim_R * expit(logodds) * vacc_post * voc_multiplier
+            # R_L = 2 * md * sim_R * expit(logodds) * voc_multiplier
         else:
             R_L = 2 * md * sim_R * expit(logodds) * voc_multiplier
 
@@ -886,7 +918,8 @@ for typ in forecast_type:
             mobility_effects = 2*md*expit(logodds)
             mobility_only = 2*expit(logodds)
             micro_only = md
-            mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier
+            mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier 
+            # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier * vacc_post
             mu_hat_rev = sim_R * voc_multiplier
             pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
             pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')

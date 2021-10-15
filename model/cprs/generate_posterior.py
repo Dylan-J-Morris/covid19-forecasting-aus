@@ -74,7 +74,6 @@ survey_counts_base = pd.pivot_table(data=always, index='date', columns='state', 
 
 survey_respond_base = pd.pivot_table(data=always, index='date', columns='state', values='respondents').drop(['Australia', 'Other'], axis=1).astype(int)
 
-
 ######### Read in EpyReff results #########
 df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_4.csv", parse_dates=['INFECTION_DATES'])
 df_Reff['date'] = df_Reff.INFECTION_DATES
@@ -167,7 +166,7 @@ sec_date_range = {'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').v
                   'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values}
 
 # choose dates for each state for third wave
-third_date_range = {'ACT': pd.date_range(start='2021-08-12', end=third_end_date).values,
+third_date_range = {'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
                     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
                     'QLD': pd.date_range(start=third_start_date, end=third_end_date).values,
                     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values}
@@ -310,12 +309,8 @@ decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_st
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 
 third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
-VIC_tough_period = np.array((third_wave_dates >= pd.to_datetime('2021-07-10')) * 
+VIC_tough_period = np.array((third_wave_dates >= pd.to_datetime('2021-07-13')) * 
                             (third_wave_dates <= pd.to_datetime('2021-08-01'))).astype(int)
-
-# save local and imported cases 
-pd.DataFrame(third_data_by_state['local'].values).to_csv("local.csv")
-pd.DataFrame(third_data_by_state['imported'].values).to_csv("imported.csv")
 
 # input data block for stan model
 input_data = {
@@ -398,11 +393,17 @@ else:
 if run_inference or run_inference_only:
 
     # importing the stan model as a string
-    from rho_model_gamma import rho_model_gamma_string
+    # from rho_model_gamma import rho_model_gamma_string
+    # open stan file in read mode
+    model_file = open("model/cprs/rho_model_gamma_updates.stan", "r")
+    # read whole model to a string
+    rho_model_gamma = model_file.read()
+    # close file
+    model_file.close()
 
     # slightly different setup depending if we are running on phoenix or locally 
     if on_phoenix:
-        sm_pol_gamma = pystan.StanModel(model_code=rho_model_gamma_string, 
+        sm_pol_gamma = pystan.StanModel(model_code=rho_model_gamma, 
                                         model_name='gamma_pol_state')
         fit = sm_pol_gamma.sampling(data=input_data, 
                                     iter=num_samples, 
@@ -421,7 +422,7 @@ if run_inference or run_inference_only:
     else:
 
         # compile the stan model
-        posterior = stan.build(rho_model_gamma_string, data=input_data)
+        posterior = stan.build(rho_model_gamma, data=input_data)
         fit = posterior.sample(num_chains=num_chains, num_samples=num_samples)
 
         ######### Saving Output #########
@@ -906,4 +907,5 @@ var_to_csv = var_to_csv + predictors + ['R_Li['+str(i+1)+']'
 var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' 
                            for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
 
-samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples')
+samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
+
