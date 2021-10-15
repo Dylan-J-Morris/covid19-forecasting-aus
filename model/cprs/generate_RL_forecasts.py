@@ -345,11 +345,11 @@ for i, state in enumerate(states):
                     # Proportion of trend_force to regression_to_baseline_force
                     p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md)
                     # take a mean of the differences over the last 2 weeks
-                    mu_diffs = np.mean(np.diff(prop[state].values[-14:]), axis=0)
+                    mu_diffs = np.mean(np.diff(prop[state].values[-14:]))
                     # Generate step realisations in training trend direction
                     trend_force = np.random.normal(mu_diffs, std_baseline)
                     # Generate realisations that draw closer to baseline
-                    regression_to_baseline_force = np.random.normal(0.1*(mu_baseline_0 - mu_current), std_baseline)
+                    regression_to_baseline_force = np.random.normal(mu_baseline_0 - mu_current, std_baseline)
                     current = mu_current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
             
             elif scenario == "immediately_baseline":

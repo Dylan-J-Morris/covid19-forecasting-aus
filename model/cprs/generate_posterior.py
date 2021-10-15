@@ -395,7 +395,7 @@ if run_inference or run_inference_only:
     # importing the stan model as a string
     # from rho_model_gamma import rho_model_gamma_string
     # open stan file in read mode
-    model_file = open("model/cprs/rho_model_gamma_updates.stan", "r")
+    model_file = open("model/cprs/rho_model_gamma.stan", "r")
     # read whole model to a string
     rho_model_gamma = model_file.read()
     # close file
