@@ -216,7 +216,7 @@ model {
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     real beta_constant = 0.95;
-    real beta_scaling = 5; 
+    real beta_scaling = 1; 
 
     for (i in 1:j_first_wave) {
         for (n in 1:N){

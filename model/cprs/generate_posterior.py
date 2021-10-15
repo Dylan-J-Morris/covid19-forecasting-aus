@@ -384,7 +384,7 @@ os.makedirs(results_dir, exist_ok=True)
 ######### running inference #########
 if testing_inference:
     num_chains = 2
-    num_samples = 500
+    num_samples = 1000
 else:
     num_chains = 4
     num_samples = 4000

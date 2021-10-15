@@ -906,7 +906,7 @@ for typ in forecast_type:
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
-        if typ == 'R_L' and state == 'NSW':
+        if typ == 'R_L' and state == 'SA':
             os.makedirs("results/forecasted/", exist_ok=True)
             # pd.DataFrame(TP_adjustment_factors).to_csv('results/forecasted/TP_adjustment.csv')
             # pd.DataFrame(md).to_csv('results/forecasted/md.csv')
@@ -919,14 +919,11 @@ for typ in forecast_type:
             mobility_only = 2*expit(logodds)
             micro_only = md
             mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier 
-            # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier * vacc_post
-            mu_hat_rev = sim_R * voc_multiplier
             pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
             pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
             pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
             pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
             pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
-            pd.DataFrame(mu_hat_rev).to_csv('results/forecasting/mu_hat_SA_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)
