@@ -219,7 +219,7 @@ model {
         for (n in 1:N){
             prop_md[n,i] ~ beta(1 + count_md[i][n], 
                                 1 + respond_md[i][n] - count_md[i][n]);
-            brho[n,i] ~ beta(0.75+imported[n,i], 0.75+local[n,i]); //ratio imported/ (imported + local)
+            brho[n,i] ~ beta(0.5+imported[n,i], 0.5+local[n,i]); //ratio imported/ (imported + local)
             mu_hat[n,i] ~ gamma(Reff[n,i]*Reff[n,i]/(sigma2[n,i]), Reff[n,i]/sigma2[n,i]); //Stan uses shape/inverse scale
         }
     }
@@ -236,8 +236,8 @@ model {
             if (include_in_sec_wave[i][n]==1){
                 prop_md_sec_wave[pos2] ~ beta(1+count_md_sec_wave[i][n], 
                                               1+respond_md_sec_wave[i][n]-count_md_sec_wave[i][n]);
-                brho_sec_wave[pos2] ~ beta(0.75+imported_sec_wave[n,i], 
-                                           0.75+local_sec_wave[n,i]); //ratio imported/ (imported + local)   
+                brho_sec_wave[pos2] ~ beta(0.5+imported_sec_wave[n,i], 
+                                           0.5+local_sec_wave[n,i]); //ratio imported/ (imported + local)   
                 mu_hat_sec_wave[pos2] ~ gamma(Reff_sec_wave[n,i]*Reff_sec_wave[n,i]/(sigma2_sec_wave[n,i]), 
                                               Reff_sec_wave[n,i]/sigma2_sec_wave[n,i]);
                 pos2+=1;
@@ -258,8 +258,8 @@ model {
                                                 1+respond_md_third_wave[i][n]-count_md_third_wave[i][n]);
                 // brho_third_wave[pos2] ~ beta(0.2+c*imported_third_wave[n,i], 
                 //                              0.2+c*local_third_wave[n,i]); //ratio imported/ (imported + local)
-                brho_third_wave[pos2] ~ beta(0.75+imported_third_wave[n,i], 
-                                             0.75+local_third_wave[n,i]); //ratio imported/ (imported + local)
+                brho_third_wave[pos2] ~ beta(0.5+imported_third_wave[n,i], 
+                                             0.5+local_third_wave[n,i]); //ratio imported/ (imported + local)
                 mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), 
                                                 Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
                                                 
