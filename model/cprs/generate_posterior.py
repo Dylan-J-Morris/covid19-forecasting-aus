@@ -25,7 +25,6 @@ else:
     import stan
 
 ######### start #########
-
 print('Performing inference on state level Reff')
 data_date = pd.to_datetime(argv[1])  # Define data date
 print("Data date is {}".format(data_date.strftime('%d%b%Y')))
@@ -192,22 +191,26 @@ for value in ['mean', 'std', 'local', 'imported']:
                                     index='date', 
                                     columns='state', 
                                     values=value).sort_index(axis='columns')
-    sec_data_by_state[value] = pd.pivot(df2X[['state', value, 'date']],
-                                        index='date', 
-                                        columns='state', 
-                                        values=value).sort_index(axis='columns')
-    third_data_by_state[value] = pd.pivot(df3X[['state', value, 'date']],
-                                          index='date', 
-                                          columns='state', 
-                                          values=value).sort_index(axis='columns')
+    
     # account for dates pre pre second wave
     if df2X.loc[df2X.state == sec_states[0]].shape[0] == 0:
         print("making empty")
         sec_data_by_state[value] = pd.DataFrame(columns=sec_states).astype(float)
+    else: 
+        sec_data_by_state[value] = pd.pivot(df2X[['state', value, 'date']],
+                                            index='date', 
+                                            columns='state', 
+                                            values=value).sort_index(axis='columns')
     # account for dates pre pre third wave
     if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
         print("making empty")
         third_data_by_state[value] = pd.DataFrame(columns=third_states).astype(float)
+    else:
+        third_data_by_state[value] = pd.pivot(df3X[['state', value, 'date']],
+                                              index='date', 
+                                              columns='state', 
+                                              values=value).sort_index(axis='columns')
+        
 
 # FIRST PHASE
 mobility_by_state = []
@@ -220,12 +223,23 @@ survey_respond = survey_respond_base.loc[:dfX.date.values[-1]]
 survey_counts = survey_counts_base.loc[:dfX.date.values[-1]]
 include_in_first_wave = []
 
+def exponential_smoother(x, alpha=1.0):
+    """
+    Smooths an input vector x using the standard exponential moving average with parameter alpha = 1.
+    """
+    s = np.zeros_like(x)
+    s[0] = x[0]
+    for i in range(1, len(x)):
+        s[i] = alpha * x[i] + (1-alpha) * s[i-1]
+        
+    return s
+
 for state in first_states:
-    mobility_by_state.append(dfX.loc[dfX.state == state, predictors].values/100)
-    mobility_std_by_state.append(dfX.loc[dfX.state == state, [val+'_std' for val in predictors]].values/100)
-    count_by_state.append(survey_counts.loc[start_date:end_date, state].values)
-    respond_by_state.append(survey_respond.loc[start_date:end_date, state].values)
-    include_in_first_wave.append(dfX.loc[dfX.state == state, 'is_first_wave'].values)
+    mobility_by_state.append(exponential_smoother(dfX.loc[dfX.state == state, predictors].values/100))
+    mobility_std_by_state.append(exponential_smoother(dfX.loc[dfX.state == state, [val+'_std' for val in predictors]].values/100))
+    count_by_state.append(exponential_smoother(survey_counts.loc[start_date:end_date, state].values))
+    respond_by_state.append(exponential_smoother(survey_respond.loc[start_date:end_date, state].values))
+    include_in_first_wave.append(exponential_smoother(dfX.loc[dfX.state == state, 'is_first_wave'].values))
 
 # SECOND PHASE
 sec_mobility_by_state = []
@@ -239,12 +253,11 @@ survey_respond = survey_respond_base.loc[:df2X.date.values[-1]]
 survey_counts = survey_counts_base.loc[:df2X.date.values[-1]]
 
 for state in sec_states:
-
-    sec_mobility_by_state.append(df2X.loc[df2X.state == state, predictors].values/100)
-    sec_mobility_std_by_state.append(df2X.loc[df2X.state == state, [val+'_std' for val in predictors]].values/100)
-    sec_count_by_state.append(survey_counts.loc[sec_start_date:sec_end_date, state].values)
-    sec_respond_by_state.append(survey_respond.loc[sec_start_date:sec_end_date, state].values)
-    include_in_sec_wave.append(df2X.loc[df2X.state == state, 'is_sec_wave'].values)
+    sec_mobility_by_state.append(exponential_smoother(df2X.loc[df2X.state == state, predictors].values/100))
+    sec_mobility_std_by_state.append(exponential_smoother(df2X.loc[df2X.state == state, [val+'_std' for val in predictors]].values/100))
+    sec_count_by_state.append(exponential_smoother(survey_counts.loc[sec_start_date:sec_end_date, state].values))
+    sec_respond_by_state.append(exponential_smoother(survey_respond.loc[sec_start_date:sec_end_date, state].values))
+    include_in_sec_wave.append(exponential_smoother(df2X.loc[df2X.state == state, 'is_sec_wave'].values))
 
 # THIRD WAVE
 third_mobility_by_state = []
@@ -258,12 +271,11 @@ survey_respond = survey_respond_base.loc[:df3X.date.values[-1]]
 survey_counts = survey_counts_base.loc[:df3X.date.values[-1]]
 
 for state in third_states:
-
-    third_mobility_by_state.append(df3X.loc[df3X.state == state, predictors].values/100)
-    third_mobility_std_by_state.append(df3X.loc[df3X.state == state, [val+'_std' for val in predictors]].values/100)
-    third_count_by_state.append(survey_counts.loc[third_start_date:third_end_date, state].values)
-    third_respond_by_state.append(survey_respond.loc[third_start_date:third_end_date, state].values)
-    include_in_third_wave.append(df3X.loc[df3X.state == state, 'is_third_wave'].values)
+    third_mobility_by_state.append(exponential_smoother(df3X.loc[df3X.state == state, predictors].values/100))
+    third_mobility_std_by_state.append(exponential_smoother(df3X.loc[df3X.state == state, [val+'_std' for val in predictors]].values/100))
+    third_count_by_state.append(exponential_smoother(survey_counts.loc[third_start_date:third_end_date, state].values))
+    third_respond_by_state.append(exponential_smoother(survey_respond.loc[third_start_date:third_end_date, state].values))
+    include_in_third_wave.append(exponential_smoother(df3X.loc[df3X.state == state, 'is_third_wave'].values))
 
 # policy boolean flag for after travel ban in each wave
 policy = dfX.loc[dfX.state == first_states[0],'post_policy']     # this is the post ban policy

@@ -33,8 +33,7 @@ def read_in_google(Aus_only=True, local=False, moving=False):
             df = pd.read_csv(local, parse_dates=['date'])
     else:
         # Download straight from the web
-        df = pd.read_csv(
-            'https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv', parse_dates=['date'])
+        df = pd.read_csv('https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv', parse_dates=['date'])
         # Make it save automatically.
         df.to_csv('data/Global_Mobility_Report.csv', index=False)
 
@@ -57,8 +56,7 @@ def read_in_google(Aus_only=True, local=False, moving=False):
             df[mov_values[-1]+'_std'] = df.groupby(['state'])[val].transform(
                 lambda x: x[::-1].rolling(7, 7).std()[::-1])
             # fill final values as std doesn't work with single value
-            df[mov_values[-1]+'_std'] = df.groupby(
-                'state')[mov_values[-1]+'_std'].fillna(method='ffill')
+            df[mov_values[-1]+'_std'] = df.groupby('state')[mov_values[-1]+'_std'].fillna(method='ffill')
     # show latest date
     print("Latest date in Google indices " + str(df.date.values[-1]))
     return df

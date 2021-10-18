@@ -145,6 +145,7 @@ for var in predictors:
     axes.append(ax_states)
     # fig.suptitle(var)
     figs.append(fig)
+    
 # extra fig for microdistancing
 var = 'Proportion people always microdistancing'
 fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
@@ -770,6 +771,10 @@ for typ in forecast_type:
             # add gaussian noise to predictors after forecast
             df_state.loc[df_state.date >= mob_forecast_date, predictors] = state_sims[state][:, :, n]/100
 
+            # --------------------- 
+            # set grocery values to 0 
+            # df_state.loc[:, predictors[1]] = 0
+
             # sample the right R_L
             if state == "NT":
                 sim_R = np.tile(samples.R_L.values, (df_state.shape[0], mob_samples))
@@ -878,7 +883,6 @@ for typ in forecast_type:
 
         if apply_vacc_to_R_L_hats:
             R_L = 2 * md * sim_R * expit(logodds) * vacc_post * voc_multiplier
-            # R_L = 2 * md * sim_R * expit(logodds) * voc_multiplier
         else:
             R_L = 2 * md * sim_R * expit(logodds) * voc_multiplier
 
@@ -886,7 +890,7 @@ for typ in forecast_type:
             # number of extra forecast days
             third_days = (third_end_date - third_start_date).days
             TP_adjustment_factors = samples[['TP_local_adjustment_factor['+str(j)+']' 
-                                                    for j in range(1, third_days+1)]].values.T
+                                             for j in range(1, third_days+1)]].values.T
             
             before_days = (third_start_date-pd.to_datetime(start_date)).days
             # apply 1's before
@@ -906,24 +910,25 @@ for typ in forecast_type:
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
-        if typ == 'R_L' and state == 'SA':
-            os.makedirs("results/forecasted/", exist_ok=True)
+        # if typ == 'R_L' and state == 'SA':
+        #     os.makedirs("results/forecasted/", exist_ok=True)
             # pd.DataFrame(TP_adjustment_factors).to_csv('results/forecasted/TP_adjustment.csv')
             # pd.DataFrame(md).to_csv('results/forecasted/md.csv')
             # pd.DataFrame(2*expit(logodds)).to_csv('results/forecasted/macro.csv')
             # pd.DataFrame(sim_R).to_csv('results/forecasted/sim_R.csv')
             # pd.DataFrame(vacc_post).to_csv('results/forecasted/vacc_post.csv')
             # pd.DataFrame(voc_multiplier).to_csv('results/forecasted/voc_multiplier.csv')
-            
-            mobility_effects = 2*md*expit(logodds)
-            mobility_only = 2*expit(logodds)
-            micro_only = md
-            mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier 
-            pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
-            pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
-            pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
-            pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
-            pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
+            # mobility_effects = 2*md*expit(logodds)
+            # mobility_only = 2*expit(logodds)
+            # micro_only = md
+            # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier 
+            # pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
+            # # pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
+            # pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
+            # # pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
+            # pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
+            # pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects_no_grocery.csv')
+            # pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_no_grocery.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)
