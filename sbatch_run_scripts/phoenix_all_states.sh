@@ -8,7 +8,7 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=$USER@adelaide.edu.au
 #SBATCH --ntasks-per-core=1
-#SBATCH --array=0-7
+#SBATCH --array=0-4 # SBATCH --array=0-7
 
 module load arch/haswell
 module load Python/3.6.1-foss-2016b
