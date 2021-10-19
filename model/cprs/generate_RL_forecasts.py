@@ -399,11 +399,13 @@ for i, state in enumerate(states):
         new_vacc_forecast = []
         # Forecast mobility forward sequentially by day.
         total_forecasting_days = n_forecast + extra_days_vacc
+        r = (1/total_forecasting_days) * np.log(-0.05/mu_diffs)
+        
         for i in range(total_forecasting_days):
             # apply a decay to the change in the vaccine effect into the forecast period which
             # essentially causes an asymptote. Damping (i.e. dividing by 100) is applied as we 
             # are already working with small changes in the order of 3 decimal places. 
-            mu_diffs_adj = mu_diffs*np.exp(-i/50)
+            mu_diffs_adj = mu_diffs*np.exp(-r * i)
             # applying an increase to the uncertainty of the vaccination program into the forecasting period
             # which acts as a way of us being increasingly unsure as to where the limit of VE might be
             std_diffs_adj = std_diffs
@@ -414,7 +416,7 @@ for i, state in enumerate(states):
 
         vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
         vacc_sims = np.minimum(1, vacc_sims)
-        vacc_sims = np.maximum(0, vacc_sims)
+        vacc_sims = np.maximum(0.3, vacc_sims)      # apply a maximum effect of 0.3
 
         # get dates
         dd_vacc = [vaccination_by_state.loc[state].index[-1] + 
