@@ -13,10 +13,7 @@ module load Python/3.6.1-foss-2016b
 source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 
 DATADATE=$1
-SCENARIO=$2 # Optional flag to allow for scenario modelling. Not used in normal forecast.
-SCENARIODATE=$3
 
-python model/cprs/generate_posterior.py $DATADATE
-python model/cprs/generate_RL_forecasts.py $DATADATE $SCENARIO $SCENARIODATE
+python model/fitting_and_forecasting/generate_posterior.py $DATADATE
 
 deactivate

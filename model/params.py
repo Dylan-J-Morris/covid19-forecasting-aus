@@ -1,20 +1,23 @@
 ##### Key parameters
+use_linelist = True
+use_imputed_linelist = False
 on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
-use_linelist = True
-ncores = 12     # number of cores to use (this is relevant for the simulation)
-
-##### Parameters for testing
-# use this to test the inference methods, fewer chains and samples => easy to debug and check summary output
 testing_inference = False
-# this flag will run the inference only and quit after it's done
 testing_sim = False      # this flag will tet the simulation algorithm
-# If something goes wrong on a day you can set this to True to use the linelist
+
+if on_phoenix:
+    ncores = 12     # number of cores to use (this is relevant for the simulation)
+    # this flag will run the inference only and quit after it's done
+else: 
+    ncores = 4     # number of cores to use (this is relevant for the simulation)
+    # this flag will run the inference only and quit after it's done
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
-third_start_date = '2021-06-15'
-start_date = '2021-06-01'  # Start date of forecast
+third_start_date = '2021-06-01'
+start_date = '2021-05-15'  # Start date of forecast
+# start_date = '2021-08-01'  # Start date of forecast
 VoC_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase
 vaccination_start_date = '2021-02-22'
 # Number of days after data date to forecast (usually 35)
@@ -32,10 +35,28 @@ case_insertion_threshold = 5
 download_google_automatically = False
 assume_local_cases_if_unknown = True
 # number of days to remove to stop the issues with the right-truncation
-truncation_days = 16
+truncation_days = 15
 
 ##### Simulation parameters/transmission parameters
-k = 0.15  # Heterogeneity parameter for a negative binomial offspring distribution
+# incubation period: taken from Lauer et al. 2020
+shape_inc = 5.807  
+scale_inc = 0.948
+offset_inc = 0
+## reporting delay distribution: empirically estimated from the case data using MLE
+# looked at duration between symptom onset and cofnirmation for cases where this was 
+# feasible and truncated this to be between 0 and 30 (plenty of retropsective cases with negatives etc)
+shape_rd = 1.28
+scale_rd = 2.31
+offset_rd = 0
+## generation interval: 
+# generation inteval changed Oct 5 2021
+# shape_gen = 3.64/3.07
+# scale_gen = 3.07
+shape_gen = 2.75
+scale_gen = 1.00
+
+# Heterogeneity parameter for a negative binomial offspring distribution
+k = 0.15  
 
 # Also known as qs, this is the probability of detecting an symptomatic case. This will go up during major testing drives. Increasing qs increases the observed outbreak.
 local_detection = {
@@ -46,7 +67,7 @@ local_detection = {
     'VIC': 0.95,
     'WA': 0.95,
     'ACT': 0.95,
-    'NT': 0.95,
+    'NT': 0.95
 }
 
 # Also known as qa, this is the probability of detecting an asymptomatic case.
@@ -58,7 +79,7 @@ a_local_detection = {
     'VIC': 0.15,
     'WA': 0.1,
     'ACT': 0.1,
-    'NT': 0.1,
+    'NT': 0.1
 }
 
 qi_d = {
@@ -69,7 +90,7 @@ qi_d = {
     'VIC': 0.98,
     'WA': 0.98,
     'ACT': 0.98,
-    'NT': 0.98,
+    'NT': 0.98
 }
 
 # alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe there are significant differences between hotel quarentine effectiveness between states.

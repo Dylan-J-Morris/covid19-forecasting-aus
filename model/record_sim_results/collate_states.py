@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0,'model')
 from params import start_date, num_forecast_days
 
 import pandas as pd
@@ -8,8 +10,7 @@ states = ['NSW', 'QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
 
 n_sims = int(argv[1])  # number of sims
 
-end_date = pd.to_datetime(argv[2], format="%Y-%m-%d") + \
-    pd.Timedelta(days=num_forecast_days)
+end_date = pd.to_datetime(argv[2], format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days
 
 # Add flag to create plots for VoCs
@@ -42,9 +43,7 @@ dic_states = {
     'upper': [],
     'top': [],
 }
-dates = pd.date_range(start=start_date,
-                      periods=days  # num of days
-                      )
+dates = pd.date_range(start=start_date, periods=days)
 vars_l = ['symp_inci_obs', 'imports_inci_obs', 'asymp_inci_obs',
           'symp_inci', 'asymp_inci', 'imports_inci', 'total_inci', 'total_inci_obs']
 good_sims_by_state = {}
@@ -53,10 +52,9 @@ for state in states:
         "./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
     # take only the good sims for plotting
     df = df_file.loc[df_file.bad_sim == 0]
-    df = df_file[[col.strftime('%Y-%m-%d') for
-                  col in dates]]
+    df = df_file[[col.strftime('%Y-%m-%d') for col in dates]]
+    
     for var in vars_l:
-
         quantiles = df.loc[var].quantile(
             [0.05, 0.1, 0.15, 0.2, 0.25, 0.5, 0.75, 0.8, 0.85, 0.9, 0.95], axis=0)
         dic_states['state'].extend([state]*len(dates))
@@ -75,14 +73,12 @@ for state in states:
         dic_states['top'].extend(quantiles.loc[0.95])
 
     # grab sim numbers of good sims
-    good_sims_by_state[state] = df_file.loc[
-        df_file.bad_sim == 0].index.get_level_values("sim").unique().tolist()
+    good_sims_by_state[state] = df_file.loc[df_file.bad_sim == 0].index.get_level_values("sim").unique().tolist()
+    
 plots = pd.DataFrame.from_dict(dic_states)
-plots.to_parquet('./results/quantiles'+forecast_type+start_date +
-                 "sim_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
+plots.to_parquet('./results/quantiles'+forecast_type+start_date + "sim_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
 
-with open(
-        "./results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".json", 'w') as file:
+with open("./results/good_sims"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".json", 'w') as file:
     json.dump(good_sims_by_state, file)
 
 import forecast_plots

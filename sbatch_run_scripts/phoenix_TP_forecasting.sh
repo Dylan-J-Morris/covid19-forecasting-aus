@@ -2,9 +2,9 @@
 #SBATCH -p batch
 #SBATCH --qos=express
 #SBATCH -N 1
-#SBATCH -n 12
+#SBATCH -n 4
 #SBATCH --time=1-00:00:00
-#SBATCH --mem=60GB
+#SBATCH --mem=20GB
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=$USER@adelaide.edu.au
 
@@ -12,12 +12,10 @@ module load arch/haswell
 module load Python/3.6.1-foss-2016b
 source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 
-STATE=$1 # Pre-pass the single state
-NSIMS=$2
-DATADATE=$3
-VOCFLAG=$4 # Optional VoC Name
-SCENARIO=$5 # Optional scenario modelling flag
+DATADATE=$1
+SCENARIO=$2 # Optional flag to allow for scenario modelling. Not used in normal forecast.
+SCENARIODATE=$3
 
-python model/sim_model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG $SCENARIO
+python model/fitting_and_forecasting/forecast_TP.py $DATADATE $SCENARIO $SCENARIODATE
 
 deactivate

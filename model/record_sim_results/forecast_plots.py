@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0,'model')
 from params import start_date, num_forecast_days
 from helper_functions import read_in_NNDSS, read_in_Reff_file
 from scipy.stats import beta
@@ -13,7 +15,6 @@ import matplotlib
 matplotlib.use('Agg')
 
 plt.style.use("seaborn-poster")
-
 
 def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=None,
                  plotpath=False, legend=False, summary=False, forecast_days=35):
@@ -67,27 +68,21 @@ def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=N
         for var in int_vars:
             df.columns = df.columns.astype('datetime64[ns]')
             #ax.fill_between(df.columns, df.transpose()[var].quantile(0.05,axis=1), df.transpose()[var].quantile(0.95,axis=1), alpha=0.2,color='C0')
-            ax.fill_between(df.columns, df.transpose()[var].quantile(
-                0.25, axis=1), df.transpose()[var].quantile(0.75, axis=1), alpha=0.4, color='C0')
+            ax.fill_between(df.columns, df.transpose()[var].quantile(0.25, axis=1), df.transpose()[var].quantile(0.75, axis=1), alpha=0.4, color='C0')
 
             if plotpath:
                 n = 0
-                good_sims = df.loc[~df.isna().any(
-                    axis=1)].index.get_level_values("sim")
+                good_sims = df.loc[~df.isna().any(axis=1)].index.get_level_values("sim")
                 while True:
-
-                    ax.plot(df.columns, df.loc[(
-                        var, good_sims[n])], label=var, alpha=0.8, color='C0', linewidth=0.5)
+                    ax.plot(df.columns, df.loc[(var, good_sims[n])], label=var, alpha=0.8, color='C0', linewidth=0.5)
                     n += 1
-                    if n > 1000:
+                    if n >= 2000 or n >= good_sims.shape[0]:
                         break
             else:
-                ax.plot(df.columns, df.transpose()[
-                        var].quantile(0.5, axis=1), label=var)
+                ax.plot(df.columns, df.transpose()[var].quantile(0.5, axis=1), label=var)
 
             ax.set_xticks([df.columns.values[-1*forecast_days]], minor=True)
-            ax.xaxis.grid(b=True, which='minor', linestyle='--',
-                          alpha=0.6, color='black')
+            ax.xaxis.grid(b=True, which='minor', linestyle='--', alpha=0.6, color='black')
 
     if len(int_vars) > 1:
         ax.legend()
@@ -101,15 +96,12 @@ def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=N
     if Reff is not None:
 
         ax2.plot(df.columns, Reff.loc[df.columns].mean(axis=1))
-        ax2.fill_between(df.columns, Reff.loc[df.columns].quantile(
-            0.25, axis=1), Reff.loc[df.columns].quantile(0.75, axis=1), alpha=0.4, color='C0')
-        ax2.fill_between(df.columns, Reff.loc[df.columns].quantile(
-            0.05, axis=1), Reff.loc[df.columns].quantile(0.95, axis=1), alpha=0.4, color='C0')
+        ax2.fill_between(df.columns, Reff.loc[df.columns].quantile(0.25, axis=1), Reff.loc[df.columns].quantile(0.75, axis=1), alpha=0.4, color='C0')
+        ax2.fill_between(df.columns, Reff.loc[df.columns].quantile(0.05, axis=1), Reff.loc[df.columns].quantile(0.95, axis=1), alpha=0.4, color='C0')
         ax2.set_yticks([1], minor=True,)
         ax2.set_yticks([0, 2, 4], minor=False)
         ax2.set_yticklabels([0, 2, 4], minor=False)
-        ax2.yaxis.grid(which='minor', linestyle='--',
-                       color='black', linewidth=2)
+        ax2.yaxis.grid(which='minor', linestyle='--', color='black', linewidth=2)
         # ax2.set_ylabel("Reff")
         ax2.tick_params('x', rotation=90)
         plt.setp(ax.get_xticklabels(), visible=False)
@@ -145,7 +137,7 @@ def read_in_Reff(file_date, forecast_R=None, VoC_flag='', scenario=''):
     return df_forecast
 
 
-def read_in_cases(cases_file_date):
+def read_in_cases(cases_file_date, apply_delay_at_read=True):
     """
     Read in NNDSS case file data
     """
@@ -153,16 +145,15 @@ def read_in_cases(cases_file_date):
     from datetime import timedelta
     import glob
 
-    df_NNDSS = read_in_NNDSS(cases_file_date)
+    # read in the cases by applying the appropriate delays to the confirmation dates in the data, this should
+    # mean that the plots align more appropriately
+    df_NNDSS = read_in_NNDSS(cases_file_date, apply_delay_at_read=apply_delay_at_read)
 
-    df_cases_state_time = df_NNDSS.groupby(['STATE', 'date_inferred'])[
-        ['imported', 'local']].sum()
+    df_cases_state_time = df_NNDSS.groupby(['STATE', 'date_inferred'])[['imported', 'local']].sum()
     df_cases_state_time.reset_index(inplace=True)
 
-    df_cases_state_time['cum_imported'] = df_cases_state_time.groupby(
-        'STATE').imported.transform(pd.Series.cumsum)
-    df_cases_state_time['cum_local'] = df_cases_state_time.groupby(
-        'STATE').local.transform(pd.Series.cumsum)
+    df_cases_state_time['cum_imported'] = df_cases_state_time.groupby('STATE').imported.transform(pd.Series.cumsum)
+    df_cases_state_time['cum_local'] = df_cases_state_time.groupby('STATE').local.transform(pd.Series.cumsum)
 
     return df_cases_state_time
 
@@ -184,8 +175,7 @@ data_date = argv[2]
 
 forecast_type = 'R_L'
 df_cases_state_time = read_in_cases(data_date)
-Reff = read_in_Reff(forecast_R=forecast_type,
-                    file_date=data_date, VoC_flag=VoC_flag, scenario=scenario)
+Reff = read_in_Reff(forecast_R=forecast_type, file_date=data_date, VoC_flag=VoC_flag, scenario=scenario)
 states = ['NSW', 'QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
 
 data_date = pd.to_datetime(data_date, format="%Y-%m-%d")
@@ -194,14 +184,12 @@ days = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days
 
 # check if any dates are incorrect
 try:
-    num_bad_dates = df_cases_state_time.loc[
-        (df_cases_state_time.date_inferred <= '2020-01-01')].shape[0]
+    num_bad_dates = df_cases_state_time.loc[(df_cases_state_time.date_inferred <= '2020-01-01')].shape[0]
     assert num_bad_dates == 0, "Data contains {} bad dates".format(
         num_bad_dates)
 except AssertionError:
     print("Bad dates include:")
-    print(df_cases_state_time.loc[
-        (df_cases_state_time.date_inferred <= '2020-01-01')])
+    print(df_cases_state_time.loc[(df_cases_state_time.date_inferred <= '2020-01-01')])
 
 
 end_date = pd.to_datetime(
@@ -210,13 +198,11 @@ end_date = pd.to_datetime(
 print("forecast up to: {}".format(end_date))
 
 
-df_results = pd.read_parquet("results/quantiles"+forecast_type+start_date+"sim_"+str(
-    n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
+df_results = pd.read_parquet("results/quantiles"+forecast_type+start_date+"sim_"+str(n_sims)+"days_"+str(days)+VoC_flag+scenario+".parquet")
 
 
 df_cases_state_time = df_cases_state_time[df_cases_state_time.date_inferred != 'None']
-df_cases_state_time.date_inferred = pd.to_datetime(
-    df_cases_state_time.date_inferred)
+df_cases_state_time.date_inferred = pd.to_datetime(df_cases_state_time.date_inferred)
 
 df_results = pd.melt(df_results, id_vars=['state', 'date', 'type'],
                      value_vars=['bottom', 'lower', 'median', 'upper', 'top',
@@ -257,8 +243,7 @@ for i, state in enumerate(states):
         & (df_cases_state_time.date_inferred >= start_date)
         & (df_cases_state_time.date_inferred <= end_date)]
 
-    ax.bar(dfplot.date_inferred, dfplot.local,
-           label='Actual', color='grey', alpha=0.6)
+    ax.bar(dfplot.date_inferred, dfplot.local, label='Actual', color='grey', alpha=0.6)
     R_plot = [r % 2000 for r in good_sims[state]]
 
     ax, ax2 = plot_results(df_results.loc[state], ['total_inci_obs'], ax_arg=(
@@ -266,7 +251,7 @@ for i, state in enumerate(states):
 
     if i % 2 == 0:
         ax.set_ylabel("Observed \n local cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
@@ -279,12 +264,10 @@ plt.savefig("figs/"+forecast_type+start_date+"local_inci_" +
 # try:
 for i, state in enumerate(states):
     ax = axes[i]
-    print('max median', max(
-        df_results.loc[state].loc[('total_inci_obs', 'median')])*1.5+10)
-    ax.set_ylim(
-        (0, max(df_results.loc[state].loc[('total_inci_obs', 'median')])*1.5+10))
-plt.savefig("figs/"+forecast_type+start_date+"local_inci_median_" +
-            str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
+    print('max median', max(df_results.loc[state].loc[('total_inci_obs', 'median')])*1.5+10)
+    ax.set_ylim((0, max(df_results.loc[state].loc[('total_inci_obs', 'median')])*1.5+10))
+
+plt.savefig("figs/"+forecast_type+start_date+"local_inci_median_" + str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
 
 # Make a single plot for each state
 os.makedirs("figs/single_state_plots/", exist_ok=True)
@@ -302,15 +285,13 @@ for i, state in enumerate(states):
     ax.bar(dfplot.date_inferred, dfplot.local,
            label='Actual', color='grey', alpha=0.6)
     R_plot = [r % 2000 for r in good_sims[state]]
-    ax, ax2 = plot_results(df_results.loc[state], ['total_inci_obs'], ax_arg=(
-        ax, ax2), summary=True, Reff=Reff.loc[state, R_plot])
+    ax, ax2 = plot_results(df_results.loc[state], ['total_inci_obs'], ax_arg=(ax, ax2), summary=True, Reff=Reff.loc[state, R_plot])
 
     ax.set_ylabel("Observed \n local cases")
-    ax2.set_ylabel("Local Reff")
+    ax2.set_ylabel("TP")
     ax.set_title(state)
     plt.tight_layout()
-    plt.savefig("figs/single_state_plots/"+state+"local_inci_" +
-                str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
+    plt.savefig("figs/single_state_plots/"+state+"local_inci_" + str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
 
 
 # Total cases
@@ -326,13 +307,11 @@ for i, state in enumerate(states):
         & (df_cases_state_time.date_inferred >= start_date)
         & (df_cases_state_time.date_inferred <= end_date)]
 
-    ax.bar(dfplot.date_inferred, dfplot.local,
-           label='Actual', color='grey', alpha=0.6)
+    ax.bar(dfplot.date_inferred, dfplot.local, label='Actual', color='grey', alpha=0.6)
     if len(set(good_sims[state])) == 0:
         # no accepted sim, skip
         continue
-    ax, ax2 = plot_results(df_results.loc[state], ['total_inci'], ax_arg=(
-        ax, ax2), summary=True, Reff=Reff.loc[state, R_plot])
+    ax, ax2 = plot_results(df_results.loc[state], ['total_inci'], ax_arg=(ax, ax2), summary=True, Reff=Reff.loc[state, R_plot])
     # if state=='NSW':
     #    ax.set_ylim((0,100))
     # elif state=='VIC':
@@ -341,14 +320,13 @@ for i, state in enumerate(states):
     #    ax.set_ylim((0,100))
     if i % 2 == 0:
         ax.set_ylabel("Total \nlocal cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
 plt.tight_layout()
-plt.savefig("figs/"+forecast_type+start_date+"local_total_" +
-            str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
+plt.savefig("figs/"+forecast_type+start_date+"local_total_" + str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
 
 
 # asymp cases
@@ -369,22 +347,20 @@ for i, state in enumerate(states):
     if len(set(good_sims[state])) == 0:
         # no accepted sim, skip
         continue
-    ax, ax2 = plot_results(df_results.loc[state], ['asymp_inci'], ax_arg=(
-        ax, ax2), summary=True, Reff=Reff.loc[state])
+    ax, ax2 = plot_results(df_results.loc[state], ['asymp_inci'], ax_arg=(ax, ax2), summary=True, Reff=Reff.loc[state])
 
     # ax.set_ylim(top=70)
     # if (state=='VIC') or (state=='NSW'):
     #    ax.set_ylim((0,100))
     if i % 2 == 0:
         ax.set_ylabel("Asymp \ntotal cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
 plt.tight_layout()
-plt.savefig("figs/"+forecast_type+"asymp_inci_"+str(n_sims) +
-            "days_"+str(days)+VoC_flag+scenario+'.png', dpi=144)
+plt.savefig("figs/"+forecast_type+"asymp_inci_"+str(n_sims) + "days_"+str(days)+VoC_flag+scenario+'.png', dpi=144)
 # Imported cases
 fig = plt.figure(figsize=(12, 18))
 gs = fig.add_gridspec(4, 2)
@@ -398,28 +374,25 @@ for i, state in enumerate(states):
         & (df_cases_state_time.date_inferred >= start_date)
         & (df_cases_state_time.date_inferred <= end_date)]
 
-    ax.bar(dfplot.date_inferred, dfplot.imported,
-           label='Actual', color='grey', alpha=0.6)
+    ax.bar(dfplot.date_inferred, dfplot.imported, label='Actual', color='grey', alpha=0.6)
     if len(set(good_sims[state])) == 0:
         # no accepted sim, skip
         continue
-    ax, ax2 = plot_results(df_results.loc[state], ['imports_inci_obs'], ax_arg=(
-        ax, ax2), summary=True, Reff=Reff.loc[state])
+    ax, ax2 = plot_results(df_results.loc[state], ['imports_inci_obs'], ax_arg=(ax, ax2), summary=True, Reff=Reff.loc[state])
 
     # ax.set_ylim(top=70)
     # if (state=='VIC') or (state=='NSW'):
     #    ax.set_ylim((0,100))
     if i % 2 == 0:
         ax.set_ylabel("Observed \nimported cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
 
 plt.tight_layout()
-plt.savefig("figs/"+forecast_type+start_date+"imported_inci_" +
-            str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
+plt.savefig("figs/"+forecast_type+start_date+"imported_inci_" + str(n_sims)+"days_"+str(days)+VoC_flag+scenario+'.png', dpi=300)
 
 # unobserved Imported cases
 fig = plt.figure(figsize=(12, 18))
@@ -434,18 +407,16 @@ for i, state in enumerate(states):
         & (df_cases_state_time.date_inferred >= start_date)
         & (df_cases_state_time.date_inferred <= end_date)]
 
-    ax.bar(dfplot.date_inferred, dfplot.imported,
-           label='Actual', color='grey', alpha=0.6)
+    ax.bar(dfplot.date_inferred, dfplot.imported, label='Actual', color='grey', alpha=0.6)
     if len(set(good_sims[state])) == 0:
         # no accepted sim, skip
         continue
-    ax, ax2 = plot_results(df_results.loc[state], ['imports_inci'], ax_arg=(
-        ax, ax2), summary=True, Reff=Reff.loc[state])
+    ax, ax2 = plot_results(df_results.loc[state], ['imports_inci'], ax_arg=(ax, ax2), summary=True, Reff=Reff.loc[state])
 
     # ax.set_ylim(top=70)
     if i % 2 == 0:
         ax.set_ylabel("Total Imported cases")
-        ax2.set_ylabel("Local Reff")
+        ax2.set_ylabel("TP")
     ax.set_title(state)
     if i < len(states)-2:
         ax.set_xticklabels([])
@@ -486,14 +457,13 @@ for i, state in enumerate(states):
     if len(set(good_sims[state])) == 0:
         # no accepted sim, skip
         continue
-    ax = plot_results(df_raw, ['total_inci_obs'],
-                      ax_arg=ax, summary=False, plotpath=True)
+    ax = plot_results(df_raw, ['total_inci_obs'], ax_arg=ax, summary=False, plotpath=True)
     spag_ylim = ax.get_ylim()
 
-    if (state == 'VIC') or (state == 'NSW'):
-        ax.set_ylim((0, 100))
-    elif spag_ylim[1] > ylims[1]:
-        ax.set_ylim((ylims[0], 5*ylims[1]))
+    # if (state == 'VIC') or (state == 'NSW'):
+    #     ax.set_ylim((0, 100))
+    # elif spag_ylim[1] > ylims[1]:
+    #     ax.set_ylim((ylims[0], 5*ylims[1]))
 
     if i % 2 == 0:
         ax.set_ylabel("Observed \n local cases")

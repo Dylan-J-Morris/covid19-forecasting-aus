@@ -8,19 +8,20 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=$USER@adelaide.edu.au
 #SBATCH --ntasks-per-core=1
-#SBATCH --array=0-7
+#SBATCH --array=0-4 # SBATCH --array=0-7
 
 module load arch/haswell
 module load Python/3.6.1-foss-2016b
 source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 
-states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+# states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+states=("SA" "QLD" "TAS" "WA" "NT")
 
 NSIMS=$1
 DATADATE=$2
 VOCFLAG=$3 # Optional VoC Name
 SCENARIO=$4 # Optional scenario modelling flag
 
-python model/run_state.py $NSIMS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $VOCFLAG $SCENARIO
+python model/sim_model/run_state.py $NSIMS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $VOCFLAG $SCENARIO
 
 deactivate

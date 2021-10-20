@@ -6,7 +6,9 @@ from scipy.stats import gamma
 from sys import argv
 from epyreff import *
 # this is not used in the estimation routine, it just lets the plot know what we ignore
-from params import truncation_days
+from params import truncation_days, third_start_date, start_date 
+
+from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,17 +24,6 @@ tau = 4
 prior_a = 1
 prior_b = 2
 trunc_days = 21
-
-shape_inc = 5.807  # taken from Lauer et al. 2020 #1.62/0.418
-scale_inc = 0.948  # 0.418
-offset_inc = 0
-
-shape_rd = 1.82
-scale_rd = 2.88
-offset_rd = 0
-
-shape_gen = 3.64/3.07
-scale_gen = 3.07
 offset = 0
 shift = 0
 
@@ -53,19 +44,14 @@ df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
 # generate dataframe with id_vars date and state, variable SOURCE and number of cases
 df_linel = tidy_cases_lambda(df_interim)
 
-# infer extra cases in last 10 days by the reporting delay distribution
-
-
 # generate possible infection dates from the notification data
 df_inf = draw_inf_dates(df_linel, nreplicates=1000,
-                        shape_rd=shape_rd, scale_rd=scale_rd, offset_rd=offset_rd,
-                        shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc,
-                        )
+                        shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc, 
+                        shape_rd=shape_rd, scale_rd=scale_rd, offset_rd=offset_rd)
 
 # reindex dataframe to include all dates,
 # return df with index (STATE, INFECTION_DATE, SOURCE), columns are samples
 df_inc_zeros = index_by_infection_date(df_inf)
-
 
 # get all lambdas
 lambda_dict = lambda_all_states(df_inc_zeros,
@@ -80,8 +66,7 @@ for state in states:
     lambda_state = lambda_dict[state]
     df_state_I = df_inc_zeros.xs((state, 'local'), level=('STATE', 'SOURCE'))
     # get Reproduciton numbers
-    a, b, R = Reff_from_case(
-        df_state_I.values, lambda_state, prior_a=prior_a, prior_b=prior_b, tau=tau)
+    a, b, R = Reff_from_case(df_state_I.values, lambda_state, prior_a=prior_a, prior_b=prior_b, tau=tau)
 
     # summarise for plots and file printing
     R_summary_states[state] = generate_summary(R)
@@ -95,7 +80,6 @@ for state in states:
 
 # make folder to record files
 os.makedirs("results/EpyReff/", exist_ok=True)
-
 
 if plot_time:
     # plot assumed distributions
@@ -123,8 +107,7 @@ if plot_time:
     ax[2].bar(xmids[:-1], height=ws, width=1)
     ax[2].set_title("Generation Interval")
 
-    plt.savefig('figs/Time_distributions'+file_date +
-                "tau_"+str(tau)+".png", dpi=400)
+    plt.savefig('figs/Time_distributions'+file_date +"tau_"+str(tau)+".png", dpi=400)
 
 
 df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv", index=False)
@@ -133,8 +116,12 @@ df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv", index=False)
 file_date_updated = dt_date
 file_date_updated = file_date_updated.strftime("%Y-%m-%d")
 
+# read in an adjusted file
+df_NNDSS = read_in_NNDSS(dt_date.strftime("%d%b%Y"), apply_delay_at_read=True)
+df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
+
+
 fig, ax = plot_all_states(R_summary_states, df_interim, dates,
-                          start='2020-03-01', end=file_date_updated, save=True,
-                          tau=tau, date=date, nowcast_truncation=-truncation_days
-                          )
+                          start=start_date, end=file_date_updated, save=True,
+                          tau=tau, date=date, nowcast_truncation=-truncation_days)
 plt.close()

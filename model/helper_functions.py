@@ -2,8 +2,7 @@
 
 import pandas as pd
 
-
-def read_in_NNDSS(date_string):
+def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=False):
     """
     A general function to read in the NNDSS data. Alternatively this can be manually set to read in the linelist instead.
     Args:
@@ -13,9 +12,11 @@ def read_in_NNDSS(date_string):
         A dataframe of all NNDSS data.
     """
 
+    import numpy as np
     from datetime import timedelta
     import glob
     from params import use_linelist, assume_local_cases_if_unknown
+    from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
 
     if not use_linelist:
         # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
@@ -35,17 +36,13 @@ def read_in_NNDSS(date_string):
                 "NNDSS no found. Did you want to use a linelist? Or is the file named wrong?")
 
         # Fixes errors in updated python versions
-        df.TRUE_ONSET_DATE = pd.to_datetime(
-            df.TRUE_ONSET_DATE, errors='coerce')
-        df.NOTIFICATION_DATE = pd.to_datetime(
-            df.NOTIFICATION_DATE, errors='coerce')
+        df.TRUE_ONSET_DATE = pd.to_datetime(df.TRUE_ONSET_DATE, errors='coerce')
+        df.NOTIFICATION_DATE = pd.to_datetime(df.NOTIFICATION_DATE, errors='coerce')
 
         # Find most representative date
         df['date_inferred'] = df.TRUE_ONSET_DATE
-        df.loc[df.TRUE_ONSET_DATE.isna(), 'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna(
-        )].NOTIFICATION_DATE - timedelta(days=5)
-        df.loc[df.date_inferred.isna(), 'date_inferred'] = df.loc[df.date_inferred.isna(
-        )].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
+        df.loc[df.TRUE_ONSET_DATE.isna(), 'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
+        df.loc[df.date_inferred.isna(), 'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
 
         # The first 4 digits is the country code. We use this to determin if the cases is local or imported. We can choose which assumption we keep. This should be set to true during local outbreak waves.
         if assume_local_cases_if_unknown:
@@ -58,40 +55,62 @@ def read_in_NNDSS(date_string):
         # IMPORTANT NOTE: State of infection is determined by the STATE column, not the PLACE_OF_ACQUISITION column
 
         # Set imported cases, local cases have 1101 as first 4 digits.
-        df['imported'] = df.PLACE_OF_ACQUISITION.apply(
-            lambda x: 1 if x[:4] != '1101' else 0)
+        df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4] != '1101' else 0)
         df['local'] = 1 - df.imported
 
         return df
 
     else:
         # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / imported status vetted by a human. This can be a lot more reliable during an outbreak.
-
+            
         case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
-        path = "data/*linelist_"+case_file_date+"*.csv"
+        path = "data/interim_linelist_"+case_file_date+"*.csv"
+            
         for file in glob.glob(path):  # Allows us to use the * option
             df = pd.read_csv(file)
 
         if len(glob.glob(path)) == 0:
-            raise FileNotFoundError(
-                "Linelist no found. Did you want to use NNDSS?")
+            raise FileNotFoundError("Calculated linelist not found. Did you want to use NNDSS or the imputed linelist?")
 
+        # take the representative dates 
         df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
-        df['date_detection'] = pd.to_datetime(
-            df['date_detection'], errors='coerce')
+        # create boolean of when confirmation dates used
+        df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+        df['is_confirmation'] = df['date_onset'].isna()
 
+        # set the known onset dates 
         df['date_inferred'] = df['date_onset']
-        df.loc[df['date_onset'].isna(), 'date_inferred'] = df.loc[df['date_onset'].isna(
-        )]['date_detection'] - timedelta(days=3)  # Fill missing days
-
-        df['imported'] = [1 if stat ==
-                          'imported' else 0 for stat in df['import_status']]
+        
+        if apply_delay_at_read:
+            # calculate number of delays to sample 
+            n_delays = df['date_inferred'].isna().sum()
+            # sample that number of delays from the distribution and take the ceiling. 
+            # This was fitted to the third and second wave data, looking at the common differences 
+            # between onsets and confirmations
+            rd = np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays)
+            rd = np.round(rd) * timedelta(days=1)
+            
+            # fill missing days with the confirmation date, noting that this is adjusted when used
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rd
+        else:
+            # just apply the confirmation date and let EpyReff handle the delay distribution 
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] 
+            
+        # now we apply the incubation period to the inferred onset date. Note that this should never be done in the 
+        # absence of the delay 
+        if apply_inc_at_read:
+            # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
+            n_infs = df['date_inferred'].shape[0]
+            inc = np.random.gamma(shape=shape_inc, scale=scale_inc, size=n_infs)
+            # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior 
+            # doesnt work properly
+            inc = np.round(inc) * timedelta(days=1)
+            df['date_inferred'] = df['date_inferred'] - inc
+            
+        df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]
         df['local'] = 1 - df.imported
         df['STATE'] = df['state']
-        # df['NOTIFICATION_RECEIVE_DATE'] = df['date_detection'] # Only used by EpyReff. Possible improvement here.
-
-        # added this to be consistent with the NNDSS data
-        # df.loc[df.date_inferred.isna(),'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
+        
         return df
 
 
@@ -109,8 +128,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
         raise Exception('Need to provide file date to Reff read.')
 
     file_date = pd.to_datetime(file_date).strftime("%Y-%m-%d")
-    df_forecast = pd.read_hdf(
-        'results/soc_mob_R'+file_date+scenario+'.h5', key='Reff')
+    df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+scenario+'.h5', key='Reff')
 
     if use_voc_effect and (VoC_flag != '') and (VoC_flag is not None):
         VoC_start_date = pd.to_datetime(VoC_start_date)
@@ -134,23 +152,18 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
             index_map = df_forecast.index[row_bool_to_apply_VoC]
             # Index 9 and onwards are the 2000 Reff samples.
             df_slice_after_VoC = df_forecast.iloc[index_map, 8:]
-            multiplier = beta.rvs(
-                7, 7, size=df_slice_after_VoC.shape) + 2.6 - 0.5  # Mean 2.1 Delta
+            multiplier = beta.rvs(7, 7, size=df_slice_after_VoC.shape) + 2.6 - 0.5  # Mean 2.1 Delta
 
         df_forecast.iloc[index_map, 8:] = df_slice_after_VoC*multiplier
 
     if use_vaccine_effect:
         # Load in vaccination effect data
-        vaccination_by_state = pd.read_csv(
-            'data/vaccine_effect_timeseries.csv', parse_dates=['date'])
-        vaccination_by_state = vaccination_by_state[[
-            'state', 'date', 'overall_transmission_effect']]
+        vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
+        vaccination_by_state = vaccination_by_state[['state', 'date', 'overall_transmission_effect']]
 
         # Make datetime objs into strings
-        vaccination_by_state['date_str'] = pd.to_datetime(
-            vaccination_by_state['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
-        df_forecast['date_str'] = pd.to_datetime(
-            df_forecast['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+        vaccination_by_state['date_str'] = pd.to_datetime(vaccination_by_state['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+        df_forecast['date_str'] = pd.to_datetime(df_forecast['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
 
         # Filling in future days will the same vaccination level as current.
         for state, forecast_df_state in df_forecast.groupby('state'):
