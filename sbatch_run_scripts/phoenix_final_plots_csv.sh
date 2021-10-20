@@ -18,7 +18,7 @@ DATADATE=$2
 VOCFLAG=$3
 SCENARIO=$4
 
-python model/collate_states.py $NSIMS $DATADATE $VOCFLAG $SCENARIO
-python model/record_to_csv.py $NSIMS $DATADATE $VOCFLAG $SCENARIO
+python model/record_sim_results/collate_states.py $NSIMS $DATADATE $VOCFLAG $SCENARIO
+python model/record_sim_results/record_to_csv.py $NSIMS $DATADATE $VOCFLAG $SCENARIO
 
 deactivate

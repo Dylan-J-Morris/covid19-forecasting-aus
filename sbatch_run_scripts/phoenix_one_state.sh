@@ -18,6 +18,6 @@ DATADATE=$3
 VOCFLAG=$4 # Optional VoC Name
 SCENARIO=$5 # Optional scenario modelling flag
 
-python model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG $SCENARIO
+python model/sim_model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG $SCENARIO
 
 deactivate

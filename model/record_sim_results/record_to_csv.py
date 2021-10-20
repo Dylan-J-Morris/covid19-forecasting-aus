@@ -1,4 +1,5 @@
-
+import sys
+sys.path.insert(0,'model')
 from params import start_date, num_forecast_days
 import pandas as pd
 import numpy as np

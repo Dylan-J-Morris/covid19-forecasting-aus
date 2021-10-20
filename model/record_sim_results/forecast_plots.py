@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0,'model')
 from params import start_date, num_forecast_days
 from helper_functions import read_in_NNDSS, read_in_Reff_file
 from scipy.stats import beta

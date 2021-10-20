@@ -22,6 +22,6 @@ DATADATE=$2
 VOCFLAG=$3 # Optional VoC Name
 SCENARIO=$4 # Optional scenario modelling flag
 
-python model/run_state.py $NSIMS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $VOCFLAG $SCENARIO
+python model/sim_model/run_state.py $NSIMS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $VOCFLAG $SCENARIO
 
 deactivate

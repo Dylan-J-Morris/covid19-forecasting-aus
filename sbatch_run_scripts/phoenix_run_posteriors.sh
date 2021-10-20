@@ -14,6 +14,6 @@ source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 
 DATADATE=$1
 
-python model/cprs/generate_posterior.py $DATADATE
+python model/fitting_and_forecasting/generate_posterior.py $DATADATE
 
 deactivate
