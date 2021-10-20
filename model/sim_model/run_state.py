@@ -3,6 +3,8 @@ from typing import MutableMapping
 sys.path.insert(0,'model')
 from sim_class_cython import *
 from params import start_date, num_forecast_days, ncores, testing_sim  # External parameters
+from scenarios import scenarios
+
 import pandas as pd
 from sys import argv
 from numpy.random import beta, gamma
@@ -30,15 +32,6 @@ else:
     
 forecast_date = argv[2]  # Date of forecast
 state = argv[3] 
-
-# If no VoC specified, code will run without alterations.
-VoC_flag = ''
-if len(argv) > 4:
-    VoC_flag = argv[4]
-
-scenario = ''
-if len(argv) > 5:  # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
-    scenario = argv[5]
 
 # print("Simulating state " + state)
 
@@ -125,10 +118,16 @@ else:
 
 ####### Create simulation.py object ########
 
+VoC_flag = 'Delta'
+
 forecast_object = Forecast(current[state],
-                           state, start_date, forecast_date=forecast_date,
+                           state, 
+                           start_date, 
+                           forecast_date=forecast_date,
                            cases_file_date=case_file_date,
-                           VoC_flag=VoC_flag, scenario=scenario, end_time = end_time)
+                           VoC_flag=VoC_flag, 
+                           scenario=scenarios[state], 
+                           end_time = end_time)
 
 ############ Run Simulations in parallel and return ############
 

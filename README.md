@@ -60,34 +60,30 @@ Run these at the command line. Number of sims is used to name some of the files.
 ```
 DATADATE='2021-10-18'   # Date of NNDSS data file
 NSIMS=20             # Total number of simulations to run should be > 5000
-VOCFLAG='Delta'
-SCENARIO='full_reversion'
-# set date of scenario. Does not matter for no-reversion and is just used to name files. 
-SCENARIODATE='2021-10-18'       
 ```
 
 ## Quick run: Local
 ```
 python model/EpyReff/run_estimator.py $DATADATE
 python model/fitting_and_forecasting/generate_posterior.py $DATADATE 
-python model/fitting_and_forecasting/forecast_TP.py $DATADATE $SCENARIO $SCENARIODATE
-states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+python model/fitting_and_forecasting/forecast_TP.py $DATADATE
 states=("NSW" "VIC")
+states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for STATE in "${states[@]}"
 do
-    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG "${SCENARIO}${SCENARIODATE}"
+    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE
 done
-python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE} $VOCFLAG "${SCENARIO}${SCENARIODATE}"
-python model/record_sim_results/record_to_csv.py ${NSIMS} ${DATADATE} $VOCFLAG "${SCENARIO}${SCENARIODATE}"
+python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE}
+python model/record_sim_results/record_to_csv.py ${NSIMS} ${DATADATE}
 ```
 
 ## Quick run: Phoenix
 ```
 jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
-jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
-jid_TP_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_TP_forecasting.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
-jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
-jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
+jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE})
+jid_TP_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_TP_forecasting.sh ${DATADATE})
+jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
+jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE})
 ```
 
 ## Running the model locally 
@@ -101,23 +97,23 @@ python model/fitting_and_forecasting/generate_posterior.py $DATADATE
 ```
 3. Uses the posterior sample to generate $R_L$ forecasts. 
 ```
-python model/fitting_and_forecasting/forecast_TP.py $DATADATE $SCENARIO $SCENARIODATE
+python model/fitting_and_forecasting/forecast_TP.py $DATADATE
 ```
 4. Now we loop over each state and simulate forward. 
 ```
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for STATE in "${states[@]}"
 do
-    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG "${SCENARIO}${SCENARIODATE}"
+    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE 
 done
 ```
 5. Now we use the outputs and produce all the forecast plots. 
 ```
-python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE} $VOCFLAG "${SCENARIO}${SCENARIODATE}"
+python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE} 
 ```
 6. Finally we record the csv to supply for the ensemble. 
 ```
-python model/record_sim_results/record_to_csv.py ${NSIMS} ${DATADATE} $VOCFLAG "${SCENARIO}${SCENARIODATE}"
+python model/record_sim_results/record_to_csv.py ${NSIMS} ${DATADATE}
 ```
 
 ## Running the model on a HPC that uses slurm
@@ -131,15 +127,15 @@ jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_
 ```
 3. Using the output from the stan fitting, we forecast the TP's forward. This is done by forecasting each mobility measure forward based on a particular mobility scenario. 
 ```
-jid_TP_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_TP_forecasting.sh ${DATADATE} ${SCENARIO} ${SCENARIODATE})
+jid_TP_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_TP_forecasting.sh ${DATADATE})
 ```
 4. This step is the meaty part of the forecasts. This will run the branching process simulation for each state.
 ```
-jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
+jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
 ```
 5. Once the simulations have completed we process the output files, plot the resulting forecasts and produce a csv to go into the ensemble.
 ```
-jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
+jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE})
 ```
 
 ## Tips and tricks 
@@ -150,13 +146,13 @@ If you have different scenarios for different states, provided there is the same
 ### Running just simulations 
 If running **JUST** the sims.
 ```
-jid_simulate_b=$(sbatch --parsable sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
-jid_savefigs_and_csv_b=$(sbatch --parsable --dependency=afterok:$jid_simulate_b sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
+jid_simulate_b=$(sbatch --parsable sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
+jid_savefigs_and_csv_b=$(sbatch --parsable --dependency=afterok:$jid_simulate_b sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE})
 ```
 
 ### Running a single state
 ```
-one_state=$(sbatch --parsable sbatch_run_scripts/phoenix_one_state.sh ${STATE} ${NSIMS} ${DATADATE} Delta "${SCENARIO}${SCENARIODATE}")
+one_state=$(sbatch --parsable sbatch_run_scripts/phoenix_one_state.sh ${STATE} ${NSIMS} ${DATADATE})
 ```
 
 ## Original Code

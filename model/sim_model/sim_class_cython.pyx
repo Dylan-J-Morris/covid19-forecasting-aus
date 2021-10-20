@@ -110,7 +110,7 @@ cdef class Forecast:
         self.forecast_date = (pd.to_datetime(forecast_date, format='%Y-%m-%d') - self.start_date).days
         self.cases_file_date = cases_file_date
         # Load in Rff data before running all sims
-        self.Reff_all = read_in_Reff_file(self.cases_file_date,  self.VoC_flag, scenario=self.scenario)
+        self.Reff_all = read_in_Reff_file(self.cases_file_date)
         # Assumption dates.
         # Date from which quarantine was started
         self.quarantine_change_date = pd.to_datetime('2020-04-15', format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
@@ -743,7 +743,7 @@ cdef class Forecast:
         print('VoC_flag is', self.VoC_flag)
         print("Saving results for state "+self.state)
         df_results.to_parquet("./results/"+self.state+self.start_date.strftime(format='%Y-%m-%d')+
-                              "sim_R_L"+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet")
+                              "sim_R_L"+str(n_sims)+"days_"+str(days)+".parquet")
 
         return df_results
 

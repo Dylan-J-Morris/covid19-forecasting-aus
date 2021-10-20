@@ -20,7 +20,9 @@ for ff in ("*.c", "*.html"):
 ext_modules = [Extension("sim_class_cython", 
                          ["sim_class_cython.pyx"])]
 
-os.chdir('model')
+# choose directory to build model in — should be the same as the location 
+# of the *.pyx file
+os.chdir('model/sim_model')
 
 setup(name="sim_class_cython", 
       ext_modules=cythonize(ext_modules, 
