@@ -15,9 +15,7 @@ source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 STATE=$1 # Pre-pass the single state
 NSIMS=$2
 DATADATE=$3
-VOCFLAG=$4 # Optional VoC Name
-SCENARIO=$5 # Optional scenario modelling flag
 
-python model/sim_model/run_state.py $NSIMS $DATADATE $STATE $VOCFLAG $SCENARIO
+python model/sim_model/run_state.py $NSIMS $DATADATE $STATE
 
 deactivate
