@@ -635,7 +635,7 @@ class Forecast:
         print("Saving results for state "+self.state)
         df_results.to_parquet(
             "./results/"+self.state+self.start_date.strftime(
-                format='%Y-%m-%d')+"sim_R_L"+str(n_sims)+"days_"+str(days)+self.VoC_flag+self.scenario+".parquet",
+                format='%Y-%m-%d')+"sim_R_L"+str(n_sims)+"days_"+str(days) +".parquet",
         )
 
         return df_results
