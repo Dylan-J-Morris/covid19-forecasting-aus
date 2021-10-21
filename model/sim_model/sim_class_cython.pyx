@@ -242,51 +242,25 @@ cdef class Forecast:
 
         df_forecast = self.Reff_all
         
-        if self.state == 'NSW':
+        # Get R_I values and store in object.
+        self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
+                                   (df_forecast.state == self.state), 
+                                   self.num_of_sim % 2000].values[0]
+
+        # Get only R_L forecasts
+        df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
+        df_forecast = df_forecast.set_index(['state', 'date'])
         
-            good_indices = pd.read_csv('results/good_indices_NSW.csv').to_numpy()[0]
-            ind = good_indices[self.num_of_sim % len(good_indices)] % 2000
-        
-            # Get R_I values and store in object.
-            self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
-                                        (df_forecast.state == self.state), 
-                                        ind].values[0]
+        dfReff_dict = df_forecast.loc[self.state,[0, 1]].to_dict(orient='index')
 
-            # Get only R_L forecasts
-            df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
-            df_forecast = df_forecast.set_index(['state', 'date'])
-            
-            dfReff_dict = df_forecast.loc[self.state,[0, 1]].to_dict(orient='index')
+        Reff_lookupstate = {}
+        for key, stats in dfReff_dict.items():
+            # instead of mean and std, take all columns as samples of Reff
+            # convert key to days since start date for easier indexing
+            newkey = (key - self.start_date).days
+            Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
 
-            Reff_lookupstate = {}
-            for key, stats in dfReff_dict.items():
-                # instead of mean and std, take all columns as samples of Reff
-                # convert key to days since start date for easier indexing
-                newkey = (key - self.start_date).days
-                Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
-                
-            self.Reff = Reff_lookupstate
-        
-        else: 
-            # Get R_I values and store in object.
-            self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
-                                        (df_forecast.state == self.state), 
-                                        self.num_of_sim % 2000].values[0]
-
-            # Get only R_L forecasts
-            df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
-            df_forecast = df_forecast.set_index(['state', 'date'])
-            
-            dfReff_dict = df_forecast.loc[self.state,[0, 1]].to_dict(orient='index')
-
-            Reff_lookupstate = {}
-            for key, stats in dfReff_dict.items():
-                # instead of mean and std, take all columns as samples of Reff
-                # convert key to days since start date for easier indexing
-                newkey = (key - self.start_date).days
-                Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
-
-            self.Reff = Reff_lookupstate
+        self.Reff = Reff_lookupstate
     
     @cython.boundscheck(False)  # Deactivate bounds checking
     @cython.wraparound(False) 
