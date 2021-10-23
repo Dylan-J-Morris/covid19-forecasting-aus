@@ -36,7 +36,7 @@ module load Python/3.6.1-foss-2016b
 source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 python model/sim_model/sim_class_cython_setup.py
 ```
-which creates a shared object and this is what is referenced in `run_state.py`. This builds the shared object and stores it in `/model/sim_model/` (Note that there will be some warnings when building this but they relate to building Numpy under cython and can be ignored. There will also be some additional files produced but they are just the compiled c-code). The model in `sim_class_cython.pyx` is mostly written in python and should be relatively straightforward to understand. The real performance gains come from using Cython on the `generate_cases` function which results in an approximate 4x speedup over base Python implementation. 
+which creates a shared object and this is what is referenced in `run_state.py`. This builds the shared object and stores it in `/model/sim_model/` (Note that there will be some warnings when building this but they relate to building Numpy under cython and can be ignored. There will also be some additional files produced but they are just the compiled C-code). The model in `sim_class_cython.pyx` is mostly written in python and should be relatively straightforward to understand. The real performance gains come from using Cython on the `generate_cases` function which results in an approximate 4x speedup over base Python implementation. 
 
 ## Data
 1. In the covid forecasting directory (from github) create a data folder called `data`. 

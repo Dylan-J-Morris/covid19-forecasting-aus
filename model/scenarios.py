@@ -2,12 +2,12 @@
 # define scenarios for each state
 scenarios = {
     'NSW': 'full_reversion',
-    'QLD': 'no_reversion',
+    'QLD': '',
     'SA': '',
     'TAS': '',
     'VIC': 'full_reversion',
     'WA': '',
-    'ACT': 'full_reversion',
+    'ACT': '',
     'NT': ''
 }
 
@@ -19,6 +19,6 @@ scenario_dates = {
     'TAS': '',
     'VIC': '2021-10-22',
     'WA': '',
-    'ACT': '2021-10-16',
+    'ACT': '',
     'NT': ''
 }
