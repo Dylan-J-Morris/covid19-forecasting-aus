@@ -640,14 +640,16 @@ cdef class Forecast:
         cdef np.int_t under = 0
         
         # loop over the windows and check to see whether we are below the windows
-        # for i in range(len(self.sim_cases_in_window)):
-        #     if self.sim_cases_in_window[i] < self.min_cases_in_windows[i]:
-        #         print("Breaking in window: ", i, " with ", self.min_cases_in_windows[i] - self.sim_cases_in_window[i], " too few.")
-        #         self.bad_sim = True
-        #         break
+        for i in range(len(self.sim_cases_in_window)):
+            if self.sim_cases_in_window[i] < self.min_cases_in_windows[i]:
+                if self.print_at_iterations:
+                    print("Breaking in window: ", i, " with ", self.min_cases_in_windows[i] - self.sim_cases_in_window[i], " too few.")
+                    
+                self.bad_sim = True
+                break
                 
-        if np.sum(self.sim_cases_in_window) < 0.5*np.sum(self.cases_in_windows):
-            self.bad_sim = True
+        # if np.sum(self.sim_cases_in_window) < 0.5*np.sum(self.cases_in_windows):
+        #     self.bad_sim = True
         
         #for i in range(self.end_time):
         #    if self.observed_cases[i, 2] < max(0, ((1/2)*self.actual[i])):
@@ -736,6 +738,7 @@ cdef class Forecast:
     def read_in_cases(self):
         """
         Read in NNDSS case data to measure incidence against simulation. Nothing is returned as results are saved in object.
+        This also calculates the lower and upper case limits in each of the observation windows.
         """
         import pandas as pd
         from datetime import timedelta
@@ -829,9 +832,10 @@ cdef class Forecast:
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
         limit_factor_backcasts = 2.0
-        limit_factor_nowcast = 2.0
+        limit_factor_nowcast = 1.5
         # backcasts all have same limit
         self.max_cases_in_windows[:-1] = np.maximum(100, limit_factor_backcasts * self.cases_in_windows[:-1])
+        self.max_cases_in_windows[-1] = np.maximum(100, limit_factor_nowcast * self.cases_in_windows[-1])
         # adjust the first two windows if VIC
         # if self.state == 'VIC':
         #     self.max_cases_in_windows[:2] = np.maximum(50, 2*self.cases_in_windows[:2] )
