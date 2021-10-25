@@ -107,7 +107,7 @@ elif start_date == '2021-05-15':
 else:
     current = {  # based on locally acquired cases in the days preceding the start date
         'ACT': [3, 0, 0],
-        'NSW': [3, 0, 10],
+        'NSW': [3, 0, 4],
         'NT': [0, 0, 0],
         'QLD': [14, 0, 1],
         'SA': [0, 0, 0],
