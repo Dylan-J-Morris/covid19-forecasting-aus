@@ -173,7 +173,7 @@ for i, state in enumerate(states):
     # cap min and max at historical or (-50,0)
     # 1 by predictors by mob_samples size
     minRmed_array = np.minimum(-50, np.amin(Rmed_array, axis=0))
-    maxRmed_array = np.maximum(0, np.amax(Rmed_array, axis=0))
+    maxRmed_array = np.maximum(10, np.amax(Rmed_array, axis=0))
 
     # days by predictors by samples
     sims = np.zeros(shape=(n_forecast, len(predictors), mob_samples))
@@ -181,6 +181,8 @@ for i, state in enumerate(states):
         Rmed = Rmed_array[:, :, n]
         minRmed = minRmed_array[:, n]
         maxRmed = maxRmed_array[:, n]
+        if maxRmed[1] < 20:
+            maxRmed[1] = 50
 
         R_baseline_mean = np.mean(Rmed[-n_baseline:, :], axis=0)
         R_diffs = np.diff(Rmed[-n_training:, :], axis=0)
@@ -190,33 +192,33 @@ for i, state in enumerate(states):
         # Forecast mobility forward sequentially by day.
         current = np.mean(Rmed[-5:, :], axis=0)  # Start from last valid days
         for i in range(n_forecast):
-
-            # Proportion of trend_force to regression_to_baseline_force
-            p_force = (n_forecast-i)/(n_forecast)
-
-            # Generate a single forward realisation of trend
-            trend_force = np.random.multivariate_normal(mu, cov)
-            # Generate a single forward realisation of baseline regression
-            regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov)
-
-            new_forcast_points = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Find overall simulation step
-            current = new_forcast_points
-
-            # Apply minimum and maximum
-            new_forcast_points = np.maximum(minRmed, new_forcast_points)
-            new_forcast_points = np.minimum(maxRmed, new_forcast_points)
-
             # ## SCENARIO MODELLING
             # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
-            if scenarios[state] != '':
+            if scenarios[state] == '':
+                # Proportion of trend_force to regression_to_baseline_force
+                p_force = (n_forecast-i)/(n_forecast)
+
+                # Generate a single forward realisation of trend
+                trend_force = np.random.multivariate_normal(mu, cov)
+                # Generate a single forward realisation of baseline regression
+                regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov)
+
+                new_forcast_points = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Find overall simulation step
+                current = new_forcast_points
+
+                # Apply minimum and maximum
+                new_forcast_points = np.maximum(minRmed, new_forcast_points)
+                new_forcast_points = np.minimum(maxRmed, new_forcast_points)
+            
+            elif scenarios[state] != '':
                 # Make baseline cov for generating points
                 cov_baseline = np.cov(Rmed[-42:-28, :], rowvar=False)
-                # cov_baseline = np.cov(Rmed[-140:-120, :], rowvar=False)
+                # cov_baseline = np.cov(Rmed[-140:-100, :], rowvar=False)
                 mu_current = Rmed[-1, :]
                 mu_victoria = np.array([-55.35057887, -22.80891056, -46.59531636, -75.99942378, -44.71119293])
 
-                # mu_baseline = np.mean(Rmed[-42:-28, :], axis=0)
-                mu_baseline = 0*np.mean(Rmed[-42:-28, :], axis=0)
+                mu_baseline = np.mean(Rmed[-42:-28, :], axis=0)
+                # mu_baseline = 0*np.mean(Rmed[-42:-28, :], axis=0)
 
                 if scenario_dates[state] != '':
                     scenario_change_point = (pd.to_datetime(scenario_dates[state]) - data_date).days + (n_forecast-42)
@@ -241,11 +243,13 @@ for i, state in enumerate(states):
                     else:
                         # baseline is within lockdown period so take a new baseline of 0's and trend towards this
                         R_baseline_0 = np.zeros_like(R_baseline_mean)
+                        R_baseline_0[1] = 10
                         # the force we trend towards the baseline above with
                         p_force = (n_forecast-i)/(n_forecast)
                         trend_force = np.random.multivariate_normal(mu, cov) # Generate a single forward realisation of trend
-                        regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_0 - current), cov) # Generate a single forward realisation of baseline regression
-                        new_forcast_points = current+p_force*trend_force +(1-p_force)*regression_to_baseline_force # Find overall simulation step
+                        regression_to_baseline_force = np.random.multivariate_normal(0.025*(R_baseline_0-current), cov) # Generate a single forward realisation of baseline regression
+                        new_forcast_points = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force # Find overall simulation step
+                        new_forcast_points = current + regression_to_baseline_force # Find overall simulation step
                         current = new_forcast_points
                         # Apply minimum and maximum
                         new_forcast_points = np.maximum(minRmed, new_forcast_points)
@@ -301,17 +305,21 @@ for i, state in enumerate(states):
     new_md_forecast = []
     # Forecast mobility forward sequentially by day.
     for i in range(n_forecast + extra_days_md):
-        # Proportion of trend_force to regression_to_baseline_force
-        p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md)
-        # Generate step realisations in training trend direction
-        trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
-        # Generate realisations that draw closer to baseline
-        regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
-        current = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
 
         # SCENARIO MODELLING
         # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
-        if scenarios[state]:
+        if scenarios[state] == '':
+            # Proportion of trend_force to regression_to_baseline_force
+            p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md)
+            # Generate step realisations in training trend direction
+            trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
+            # Generate realisations that draw closer to baseline
+            regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
+            current = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
+        
+        elif scenarios[state] != '':
+            current = np.array(current)
+        
             # Make baseline cov for generating points
             std_baseline = np.std(prop[state].values[-42:-28])
             mu_baseline = np.mean(prop[state].values[-42:-28], axis=0)
@@ -340,8 +348,8 @@ for i, state in enumerate(states):
                     # Generate step realisations in training trend direction
                     trend_force = np.random.normal(mu_diffs, std_baseline)
                     # Generate realisations that draw closer to baseline
-                    regression_to_baseline_force = np.random.normal(mu_baseline_0 - mu_current, std_baseline)
-                    current = mu_current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
+                    regression_to_baseline_force = np.random.normal(0.05*(mu_baseline_0 - current), std_baseline)
+                    current = current+regression_to_baseline_force  # Balance forces
             
             elif scenarios[state] == "immediately_baseline":
                 # this scenario is an immediate return to baseline values 
@@ -389,20 +397,25 @@ for i, state in enumerate(states):
         new_vacc_forecast = []
         # Forecast mobility forward sequentially by day.
         total_forecasting_days = n_forecast + extra_days_vacc
-        r = (1/total_forecasting_days) * np.log(-0.05/mu_diffs)
         
+        # convert current to numpy array so we can take advantage of logical indexing
+        current = np.array(current)
         for i in range(total_forecasting_days):
-            # apply a decay to the change in the vaccine effect into the forecast period which
-            # essentially causes an asymptote. Damping (i.e. dividing by 100) is applied as we 
-            # are already working with small changes in the order of 3 decimal places. 
-            mu_diffs_adj = mu_diffs*np.exp(-r * i)
-            # applying an increase to the uncertainty of the vaccination program into the forecasting period
-            # which acts as a way of us being increasingly unsure as to where the limit of VE might be
-            std_diffs_adj = std_diffs
-            trend_force = np.random.normal(mu_diffs_adj, std_diffs_adj, size=1000)
-            # no regression to baseline for vaccination or scenario modelling yet
+            # trend force is consistent for vaccination 
+            trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
+            # apply a different effect depending on proximity to threshold. This is crude atm but should suffice
+            # for apply a smoother transition to 0.3
+            # if any(current < 0.4): 
+            #     current[current == 0.3] = current[current == 0.3] 
+            #     current[(current > 0.3) & (current < 0.4)] = current[(current > 0.3) & (current < 0.4)] + (
+            #         trend_force[(current > 0.3) & (current < 0.4)]*(
+            #             1 - 1/(1+np.exp(1/(-(current[(current > 0.3) & (current < 0.4)] - 0.3))))))
+            #     current[current >= 0.4] = current[current >= 0.4] + trend_force[current >= 0.4]
+            # else: 
             current = current + trend_force
-            new_vacc_forecast.append(current)
+            
+            # append to vaccination forecast list 
+            new_vacc_forecast.append(current.tolist())
 
         vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
         vacc_sims = np.minimum(1, vacc_sims)

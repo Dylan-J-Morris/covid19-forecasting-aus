@@ -47,11 +47,12 @@ end_time = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # en
 
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y")  # Convert date to format used in case file
 
-# Initialise the number of cases as 1st of March data incidence
+# initialise the number of cases 
+# note that these are of the form [import (I), asymptomatic (A), symptomatic (S)]
 if start_date == "2020-03-01":
     current = {
         'ACT': [0, 0, 0],
-        'NSW': [10, 0, 2],  # 1
+        'NSW': [4, 0, 2],  # 1
         'NT': [0, 0, 0],
         'QLD': [2, 0, 0],
         'SA': [2, 0, 0],

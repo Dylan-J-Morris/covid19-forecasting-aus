@@ -60,9 +60,14 @@ cdef class Forecast:
     cdef get_inf_time, get_detect_time
     cdef print_at_iterations
 
-    def __init__(self, current, state, start_date,
-                 forecast_date, cases_file_date, end_time = None,
-                 VoC_flag='', scenario=''):
+    def __init__(self, current, 
+                 state, 
+                 start_date,
+                 forecast_date, 
+                 cases_file_date, 
+                 end_time = None,
+                 VoC_flag='', 
+                 scenario=''):
         """Create forecast object with parameters in preperation for running simulation.
 
         Args:
@@ -129,26 +134,6 @@ cdef class Forecast:
         self.num_too_many = 0
 
         # assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
-    
-    def rare_event_simulation_init(self):
-        pass
-        # if self.state in {'VIC'}:
-    #  
-        #     # initial conditions — hardcoded for now
-        #     I = np.array([1., 1., 0., 1., 0., 2., 1., 0., 0., 0., 2., 0.])
-        #     A = np.array([0., 0., 0., 1., 1., 0., 2., 0., 0., 0., 0., 1.])
-        #     S = np.array([10.,  5., 12., 13., 12., 10.,  3.,  4.,  9.,  9.,  2.,  9.])
-        #     # sample from the initial conditions
-        #     ind = np.random.randint(len(I))
-        #     # set current
-        #     current = [I[ind], A[ind], S[ind]]
-        #     self.initial_state = current.copy()  # Observed cases on start day
-        #     # Create an object list of Persons based on observed cases on start day
-        #     people = ['I']*int(current[0]) + ['A']*int(current[1]) + ['S']*int(current[2])
-        #     self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
-    #  
-        # else:
-        #     pass
     
     @cython.boundscheck(False)  # Deactivate bounds checking
     @cython.wraparound(False) 
@@ -379,8 +364,6 @@ cdef class Forecast:
         # compared to the scipy method. Yes it was checked that numpy and scipy produce the same RVs.
         np.random.seed(seed)
         self.num_of_sim = sim
-        
-        self.rare_event_simulation_init()
         
         self.read_in_Reff()
         # generate storage for cases
@@ -645,7 +628,8 @@ cdef class Forecast:
         for i in range(len(self.sim_cases_in_window)-1):
             if self.sim_cases_in_window[i] > self.max_cases_in_windows[i]:
                 exceed = 1
-                # print("Breaking in window: ", i, " with ", self.sim_cases_in_window[i] - self.max_cases_in_windows[i], " too many.")
+                if self.print_at_iterations:
+                    print("Breaking in window: ", i, " with ", self.sim_cases_in_window[i] - self.max_cases_in_windows[i], " too many.")
                 break
         
         return exceed

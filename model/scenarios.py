@@ -7,7 +7,7 @@ scenarios = {
     'TAS': '',
     'VIC': 'full_reversion',
     'WA': '',
-    'ACT': '',
+    'ACT': 'full_reversion',
     'NT': ''
 }
 
@@ -19,6 +19,6 @@ scenario_dates = {
     'TAS': '',
     'VIC': '2021-10-22',
     'WA': '',
-    'ACT': '',
+    'ACT': '2021-10-15',
     'NT': ''
 }
