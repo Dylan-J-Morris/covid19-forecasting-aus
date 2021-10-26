@@ -8,13 +8,14 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=$USER@adelaide.edu.au
 #SBATCH --ntasks-per-core=1
-#SBATCH --array=0-7
+#SBATCH --array=0-5
 
 module load arch/haswell
 module load Python/3.6.1-foss-2016b
 source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 
-states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+# states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+states=("SA" "QLD" "TAS" "WA" "ACT" "NT")
 
 NSIMS=$1
 DATADATE=$2

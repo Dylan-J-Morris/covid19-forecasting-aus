@@ -836,12 +836,6 @@ cdef class Forecast:
         # backcasts all have same limit
         self.max_cases_in_windows[:-1] = np.maximum(100, limit_factor_backcasts * self.cases_in_windows[:-1])
         self.max_cases_in_windows[-1] = np.maximum(100, limit_factor_nowcast * self.cases_in_windows[-1])
-        # adjust the first two windows if VIC
-        # if self.state == 'VIC':
-        #     self.max_cases_in_windows[:2] = np.maximum(50, 2*self.cases_in_windows[:2] )
-        # nowcast is different 
-        # self.max_cases_in_windows[-2:] = np.maximum(100, limit_factor_nowcast * self.cases_in_windows[-2:])
-        # self.max_cases_in_windows[-1] = np.maximum(10, limit_factor_nowcast * self.cases_in_windows[-1])
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 1/3
