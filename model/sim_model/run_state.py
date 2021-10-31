@@ -2,6 +2,7 @@ import sys
 from typing import MutableMapping
 sys.path.insert(0,'model')
 from sim_class_cython import *
+# from sim_class_update import *
 from params import start_date, num_forecast_days, ncores, testing_sim  # External parameters
 from scenarios import scenarios
 
@@ -206,15 +207,85 @@ if __name__ == "__main__":
 
     print(state, " took: %f" %time_for_sim)
     
-# if __name__ == '__main__':
-    # import cProfile, pstats
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    # main()
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats('ncalls')
-    # stats.print_stats()
-    # stats.dump_stats('stats_file.prof')
-    
-    
-    
+testing = False   
+
+if testing:
+    def main():
+        # initialise arrays
+
+        import_sims = np.zeros(shape=(end_time, n_sims), dtype=float)
+        import_sims_obs = np.zeros_like(import_sims)
+
+        import_inci = np.zeros_like(import_sims)
+        import_inci_obs = np.zeros_like(import_sims)
+
+        asymp_inci = np.zeros_like(import_sims)
+        asymp_inci_obs = np.zeros_like(import_sims)
+
+        symp_inci = np.zeros_like(import_sims)
+        symp_inci_obs = np.zeros_like(import_sims)
+
+        bad_sim = np.zeros(shape=(n_sims), dtype=int)
+
+        travel_seeds = np.zeros(shape=(end_time, n_sims), dtype=int)
+        travel_induced_cases = np.zeros_like(travel_seeds)
+
+        forecast_object.read_in_cases()
+
+        start_timer = timer()
+
+        for n in range(n_sims):
+            print(n)
+        
+            cases, obs_cases, param_dict = forecast_object.simulate(end_time, n, n)
+            
+            # cycle through all results and record into arrays
+            n = param_dict['num_of_sim']
+            if param_dict['bad_sim']:
+                # bad_sim True
+                bad_sim[n] = 1
+
+            # record cases appropriately
+            import_inci[:, n] = cases[:, 0]
+            asymp_inci[:, n] = cases[:, 1]
+            symp_inci[:, n] = cases[:, 2]
+
+            import_inci_obs[:, n] = obs_cases[:, 0]
+            asymp_inci_obs[:, n] = obs_cases[:, 1]
+            symp_inci_obs[:, n] = obs_cases[:, 2]
+
+        # convert arrays into df
+        results = {
+            'imports_inci': import_inci,
+            'imports_inci_obs': import_inci_obs,
+            'asymp_inci': asymp_inci,
+            'asymp_inci_obs': asymp_inci_obs,
+            'symp_inci': symp_inci,
+            'symp_inci_obs': symp_inci_obs,
+            'total_inci_obs': symp_inci_obs + asymp_inci_obs,
+            'total_inci': symp_inci + asymp_inci,
+            'all_inci': symp_inci + asymp_inci + import_inci,
+            'bad_sim': bad_sim
+        }
+        
+        print("Number of bad sims is %i" % sum(bad_sim))
+        # results recorded into parquet as dataframe
+        df = forecast_object.to_df(results)
+        
+        end_timer = timer()
+        time_for_sim = end_timer-start_timer
+
+        print(state, " took: %f" %time_for_sim)
+        
+    if __name__ == '__main__':
+        import cProfile, pstats
+        profiler = cProfile.Profile()
+        profiler.enable()
+        main()
+        profiler.disable()
+        stats = pstats.Stats(profiler).sort_stats('ncalls')
+        stats.print_stats()
+        stats.dump_stats('stats_file.prof')
+        
+        
+        

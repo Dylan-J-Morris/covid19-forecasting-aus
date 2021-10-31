@@ -67,7 +67,6 @@ NSIMS=100000               # Total number of simulations to run should be > 5000
 python model/EpyReff/run_estimator.py $DATADATE
 python model/fitting_and_forecasting/generate_posterior.py $DATADATE 
 python model/fitting_and_forecasting/forecast_TP.py $DATADATE
-states=("NSW" "VIC")
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for STATE in "${states[@]}"
 do
