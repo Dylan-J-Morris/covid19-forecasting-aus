@@ -194,21 +194,29 @@ class Forecast:
                 self.cases[max(0, math.ceil(new_person.infection_time)), 2] += 1
     
     def read_in_all_Reffs(self):
-        
+        """
+        Read in all the forecasted TP's and then process them into local and imported Reffs 
+        indexed in a dictionary of dictionaries where the first dictionary is indexed by the sim number. 
+        """
+        # use the helper functions to read in the file from forecast_TPs
         Reff_all = read_in_Reff_file(self.cases_file_date)
     
+        # use local dictionaries to store the TP paths for sims 
         import_Reffs = {}
         local_Reffs = {}
         for i in range(2000):
             import_Reffs[i], local_Reffs[i] = self.read_in_Reff(Reff_all, i)
             
+        # store the results in self
         self.import_Reffs = import_Reffs 
         self.local_Reffs = local_Reffs
 
     def set_Reff(self):
-        
-        self.R_I = self.import_Reffs[self.num_of_sim]
-        self.Reff = self.local_Reffs[self.num_of_sim]
+        """
+        Set the TP to use for a given simulation. 
+        """
+        self.R_I = self.import_Reffs[self.num_of_sim % 2000]
+        self.Reff = self.local_Reffs[self.num_of_sim % 2000]
 
     def read_in_Reff(self, Reff_all, i):
         """
