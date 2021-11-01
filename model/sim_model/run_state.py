@@ -25,6 +25,8 @@ if mp.cpu_count() < ncores:
 
 from timeit import default_timer as timer
 
+profile_code = False
+
 if testing_sim:
     n_sims = 100
 else: 
@@ -137,9 +139,7 @@ def worker(arg):
     obj, methname = arg[:2]
     return getattr(obj, methname)(*arg[2:])
 
-testing = False
-
-if __name__ == "__main__" and not testing:
+if __name__ == "__main__" and not profile_code:
     # initialise arrays
 
     import_sims = np.zeros(shape=(end_time, n_sims), dtype=float)
@@ -208,7 +208,7 @@ if __name__ == "__main__" and not testing:
 
     print(state, " took: %f" %time_for_sim)
     
-if testing:
+if profile_code:
     def main():
         # initialise arrays
 

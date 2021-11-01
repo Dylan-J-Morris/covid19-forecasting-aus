@@ -13,6 +13,8 @@ from itertools import cycle
 
 from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
 
+import line_profiler
+from numba import njit
 class Person:
     """
     Individuals in the forecast
@@ -89,6 +91,7 @@ class Forecast:
         self.cases_file_date = cases_file_date
         # Load in Rff data before running all sims
         self.Reff_all = read_in_Reff_file(self.cases_file_date)
+        self.read_in_all_Reffs()
         # Assumption dates.
         # Date from which quarantine was started
         self.quarantine_change_date = pd.to_datetime('2020-04-15', format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
@@ -123,6 +126,7 @@ class Forecast:
             # N samples for each of infection and detection times
             # Grab now and iterate through samples to save simulation
             self.generate_times(size=200000)
+            self.get_detect_rv = self.iter_detect_rv()
             self.get_inf_time = self.iter_inf_time()
             self.get_detect_time = self.iter_detect_time()
 
@@ -190,7 +194,21 @@ class Forecast:
                 self.people[len(self.people)] = new_person
                 self.cases[max(0, math.ceil(new_person.infection_time)), 2] += 1
     
-    def read_in_Reff(self):
+    def read_in_all_Reffs(self):
+        import_Reffs = {}
+        local_Reffs = {}
+        for i in range(2000):
+            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(i)
+            
+        self.import_Reffs = import_Reffs 
+        self.local_Reffs = local_Reffs
+
+    def set_Reff(self):
+        
+        self.R_I = self.import_Reffs[self.num_of_sim]
+        self.Reff = self.local_Reffs[self.num_of_sim]
+
+    def read_in_Reff(self, i):
         """
         Read in Reff CSV that was produced by the generate_R_L_forecasts.py script.
         """
@@ -199,9 +217,9 @@ class Forecast:
         df_forecast = self.Reff_all
         
         # Get R_I values and store in object.
-        self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
-                                   (df_forecast.state == self.state), 
-                                   self.num_of_sim % 2000].values[0]
+        R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
+                              (df_forecast.state == self.state), 
+                              i % 2000].values[0]
 
         # Get only R_L forecasts
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
@@ -211,7 +229,7 @@ class Forecast:
         
         # initialise a temporary df that is only for state of interest and 
         # corresponds to the appropriate sim number
-        df_forecast_tmp = df_forecast.loc[self.state, self.num_of_sim % 2000]
+        df_forecast_tmp = df_forecast.loc[self.state, i % 2000]
         
         # print(df_forecast_tmp)
         # loop over the key-value pairs in the series df_forecast_tmp and 
@@ -221,9 +239,10 @@ class Forecast:
             # convert key to days since start date for easier indexing
             newkey = (key - self.start_date).days
             Reff_lookupstate[newkey] = value
-        
-        self.Reff = Reff_lookupstate
+            
+        return R_I, Reff_lookupstate
     
+    # @profile
     def generate_new_cases(self, parent_key, Reff, k, travel=False):
         """
         Generate offspring for each parent, check if they travel. 
@@ -273,12 +292,9 @@ class Forecast:
              #   if self.people[parent_key].category == 'A':
              #       child_times.append(ceil(inf_time))
              
-                if math.ceil(inf_time) > self.cases.shape[0]:
-                    # new infection exceeds the simulation time, not recorded
-                    self.cases_after = self.cases_after + 1
-                else:
+                if math.ceil(inf_time) <= self.cases.shape[0]:
                     # within forecast time
-                    detection_rv = np.random.random()
+                    detection_rv = next(self.get_detect_rv)
                     detect_time = inf_time + next(self.get_detect_time)
                     # recovery_time = 0  # for now not tracking recoveries
 
@@ -325,6 +341,10 @@ class Forecast:
 
                     # add person to tracked people
                     self.people[len(self.people)] = Person(parent_key, inf_time, detect_time, 0, category)
+                    
+                else:
+                    # new infection exceeds the simulation time, not recorded
+                    self.cases_after = self.cases_after + 1
 
     def simulate(self, end_time, sim, seed):
         """
@@ -335,7 +355,8 @@ class Forecast:
         np.random.seed(seed)
         self.num_of_sim = sim
         
-        self.read_in_Reff()
+        # self.read_in_Reff()
+        self.set_Reff()
         # generate storage for cases
         self.cases = np.zeros(shape=(self.end_time, 3), dtype=float)
         self.observed_cases = np.zeros_like(self.cases)
@@ -619,20 +640,17 @@ class Forecast:
         #    if self.observed_cases[i, 2] < max(0, ((1/2)*self.actual[i])):
         #        self.bad_sim = True
         #        break
-
+        
     def increment_counters(self, detect_time, category):
 
         # check to see if case in forecast window
         if detect_time < self.cases.shape[0]:
             # check to see if case before the forecast date 
             if detect_time < self.forecast_date:
-                # loop over the windows
-                # n = np.where(detect_time >= self.window_sizes)
-                # self.sim_cases_in_window[n][1] += 1
-                for n in range(len(self.window_sizes)):
+                for (i, x) in enumerate(self.window_sizes):
                     # window sizes is cumulative so find which one we're in and increment
-                    if detect_time < self.window_sizes[n]:
-                        self.sim_cases_in_window[n] += 1
+                    if detect_time < x:
+                        self.sim_cases_in_window[i] += 1
                         break
                     
             # add case to observed
@@ -783,6 +801,7 @@ class Forecast:
         self.window_sizes = np.cumsum(np.flip(window_sizes))
         # set these in the overall forecast object
         self.cases_in_windows = np.flip(cases_in_window)
+        self.n_windows = self.window_sizes.shape[0]
         
         print("Observation windows length: ", self.window_sizes)
         print("Number of cases in each window: ", self.cases_in_windows)
@@ -853,8 +872,13 @@ class Forecast:
         """
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """
+        self.detect_rv = np.random.random(size=size)  # shape and scale
         self.inf_times = np.random.gamma(shape_gen, scale_gen, size=size)  # shape and scale
         self.detect_times = np.random.gamma(shape_inc, scale_inc, size=size)
+
+    def iter_detect_rv(self):
+        for rv in cycle(self.detect_rv):
+            yield rv
 
     def iter_inf_time(self):
         """
