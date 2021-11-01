@@ -1,8 +1,7 @@
 import sys
 from typing import MutableMapping
 sys.path.insert(0,'model')
-from sim_class_cython import *
-# from sim_class_update import *
+from sim_class import *
 from params import start_date, num_forecast_days, ncores, testing_sim  # External parameters
 from scenarios import scenarios
 
@@ -138,7 +137,9 @@ def worker(arg):
     obj, methname = arg[:2]
     return getattr(obj, methname)(*arg[2:])
 
-if __name__ == "__main__":
+testing = False
+
+if __name__ == "__main__" and not testing:
     # initialise arrays
 
     import_sims = np.zeros(shape=(end_time, n_sims), dtype=float)
@@ -207,8 +208,6 @@ if __name__ == "__main__":
 
     print(state, " took: %f" %time_for_sim)
     
-testing = False   
-
 if testing:
     def main():
         # initialise arrays
@@ -237,7 +236,7 @@ if testing:
         for n in range(n_sims):
             print(n)
         
-            cases, obs_cases, param_dict = forecast_object.simulate(end_time, n, n)
+            (cases, obs_cases, param_dict) = forecast_object.simulate(end_time, n, n)
             
             # cycle through all results and record into arrays
             n = param_dict['num_of_sim']
