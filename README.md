@@ -23,21 +23,6 @@ There are two ways to run the UoA Covid-19 forecasting model built into the code
 In this markdown document we outline the requirements for both and provide the straightforward approaches for scenario modelling (the main source of interest currently).
 
 **Note:** For normal (no scenario) modelling, you do not supply the scenario or scenario date to the functions/sbatch scripts. 
-
-## Compiling the model code
-The simulation model is written using Cython which means that in order to compile the model a C-compiler is needed. To compile `sim_class_cython.pyx` locally,
-```
-python model/sim_model/sim_class_cython_setup.py
-```
-and on HPC,
-```
-module load arch/haswell
-module load Python/3.6.1-foss-2016b
-source /hpcfs/users/$USER/local/virtualenvs/bin/activate
-python model/sim_model/sim_class_cython_setup.py
-```
-which creates a shared object and this is what is referenced in `run_state.py`. This builds the shared object and stores it in `/model/sim_model/` (Note that there will be some warnings when building this but they relate to building Numpy under cython and can be ignored. There will also be some additional files produced but they are just the compiled C-code). The model in `sim_class_cython.pyx` is mostly written in python and should be relatively straightforward to understand. The real performance gains come from using Cython on the `generate_cases` function which results in an approximate 4x speedup over base Python implementation. 
-
 ## Data
 1. In the covid forecasting directory (from github) create a data folder called `data`. 
 2. Create folder for the microdistancing surveys called `md`. This needs to contain `Barometer wave XX compliance.csv` files up to the current wave. 
@@ -58,8 +43,8 @@ The `on_phoenix` flag tells the model to use a slightly older version of Pystan 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ## Required arguments
 ```
-DATADATE='2021-10-25'   # Date of NNDSS data file
-NSIMS=100000               # Total number of simulations to run should be > 5000
+DATADATE='2021-11-01'   # Date of NNDSS data file
+NSIMS=50000               # Total number of simulations to run should be > 5000
 ```
 
 ## Quick run: Local
