@@ -189,34 +189,6 @@ class Forecast:
                 self.infected_queue.append(len(self.people))
                 self.people[len(self.people)] = new_person
                 self.cases[max(0, math.ceil(new_person.infection_time)), 2] += 1
-
-    # def read_in_Reff(self):
-    #     """
-    #     Read in Reff CSV that was produced by the generate_R_L_forecasts.py script.
-    #     """
-    #     import pandas as pd
-
-    #     df_forecast = self.Reff_all
-        
-    #     # Get R_I values and store in object.
-    #     self.R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
-    #                                (df_forecast.state == self.state), 
-    #                                self.num_of_sim % 2000].values[0]
-
-    #     # Get only R_L forecasts
-    #     df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
-    #     df_forecast = df_forecast.set_index(['state', 'date'])
-        
-    #     dfReff_dict = df_forecast.loc[self.state,[0, 1]].to_dict(orient='index')
-
-    #     Reff_lookupstate = {}
-    #     for key, stats in dfReff_dict.items():
-    #         # instead of mean and std, take all columns as samples of Reff
-    #         # convert key to days since start date for easier indexing
-    #         newkey = (key - self.start_date).days
-    #         Reff_lookupstate[newkey] = df_forecast.loc[(self.state, key), self.num_of_sim % 2000]
-
-    #     self.Reff = Reff_lookupstate
     
     def read_in_Reff(self):
         """
@@ -235,16 +207,15 @@ class Forecast:
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
         df_forecast = df_forecast.set_index(['state', 'date'])
         
-        dfReff_dict = df_forecast.loc[self.state,[0, 1]].to_dict(orient='index')
-        
         Reff_lookupstate = {}
         
         # initialise a temporary df that is only for state of interest and 
         # corresponds to the appropriate sim number
         df_forecast_tmp = df_forecast.loc[self.state, self.num_of_sim % 2000]
+        
         # print(df_forecast_tmp)
-        # loop over the key-value pairs in df_forecast_tmp and readjust based on the 
-        # start date when storing in Reff_lookupstate
+        # loop over the key-value pairs in the series df_forecast_tmp and 
+        # readjust based on the start date when storing in Reff_lookupstate
         for (key, value) in df_forecast_tmp.items():
             # instead of mean and std, take all columns as samples of Reff
             # convert key to days since start date for easier indexing
