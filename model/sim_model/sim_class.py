@@ -13,8 +13,8 @@ from itertools import cycle
 
 from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
 
-import line_profiler
-from numba import njit
+# import line_profiler
+# from numba import njit
 class Person:
     """
     Individuals in the forecast
