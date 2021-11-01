@@ -90,7 +90,6 @@ class Forecast:
         self.forecast_date = (pd.to_datetime(forecast_date, format='%Y-%m-%d') - self.start_date).days
         self.cases_file_date = cases_file_date
         # Load in Rff data before running all sims
-        self.Reff_all = read_in_Reff_file(self.cases_file_date)
         self.read_in_all_Reffs()
         # Assumption dates.
         # Date from which quarantine was started
@@ -195,10 +194,13 @@ class Forecast:
                 self.cases[max(0, math.ceil(new_person.infection_time)), 2] += 1
     
     def read_in_all_Reffs(self):
+        
+        Reff_all = read_in_Reff_file(self.cases_file_date)
+    
         import_Reffs = {}
         local_Reffs = {}
         for i in range(2000):
-            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(i)
+            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(Reff_all, i)
             
         self.import_Reffs = import_Reffs 
         self.local_Reffs = local_Reffs
@@ -208,13 +210,13 @@ class Forecast:
         self.R_I = self.import_Reffs[self.num_of_sim]
         self.Reff = self.local_Reffs[self.num_of_sim]
 
-    def read_in_Reff(self, i):
+    def read_in_Reff(self, Reff_all, i):
         """
         Read in Reff CSV that was produced by the generate_R_L_forecasts.py script.
         """
         import pandas as pd
 
-        df_forecast = self.Reff_all
+        df_forecast = Reff_all
         
         # Get R_I values and store in object.
         R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
@@ -580,6 +582,8 @@ class Forecast:
                 # only reach here if while loop breaks, so break the data check
                 break
         
+        # need to empty people dict as we never remove anything from the dictionary 
+        # during the simulation — possible improvement? 
         self.people.clear()
         gc.collect()
         
