@@ -263,9 +263,9 @@ for i, state in enumerate(states):
                         # baseline scalar is smaller for this as we want slow returns
                         adjusted_baseline_drift_mean = R_baseline_0 - current
                         # we purposely scale the transit measure so that we increase a little more quickly
-                        tmp = 0.05 * adjusted_baseline_drift_mean[3]
+                        # tmp = 0.05 * adjusted_baseline_drift_mean[3]
                         adjusted_baseline_drift_mean *= 0.025
-                        adjusted_baseline_drift_mean[3] = tmp
+                        # adjusted_baseline_drift_mean[3] = tmp
                         regression_to_baseline_force = np.random.multivariate_normal(adjusted_baseline_drift_mean, cov) # Generate a single forward realisation of baseline regression
                         new_forcast_points = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force # Find overall simulation step
                         new_forcast_points = current + regression_to_baseline_force # Find overall simulation step
