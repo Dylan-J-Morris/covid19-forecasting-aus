@@ -10,7 +10,6 @@ from params import case_insertion_threshold
 from collections import deque
 import gc
 from itertools import cycle
-from numba import njit
 
 from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
 
