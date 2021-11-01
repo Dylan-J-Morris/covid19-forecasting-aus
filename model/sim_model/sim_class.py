@@ -358,7 +358,7 @@ class Forecast:
 
     def simulate(self, end_time, sim, seed):
         """
-        Simulate forward until end_time
+        Simulate the branching process until end_time.
         """
         # set seed in the generator, this will get passed to the class methods and is much more efficient 
         # compared to the scipy method. Yes it was checked that numpy and scipy produce the same RVs.
@@ -620,6 +620,10 @@ class Forecast:
                      'bad_sim': self.bad_sim})
 
     def check_over_cases(self):
+        """
+        Performs a check to see whether we have exceeded the maximum number of allowable 
+        cases in a given period.
+        """
         
         exceed = False
         # loop over windows and check for whether we have exceeded the cases in any window 
@@ -634,7 +638,9 @@ class Forecast:
         return exceed
         
     def final_check(self): 
-        # does a final check for undershoot in the simulation compared to the data
+        """
+        Performs a final check for undershoot in the simulation compared to the data.
+        """
         
         # loop over the windows and check to see whether we are below the windows
         for i in range(len(self.sim_cases_in_window)):
@@ -654,6 +660,10 @@ class Forecast:
         #        break
         
     def increment_counters(self, detect_time, category):
+        """
+        Given a detect_time and category, we increment the counters in a window and add the 
+        person to the observed cases (iff they have a detection time within the observation window)
+        """
 
         # check to see if case in forecast window
         if detect_time < self.cases.shape[0]:
@@ -769,6 +779,11 @@ class Forecast:
         self.actual = df.local.to_dict()
         
     def calculate_counts_in_windows(self, df):
+        """
+        Determines the counts in each of the windows over the forecast horizon. 
+        This also saves the window sizes for incrementing counters in the code as
+        well. 
+        """
         
         # number of days to unrestrict the simulation
         nowcast_days = 10
@@ -819,6 +834,10 @@ class Forecast:
         print("Number of cases in each window: ", self.cases_in_windows)
         
     def calculate_limits(self, df):
+        """
+        Calculates upper on lower bounds for each of the windows during the simulation 
+        period considered. Saves the results in self.min_cases_in_windows and self.max_cases_in_windows.
+        """
     
         self.min_cases_in_windows = np.zeros_like(self.cases_in_windows)
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
@@ -889,6 +908,9 @@ class Forecast:
         self.detect_times = np.random.gamma(shape_inc, scale_inc, size=size)
 
     def iter_detect_rv(self):
+        """
+        Helper function. Access Next detection_rv.
+        """
         for rv in cycle(self.detect_rv):
             yield rv
 
@@ -907,7 +929,13 @@ class Forecast:
             yield time
         
 def binom(n, p):
+    """
+    Wrapper for binomial sampler.
+    """
     return np.random.binomial(n, p)
     
 def neg_binom(k, p):
+    """
+    Wrapper for negative binomial sampler. 
+    """
     return np.random.negative_binomial(k, p)

@@ -188,6 +188,12 @@ for i, state in enumerate(states):
         R_diffs = np.diff(Rmed[-n_training:, :], axis=0)
         mu = np.mean(R_diffs, axis=0)
         cov = np.cov(R_diffs, rowvar=False)  # columns are vars, rows are obs
+        
+        # apply adjustment to TAS to reduce upper limit on R&R and workplaces. The trend
+        # looks too strong so this smooths over the difference in the preceeding 14 days. 
+        if state == 'TAS':
+            mu[0] *= 0.25
+            mu[4] *= 0.25
 
         # Forecast mobility forward sequentially by day.
         current = np.mean(Rmed[-5:, :], axis=0)  # Start from last valid days
@@ -201,6 +207,7 @@ for i, state in enumerate(states):
                 # Generate a single forward realisation of trend
                 trend_force = np.random.multivariate_normal(mu, cov)
                 # Generate a single forward realisation of baseline regression
+                # regression to baseline force stronger in standard forecasting
                 regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov)
 
                 new_forcast_points = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Find overall simulation step
@@ -243,11 +250,23 @@ for i, state in enumerate(states):
                     else:
                         # baseline is within lockdown period so take a new baseline of 0's and trend towards this
                         R_baseline_0 = np.zeros_like(R_baseline_mean)
-                        R_baseline_0[1] = 10
+                        # set adjusted baselines by eyeline for now, need to get this automated 
+                        R_baseline_0[1] = 10    # baseline of +10% for Grocery based on other jurisdictions 
+                        if state in {'NSW', 'ACT'}: 
+                            R_baseline_0[3] = -25   # baseline of -30% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
+                        else: 
+                            R_baseline_0[3] = -30   # baseline of -30% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
+                            
                         # the force we trend towards the baseline above with
                         p_force = (n_forecast-i)/(n_forecast)
                         trend_force = np.random.multivariate_normal(mu, cov) # Generate a single forward realisation of trend
-                        regression_to_baseline_force = np.random.multivariate_normal(0.025*(R_baseline_0-current), cov) # Generate a single forward realisation of baseline regression
+                        # baseline scalar is smaller for this as we want slow returns
+                        adjusted_baseline_drift_mean = R_baseline_0 - current
+                        # we purposely scale the transit measure so that we increase a little more quickly
+                        tmp = 0.05 * adjusted_baseline_drift_mean[3]
+                        adjusted_baseline_drift_mean *= 0.025
+                        adjusted_baseline_drift_mean[3] = tmp
+                        regression_to_baseline_force = np.random.multivariate_normal(adjusted_baseline_drift_mean, cov) # Generate a single forward realisation of baseline regression
                         new_forcast_points = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force # Find overall simulation step
                         new_forcast_points = current + regression_to_baseline_force # Find overall simulation step
                         current = new_forcast_points

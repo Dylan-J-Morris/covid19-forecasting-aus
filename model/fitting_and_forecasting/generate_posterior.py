@@ -405,7 +405,6 @@ else:
 if run_inference or run_inference_only:
 
     # importing the stan model as a string
-    # from rho_model_gamma import rho_model_gamma_string
     # open stan file in read mode
     model_file = open("model/fitting_and_forecasting/rho_model_gamma.stan", "r")
     # read whole model to a string
@@ -413,7 +412,8 @@ if run_inference or run_inference_only:
     # close file
     model_file.close()
 
-    # slightly different setup depending if we are running on phoenix or locally 
+    # slightly different setup depending if we are running on phoenix or locally due to
+    # different versions of pystan
     if on_phoenix:
         sm_pol_gamma = pystan.StanModel(model_code=rho_model_gamma, 
                                         model_name='gamma_pol_state')
