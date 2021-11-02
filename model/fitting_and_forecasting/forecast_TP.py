@@ -438,7 +438,7 @@ for i, state in enumerate(states):
 
         vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
         vacc_sims = np.minimum(1, vacc_sims)
-        vacc_sims = np.maximum(0.3, vacc_sims)      # apply a maximum effect of 0.3
+        vacc_sims = np.maximum(0.35, vacc_sims)      # apply a maximum effect of 0.35 based off current observations from Nick
 
         # get dates
         dd_vacc = [vaccination_by_state.loc[state].index[-1] + 

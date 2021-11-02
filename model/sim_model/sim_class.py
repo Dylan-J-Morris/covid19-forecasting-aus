@@ -627,8 +627,8 @@ class Forecast:
         
         exceed = False
         # loop over windows and check for whether we have exceeded the cases in any window 
-        # don't check the last window
-        for i in range(len(self.sim_cases_in_window)-1):
+        # don't check the last window corresponding to nowcast
+        for i in range(len(self.sim_cases_in_window)):
             if self.sim_cases_in_window[i] > self.max_cases_in_windows[i]:
                 exceed = True
                 if self.print_at_iterations:
@@ -789,7 +789,6 @@ class Forecast:
         nowcast_days = 10
         # length of comparison windows 
         window_length = 20
-        
         # number of days we are forecasting for
         forecast_days = self.end_time-self.forecast_date
         # get the index of the last date in the data
@@ -845,8 +844,8 @@ class Forecast:
         limit_factor_backcasts = 2.0
         limit_factor_nowcast = 1.5
         # backcasts all have same limit
-        self.max_cases_in_windows[:-1] = np.maximum(100, limit_factor_backcasts * self.cases_in_windows[:-1])
-        self.max_cases_in_windows[-1] = np.maximum(100, limit_factor_nowcast * self.cases_in_windows[-1])
+        self.max_cases_in_windows[:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-1]))
+        self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 1/3
@@ -930,12 +929,12 @@ class Forecast:
         
 def binom(n, p):
     """
-    Wrapper for binomial sampler.
+    Helper function. Wrapper for binomial sampler.
     """
     return np.random.binomial(n, p)
     
 def neg_binom(k, p):
     """
-    Wrapper for negative binomial sampler. 
+    Helper function. Wrapper for negative binomial sampler. 
     """
     return np.random.negative_binomial(k, p)
