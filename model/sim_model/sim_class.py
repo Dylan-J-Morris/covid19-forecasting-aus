@@ -794,6 +794,7 @@ class Forecast:
         # get the index of the last date in the data
         cases_in_window = np.array([])
         # sum the nowcast cases
+        print(len(df.local.values))
         cases_in_window = np.append(cases_in_window, sum(df.local.values[-1*(nowcast_days+forecast_days):]))
         # get the number of days the simulation is run for (with data) where we subtract nowcast_days 
         # as this is the nowcast 
@@ -842,7 +843,7 @@ class Forecast:
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
         limit_factor_backcasts = 2.0
-        limit_factor_nowcast = 1.5
+        limit_factor_nowcast = 2.0
         # backcasts all have same limit
         self.max_cases_in_windows[:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-1]))
         self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
