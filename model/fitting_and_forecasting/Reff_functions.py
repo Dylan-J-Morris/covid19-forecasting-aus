@@ -40,8 +40,8 @@ def read_in_google(Aus_only=True, local=False, moving=False):
     if Aus_only:
         df = df.loc[df.country_region_code == 'AU']
         # Change state column to state initials
-        df['state'] = df.sub_region_1.map(
-            lambda x: states_initials[x] if not pd.isna(x) else 'AUS')
+        df['state'] = df.sub_region_1.map(lambda x: states_initials[x] if not pd.isna(x) else 'AUS')
+        
     df = df.loc[df.sub_region_2.isna()]
     if moving:
         # generate moving average columns in reverse
@@ -49,14 +49,13 @@ def read_in_google(Aus_only=True, local=False, moving=False):
         mov_values = []
         for val in value_vars:
             mov_values.append(val[:-29]+'_7days')
-            df[mov_values[-1]] = df.groupby(['state'])[val].transform(
-                lambda x: x[::-1].rolling(7, 1).mean()[::-1])  # minimumnumber of 1
+            df[mov_values[-1]] = df.groupby(['state'])[val].transform(lambda x: x[::-1].rolling(7, 1).mean()[::-1])  # minimumnumber of 1
 
             # minimum of 7 days for std, forward fill the rest
-            df[mov_values[-1]+'_std'] = df.groupby(['state'])[val].transform(
-                lambda x: x[::-1].rolling(7, 7).std()[::-1])
+            df[mov_values[-1]+'_std'] = df.groupby(['state'])[val].transform(lambda x: x[::-1].rolling(7, 7).std()[::-1])
             # fill final values as std doesn't work with single value
             df[mov_values[-1]+'_std'] = df.groupby('state')[mov_values[-1]+'_std'].fillna(method='ffill')
+            
     # show latest date
     print("Latest date in Google indices " + str(df.date.values[-1]))
     return df

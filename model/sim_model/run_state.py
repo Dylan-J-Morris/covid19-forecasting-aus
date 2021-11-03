@@ -109,13 +109,13 @@ elif start_date == '2021-05-15':
 else:
     current = {  # based on locally acquired cases in the days preceding the start date
         'ACT': [3, 0, 0],
-        'NSW': [3, 0, 4],
+        'NSW': [3, 0, 0],
         'NT': [0, 0, 0],
-        'QLD': [14, 0, 1],
+        'QLD': [3, 0, 0],
         'SA': [0, 0, 0],
         'TAS': [0, 0, 0],
         'VIC': [0, 0, 0],
-        'WA': [18, 0, 2],
+        'WA': [4, 0, 0],
     }
 
 
@@ -171,7 +171,7 @@ if __name__ == "__main__" and not profile_code:
             if param_dict['bad_sim']:
                 # bad_sim True
                 bad_sim[n] = 1
-
+            
             # record cases appropriately
             import_inci[:, n] = cases[:, 0]
             asymp_inci[:, n] = cases[:, 1]
@@ -186,18 +186,16 @@ if __name__ == "__main__" and not profile_code:
     pool.join()
 
     # convert arrays into df
-    results = {
-        'imports_inci': import_inci,
-        'imports_inci_obs': import_inci_obs,
-        'asymp_inci': asymp_inci,
-        'asymp_inci_obs': asymp_inci_obs,
-        'symp_inci': symp_inci,
-        'symp_inci_obs': symp_inci_obs,
-        'total_inci_obs': symp_inci_obs + asymp_inci_obs,
-        'total_inci': symp_inci + asymp_inci,
-        'all_inci': symp_inci + asymp_inci + import_inci,
-        'bad_sim': bad_sim
-    }
+    results = {'imports_inci': import_inci,
+               'imports_inci_obs': import_inci_obs,
+               'asymp_inci': asymp_inci,
+               'asymp_inci_obs': asymp_inci_obs,
+               'symp_inci': symp_inci,
+               'symp_inci_obs': symp_inci_obs,
+               'total_inci_obs': symp_inci_obs + asymp_inci_obs,
+               'total_inci': symp_inci + asymp_inci,
+               'all_inci': symp_inci + asymp_inci + import_inci,
+               'bad_sim': bad_sim}
     
     print("Number of bad sims is %i" % sum(bad_sim))
     # results recorded into parquet as dataframe

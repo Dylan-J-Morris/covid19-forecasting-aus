@@ -215,11 +215,9 @@ gs = fig.add_gridspec(4, 2)
 axes = []
 for i, state in enumerate(states):
 
-    print("Number of sims not rejected for state " +
-          state + " is %i" % len(good_sims[state]))
+    print("Number of sims not rejected for state " + state + " is %i" % len(good_sims[state]))
     Reff_used = [r % 2000 for r in good_sims[state]]
-    print("Number of unique Reff paths not rejected is %i " %
-          len(set(Reff_used)))
+    print("Number of unique Reff paths not rejected is %i " %len(set(Reff_used)))
 
     # Plots
     gs0 = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[i])
