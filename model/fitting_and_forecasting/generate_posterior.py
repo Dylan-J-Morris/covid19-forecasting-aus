@@ -631,9 +631,6 @@ if df3X.shape[0] > 0:
                                          for j in range(pos, pos+df3X.loc[df3X.state == state].is_third_wave.sum())]]
         pos = pos + df3X.loc[df3X.state == state].is_third_wave.sum()
         
-        # if state == "VIC":
-        #     pd.DataFrame(rho_samples).to_csv("rho_samples_VIC.csv")
-        
         ax[0, i].plot(dates, rho_samples.median(), label='fit', color='C0')
         ax[0, i].fill_between(dates, rho_samples.quantile(0.25), rho_samples.quantile(0.75), color='C0', alpha=0.4)
 
