@@ -15,7 +15,7 @@ else:
     # this flag will run the inference only and quit after it's done
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
-third_start_date = '2021-06-01'
+third_start_date = '2021-06-18'
 start_date = '2021-06-10'  # Start date of forecast
 # start_date = '2021-08-01'  # Start date of forecast
 VoC_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase
@@ -91,7 +91,7 @@ qi_d = {'NSW': 0.98,
         'NT': 0.98}
 
 # alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe there are significant differences between hotel quarentine effectiveness between states.
-alpha_i_all = 0.5
+alpha_i_all = 1
 alpha_i = {'NSW': alpha_i_all,
            'QLD': alpha_i_all,
            'SA': alpha_i_all,

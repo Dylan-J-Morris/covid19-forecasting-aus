@@ -721,6 +721,9 @@ state_key = {
     'WA': '7',
 }
 
+# since this can be useful, predictor ordering is: 
+# ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
+
 for typ in forecast_type:
     state_R = {}
     for state in states:
@@ -738,8 +741,7 @@ for typ in forecast_type:
             vacc_sim = df_vaccination[state].values
 
         # take right size of md to be N by N
-        theta_md = np.tile(samples['theta_md'].values,
-                           (df_state.shape[0], mob_samples))
+        theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0], mob_samples))
         if expo_decay:
             md = ((1+theta_md).T**(-1*prop_sim)).T
         
@@ -790,9 +792,12 @@ for typ in forecast_type:
             # add gaussian noise to predictors after forecast
             df_state.loc[df_state.date >= mob_forecast_date, predictors] = state_sims[state][:, :, n]/100
 
-            # --------------------- 
-            # set grocery values to 0 
-            # df_state.loc[:, predictors[1]] = 0
+            ## ADVANCED SCENARIO MODELLING - USE ONLY FOR POINT ESTIMATES
+            # set non-grocery values to 0 
+            # df_state.loc[:, predictors[0]] = 0
+            # df_state.loc[:, predictors[2]] = 0
+            # df_state.loc[:, predictors[3]] = 0
+            # df_state.loc[:, predictors[4]] = 0
 
             # sample the right R_L
             if state == "NT":
@@ -930,24 +935,24 @@ for typ in forecast_type:
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
         # if typ == 'R_L' and state == 'SA':
-        #     os.makedirs("results/forecasted/", exist_ok=True)
-            # pd.DataFrame(TP_adjustment_factors).to_csv('results/forecasted/TP_adjustment.csv')
-            # pd.DataFrame(md).to_csv('results/forecasted/md.csv')
-            # pd.DataFrame(2*expit(logodds)).to_csv('results/forecasted/macro.csv')
-            # pd.DataFrame(sim_R).to_csv('results/forecasted/sim_R.csv')
-            # pd.DataFrame(vacc_post).to_csv('results/forecasted/vacc_post.csv')
-            # pd.DataFrame(voc_multiplier).to_csv('results/forecasted/voc_multiplier.csv')
-            # mobility_effects = 2*md*expit(logodds)
-            # mobility_only = 2*expit(logodds)
-            # micro_only = md
-            # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier 
-            # pd.DataFrame(dd.values).to_csv('results/forecasting/dates.csv')
-            # # pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects.csv')
-            # pd.DataFrame(micro_only).to_csv('results/forecasting/micro_only.csv')
-            # # pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_only.csv')
-            # pd.DataFrame(mu_hat_no_rev).to_csv('results/forecasting/mu_hat_SA_no_rev.csv')
-            # pd.DataFrame(mobility_effects).to_csv('results/forecasting/mobility_effects_no_grocery.csv')
-            # pd.DataFrame(mobility_only).to_csv('results/forecasting/mobility_no_grocery.csv')
+        #     tmp_res_path = "results/SA_forecasted/only_grocery/"
+        #     os.makedirs(tmp_res_path, exist_ok=True)
+            
+        #     pd.DataFrame(md).to_csv(tmp_res_path+'md.csv')
+        #     pd.DataFrame(2*expit(logodds)).to_csv(tmp_res_path+'macro.csv')
+        #     pd.DataFrame(sim_R).to_csv(tmp_res_path+'sim_R.csv')
+        #     pd.DataFrame(vacc_post).to_csv(tmp_res_path+'vacc_post.csv')
+        #     pd.DataFrame(voc_multiplier).to_csv(tmp_res_path+'voc_multiplier.csv')
+        #     mobility_and_micro_effects = 2*md*expit(logodds)
+        #     mobility_only = 2*expit(logodds)
+        #     micro_only = md
+        #     mu_hat_no_rev = 2 * sim_R * expit(logodds) * voc_multiplier     # TP without vax and micro
+        #     # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier  # TP without vax
+        #     pd.DataFrame(dd.values).to_csv(tmp_res_path+'dates.csv')
+        #     pd.DataFrame(mobility_and_micro_effects).to_csv(tmp_res_path+'mobility_and_micro_effects.csv')
+        #     pd.DataFrame(micro_only).to_csv(tmp_res_path+'micro_only.csv')
+        #     pd.DataFrame(mobility_only).to_csv(tmp_res_path+'mobility_only.csv')
+        #     pd.DataFrame(mu_hat_no_rev).to_csv(tmp_res_path+'mu_hat_SA_no_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)

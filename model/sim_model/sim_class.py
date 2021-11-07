@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import erlang, beta, gamma, poisson, norm
+from scipy.stats import erlang, beta, gamma, poisson, norm, nbinom, binom
 import math
 import matplotlib.pyplot as plt
 import os
@@ -142,7 +142,7 @@ class Forecast:
             # reinitialising, so actual people need times assume all symptomatic
             prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
                 self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps))
-            num_symp = binom(n=int(self.current[2]), p=prob_symp_given_detect)
+            num_symp = binom_sample(n=int(self.current[2]), p=prob_symp_given_detect)
             for person in range(int(self.current[2])):
                 self.infected_queue.append(len(self.people))
                 # inf_time = next(self.get_inf_time) #remove?
@@ -158,17 +158,18 @@ class Forecast:
 
         # num undetected is nbinom (num failures given num detected)
         if self.current[2] == 0:
-            num_undetected_s = neg_binom(1, self.symptomatic_detection_prob)
+            num_undetected_s = neg_binom_sample(1, self.symptomatic_detection_prob)
         else:
-            num_undetected_s = neg_binom(self.current[2], self.symptomatic_detection_prob)
+            num_undetected_s = neg_binom_sample(self.current[2], self.symptomatic_detection_prob)
 
         total_s = num_undetected_s + self.current[2]
 
         # infer some non detected asymp at initialisation
         if total_s == 0:
-            num_undetected_a = neg_binom(1, self.ps)
+            num_undetected_a = neg_binom_sample(1, self.ps)
+            # num_undetected_a = nbinom.rvs(1,self.symptomatic_detection_prob)
         else:
-            num_undetected_a = neg_binom(total_s, self.ps)
+            num_undetected_a = neg_binom_sample(total_s, self.ps)
 
         # simulate cases that will be detected within the next week
         if curr_time == 0:
@@ -262,9 +263,9 @@ class Forecast:
 
         # Check parent category
         if self.people[parent_key].category == 'S':  # Symptomatic
-            num_offspring = neg_binom(k, 1.0 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
+            num_offspring = neg_binom_sample(k, 1.0 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
         elif self.people[parent_key].category == 'A':  # Asymptomatic
-            num_offspring = neg_binom(k, 1.0 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
+            num_offspring = neg_binom_sample(k, 1.0 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
         else:  # Imported
             Reff = self.R_I
             # Apply vaccine reduction for hotel quarantine workers
@@ -281,13 +282,13 @@ class Forecast:
 
             if self.people[parent_key].infection_time < self.quarantine_change_date:
                 # factor of 3 times infectiousness prequarantine changes
-                num_offspring = neg_binom(k, 1.0 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
+                num_offspring = neg_binom_sample(k, 1.0 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
             else:
-                num_offspring = neg_binom(k, 1.0 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
+                num_offspring = neg_binom_sample(k, 1.0 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
 
         if num_offspring > 0:
             # generate number of symptomatic cases
-            num_sympcases = binom(n=num_offspring, p=self.ps)
+            num_sympcases = binom_sample(n=num_offspring, p=self.ps)
             
             # if self.people[parent_key].category == 'A':
             #     child_times = []
@@ -387,10 +388,10 @@ class Forecast:
             a = self.a_dict[day]
             b = self.b_dict[day]
             # Dij = number of observed imported infectious individuals
-            Dij = neg_binom(a, 1-1/(b+1))
+            Dij = neg_binom_sample(a, 1-1/(b+1))
             # Uij = number of *unobserved* imported infectious individuals
             unobserved_a = 1 if Dij == 0 else Dij
-            Uij = neg_binom(unobserved_a, self.qi)
+            Uij = neg_binom_sample(unobserved_a, self.qi)
             unobs_imports.append(Uij)
             new_imports.append(Dij + Uij)
 
@@ -505,7 +506,7 @@ class Forecast:
                             self.symptomatic_detection_prob*self.ps +
                             self.asymptomatic_detection_prob*(1-self.ps)
                         )
-                        num_symp = binom(n=int(self.current[2]),p=prob_symp_given_detect)
+                        num_symp = binom_sample(n=int(self.current[2]),p=prob_symp_given_detect)
                         # distribute observed cases over 3 days Triangularly
                         self.observed_cases[max(0, day), 2] += num_symp//2
                         self.cases[max(0, day), 2] += num_symp//2
@@ -786,7 +787,7 @@ class Forecast:
         """
         
         # number of days to unrestrict the simulation
-        nowcast_days = 14
+        nowcast_days = 10
         # length of comparison windows 
         window_length = 20
         # number of days we are forecasting for
@@ -794,7 +795,7 @@ class Forecast:
         # get the index of the last date in the data
         cases_in_window = np.array([])
         # sum the nowcast cases
-        print(len(df.local.values))
+        # print(len(df.local.values))
         cases_in_window = np.append(cases_in_window, sum(df.local.values[-1*(nowcast_days+forecast_days):]))
         # get the number of days the simulation is run for (with data) where we subtract nowcast_days 
         # as this is the nowcast 
@@ -843,11 +844,11 @@ class Forecast:
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
         limit_factor_long_backcasts = 2.5
-        limit_factor_backcasts = 2.0
+        limit_factor_backcasts = 2.5
         limit_factor_nowcast = 2.0
         # backcasts all have same limit
-        self.max_cases_in_windows[:-5] = np.maximum(100, np.ceil(limit_factor_long_backcasts * self.cases_in_windows[:-5]))
-        self.max_cases_in_windows[-5:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[-5:-1]))
+        self.max_cases_in_windows[:0] = np.maximum(300, np.ceil(limit_factor_long_backcasts * self.cases_in_windows[:0]))
+        self.max_cases_in_windows[0:-1] = np.maximum(300, np.ceil(limit_factor_backcasts * self.cases_in_windows[0:-1]))
         self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
@@ -930,14 +931,16 @@ class Forecast:
         for time in cycle(self.detect_times):
             yield time
         
-def binom(n, p):
+def binom_sample(n, p):
     """
     Helper function. Wrapper for binomial sampler.
     """
     return np.random.binomial(n, p)
+    # return binom.rvs(n, p)
     
-def neg_binom(k, p):
+def neg_binom_sample(k, p):
     """
     Helper function. Wrapper for negative binomial sampler. 
     """
     return np.random.negative_binomial(k, p)
+    # return nbinom.rvs(k, p)
