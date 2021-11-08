@@ -854,7 +854,12 @@ class Forecast:
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 1/3
         low_limit_nowcast = 0.5
-        self.min_cases_in_windows[:-1] = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[:-1]))
+        
+        for i in range(len(self.min_cases_in_windows)-1):
+            tmp = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[i]))
+            self.min_cases_in_windows[i] = tmp if tmp >= 10 else 0 
+        
+        # self.min_cases_in_windows[:-1] = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[:-1]))
         self.min_cases_in_windows[-1] = np.maximum(0, np.floor(low_limit_nowcast*self.cases_in_windows[-1]))
         
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
