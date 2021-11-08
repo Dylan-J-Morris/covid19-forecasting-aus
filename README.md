@@ -17,21 +17,17 @@ There are some options used within the model that are not passed as parameters. 
 There are two ways to run the UoA Covid-19 forecasting model built into the codebase: 
 - locally
 - on a cluster (HPC) that uses slurm
-  
 In this markdown document we outline the requirements for both and provide the straightforward approaches for scenario modelling (the main source of interest currently).
 
-**Note:** For normal (no scenario) modelling, you do not supply the scenario or scenario date to the functions/sbatch scripts. 
 ## Data
 1. In the covid forecasting directory (from github) create a data folder called `data`. 
 2. Create folder for the microdistancing surveys called `md`. This needs to contain `Barometer wave XX compliance.csv` files up to the current wave. 
 3. Download latest NNDSS data or linelist from Mediaflux. Put in `/data`.
-4. Put `vaccine_effect_timeseries.csv` in `/data`.
+4. Put `vaccine_effect_timeseries_xxxx-xx-xx.csv` in `/data`. Rename this to have the same file name as the NNDSS data.
 5. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `/data`.
 
 ## What you need installed
-Need `matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy`.
-
-**Note:** Think this is all the dependencies but there might be one or two more. Might be best to wait till you see that each part is running before leaving it alone. Particularly relevant for the simulation part.
+To run the full pipeline you will need `matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy pytables`. For older versions of Python, you can use `stan` instead of `pystan`. This can be triggered by setting `on_phoenix=True` in `params.py`.
 
 ## Model options
 There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, options/assumptions have been made during the fitting in `model/fitting_and_forecasting/generate_posterior.py`. Before running either workflow, ensure the flags in the `model/params.py` file are set accordingly. Typically this will involve setting `on_phoenix=True` to either true (if using HPC) of `False` (if running locally), setting `run_inference=True`, `testing_inference=False` and `run_inference_only=False`. The latter two flags are used to save time by not plotting in the stan fitting part of `generate_posterior.py`. 
@@ -48,7 +44,7 @@ NSIMS=100000               # Total number of simulations to run should be > 5000
 ## Scenario modelling
 Scenario modelling in the context of this model relates to the assumptions we apply to the forecasting of mobility and microdistancing measures, as well as vaccination. Different scenarios allow us to capture different behaviours of the populations under study and enable a more realistic outlook of the epidemic over the forecast horizon. These scenarios are implemented in `TP_forecasting.py` and can be easily extended. The scenarios themselves are set in `scenarios.py`. This file enables us to set jurisdiction based scenarios as well as separate dates to apply these scenarios. If the scenario and scenario dates are left empty then standard forecasting occurs. 
 
-## Quick run: Local
+## Quick start: Local
 This is a quick start to run the model locally. 
 ```
 python model/EpyReff/run_estimator.py $DATADATE
@@ -63,7 +59,7 @@ python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE}
 python model/record_sim_results/record_to_csv.py ${NSIMS} ${DATADATE}
 ```
 
-## Quick run: HPC using SLURM
+## Quick start: HPC using slurm
 This is the quick start to run the model on a HPC that uses slurm.
 ```
 jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
@@ -78,15 +74,15 @@ jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a 
 ```
 python model/EpyReff/run_estimator.py $DATADATE
 ```
-2. Run the stan model to link parameters with the EpyReff estimates.
+1. Run the stan model to link mobility indices, survey results and vaccination data with the EpyReff estimates.
 ```
 python model/fitting_and_forecasting/generate_posterior.py $DATADATE 
 ```
-3. Uses the posterior sample to generate $R_L$ forecasts. 
+3. Uses the posterior sample to forecast TP forecasts. 
 ```
 python model/fitting_and_forecasting/forecast_TP.py $DATADATE
 ```
-4. Now we loop over each state and simulate forward. 
+4. Using the forecasted TP from 3. we loop over each state and simulate the branching process. The model uses the `start_date` specified in `params.py` as the starting date for the simulations. Note that the naming convention from previous iterations of the code mean that `start_date` may also refer to `2020-03-01` which is the first date in the fitting. 
 ```
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for STATE in "${states[@]}"
@@ -94,7 +90,7 @@ do
     python model/sim_model/run_state.py $NSIMS $DATADATE $STATE 
 done
 ```
-5. Now we use the outputs and produce all the forecast plots. 
+1. The good sims and the relevant TP paths from the outputs of 4. are collated for producing all the forecast plots. 
 ```
 python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE} 
 ```
@@ -126,7 +122,7 @@ jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a 
 ```
 
 ## Tips and tricks 
-### Merging forecasts
+### Merging forecast parquet files
 If you have different number of simulations for different states, the number of sims part of the parquet file name can be renamed. This allows all files to be read in and processed accordingly during simulation.
 
 ### Running a single state
@@ -136,4 +132,4 @@ one_state=$(sbatch --parsable sbatch_run_scripts/phoenix_one_state.sh ${STATE} $
 ```
 
 ## Original Code
-An earlier version of this code is available at [https://github.com/tobinsouth/covid19-forecasting-aus](https://github.com/tobinsouth/covid19-forecasting-aus). For the original codebase, see [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. There is also a number of elements in the current model which are implemented in a different way or non-existent in the previous code bases. For older code check the other repositories.  
+An earlier version of this code is available at [https://github.com/tobinsouth/covid19-forecasting-aus](https://github.com/tobinsouth/covid19-forecasting-aus). For the original codebase, see [https://github.com/tdennisliu/covid19-forecasting-aus](https://github.com/tdennisliu/covid19-forecasting-aus). This code has been restructured and deprecated functions and files have been removed. There are also some functionalities in the current version of the code which are implemented in very different ways and/or non-existent in the previous code bases. Naming conventions have also changed rather dramatically. For historic versions of the code check the previous repositories.  
