@@ -87,6 +87,7 @@ parameters {
 
 }
 transformed parameters {
+    // this parametrisation results in voc ~ 1 + Gamma(a, b) (i.e. truncated below at 1)
     real<lower=0> voc_effect_sec_wave = 1 + additive_voc_effect_sec_wave;
     real<lower=0> voc_effect_third_wave = 1 + additive_voc_effect_third_wave;
     
