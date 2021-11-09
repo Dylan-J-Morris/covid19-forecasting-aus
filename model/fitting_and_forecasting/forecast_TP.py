@@ -158,7 +158,7 @@ state_Rmed = {}
 state_sims = {}
 for i, state in enumerate(states):
 
-    rownum = int(i/2.)
+    rownum = int(i/2)
     colnum = np.mod(i, 2)
 
     rows = df_google.loc[df_google.state == state].shape[0]
@@ -721,9 +721,11 @@ state_key = {
     'WA': '7',
 }
 
+# flags for advanced scenario modelling
+advanced_scenario_modelling = False
+save_for_SA = False
 # since this can be useful, predictor ordering is: 
 # ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
-
 for typ in forecast_type:
     state_R = {}
     for state in states:
@@ -794,10 +796,11 @@ for typ in forecast_type:
 
             ## ADVANCED SCENARIO MODELLING - USE ONLY FOR POINT ESTIMATES
             # set non-grocery values to 0 
-            # df_state.loc[:, predictors[0]] = 0
-            # df_state.loc[:, predictors[2]] = 0
-            # df_state.loc[:, predictors[3]] = 0
-            # df_state.loc[:, predictors[4]] = 0
+            if advanced_scenario_modelling:
+                df_state.loc[:, predictors[0]] = 0
+                df_state.loc[:, predictors[2]] = 0
+                df_state.loc[:, predictors[3]] = 0
+                df_state.loc[:, predictors[4]] = 0
 
             # sample the right R_L
             if state == "NT":
@@ -934,25 +937,35 @@ for typ in forecast_type:
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
-        # if typ == 'R_L' and state == 'SA':
-        #     tmp_res_path = "results/SA_forecasted/only_grocery/"
-        #     os.makedirs(tmp_res_path, exist_ok=True)
+        if typ == 'R_L' and state == 'SA' and save_for_SA:
+            if advanced_scenario_modelling:
+                tmp_res_path = "results/SA_forecasted/only_grocery/"
+            else:
+                tmp_res_path = "results/SA_forecasted/normal/"
+                
+            os.makedirs(tmp_res_path, exist_ok=True)
             
-        #     pd.DataFrame(md).to_csv(tmp_res_path+'md.csv')
-        #     pd.DataFrame(2*expit(logodds)).to_csv(tmp_res_path+'macro.csv')
-        #     pd.DataFrame(sim_R).to_csv(tmp_res_path+'sim_R.csv')
-        #     pd.DataFrame(vacc_post).to_csv(tmp_res_path+'vacc_post.csv')
-        #     pd.DataFrame(voc_multiplier).to_csv(tmp_res_path+'voc_multiplier.csv')
-        #     mobility_and_micro_effects = 2*md*expit(logodds)
-        #     mobility_only = 2*expit(logodds)
-        #     micro_only = md
-        #     mu_hat_no_rev = 2 * sim_R * expit(logodds) * voc_multiplier     # TP without vax and micro
-        #     # mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier  # TP without vax
-        #     pd.DataFrame(dd.values).to_csv(tmp_res_path+'dates.csv')
-        #     pd.DataFrame(mobility_and_micro_effects).to_csv(tmp_res_path+'mobility_and_micro_effects.csv')
-        #     pd.DataFrame(micro_only).to_csv(tmp_res_path+'micro_only.csv')
-        #     pd.DataFrame(mobility_only).to_csv(tmp_res_path+'mobility_only.csv')
-        #     pd.DataFrame(mu_hat_no_rev).to_csv(tmp_res_path+'mu_hat_SA_no_rev.csv')
+            pd.DataFrame(md).to_csv(tmp_res_path+'md.csv')
+            pd.DataFrame(2*expit(logodds)).to_csv(tmp_res_path+'macro.csv')
+            pd.DataFrame(sim_R).to_csv(tmp_res_path+'sim_R.csv')
+            pd.DataFrame(vacc_post).to_csv(tmp_res_path+'vacc_post.csv')
+            pd.DataFrame(voc_multiplier).to_csv(tmp_res_path+'voc_multiplier.csv')
+            mobility_and_micro_effects = 2*md*expit(logodds)
+            mobility_only = 2*expit(logodds)
+            micro_only = md
+            
+            if advanced_scenario_modelling: 
+                # drop the micro adjustment factors 
+                mu_hat_no_rev = 2 * sim_R * expit(logodds) * voc_multiplier     # TP without vax and micro (mobility effects)
+            else:
+                # the full TP model 
+                mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier  # TP without vax (micro distancing and mobility effects)
+                
+            pd.DataFrame(dd.values).to_csv(tmp_res_path+'dates.csv')
+            pd.DataFrame(mobility_and_micro_effects).to_csv(tmp_res_path+'mobility_and_micro_effects.csv')
+            pd.DataFrame(micro_only).to_csv(tmp_res_path+'micro_only.csv')
+            pd.DataFrame(mobility_only).to_csv(tmp_res_path+'mobility_only.csv')
+            pd.DataFrame(mu_hat_no_rev).to_csv(tmp_res_path+'mu_hat_SA_no_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)

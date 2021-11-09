@@ -855,7 +855,9 @@ class Forecast:
         low_limit_backcast = 1/3
         low_limit_nowcast = 0.5
         
+        # alter the minimum number of cases in the window based on those exceeding a threshold of 10 cases
         for i in range(len(self.min_cases_in_windows)-1):
+            # this is the same approach used for the max_cases_in_windows but ensures the minimum number of cases is 0 
             tmp = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[i]))
             self.min_cases_in_windows[i] = tmp if tmp >= 10 else 0 
         

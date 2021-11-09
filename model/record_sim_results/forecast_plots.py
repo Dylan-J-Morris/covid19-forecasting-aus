@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0,'model')
 from params import start_date, num_forecast_days
 from helper_functions import read_in_NNDSS, read_in_Reff_file
@@ -240,6 +241,10 @@ for i, state in enumerate(states):
         ax.set_ylabel("Observed \n local cases")
         ax2.set_ylabel("TP")
     ax.set_title(state)
+    
+    # if state == 'NSW':
+    #     ax.axhline(200, linestyle='--', color='black')
+    
     if i < len(states)-2:
         ax.set_xticklabels([])
         ax.set_xlabel('')
