@@ -8,7 +8,8 @@ from epyreff import *
 # this is not used in the estimation routine, it just lets the plot know what we ignore
 from params import truncation_days, third_start_date, start_date 
 
-from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
+from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, \
+    offset_rd, offset_inc
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,7 +21,7 @@ print('Running EpyReff on NNDSS data')
 matplotlib.use('Agg')
 
 # parameters
-tau = 2
+tau = 4
 prior_a = 1
 prior_b = 2
 trunc_days = 21
@@ -66,7 +67,8 @@ for state in states:
     lambda_state = lambda_dict[state]
     df_state_I = df_inc_zeros.xs((state, 'local'), level=('STATE', 'SOURCE'))
     # get Reproduciton numbers
-    a, b, R = Reff_from_case(df_state_I.values, lambda_state, prior_a=prior_a, prior_b=prior_b, tau=tau)
+    a, b, R = Reff_from_case(df_state_I.values, lambda_state, 
+                             prior_a=prior_a, prior_b=prior_b, tau=tau)
 
     # summarise for plots and file printing
     R_summary_states[state] = generate_summary(R)
