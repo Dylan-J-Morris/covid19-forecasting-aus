@@ -75,7 +75,7 @@ survey_respond_base = pd.pivot_table(data=always, index='date', columns='state',
 
 ######### Read in EpyReff results #########
 df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_4.csv", parse_dates=['INFECTION_DATES'])
-df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_2.csv", parse_dates=['INFECTION_DATES'])
+# df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_2.csv", parse_dates=['INFECTION_DATES'])
 df_Reff['date'] = df_Reff.INFECTION_DATES
 df_Reff['state'] = df_Reff.STATE
 
