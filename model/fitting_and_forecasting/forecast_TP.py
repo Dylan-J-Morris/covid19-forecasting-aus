@@ -153,6 +153,8 @@ mob_samples = 1000
 n_training = 14  # Period to examine trend
 n_baseline = 91  # Period to create baseline
 
+# since this can be useful, predictor ordering is: 
+# ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
 # Loop through states and run forecasting.
 state_Rmed = {}
 state_sims = {}
@@ -252,11 +254,18 @@ for i, state in enumerate(states):
                         R_baseline_0 = np.zeros_like(R_baseline_mean)
                         # set adjusted baselines by eyeline for now, need to get this automated 
                         R_baseline_0[1] = 10    # baseline of +10% for Grocery based on other jurisdictions 
-                        if state in {'NSW', 'ACT'}: 
-                            R_baseline_0[3] = -25   # baseline of -30% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
-                        else: 
-                            R_baseline_0[3] = -30   # baseline of -30% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
-                            
+                        
+                        # apply specific baselines to the jurisdictions progressing towards normal restrictions
+                        if state == 'NSW': 
+                            R_baseline_0[3] = -25   # baseline of -25% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
+                        elif state == 'ACT': 
+                            R_baseline_0[1] = 20    # baseline of +20% for Grocery based on other jurisdictions 
+                            R_baseline_0[3] = -25   # baseline of -25% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
+                        elif state == 'VIC': 
+                            R_baseline_0[0] = -15   # baseline of -15% for R&R based on 2021-April to 2021-July (pre-third-wave lockdowns) 
+                            R_baseline_0[3] = -30   # baseline of -30% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns) 
+                            R_baseline_0[4] = -15   # baseline of -15% for workplaces based on 2021-April to 2021-July (pre-third-wave lockdowns) 
+                        
                         # the force we trend towards the baseline above with
                         p_force = (n_forecast-i)/(n_forecast)
                         trend_force = np.random.multivariate_normal(mu, cov) # Generate a single forward realisation of trend
