@@ -800,7 +800,7 @@ class Forecast:
         """
         
         # number of days to unrestrict the simulation
-        nowcast_days = 10
+        nowcast_days = 15
         # length of comparison windows 
         window_length = 20
         # number of days we are forecasting for
@@ -858,7 +858,7 @@ class Forecast:
         # max cases factors
         limit_factor_long_backcasts = 2.0
         limit_factor_backcasts = 2.0
-        limit_factor_nowcast = 2.0
+        limit_factor_nowcast = 10.0
         # backcasts all have same limit
         self.max_cases_in_windows[:0] = np.maximum(100, np.ceil(limit_factor_long_backcasts * self.cases_in_windows[:0]))
         self.max_cases_in_windows[0:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[0:-1]))
@@ -869,7 +869,7 @@ class Forecast:
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 0.3
-        low_limit_nowcast = 0.5
+        low_limit_nowcast = 0.0
         
         # alter the minimum number of cases in the window based on those exceeding a threshold of 10 cases
         for i in range(len(self.min_cases_in_windows)-1):
