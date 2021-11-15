@@ -626,17 +626,27 @@ class Forecast:
         cases in a given period.
         """
         
-        exceed = False
+        # exceed = False
         # loop over windows and check for whether we have exceeded the cases in any window 
         # don't check the last window corresponding to nowcast
-        for i in range(len(self.sim_cases_in_window)):
-            if self.sim_cases_in_window[i] > self.max_cases_in_windows[i]:
-                exceed = True
-                if self.print_at_iterations:
-                    print("Breaking in window: ", i, " with ", self.sim_cases_in_window[i] - self.max_cases_in_windows[i], " too many.")
-                break
+        if (self.sim_cases_in_window > self.max_cases_in_windows).any(): 
+            return True 
+        else: 
+            return False
+            
+        # for (case, max_case) in zip(self.sim_cases_in_window, self.max_cases_in_windows):
+        #     if case > max_case: 
+        #         exceed = True 
+        #         break
+                
+        # for i in range(len(self.sim_cases_in_window)):
+        #     if self.sim_cases_in_window[i] > self.max_cases_in_windows[i]:
+        #         exceed = True
+        #         if self.print_at_iterations:
+        #             print("Breaking in window: ", i, " with ", self.sim_cases_in_window[i] - self.max_cases_in_windows[i], " too many.")
+        #         break
         
-        return exceed
+        # return exceed
         
     def final_check(self): 
         """
@@ -644,13 +654,16 @@ class Forecast:
         """
         
         # loop over the windows and check to see whether we are below the windows
-        for i in range(len(self.sim_cases_in_window)):
-            if self.sim_cases_in_window[i] < self.min_cases_in_windows[i]:
-                if self.print_at_iterations:
-                    print("Breaking in window: ", i, " with ", self.min_cases_in_windows[i] - self.sim_cases_in_window[i], " too few.")
+        if (self.sim_cases_in_window < self.min_cases_in_windows).any():
+            self.bad_sim = True 
+        
+        # for i in range(len(self.sim_cases_in_window)):
+        #     if self.sim_cases_in_window[i] < self.min_cases_in_windows[i]:
+        #         if self.print_at_iterations:
+        #             print("Breaking in window: ", i, " with ", self.min_cases_in_windows[i] - self.sim_cases_in_window[i], " too few.")
                     
-                self.bad_sim = True
-                break
+        #         self.bad_sim = True
+        #         break
                 
         # if np.sum(self.sim_cases_in_window) < 0.5*np.sum(self.cases_in_windows):
         #     self.bad_sim = True
@@ -851,8 +864,11 @@ class Forecast:
         self.max_cases_in_windows[0:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[0:-1]))
         self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
         
+        # set the maximums  
+        # self.max_cases_in_windows[-2:] = [10000, 10000]
+        
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
-        low_limit_backcast = 1/3
+        low_limit_backcast = 0.3
         low_limit_nowcast = 0.5
         
         # alter the minimum number of cases in the window based on those exceeding a threshold of 10 cases
