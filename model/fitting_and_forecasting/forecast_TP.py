@@ -171,7 +171,7 @@ for i, state in enumerate(states):
         for n in range(mob_samples):
             # historically we want a little more noise. In the actual forecasting of trends 
             # we don't want this to be quite that prominent.
-            Rmed_array_inflated[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0, scale=2*df_google[df_google['state'] == state][var+'_std'])
+            Rmed_array_inflated[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0, scale=3.0*df_google[df_google['state'] == state][var+'_std'])
             Rmed_array[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0, scale=df_google[df_google['state'] == state][var+'_std'])
             
     dates = df_google[df_google['state'] == state]['date']
