@@ -171,7 +171,7 @@ for i, state in enumerate(states):
         for n in range(mob_samples):
             # historically we want a little more noise. In the actual forecasting of trends 
             # we don't want this to be quite that prominent.
-            Rmed_array_inflated[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0, scale=3.0*df_google[df_google['state'] == state][var+'_std'])
+            # Rmed_array_inflated[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0, scale=3.0*df_google[df_google['state'] == state][var+'_std'])
             Rmed_array[:, j, n] = df_google[df_google['state'] == state][var].values.T + np.random.normal(loc=0, scale=df_google[df_google['state'] == state][var+'_std'])
             
     dates = df_google[df_google['state'] == state]['date']
@@ -537,7 +537,7 @@ for i, state in enumerate(states):
                 axs[rownum, colnum].set_ylabel('Reduction in TP \n from vaccination', fontsize=7)
                 
     # historically we want to store the higher variance mobilities
-    state_Rmed[state] = Rmed_array_inflated
+    state_Rmed[state] = Rmed_array
     state_sims[state] = sims
 
 os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d"), exist_ok=True)
