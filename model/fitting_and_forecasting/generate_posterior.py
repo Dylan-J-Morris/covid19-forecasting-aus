@@ -166,7 +166,11 @@ sec_date_range = {'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').v
                   'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values}
 
 # choose dates for each state for third wave
-third_date_range = {'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
+# third_date_range = {'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
+#                     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
+#                     'QLD': pd.date_range(start=third_start_date, end='2021-10-10').values,
+#                     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values}
+third_date_range = {'ACT': pd.date_range(start='2021-08-16', end='2021-11-08').values,
                     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
                     'QLD': pd.date_range(start=third_start_date, end='2021-10-10').values,
                     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values}
