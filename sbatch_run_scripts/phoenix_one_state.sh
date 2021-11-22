@@ -15,7 +15,8 @@ source /hpcfs/users/$USER/local/virtualenvs/bin/activate
 STATE=$1 # Pre-pass the single state
 NSIMS=$2
 DATADATE=$3
+SEEDING=$4
 
-python model/sim_model/run_state.py $NSIMS $DATADATE $STATE
+python model/sim_model/run_state.py $NSIMS $DATADATE $STATE $SEEDING
 
 deactivate

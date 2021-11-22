@@ -18,7 +18,8 @@ states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 
 NSIMS=$1
 DATADATE=$2
+SEEDING=$3
 
-python model/sim_model/run_state.py $NSIMS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]}
+python model/sim_model/run_state.py $NSIMS $DATADATE ${states[$SLURM_ARRAY_TASK_ID]} $SEEDING
 
 deactivate

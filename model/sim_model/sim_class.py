@@ -116,6 +116,7 @@ class Forecast:
         else:
             self.test_campaign_date = None
 
+        # If we need to apply seeding. Should only really be necessary for interstate travelling
         self.from_jurisdiction_cases = {}
         if self.apply_interstate_seeding: 
             self.init_from_jurisdiction_arrays()
@@ -134,13 +135,11 @@ class Forecast:
         self.from_jurisdiction_cases = {}
         # first 9 element of start date are the parts of interest
         end_of_file_name = (str(self.start_date)[:10] + 'sim_R_L' + str(self.n_sims) + 
-                            'days' + '_' + str(self.end_time) + '.parquet')
-        
-        # print(str(self.end_time), str(self.start_date)[:9], str(self.n_sims))
+                            + '_seed_' + 'days_' + str(self.end_time) + '.parquet')
         
         for jur in from_jurisdictions: 
-            # tmp_cases = pd.read_parquet(jur + end_of_file_name)
-            tmp_cases = pd.read_parquet('results/' + jur + '2021-06-10sim_R_L100000days_193.parquet')
+            tmp_cases = pd.read_parquet('results/' + jur + end_of_file_name)
+            # tmp_cases = pd.read_parquet('results/' + jur + '2021-06-10sim_R_L100000days_193.parquet')
             # get the total cases 
             tmp_cases_asymp = tmp_cases.loc['asymp_inci']
             tmp_cases_symp = tmp_cases.loc['symp_inci']
@@ -767,27 +766,12 @@ class Forecast:
         cases in a given period.
         """
         
-        # exceed = False
         # loop over windows and check for whether we have exceeded the cases in any window 
         # don't check the last window corresponding to nowcast
         if (self.sim_cases_in_window > self.max_cases_in_windows).any(): 
             return True 
         else: 
             return False
-            
-        # for (case, max_case) in zip(self.sim_cases_in_window, self.max_cases_in_windows):
-        #     if case > max_case: 
-        #         exceed = True 
-        #         break
-                
-        # for i in range(len(self.sim_cases_in_window)):
-        #     if self.sim_cases_in_window[i] > self.max_cases_in_windows[i]:
-        #         exceed = True
-        #         if self.print_at_iterations:
-        #             print("Breaking in window: ", i, " with ", self.sim_cases_in_window[i] - self.max_cases_in_windows[i], " too many.")
-        #         break
-        
-        # return exceed
         
     def final_check(self): 
         """
@@ -797,22 +781,6 @@ class Forecast:
         # loop over the windows and check to see whether we are below the windows
         if (self.sim_cases_in_window < self.min_cases_in_windows).any():
             self.bad_sim = True 
-        
-        # for i in range(len(self.sim_cases_in_window)):
-        #     if self.sim_cases_in_window[i] < self.min_cases_in_windows[i]:
-        #         if self.print_at_iterations:
-        #             print("Breaking in window: ", i, " with ", self.min_cases_in_windows[i] - self.sim_cases_in_window[i], " too few.")
-                    
-        #         self.bad_sim = True
-        #         break
-                
-        # if np.sum(self.sim_cases_in_window) < 0.5*np.sum(self.cases_in_windows):
-        #     self.bad_sim = True
-        
-        #for i in range(self.end_time):
-        #    if self.observed_cases[i, 2] < max(0, ((1/2)*self.actual[i])):
-        #        self.bad_sim = True
-        #        break
         
     def increment_counters(self, detect_time, category):
         """
@@ -859,8 +827,13 @@ class Forecast:
 
         print('VoC_flag is', self.VoC_flag)
         print("Saving results for state "+self.state)
-        df_results.to_parquet("./results/"+self.state+self.start_date.strftime(format='%Y-%m-%d')+
-                              "sim_R_L"+str(n_sims)+"days_"+str(days)+".parquet")
+        # save separate versions depending on whether the model is being used for seeding of not
+        if not self.apply_interstate_seeding:
+            df_results.to_parquet("./results/"+self.state+self.start_date.strftime(format='%Y-%m-%d')+
+                                  "sim_R_L"+str(n_sims)+"_seed_"+"days_"+str(days)+".parquet")
+        else:
+            df_results.to_parquet("./results/"+self.state+self.start_date.strftime(format='%Y-%m-%d')+
+                                  "sim_R_L"+str(n_sims)+"days_"+str(days)+".parquet")
 
         return df_results
 

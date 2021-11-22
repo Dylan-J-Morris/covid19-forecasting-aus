@@ -37,7 +37,7 @@ The `on_phoenix` flag tells the model to use a slightly older version of Pystan 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ## Required arguments
 ```
-DATADATE='2021-11-08'   # Date of NNDSS data file
+DATADATE='2021-11-15'   # Date of NNDSS data file
 NSIMS=100000               # Total number of simulations to run should be > 5000
 ```
 
@@ -53,7 +53,12 @@ python model/fitting_and_forecasting/forecast_TP.py $DATADATE
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for STATE in "${states[@]}"
 do
-    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE
+    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE "False"
+done
+states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+for STATE in "${states[@]}"
+do
+    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE "True"
 done
 python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE}
 python model/record_sim_results/record_to_csv.py ${NSIMS} ${DATADATE}
@@ -65,7 +70,8 @@ This is the quick start to run the model on a HPC that uses slurm.
 jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
 jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE})
 jid_TP_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_TP_forecasting.sh ${DATADATE})
-jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
+jid_simulate_a_seeding=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
+jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a_seeding sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
 jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE})
 ```
 
@@ -87,14 +93,22 @@ python model/fitting_and_forecasting/forecast_TP.py $DATADATE
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for STATE in "${states[@]}"
 do
-    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE 
+    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE "False"
 done
 ```
-1. The good sims and the relevant TP paths from the outputs of 4. are collated for producing all the forecast plots. 
+5. Using the forecasted TP from 3. and the seeding simulations from 4. we loop over each state and simulate the branching process. The model uses the `start_date` specified in `params.py` as the starting date for the simulations. Note that the naming convention from previous iterations of the code mean that `start_date` may also refer to `2020-03-01` which is the first date in the fitting. 
+```
+states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+for STATE in "${states[@]}"
+do
+    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE "True"
+done
+```
+6. The good sims and the relevant TP paths from the outputs of 4. are collated for producing all the forecast plots. 
 ```
 python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE} 
 ```
-6. Finally we record the csv to supply for the ensemble. 
+7. Finally we record the csv to supply for the ensemble. 
 ```
 python model/record_sim_results/record_to_csv.py ${NSIMS} ${DATADATE}
 ```
@@ -108,15 +122,19 @@ jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${
 ```
 jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE})
 ```
-1. Using the posterior sample, we forecast the TP's forward. This is done by forecasting each mobility measure, the microdistancing survey, and the vaccination effects forward based on a particular social mobility scenario. 
+3. Using the posterior sample, we forecast the TP's forward. This is done by forecasting each mobility measure, the microdistancing survey, and the vaccination effects forward based on a particular social mobility scenario. 
 ```
 jid_TP_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_TP_forecasting.sh ${DATADATE})
 ```
 4. This step is the meaty part of the forecasts. This will run the branching process simulation for each state. An a-priori way to tune the runtime is to run a test batch of 10000 sims and then determine the acceptance rate. This can then be extrapolated to the required number of sims to acheive a representative sample of 2000 accepted simulations. 
 ```
-jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
+jid_simulate_a_seeding=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
 ```
-5. Once the simulations have completed we process the output files, plot the resulting forecasts and produce a summary csv to go into the ensemble forecast.
+5. This step will use the TP forecasts and the output from the seeding step (4.) to simulate a model accounting for interstate travellers. This enables seeding events to occur over the forecast horizon.
+```
+jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a_seeding sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
+```
+6. Once the simulations have completed we process the output files, plot the resulting forecasts and produce a summary csv to go into the ensemble forecast.
 ```
 jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE})
 ```
@@ -128,7 +146,7 @@ If you have different number of simulations for different states, the number of 
 ### Running a single state
 Something that occurs occasionally is that a single state needs to be run. This can be due to an incorrect scenario or a low acceptance rate for the simulations. This provides functionality to run a particular state `STATE` in such a situation. 
 ```
-one_state=$(sbatch --parsable sbatch_run_scripts/phoenix_one_state.sh ${STATE} ${NSIMS} ${DATADATE})
+one_state=$(sbatch --parsable sbatch_run_scripts/phoenix_one_state.sh ${STATE} ${NSIMS} ${DATADATE} ${SEEDING})
 ```
 
 ## Original Code

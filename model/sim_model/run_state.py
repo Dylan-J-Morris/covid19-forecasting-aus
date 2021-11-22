@@ -34,6 +34,7 @@ else:
     
 forecast_date = argv[2]  # Date of forecast
 state = argv[3] 
+apply_seeding = argv[4]
 
 # print("Simulating state " + state)
 
@@ -124,7 +125,8 @@ else:
 VoC_flag = 'Delta'
 
 # flag to apply interstate seeding
-apply_interstate_seeding = True
+if apply_seeding:
+    apply_interstate_seeding = True
 
 forecast_object = Forecast(current[state],
                            state, 
