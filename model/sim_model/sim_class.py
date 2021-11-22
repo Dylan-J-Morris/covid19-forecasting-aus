@@ -22,7 +22,12 @@ class Person:
 
     def __init__(self, parent, infection_time, detection_time, recovery_time, category):
         """
-        Category is one of 'I','A','S' for Imported, Asymptomatic and Symptomatic
+        Category is one of:
+        - 'I' Imported
+        - 'A' Asymptomatic
+        - 'S' Symptomatic
+        - 'TA' Asymptomatic interstate traveller 
+        - 'TS' Symptomatic interstate traveller 
         """
         self.parent = parent
         self.infection_time = infection_time
@@ -42,7 +47,9 @@ class Forecast:
                  cases_file_date, 
                  end_time = None,
                  VoC_flag='', 
-                 scenario=''):
+                 scenario='',
+                 n_sims=None, 
+                 apply_interstate_seeding=False):
         """Create forecast object with parameters in preperation for running simulation.
 
         Args:
@@ -55,9 +62,11 @@ class Forecast:
             scenario (str, optional): Filename suffix for scenario run.  Can be empty str.
         """
         from params import local_detection, a_local_detection, qi_d, alpha_i, k
-
+        
+        # if applying interstate 
+        self.apply_interstate_seeding = apply_interstate_seeding
         self.print_at_iterations = False
-
+        self.n_sims = n_sims
         self.state = state
         self.end_time = end_time
         self.start_date = pd.to_datetime(start_date, format='%Y-%m-%d')
@@ -75,6 +84,7 @@ class Forecast:
         self.asymptomatic_detection_prob = a_local_detection[state]
         print("Using Negative-Binomial offspring distribution.")
         self.k = 0.15  # Hard coded
+        self.relative_infectiousness_interstate_traveller = 0.5
         # print("Using Poisson offspring distribution.")
         # self.k = 250
         # self.qua_ai = 2 if state=='NSW' else 1 # Pre-march-quarantine version of alpha_i.
@@ -83,7 +93,8 @@ class Forecast:
         self.ps = 0.7  # Probability of being symptomatic
         # Increase Reff to due this VoC
         self.VoC_flag = VoC_flag
-        # Add an optional scenario flag to load in specific Reff scenarios and save results. This does not change the run behaviour of the simulations.
+        # Add an optional scenario flag to load in specific Reff scenarios and save results. 
+        # This does not change the run behaviour of the simulations.
         self.scenario = scenario
         # forecast_date and cases_file_date are usually the same.
         # Total number of days in simulation
@@ -105,10 +116,90 @@ class Forecast:
         else:
             self.test_campaign_date = None
 
+        self.from_jurisdiction_cases = {}
+        if self.apply_interstate_seeding: 
+            self.init_from_jurisdiction_arrays()
+
         self.num_bad_sims = 0
         self.num_too_many = 0
+        
+    def init_from_jurisdiction_arrays(self):
+        """
+        Read in jurisdiction local cases into this instance of the model in order to apply 
+        interstate imports. 
+        """
+        
+        # these are the jurisdictions that interstate travel is allowed from
+        from_jurisdictions = ['NSW', 'VIC']
+        self.from_jurisdiction_cases = {}
+        # first 9 element of start date are the parts of interest
+        end_of_file_name = (str(self.start_date)[:10] + 'sim_R_L' + str(self.n_sims) + 
+                            'days' + '_' + str(self.end_time) + '.parquet')
+        
+        # print(str(self.end_time), str(self.start_date)[:9], str(self.n_sims))
+        
+        for jur in from_jurisdictions: 
+            # tmp_cases = pd.read_parquet(jur + end_of_file_name)
+            tmp_cases = pd.read_parquet('results/' + jur + '2021-06-10sim_R_L100000days_193.parquet')
+            # get the total cases 
+            tmp_cases_asymp = tmp_cases.loc['asymp_inci']
+            tmp_cases_symp = tmp_cases.loc['symp_inci']
+            # get the good sims and get the median
+            tmp_cases_asymp_median = tmp_cases_asymp.loc[tmp_cases_asymp.bad_sim == 0].median(axis=0)
+            tmp_cases_asymp_median = tmp_cases_asymp_median[:-1].to_numpy(dtype=int)
+            tmp_cases_symp_median = tmp_cases_symp.loc[tmp_cases_symp.bad_sim == 0].median(axis=0)
+            tmp_cases_symp_median = tmp_cases_symp_median[:-1].to_numpy(dtype=int)
+            # set the cases to 0 before the forecast date - this is a hacky fix for now and we likely
+            tmp_cases_asymp_median[:-30] = 0
+            tmp_cases_symp_median[:-30] = 0
+            # store them 
+            self.from_jurisdiction_cases[jur] = {'symp_inci': tmp_cases_symp_median, 
+                                                 'asymp_inci': tmp_cases_asymp_median}
 
-        # assert len(people) == sum(current), "Number of people entered does not equal sum of counts in current status"
+    def interstate_seeding(self, from_jurisdiction_cases):
+        """
+        Seed cases into the jurisdiction. This will run a binomial 
+        """
+        to_jurisdiction = self.state
+        
+        # get the from jurisdictions out of the keys
+        from_jurisdictions = from_jurisdiction_cases.keys()
+        
+        # prob of travel between jurisdictions
+        prob_travel = {
+            "ACT-SA": 0.00066, 
+            "VIC-SA": 0.00192, 
+            "NSW-SA": 0.00074, 
+            "QLD-SA": 0.00063, 
+            "TAS-SA": 0.00053,      # placholder using WA-SA
+            "WA-SA": 0.00053, 
+            "NT-SA": 0.00053        # placeholder using WA-SA
+        }
+        
+        # this adjusts the probabilities of travelling between jurisdictions based on early estimates
+        # WILL NEED TO BE REVISED (Most likley upwards as interstate travel increases)
+        scaling_factor = 1.0
+        prob_travel = {k: p * scaling_factor for k, p in prob_travel.items()}
+        # estimated probability that the import is vaccinated
+        prob_vaccinated = 0.5
+
+        types = ['asymp_inci', 'symp_inci']
+        # vector to store the number imported from asymp and symp
+        num_interstate_import = {type: np.zeros(shape=from_jurisdiction_cases['NSW']['symp_inci'].
+                                                shape[0]) 
+                                 for type in types}
+
+        # loop over the import jurisdictions and sample number of interstate imports each day 
+        for jur in from_jurisdictions:
+            # prob of person travelling and being vaccinated
+            to_from = jur + str('-') + to_jurisdiction
+            p = prob_vaccinated*prob_travel[to_from]
+            for type in types:
+                n = from_jurisdiction_cases[jur][type]
+                # calculate the number of interstate imports each day
+                num_interstate_import[type] = np.random.binomial(n = n, p = p)
+            
+        return num_interstate_import
     
     def initialise_sim(self, curr_time=0.0):
         """
@@ -264,9 +355,23 @@ class Forecast:
         # Check parent category
         if self.people[parent_key].category == 'S':  # Symptomatic
             num_offspring = neg_binom_sample(k, 1.0 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
+            
         elif self.people[parent_key].category == 'A':  # Asymptomatic
             num_offspring = neg_binom_sample(k, 1.0 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
-        else:  # Imported
+            
+        elif self.people[parent_key].category == 'TS':  # Symptomatic interstate traveller
+            # half the infectiousness of an interstate traveller
+            Reff_tmp = Reff*self.relative_infectiousness_interstate_traveller
+            num_offspring = neg_binom_sample(
+                k, 1.0 - self.alpha_s*Reff_tmp/(self.alpha_s*Reff_tmp + k))
+            
+        elif self.people[parent_key].category == 'TA':  # Asymptomatic interstate traveller
+            # half the infectiousness of an interstate traveller
+            Reff_tmp = Reff*self.relative_infectiousness_interstate_traveller
+            num_offspring = neg_binom_sample(
+                k, 1.0 - self.alpha_a*Reff_tmp/(self.alpha_a*Reff_tmp + k))
+            
+        else:  # International import
             Reff = self.R_I
             # Apply vaccine reduction for hotel quarantine workers
             if self.people[parent_key].infection_time >= self.hotel_quarantine_vaccine_start:
@@ -356,7 +461,7 @@ class Forecast:
                 else:
                     # new infection exceeds the simulation time, not recorded
                     self.cases_after = self.cases_after + 1
-
+        
     def simulate(self, end_time, sim, seed):
         """
         Simulate the branching process until end_time.
@@ -412,6 +517,42 @@ class Forecast:
                     if day <= self.end_time:
                         self.cases[max(0, day-1), 0] += 1
 
+        # now add in interstate imports
+        if self.apply_interstate_seeding: 
+            # simulate travel volumes
+            num_interstate_import = self.interstate_seeding(
+                from_jurisdiction_cases=self.from_jurisdiction_cases)
+            
+            # some scaffolding for times till infectious in community
+            # sample times for the interstate imports to be infected and then get tested
+            interstate_import_symp_inf_time = np.random.gamma(
+                3, 0.5, size=num_interstate_import['symp_inci'].sum())
+            interstate_import_asymp_inf_time = np.random.gamma(
+                3, 0.5, size=num_interstate_import['asymp_inci'].sum())
+            # take the ceiling as the days need to be integers
+            interstate_import_symp_inf_time = np.ceil(interstate_import_symp_inf_time)
+            interstate_import_asymp_inf_time = np.ceil(interstate_import_asymp_inf_time)
+            
+            # loop over the symptomatic travellers
+            for day, cases in enumerate(num_interstate_import['symp_inci']):
+                # note: if no cases on a given day, this will not run the loop
+                for n in range(cases):
+                    # new person is symptomatic and assume their infection and day of onset are 
+                    # the same
+                    # days_till_test = day+interstate_import_symp_inf_time[n]
+                    days_till_test = day+1
+                    new_person = Person(0, days_till_test, days_till_test, 0, 'TS')
+                    self.people[len(self.people)] = new_person
+            # loop over the asymptomatic travellers
+            for day, cases in enumerate(num_interstate_import['asymp_inci']):
+                for n in range(cases):
+                    # new person is asymptomatic and we assume their infection and day of onset
+                    # are the same
+                    # days_till_test = day+interstate_import_asymp_inf_time[n]
+                    days_till_test = day+1
+                    new_person = Person(0, days_till_test, days_till_test, 0, 'TA')
+                    self.people[len(self.people)] = new_person
+
         # Create queue for infected people
         self.infected_queue = deque()
         # Assign people to infected queue
@@ -425,7 +566,7 @@ class Forecast:
                 if person.category != 'I':
                     # imports shouldn't count for extinction counts
                     self.cases_after += 1
-                    print("cases after at initialisation")
+                    # print("cases after at initialisation")
         
         
         # Record initial inferred obs including importations.
@@ -690,9 +831,9 @@ class Forecast:
                         break
                     
             # add case to observed
-            if category == "S":
+            if (category == "S") | (category == 'TS'):
                 self.observed_cases[max(0, math.ceil(detect_time)-1), 2] += 1
-            elif category == "A":
+            elif (category == "A") | (category == 'TA'):
                 self.observed_cases[max(0, math.ceil(detect_time)-1), 1] += 1
 
     def to_df(self, results):

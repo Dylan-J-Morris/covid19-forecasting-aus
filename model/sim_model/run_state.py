@@ -123,6 +123,9 @@ else:
 
 VoC_flag = 'Delta'
 
+# flag to apply interstate seeding
+apply_interstate_seeding = True
+
 forecast_object = Forecast(current[state],
                            state, 
                            start_date, 
@@ -130,11 +133,11 @@ forecast_object = Forecast(current[state],
                            cases_file_date=case_file_date,
                            VoC_flag=VoC_flag, 
                            scenario=scenarios[state], 
-                           end_time = end_time)
+                           end_time = end_time, 
+                           n_sims=n_sims, 
+                           apply_interstate_seeding=apply_interstate_seeding)
 
 ############ Run Simulations in parallel and return ############
-
-
 def worker(arg):
     obj, methname = arg[:2]
     return getattr(obj, methname)(*arg[2:])
@@ -165,7 +168,10 @@ if __name__ == "__main__" and not profile_code:
 
     pool = mp.Pool(ncores)
     with tqdm(total=n_sims, leave=False, smoothing=0, miniters=1000) as pbar:
-        for cases, obs_cases, param_dict in pool.imap_unordered(worker,[(forecast_object, 'simulate', end_time, n, n) for n in range(n_sims)]):
+        for cases, obs_cases, param_dict in pool.imap_unordered(
+            worker,
+            [(forecast_object, 'simulate', end_time, n, n) for n in range(n_sims)]):
+        
             # cycle through all results and record into arrays
             n = param_dict['num_of_sim']
             if param_dict['bad_sim']:
