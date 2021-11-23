@@ -49,7 +49,8 @@ class Forecast:
                  VoC_flag='', 
                  scenario='',
                  n_sims=None, 
-                 apply_interstate_seeding=False):
+                 from_jurisdiction_cases={}, 
+                 apply_interstate_seeding=None):
         """Create forecast object with parameters in preperation for running simulation.
 
         Args:
@@ -64,8 +65,9 @@ class Forecast:
         from params import local_detection, a_local_detection, qi_d, alpha_i, k
         
         # if applying interstate 
-        self.apply_interstate_seeding = apply_interstate_seeding
         self.print_at_iterations = False
+        self.apply_interstate_seeding = apply_interstate_seeding
+        
         self.n_sims = n_sims
         self.state = state
         self.end_time = end_time
@@ -117,51 +119,17 @@ class Forecast:
             self.test_campaign_date = None
 
         # If we need to apply seeding. Should only really be necessary for interstate travelling
-        self.from_jurisdiction_cases = {}
-        if self.apply_interstate_seeding: 
-            self.init_from_jurisdiction_arrays()
+        self.from_jurisdiction_cases = from_jurisdiction_cases
 
         self.num_bad_sims = 0
         self.num_too_many = 0
-        
-    def init_from_jurisdiction_arrays(self):
-        """
-        Read in jurisdiction local cases into this instance of the model in order to apply 
-        interstate imports. 
-        """
-        
-        if self.apply_interstate_seeding:
-            # these are the jurisdictions that interstate travel is allowed from
-            from_jurisdictions = ['NSW', 'VIC']
-            self.from_jurisdiction_cases = {}
-            # first 9 element of start date are the parts of interest
-            end_of_file_name = (str(self.start_date)[:10] + 'sim_R_L' + str(self.n_sims) + 
-                                + '_seed_' + 'days_' + str(self.end_time) + '.parquet')
-            
-            for jur in from_jurisdictions: 
-                tmp_cases = pd.read_parquet('results/' + jur + end_of_file_name)
-                # tmp_cases = pd.read_parquet('results/' + jur + '2021-06-10sim_R_L100000days_193.parquet')
-                # get the total cases 
-                tmp_cases_asymp = tmp_cases.loc['asymp_inci']
-                tmp_cases_symp = tmp_cases.loc['symp_inci']
-                # get the good sims and get the median
-                tmp_cases_asymp_median = tmp_cases_asymp.loc[tmp_cases_asymp.bad_sim == 0].median(axis=0)
-                tmp_cases_asymp_median = tmp_cases_asymp_median[:-1].to_numpy(dtype=int)
-                tmp_cases_symp_median = tmp_cases_symp.loc[tmp_cases_symp.bad_sim == 0].median(axis=0)
-                tmp_cases_symp_median = tmp_cases_symp_median[:-1].to_numpy(dtype=int)
-                # set the cases to 0 before the forecast date - this is a hacky fix for now and we likely
-                tmp_cases_asymp_median[:-30] = 0
-                tmp_cases_symp_median[:-30] = 0
-                # store them 
-                self.from_jurisdiction_cases[jur] = {'symp_inci': tmp_cases_symp_median, 
-                                                    'asymp_inci': tmp_cases_asymp_median}
 
     def interstate_seeding(self, from_jurisdiction_cases):
         """
         Seed cases into the jurisdiction. This will run a binomial 
         """
         to_jurisdiction = self.state
-        
+            
         # get the from jurisdictions out of the keys
         from_jurisdictions = from_jurisdiction_cases.keys()
         
@@ -185,9 +153,12 @@ class Forecast:
 
         types = ['asymp_inci', 'symp_inci']
         # vector to store the number imported from asymp and symp
-        num_interstate_import = {type: np.zeros(shape=from_jurisdiction_cases['NSW']['symp_inci'].
-                                                shape[0]) 
-                                 for type in types}
+        try:
+            num_interstate_import = {type: np.zeros(shape=from_jurisdiction_cases['NSW']['symp_inci'].
+                                                    shape[0]) 
+                                    for type in types}
+        except: 
+            return None
 
         # loop over the import jurisdictions and sample number of interstate imports each day 
         for jur in from_jurisdictions:
@@ -518,40 +489,43 @@ class Forecast:
                         self.cases[max(0, day-1), 0] += 1
 
         # now add in interstate imports
-        if self.apply_interstate_seeding: 
-            # simulate travel volumes
-            num_interstate_import = self.interstate_seeding(
-                from_jurisdiction_cases=self.from_jurisdiction_cases)
-            
-            # some scaffolding for times till infectious in community
-            # sample times for the interstate imports to be infected and then get tested
-            interstate_import_symp_inf_time = np.random.gamma(
-                3, 0.5, size=num_interstate_import['symp_inci'].sum())
-            interstate_import_asymp_inf_time = np.random.gamma(
-                3, 0.5, size=num_interstate_import['asymp_inci'].sum())
-            # take the ceiling as the days need to be integers
-            interstate_import_symp_inf_time = np.ceil(interstate_import_symp_inf_time)
-            interstate_import_asymp_inf_time = np.ceil(interstate_import_asymp_inf_time)
-            
-            # loop over the symptomatic travellers
-            for day, cases in enumerate(num_interstate_import['symp_inci']):
-                # note: if no cases on a given day, this will not run the loop
-                for n in range(cases):
-                    # new person is symptomatic and assume their infection and day of onset are 
-                    # the same
-                    # days_till_test = day+interstate_import_symp_inf_time[n]
-                    days_till_test = day+1
-                    new_person = Person(0, days_till_test, days_till_test, 0, 'TS')
-                    self.people[len(self.people)] = new_person
-            # loop over the asymptomatic travellers
-            for day, cases in enumerate(num_interstate_import['asymp_inci']):
-                for n in range(cases):
-                    # new person is asymptomatic and we assume their infection and day of onset
-                    # are the same
-                    # days_till_test = day+interstate_import_asymp_inf_time[n]
-                    days_till_test = day+1
-                    new_person = Person(0, days_till_test, days_till_test, 0, 'TA')
-                    self.people[len(self.people)] = new_person
+        if self.apply_interstate_seeding:
+            try:
+                # simulate travel volumes
+                num_interstate_import = self.interstate_seeding(
+                    from_jurisdiction_cases=self.from_jurisdiction_cases)
+                
+                # some scaffolding for times till infectious in community
+                # sample times for the interstate imports to be infected and then get tested
+                interstate_import_symp_inf_time = np.random.gamma(
+                    3, 0.5, size=num_interstate_import['symp_inci'].sum())
+                interstate_import_asymp_inf_time = np.random.gamma(
+                    3, 0.5, size=num_interstate_import['asymp_inci'].sum())
+                # take the ceiling as the days need to be integers
+                interstate_import_symp_inf_time = np.ceil(interstate_import_symp_inf_time)
+                interstate_import_asymp_inf_time = np.ceil(interstate_import_asymp_inf_time)
+                
+                # loop over the symptomatic travellers
+                for day, cases in enumerate(num_interstate_import['symp_inci']):
+                    # note: if no cases on a given day, this will not run the loop
+                    for n in range(cases):
+                        # new person is symptomatic and assume their infection and day of onset are 
+                        # the same
+                        # days_till_test = day+interstate_import_symp_inf_time[n]
+                        days_till_test = day+1
+                        new_person = Person(0, days_till_test, days_till_test, 0, 'TS')
+                        self.people[len(self.people)] = new_person
+                # loop over the asymptomatic travellers
+                for day, cases in enumerate(num_interstate_import['asymp_inci']):
+                    for n in range(cases):
+                        # new person is asymptomatic and we assume their infection and day of onset
+                        # are the same
+                        # days_till_test = day+interstate_import_asymp_inf_time[n]
+                        days_till_test = day+1
+                        new_person = Person(0, days_till_test, days_till_test, 0, 'TA')
+                        self.people[len(self.people)] = new_person
+            except: 
+                None
 
         # Create queue for infected people
         self.infected_queue = deque()
@@ -1082,3 +1056,40 @@ def neg_binom_sample(k, p):
     """
     return np.random.negative_binomial(k, p)
     # return nbinom.rvs(k, p)
+    
+def init_from_jurisdiction_arrays(apply_intestate_seeding, start_date, n_sims, end_time):
+    """
+    Read in jurisdiction local cases into this instance of the model in order to apply 
+    interstate imports. 
+    """
+    
+    # these are the jurisdictions that interstate travel is allowed from
+    from_jurisdictions = ['NSW', 'VIC']
+    from_jurisdiction_cases = {}
+    # first 9 element of start date are the parts of interest
+    end_of_file_name = (str(start_date)[:10] + 'sim_R_L' + str(n_sims) + 
+                        '_seed_' + 'days_' + str(end_time) + '.parquet') 
+    
+    for jur in from_jurisdictions: 
+        # add try-except to see if we're able to read the file in or not
+        try:
+            tmp_cases = pd.read_parquet('results/' + jur + end_of_file_name)
+        except: 
+            break
+        # tmp_cases = pd.read_parquet('results/' + jur + '2021-06-10sim_R_L100000days_193.parquet')
+        # get the total cases 
+        tmp_cases_asymp = tmp_cases.loc['asymp_inci']
+        tmp_cases_symp = tmp_cases.loc['symp_inci']
+        # get the good sims and get the median
+        tmp_cases_asymp_median = tmp_cases_asymp.loc[tmp_cases_asymp.bad_sim == 0].median(axis=0)
+        tmp_cases_asymp_median = tmp_cases_asymp_median[:-1].to_numpy(dtype=int)
+        tmp_cases_symp_median = tmp_cases_symp.loc[tmp_cases_symp.bad_sim == 0].median(axis=0)
+        tmp_cases_symp_median = tmp_cases_symp_median[:-1].to_numpy(dtype=int)
+        # set the cases to 0 before the forecast date - this is a hacky fix for now and we likely
+        tmp_cases_asymp_median[:-30] = 0
+        tmp_cases_symp_median[:-30] = 0
+        # store them 
+        from_jurisdiction_cases[jur] = {'symp_inci': tmp_cases_symp_median, 
+                                        'asymp_inci': tmp_cases_asymp_median}
+        
+    return from_jurisdiction_cases

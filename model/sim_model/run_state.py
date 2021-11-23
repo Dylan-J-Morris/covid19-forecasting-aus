@@ -34,7 +34,7 @@ else:
     
 forecast_date = argv[2]  # Date of forecast
 state = argv[3] 
-apply_interstate_seeding = argv[4]
+apply_interstate_seeding = True if argv[4] != 'seeding' else False
 
 # print("Simulating state " + state)
 
@@ -124,6 +124,11 @@ else:
 
 VoC_flag = 'Delta'
 
+if apply_interstate_seeding:
+    from_jurisdiction_cases = {}
+else:
+    from_jurisdiction_cases = init_from_jurisdiction_arrays(apply_interstate_seeding, start_date, n_sims, end_time)
+
 forecast_object = Forecast(current[state],
                            state, 
                            start_date, 
@@ -133,7 +138,8 @@ forecast_object = Forecast(current[state],
                            scenario=scenarios[state], 
                            end_time = end_time, 
                            n_sims=n_sims, 
-                           apply_interstate_seeding=apply_interstate_seeding)
+                           from_jurisdiction_cases = from_jurisdiction_cases,
+                           apply_interstate_seeding = apply_interstate_seeding)
 
 ############ Run Simulations in parallel and return ############
 def worker(arg):
@@ -287,6 +293,3 @@ if profile_code:
         stats = pstats.Stats(profiler).sort_stats('ncalls')
         stats.print_stats()
         stats.dump_stats('stats_file.prof')
-        
-        
-        
