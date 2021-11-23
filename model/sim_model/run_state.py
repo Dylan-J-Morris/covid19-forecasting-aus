@@ -34,7 +34,7 @@ else:
     
 forecast_date = argv[2]  # Date of forecast
 state = argv[3] 
-apply_interstate_seeding = True if argv[4] != 'seeding' else False
+apply_interstate_seeding = True if argv[4] == 'True' else False
 
 # print("Simulating state " + state)
 
