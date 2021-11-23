@@ -39,6 +39,7 @@ Run these at the command line. Number of sims is used to name some of the files.
 ```
 DATADATE='2021-11-22'   # Date of NNDSS data file
 NSIMS=100000               # Total number of simulations to run should be > 5000
+APPLY_SEEDING='False'
 ```
 
 ## Scenario modelling
@@ -70,8 +71,8 @@ This is the quick start to run the model on a HPC that uses slurm.
 jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${DATADATE})
 jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE})
 jid_TP_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_TP_forecasting.sh ${DATADATE})
-jid_simulate_a_seeding=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
-jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a_seeding sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE})
+jid_simulate_a_seeding=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} ${APPLY_SEEDING})
+jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a_seeding sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} ${APPLY_SEEDING})
 jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE})
 ```
 

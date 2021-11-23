@@ -130,30 +130,31 @@ class Forecast:
         interstate imports. 
         """
         
-        # these are the jurisdictions that interstate travel is allowed from
-        from_jurisdictions = ['NSW', 'VIC']
-        self.from_jurisdiction_cases = {}
-        # first 9 element of start date are the parts of interest
-        end_of_file_name = (str(self.start_date)[:10] + 'sim_R_L' + str(self.n_sims) + 
-                            + '_seed_' + 'days_' + str(self.end_time) + '.parquet')
-        
-        for jur in from_jurisdictions: 
-            tmp_cases = pd.read_parquet('results/' + jur + end_of_file_name)
-            # tmp_cases = pd.read_parquet('results/' + jur + '2021-06-10sim_R_L100000days_193.parquet')
-            # get the total cases 
-            tmp_cases_asymp = tmp_cases.loc['asymp_inci']
-            tmp_cases_symp = tmp_cases.loc['symp_inci']
-            # get the good sims and get the median
-            tmp_cases_asymp_median = tmp_cases_asymp.loc[tmp_cases_asymp.bad_sim == 0].median(axis=0)
-            tmp_cases_asymp_median = tmp_cases_asymp_median[:-1].to_numpy(dtype=int)
-            tmp_cases_symp_median = tmp_cases_symp.loc[tmp_cases_symp.bad_sim == 0].median(axis=0)
-            tmp_cases_symp_median = tmp_cases_symp_median[:-1].to_numpy(dtype=int)
-            # set the cases to 0 before the forecast date - this is a hacky fix for now and we likely
-            tmp_cases_asymp_median[:-30] = 0
-            tmp_cases_symp_median[:-30] = 0
-            # store them 
-            self.from_jurisdiction_cases[jur] = {'symp_inci': tmp_cases_symp_median, 
-                                                 'asymp_inci': tmp_cases_asymp_median}
+        if self.apply_interstate_seeding:
+            # these are the jurisdictions that interstate travel is allowed from
+            from_jurisdictions = ['NSW', 'VIC']
+            self.from_jurisdiction_cases = {}
+            # first 9 element of start date are the parts of interest
+            end_of_file_name = (str(self.start_date)[:10] + 'sim_R_L' + str(self.n_sims) + 
+                                + '_seed_' + 'days_' + str(self.end_time) + '.parquet')
+            
+            for jur in from_jurisdictions: 
+                tmp_cases = pd.read_parquet('results/' + jur + end_of_file_name)
+                # tmp_cases = pd.read_parquet('results/' + jur + '2021-06-10sim_R_L100000days_193.parquet')
+                # get the total cases 
+                tmp_cases_asymp = tmp_cases.loc['asymp_inci']
+                tmp_cases_symp = tmp_cases.loc['symp_inci']
+                # get the good sims and get the median
+                tmp_cases_asymp_median = tmp_cases_asymp.loc[tmp_cases_asymp.bad_sim == 0].median(axis=0)
+                tmp_cases_asymp_median = tmp_cases_asymp_median[:-1].to_numpy(dtype=int)
+                tmp_cases_symp_median = tmp_cases_symp.loc[tmp_cases_symp.bad_sim == 0].median(axis=0)
+                tmp_cases_symp_median = tmp_cases_symp_median[:-1].to_numpy(dtype=int)
+                # set the cases to 0 before the forecast date - this is a hacky fix for now and we likely
+                tmp_cases_asymp_median[:-30] = 0
+                tmp_cases_symp_median[:-30] = 0
+                # store them 
+                self.from_jurisdiction_cases[jur] = {'symp_inci': tmp_cases_symp_median, 
+                                                    'asymp_inci': tmp_cases_asymp_median}
 
     def interstate_seeding(self, from_jurisdiction_cases):
         """
