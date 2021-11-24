@@ -1090,7 +1090,7 @@ for i, state in enumerate(plot_states):
     # ax[row, col].set_xlim((pd.to_datetime(today) - timedelta(days=6*30),
     #                       pd.to_datetime(today) + timedelta(days=num_forecast_days)))
     ax[row, col].set_xlim(plot_window_start_date,
-                          pd.to_datetime(today) + timedelta(days=num_forecast_days)))
+                          pd.to_datetime(today) + timedelta(days=num_forecast_days))
     # plot the start date
     ax[row, col].axvline(sim_start_date, ls='--', color='green', lw=2)
     ax[row, col].xaxis.grid(which='minor', linestyle='-.', color='grey', linewidth=2)
