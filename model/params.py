@@ -57,7 +57,6 @@ offset_rd = 0
 shape_gen = 2.75
 scale_gen = 1.00
 offset_gen = 0
-
 # Heterogeneity parameter for a negative binomial offspring distribution
 # informed from:
 # Endo A; Centre for the Mathematical Modelling of
@@ -67,37 +66,44 @@ offset_gen = 0
 k = 0.10
 
 # Also known as qs, this is the probability of detecting an symptomatic case. This will go up during major testing drives. Increasing qs increases the observed outbreak.
-local_detection = {'NSW': 0.95,
-                   'QLD': 0.95,
-                   'SA': 0.95,
-                   'TAS': 0.95,
-                   'VIC': 0.95,
-                   'WA': 0.95,
-                   'ACT': 0.95,
-                   'NT': 0.95}
+local_detection = {
+    'NSW': 0.95,
+    'QLD': 0.95,
+    'SA': 0.95,
+    'TAS': 0.95,
+    'VIC': 0.95,
+    'WA': 0.95,
+    'ACT': 0.95,
+    'NT': 0.95
+}
 
 # Also known as qa, this is the probability of detecting an asymptomatic case.
-a_local_detection = {'NSW': 0.15,
-                     'QLD': 0.1,
-                     'SA': 0.1,
-                     'TAS': 0.1,
-                     'VIC': 0.15,
-                     'WA': 0.1,
-                     'ACT': 0.1,
-                     'NT': 0.1}
+a_local_detection = {
+    'NSW': 0.15,
+    'QLD': 0.1,
+    'SA': 0.1,
+    'TAS': 0.1,
+    'VIC': 0.15,
+    'WA': 0.1,
+    'ACT': 0.1,
+    'NT': 0.1
+}
 
 # probability of detecting an imported case 
-qi_d = {'NSW': 0.98,
-        'QLD': 0.98,
-        'SA': 0.98,
-        'TAS': 0.98,
-        'VIC': 0.98,
-        'WA': 0.98,
-        'ACT': 0.98,
-        'NT': 0.98}
+qi_d = {
+    'NSW': 0.98,
+    'QLD': 0.98,
+    'SA': 0.98,
+    'TAS': 0.98,
+    'VIC': 0.98,
+    'WA': 0.98,
+    'ACT': 0.98,
+    'NT': 0.98
+}
 
 # alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe there are significant differences between hotel quarentine effectiveness between states.
 alpha_i_all = 1
+
 alpha_i = {'NSW': alpha_i_all,
            'QLD': alpha_i_all,
            'SA': alpha_i_all,
