@@ -29,8 +29,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
                                             'NOTIFICATION_RECEIVE_DATE', 'TRUE_ONSET_DATE'],
                                dtype={'PLACE_OF_ACQUISITION': str})
         if len(glob.glob(path)) != 1:
-            print("There are %i files with the same date" %
-                  len(glob.glob(path)))
+            print("There are %i files with the same date" % len(glob.glob(path)))
         if len(glob.glob(path)) == 0:
             raise FileNotFoundError(
                 "NNDSS no found. Did you want to use a linelist? Or is the file named wrong?")

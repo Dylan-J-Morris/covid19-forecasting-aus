@@ -8,7 +8,7 @@ sys.path.insert(0, '../')
 from Reff_functions import *
 from Reff_constants import *
 from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, \
-    vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date
+    vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date, start_date
 from scenarios import scenarios, scenario_dates
 from sys import argv
 from datetime import timedelta, datetime
@@ -22,6 +22,8 @@ print('Generating R_L forecasts using mobility data.')
 matplotlib.use('Agg')
 
 # Define inputs
+
+sim_start_date = pd.to_datetime(start_date)
 
 # convert third start date to the correct format
 third_start_date = pd.to_datetime(third_start_date)
@@ -1080,9 +1082,17 @@ for i, state in enumerate(plot_states):
 
     # ax[row, col].set_xticks([plot_df.date.values[-n_forecast]], minor=True)
     ax[row, col].axvline(data_date, ls='-.', color='black', lw=1)
+    # plot window start date
+    plot_window_start_date = min(pd.to_datetime(today) - timedelta(days=6*30), 
+                                 sim_start_date-timedelta(days=10))
+    
     # create a plot window over the last six months
-    ax[row, col].set_xlim((pd.to_datetime(today) - timedelta(days=6*28),
+    # ax[row, col].set_xlim((pd.to_datetime(today) - timedelta(days=6*30),
+    #                       pd.to_datetime(today) + timedelta(days=num_forecast_days)))
+    ax[row, col].set_xlim(plot_window_start_date,
                           pd.to_datetime(today) + timedelta(days=num_forecast_days)))
+    # plot the start date
+    ax[row, col].axvline(sim_start_date, ls='--', color='green', lw=2)
     ax[row, col].xaxis.grid(which='minor', linestyle='-.', color='grey', linewidth=2)
 
 fig.text(0.03, 0.5, 'Transmission potential', va='center', ha='center', rotation='vertical', fontsize=20)

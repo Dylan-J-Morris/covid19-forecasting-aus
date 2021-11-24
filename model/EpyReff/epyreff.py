@@ -157,7 +157,7 @@ def index_by_infection_date(infections_wide):
     return(df_inc_zeros)
 
 
-def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07,
+def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07, offset_gen=0,
                     trunc_days=21, shift=0, offset=1):
     """
     Given array of infection_dates (N_dates by N_samples), where values are possible
@@ -170,7 +170,7 @@ def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07,
     # Find midpoints for discretisation
     xmids = [x+shift for x in range(trunc_days+1)]
     # double check parameterisation of scipy
-    gamma_vals = gamma.pdf(xmids, a=shape_gen, scale=scale_gen)
+    gamma_vals = offset_gen + gamma.pdf(xmids, a=shape_gen, scale=scale_gen)
     # renormalise the pdf
     disc_gamma = gamma_vals/sum(gamma_vals)
 

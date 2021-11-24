@@ -9,7 +9,7 @@ from epyreff import *
 from params import truncation_days, third_start_date, start_date 
 
 from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, \
-    offset_rd, offset_inc
+    offset_rd, offset_inc, offset_gen
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,6 +57,7 @@ df_inc_zeros = index_by_infection_date(df_inf)
 # get all lambdas
 lambda_dict = lambda_all_states(df_inc_zeros,
                                 shape_gen=shape_gen, scale_gen=scale_gen, offset=offset,
+                                offset_gen=offset_gen,
                                 trunc_days=trunc_days)
 
 states = [*df_inc_zeros.index.get_level_values('STATE').unique()]

@@ -15,7 +15,7 @@ else:
     # this flag will run the inference only and quit after it's done
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
-third_start_date = '2021-06-18'
+third_start_date = '2021-06-30'
 start_date = '2021-06-10'  # Start date of forecast
 # start_date = '2021-08-01'  # Start date of forecast
 VoC_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase
@@ -56,9 +56,10 @@ offset_rd = 0
 # scale_gen = 3.07
 shape_gen = 2.75
 scale_gen = 1.00
+offset_gen = 0
 
 # Heterogeneity parameter for a negative binomial offspring distribution
-k = 0.15  
+k = 0.15
 
 # Also known as qs, this is the probability of detecting an symptomatic case. This will go up during major testing drives. Increasing qs increases the observed outbreak.
 local_detection = {'NSW': 0.95,

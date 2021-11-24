@@ -269,6 +269,7 @@ model {
                 if (is_VIC[i] == 1){
                     if (VIC_tough_period[n] == 1){
                         TP_local_adjustment_factor[n] ~ normal(1, 0.5);
+                        // TP_local_adjustment_factor[n] ~ normal(1, 0.01);
                     } else {
                         TP_local_adjustment_factor[n] ~ normal(1, 0.01);
                     }

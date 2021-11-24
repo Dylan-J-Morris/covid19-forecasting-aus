@@ -11,7 +11,7 @@ from collections import deque
 import gc
 from itertools import cycle
 
-from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
+from params import scale_gen, shape_gen, offset_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
 
 # import line_profiler
 # from numba import njit
@@ -744,6 +744,9 @@ class Forecast:
         # loop over windows and check for whether we have exceeded the cases in any window 
         # don't check the last window corresponding to nowcast
         if (self.sim_cases_in_window > self.max_cases_in_windows).any(): 
+            # print("too many in window:", np.where(self.sim_cases_in_window > self.max_cases_in_windows))
+            # print("cases: ", self.sim_cases_in_window[np.where(self.sim_cases_in_window > self.max_cases_in_windows)], 
+            #       "max cases: ", self.max_cases_in_windows[np.where(self.sim_cases_in_window > self.max_cases_in_windows)])
             return True 
         else: 
             return False
@@ -755,6 +758,7 @@ class Forecast:
         
         # loop over the windows and check to see whether we are below the windows
         if (self.sim_cases_in_window < self.min_cases_in_windows).any():
+            # print("too few in window: ", np.where(self.sim_cases_in_window < self.min_cases_in_windows))
             self.bad_sim = True 
         
     def increment_counters(self, detect_time, category):
@@ -889,7 +893,7 @@ class Forecast:
         """
         
         # number of days to unrestrict the simulation
-        nowcast_days = 15
+        nowcast_days = 14
         # length of comparison windows 
         window_length = 20
         # number of days we are forecasting for
@@ -897,7 +901,6 @@ class Forecast:
         # get the index of the last date in the data
         cases_in_window = np.array([])
         # sum the nowcast cases
-        # print(len(df.local.values))
         cases_in_window = np.append(cases_in_window, sum(df.local.values[-1*(nowcast_days+forecast_days):]))
         # get the number of days the simulation is run for (with data) where we subtract nowcast_days 
         # as this is the nowcast 
@@ -924,8 +927,8 @@ class Forecast:
             # the last index is the number of windows+1
             end_index = -(nowcast_days+forecast_days+window_length*(n_windows+1))-1
             # now add in the cases in the last window 
-            cases_in_window = np.append(cases_in_window, sum(df.local.values[:end_index]))
-            window_sizes = np.append(window_sizes, n_days_first_window)
+            cases_in_window[-1] += sum(df.local.values[:end_index])
+            window_sizes[-1] += n_days_first_window
 
         # we take the cumulative sum of the window sizes 
         self.window_sizes = np.cumsum(np.flip(window_sizes))
@@ -933,7 +936,7 @@ class Forecast:
         self.cases_in_windows = np.flip(cases_in_window)
         self.n_windows = self.window_sizes.shape[0]
         
-        print("Observation windows length: ", self.window_sizes)
+        print("Observation windows cumulative lengths: ", self.window_sizes)
         print("Number of cases in each window: ", self.cases_in_windows)
         
     def calculate_limits(self, df):
@@ -1019,7 +1022,7 @@ class Forecast:
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """
         self.detect_rv = np.random.random(size=size)  # shape and scale
-        self.inf_times = np.random.gamma(shape_gen, scale_gen, size=size)  # shape and scale
+        self.inf_times = offset_gen + np.random.gamma(shape_gen, scale_gen, size=size)  # shape and scale
         self.detect_times = np.random.gamma(shape_inc, scale_inc, size=size)
 
     def iter_detect_rv(self):

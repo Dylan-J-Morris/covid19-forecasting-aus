@@ -170,7 +170,11 @@ sec_date_range = {'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').v
 #                     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
 #                     'QLD': pd.date_range(start=third_start_date, end='2021-10-10').values,
 #                     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values}
-third_date_range = {'ACT': pd.date_range(start='2021-08-16', end='2021-11-18').values,
+# third_date_range = {'ACT': pd.date_range(start='2021-08-16', end='2021-11-14').values,  # truncate further to deal with delay
+#                     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
+#                     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+#                     'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values}
+third_date_range = {'ACT': pd.date_range(start='2021-08-17', end='2021-11-14').values,          # truncate further to deal with delay
                     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
                     'QLD': pd.date_range(start=third_start_date, end='2021-10-10').values,
                     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values}
@@ -409,12 +413,9 @@ else:
 # to run the inference set run_inference to True in params
 if run_inference or run_inference_only:
 
-    # importing the stan model as a string
-    # open stan file in read mode
+    # import the stan model as a string
     model_file = open("model/fitting_and_forecasting/rho_model_gamma.stan", "r")
-    # read whole model to a string
     rho_model_gamma = model_file.read()
-    # close file
     model_file.close()
 
     # slightly different setup depending if we are running on phoenix or locally due to
