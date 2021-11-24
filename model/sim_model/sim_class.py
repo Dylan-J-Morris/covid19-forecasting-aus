@@ -20,7 +20,14 @@ class Person:
     Individuals in the forecast
     """
 
-    def __init__(self, parent, infection_time, detection_time, recovery_time, category):
+    def __init__(
+        self, 
+        parent, 
+        infection_time, 
+        detection_time, 
+        recovery_time, 
+        category
+    ):
         """
         Category is one of:
         - 'I' Imported
@@ -40,17 +47,20 @@ class Forecast:
     Forecast object that contains methods to simulate a forcast forward, given Reff and current state.
     """
 
-    def __init__(self, current, 
-                 state, 
-                 start_date,
-                 forecast_date, 
-                 cases_file_date, 
-                 end_time = None,
-                 VoC_flag='', 
-                 scenario='',
-                 n_sims=None, 
-                 from_jurisdiction_cases={}, 
-                 apply_interstate_seeding=None):
+    def __init__(
+        self, 
+        current, 
+        state, 
+        start_date,
+        forecast_date, 
+        cases_file_date, 
+        end_time = None,
+        VoC_flag='', 
+        scenario='',
+        n_sims=None, 
+        from_jurisdiction_cases={}, 
+        apply_interstate_seeding=None
+    ):
         """Create forecast object with parameters in preperation for running simulation.
 
         Args:
@@ -78,14 +88,13 @@ class Forecast:
         # Create an object list of Persons based on observed cases on start day/
         people = ['I']*current[0] + ['A']*current[1] + ['S']*current[2]
         self.initial_people = {i: Person(0, 0, 0, 0, cat) for i, cat in enumerate(people)}
-
         self.alpha_i = alpha_i[state]
         # Probability of *unobserved* imported infectious individuals
         self.qi = qi_d[state]
         self.symptomatic_detection_prob = local_detection[state]
         self.asymptomatic_detection_prob = a_local_detection[state]
         print("Using Negative-Binomial offspring distribution.")
-        self.k = 0.15  # Hard coded
+        self.k = k
         self.relative_infectiousness_interstate_traveller = 0.5
         # print("Using Poisson offspring distribution.")
         # self.k = 250
@@ -111,7 +120,8 @@ class Forecast:
         self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01", format='%Y-%m-%d') - self.start_date).days
         # Day from which to start treating imported cases as delta cases
         self.VoC_on_imported_effect_start = (pd.to_datetime("2021-05-01", format='%Y-%m-%d') - self.start_date).days
-        # This is a paameter which decreases the detection probability before the date where VIC started testing properly. Could be removed in future.
+        # This is a paameter which decreases the detection probability before the date where VIC started testing properly. 
+        # Could be removed in future.
         if state == "VIC":
             self.test_campaign_date = (pd.to_datetime('2020-06-01', format='%Y-%m-%d') - self.start_date).days
             self.test_campaign_factor = 1.5
@@ -183,14 +193,12 @@ class Forecast:
             self.alpha_a = self.gam * self.alpha_s
             self.current = self.initial_state.copy()
             self.people = self.initial_people.copy()
-
             # N samples for each of infection and detection times
             # Grab now and iterate through samples to save simulation
             self.generate_times(size=200000)
             self.get_detect_rv = self.iter_detect_rv()
             self.get_inf_time = self.iter_inf_time()
             self.get_detect_time = self.iter_detect_time()
-
             # counters for terminating early
             self.inf_forecast_counter = 0
             # this inits the number of detections (onset events) in each window to match size of max_cases_in_windows
@@ -333,14 +341,12 @@ class Forecast:
         elif self.people[parent_key].category == 'TS':  # Symptomatic interstate traveller
             # half the infectiousness of an interstate traveller
             Reff_tmp = Reff*self.relative_infectiousness_interstate_traveller
-            num_offspring = neg_binom_sample(
-                k, 1.0 - self.alpha_s*Reff_tmp/(self.alpha_s*Reff_tmp + k))
+            num_offspring = neg_binom_sample(k, 1.0 - self.alpha_s*Reff_tmp/(self.alpha_s*Reff_tmp + k))
             
         elif self.people[parent_key].category == 'TA':  # Asymptomatic interstate traveller
             # half the infectiousness of an interstate traveller
             Reff_tmp = Reff*self.relative_infectiousness_interstate_traveller
-            num_offspring = neg_binom_sample(
-                k, 1.0 - self.alpha_a*Reff_tmp/(self.alpha_a*Reff_tmp + k))
+            num_offspring = neg_binom_sample(k, 1.0 - self.alpha_a*Reff_tmp/(self.alpha_a*Reff_tmp + k))
             
         else:  # International import
             Reff = self.R_I
@@ -744,9 +750,10 @@ class Forecast:
         # loop over windows and check for whether we have exceeded the cases in any window 
         # don't check the last window corresponding to nowcast
         if (self.sim_cases_in_window > self.max_cases_in_windows).any(): 
-            # print("too many in window:", np.where(self.sim_cases_in_window > self.max_cases_in_windows))
-            # print("cases: ", self.sim_cases_in_window[np.where(self.sim_cases_in_window > self.max_cases_in_windows)], 
-            #       "max cases: ", self.max_cases_in_windows[np.where(self.sim_cases_in_window > self.max_cases_in_windows)])
+            if self.print_at_iterations:
+                print("too many in window:", np.where(self.sim_cases_in_window > self.max_cases_in_windows))
+                print("cases: ", self.sim_cases_in_window[np.where(self.sim_cases_in_window > self.max_cases_in_windows)], 
+                        "max cases: ", self.max_cases_in_windows[np.where(self.sim_cases_in_window > self.max_cases_in_windows)])
             return True 
         else: 
             return False
@@ -758,7 +765,8 @@ class Forecast:
         
         # loop over the windows and check to see whether we are below the windows
         if (self.sim_cases_in_window < self.min_cases_in_windows).any():
-            # print("too few in window: ", np.where(self.sim_cases_in_window < self.min_cases_in_windows))
+            if self.print_at_iterations:
+                print("too few in window: ", np.where(self.sim_cases_in_window < self.min_cases_in_windows))
             self.bad_sim = True 
         
     def increment_counters(self, detect_time, category):
@@ -948,16 +956,11 @@ class Forecast:
         self.min_cases_in_windows = np.zeros_like(self.cases_in_windows)
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
-        limit_factor_long_backcasts = 2.0
-        limit_factor_backcasts = 2.0
+        limit_factor_backcasts = 2.5
         limit_factor_nowcast = 10.0
         # backcasts all have same limit
-        self.max_cases_in_windows[:0] = np.maximum(100, np.ceil(limit_factor_long_backcasts * self.cases_in_windows[:0]))
-        self.max_cases_in_windows[0:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[0:-1]))
+        self.max_cases_in_windows[:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-1]))
         self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
-        
-        # set the maximums  
-        # self.max_cases_in_windows[-2:] = [10000, 10000]
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 0.3

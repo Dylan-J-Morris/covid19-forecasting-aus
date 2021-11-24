@@ -59,7 +59,12 @@ scale_gen = 1.00
 offset_gen = 0
 
 # Heterogeneity parameter for a negative binomial offspring distribution
-k = 0.15
+# informed from:
+# Endo A; Centre for the Mathematical Modelling of
+# Infectious Diseases COVID-19 Working Group, Abbott S, Kucharski AJ, Funk S. Estimating the overdispersion in
+# COVID-19 transmission using outbreak sizes outside China. Wellcome Open Res. 2020 Jul 10;5:67.
+# doi:10.12688/wellcomeopenres.15842.3.
+k = 0.10
 
 # Also known as qs, this is the probability of detecting an symptomatic case. This will go up during major testing drives. Increasing qs increases the observed outbreak.
 local_detection = {'NSW': 0.95,
