@@ -53,9 +53,6 @@ data {
     vector[N_third_wave] include_in_third_wave[j_third_wave];   // dates include in sec_wave 
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
-    
-    int is_VIC[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
-    int VIC_tough_period[N_third_wave];                                   // indicator vector of which state is NSW in the third wave
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
 
     int decay_start_date_third;
@@ -181,10 +178,6 @@ transformed parameters {
                 vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_third_wave*vacc_effect_tot;
-                            
-                // if (is_VIC[i] == 1 && VIC_tough_period[n] == 1) {
-                //     TP_local *= TP_local_adjustment_factor[n]; 
-                // } 
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*TP_local;
                 pos += 1;

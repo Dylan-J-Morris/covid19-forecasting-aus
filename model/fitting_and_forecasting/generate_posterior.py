@@ -118,9 +118,9 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 # Third wave inputs
+# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
-# third_states = sorted(['NSW', 'VIC', 'ACT'])
-# third_states = sorted(['VIC'])
+# third_states = sorted(['NSW', 'VIC'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -154,16 +154,20 @@ df3X = df.loc[third_wave_mask].sort_values('date')
 
 # choose dates for the first wave — this is kinda redundant but ensures a common format of 
 # data between waves. 
-first_date_range = {"NSW": pd.date_range(start='2020-03-01', end=end_date).values, 
-                    "QLD": pd.date_range(start='2020-03-01', end=end_date).values, 
-                    "SA": pd.date_range(start='2020-03-01', end=end_date).values, 
-                    "TAS": pd.date_range(start='2020-03-01', end=end_date).values, 
-                    "VIC": pd.date_range(start='2020-03-01', end=end_date).values, 
-                    "WA": pd.date_range(start='2020-03-01', end=end_date).values}
+first_date_range = {
+    "NSW": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "QLD": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "SA": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "TAS": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "VIC": pd.date_range(start='2020-03-01', end=end_date).values, 
+    "WA": pd.date_range(start='2020-03-01', end=end_date).values
+}
 
 # choose dates for each state for sec wave
-sec_date_range = {'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').values,
-                  'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values}
+sec_date_range = {
+    'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').values,
+    'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values
+}
 
 # choose dates for each state for third wave
 # third_date_range = {'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
@@ -174,10 +178,12 @@ sec_date_range = {'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').v
 #                     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
 #                     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
 #                     'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values}
-third_date_range = {'ACT': pd.date_range(start='2021-08-17', end='2021-11-14').values,          # truncate further to deal with delay
-                    'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
-                    'QLD': pd.date_range(start=third_start_date, end='2021-10-10').values,
-                    'VIC': pd.date_range(start=third_start_date, end=third_end_date).values}
+third_date_range = {
+    'ACT': pd.date_range(start=third_start_date, end='2021-11-14').values,          # truncate further to deal with delay
+    'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
+    'QLD': pd.date_range(start=third_start_date, end='2021-10-10').values,
+    'VIC': pd.date_range(start=third_start_date, end=third_end_date).values
+}
 
 dfX['is_first_wave'] = 0
 for state in first_states:
@@ -196,29 +202,35 @@ sec_data_by_state = {}
 third_data_by_state = {}
 
 for value in ['mean', 'std', 'local', 'imported']:
-    data_by_state[value] = pd.pivot(dfX[['state', value, 'date']],
-                                    index='date', 
-                                    columns='state', 
-                                    values=value).sort_index(axis='columns')
+    data_by_state[value] = pd.pivot(
+        dfX[['state', value, 'date']],
+        index='date', 
+        columns='state', 
+        values=value
+    ).sort_index(axis='columns')
     
     # account for dates pre pre second wave
     if df2X.loc[df2X.state == sec_states[0]].shape[0] == 0:
         print("making empty")
         sec_data_by_state[value] = pd.DataFrame(columns=sec_states).astype(float)
     else: 
-        sec_data_by_state[value] = pd.pivot(df2X[['state', value, 'date']],
-                                            index='date', 
-                                            columns='state', 
-                                            values=value).sort_index(axis='columns')
+        sec_data_by_state[value] = pd.pivot(
+            df2X[['state', value, 'date']],
+            index='date', 
+            columns='state', 
+            values=value
+        ).sort_index(axis='columns')
     # account for dates pre pre third wave
     if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
         print("making empty")
         third_data_by_state[value] = pd.DataFrame(columns=third_states).astype(float)
     else:
-        third_data_by_state[value] = pd.pivot(df3X[['state', value, 'date']],
-                                              index='date', 
-                                              columns='state', 
-                                              values=value).sort_index(axis='columns')
+        third_data_by_state[value] = pd.pivot(
+            df3X[['state', value, 'date']],
+            index='date', 
+            columns='state', 
+            values=value
+        ).sort_index(axis='columns')
         
 
 # FIRST PHASE
@@ -294,8 +306,10 @@ policy_third_wave = [1]*df3X.loc[df3X.state == third_states[0]].shape[0]
 ######### loading and cleaning vaccine data #########
 
 # Load in vaccination data by state and date
-vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
-                                   parse_dates=['date'])
+vaccination_by_state = pd.read_csv(
+    'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
+    parse_dates=['date']
+)
 # there are a couple NA's early on in the time series but is likely due to slightly different start dates
 vaccination_by_state.fillna(1, inplace=True)
 vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
@@ -303,17 +317,22 @@ vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 # display the latest available date in the NSW data (will be the same date between states)
 print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
 
-vaccination_by_state = vaccination_by_state[(vaccination_by_state.date >= third_start_date) & 
-                                            (vaccination_by_state.date <= third_end_date)]  # Get only the dates we need.
+vaccination_by_state = vaccination_by_state[
+    (vaccination_by_state.date >= third_start_date) & 
+    (vaccination_by_state.date <= third_end_date)
+]  # Get only the dates we need.
 vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
 vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
 # If we are missing recent vaccination data, fill it in with the most recent available data.
 latest_vacc_data = vaccination_by_state.columns[-1]
 if latest_vacc_data < pd.to_datetime(third_end_date):
-    vaccination_by_state = pd.concat([vaccination_by_state]+
-                                     [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
-                                      for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], axis=1)
+    vaccination_by_state = pd.concat(
+        [vaccination_by_state]+
+        [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
+         for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
+        axis=1
+    )
     
 # Convert to simple array only useful to pass to stan
 vaccination_by_state_array = vaccination_by_state.to_numpy()
@@ -330,8 +349,10 @@ decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_st
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 
 third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
-VIC_tough_period = np.array((third_wave_dates >= pd.to_datetime('2021-07-13')) * 
-                            (third_wave_dates <= pd.to_datetime('2021-08-01'))).astype(int)
+VIC_tough_period = np.array(
+    (third_wave_dates >= pd.to_datetime('2021-07-13')) * 
+    (third_wave_dates <= pd.to_datetime('2021-08-01'))
+).astype(int)
 
 # input data block for stan model
 input_data = {
@@ -390,8 +411,6 @@ input_data = {
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
 
-    'is_VIC': is_VIC,   # indicator for whether we are looking at ACT
-    'VIC_tough_period': VIC_tough_period,
     'is_NSW': is_NSW,   # indicator for whether we are looking at NSW
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
@@ -869,8 +888,6 @@ if df3X.shape[0] > 0:
 dates = vaccination_by_state.columns
 
 fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
-
-
 # find days after the third start date began that we want to apply the effect — currently this is fixed from the
 # 20th of Aug and is not a problem with ACT as this is just a plot of the posterior vaccine effect
 heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
@@ -922,18 +939,18 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_T
 ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 
 var_to_csv = predictors
-samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' 
-                                                   for i in range(1, 1+len(predictors))]]
+samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
 var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_third_wave', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
-var_to_csv = var_to_csv + predictors + ['R_Li['+str(i+1)+']' 
-                                        for i in range(len(states_to_fit_all_waves))]
+var_to_csv = var_to_csv + predictors + [
+    'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
+]
 # var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' 
 #                            for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
 
 # store the number of days used for fitting
-third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
-pd.DataFrame.from_dict(third_days).to_csv('results/EpyReff/day_counts.csv')
+# third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
+# pd.DataFrame.from_dict(third_days).to_csv('results/EpyReff/day_counts.csv')
 
 
