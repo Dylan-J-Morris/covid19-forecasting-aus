@@ -433,10 +433,14 @@ if run_inference or run_inference_only:
                                         'voc_effect_sec_wave', 'voc_effect_third_wave', 
                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other']), file=f)
 
+        # samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
+        #                                            'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
+        #                                            'voc_effect_sec_wave', 'voc_effect_third_wave', 
+        #                                            'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
                                                    'voc_effect_sec_wave', 'voc_effect_third_wave', 
-                                                   'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
+                                                   'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
     else:
 
         # compile the stan model
@@ -453,10 +457,14 @@ if run_inference or run_inference_only:
 
         ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
         # create extended summary of parameters to index the samples by
+        # summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
+        #                                         'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
+        #                                         'voc_effect_sec_wave', 'voc_effect_third_wave', 
+        #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                 'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
                                                 'voc_effect_sec_wave', 'voc_effect_third_wave', 
-                                                'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
+                                                'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
 
         match_list_names = summary_df.index.to_list()
 
@@ -919,8 +927,13 @@ samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']'
 var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_third_wave', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
 var_to_csv = var_to_csv + predictors + ['R_Li['+str(i+1)+']' 
                                         for i in range(len(states_to_fit_all_waves))]
-var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' 
-                           for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
+# var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' 
+#                            for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
+
+# store the number of days used for fitting
+third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
+pd.DataFrame.from_dict(third_days).to_csv('results/EpyReff/day_counts.csv')
+
 

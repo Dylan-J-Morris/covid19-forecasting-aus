@@ -22,8 +22,8 @@ matplotlib.use('Agg')
 
 # parameters
 tau = 4
-prior_a = 2
-prior_b = 1
+prior_a = 1.5
+prior_b = 2/1.5
 trunc_days = 21
 offset = 0
 shift = 0
@@ -46,7 +46,7 @@ df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
 df_linel = tidy_cases_lambda(df_interim)
 
 # generate possible infection dates from the notification data
-df_inf = draw_inf_dates(df_linel, nreplicates=1000,
+df_inf = draw_inf_dates(df_linel, nreplicates=2000,
                         shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc, 
                         shape_rd=shape_rd, scale_rd=scale_rd, offset_rd=offset_rd)
 
@@ -62,19 +62,32 @@ lambda_dict = lambda_all_states(df_inc_zeros,
 
 states = [*df_inc_zeros.index.get_level_values('STATE').unique()]
 R_summary_states = {}
+R_store = {}
 dates = {}
 df = pd.DataFrame()
+df_R_samples = pd.DataFrame()
 for state in states:
     lambda_state = lambda_dict[state]
     df_state_I = df_inc_zeros.xs((state, 'local'), level=('STATE', 'SOURCE'))
     # get Reproduciton numbers
-    a, b, R = Reff_from_case(df_state_I.values, lambda_state, 
-                             prior_a=prior_a, prior_b=prior_b, tau=tau)
-
+    a, b, R = Reff_from_case(df_state_I.values, 
+                             lambda_state, 
+                             prior_a=prior_a, 
+                             prior_b=prior_b, 
+                             tau=tau)
+    
+    # store the date
+    dates[state] = df_state_I.index.values[trunc_days-1+tau:]
+    # store sampled Reffs
+    R_store[state] = R
+    # temporarily store important information
+    temp = pd.DataFrame.from_dict(R_store[state])
+    temp['INFECTION_DATES'] = dates[state]
+    temp['STATE'] = state
+    df_R_samples = df_R_samples.append(temp, ignore_index=True)
+    
     # summarise for plots and file printing
     R_summary_states[state] = generate_summary(R)
-    dates[state] = df_state_I.index.values[trunc_days-1+tau:]
-
     temp = pd.DataFrame.from_dict(R_summary_states[state])
     temp['INFECTION_DATES'] = dates[state]
     temp['STATE'] = state
@@ -114,6 +127,7 @@ if plot_time:
 
 
 df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv", index=False)
+df_R_samples.to_csv('results/EpyReff/Reff_samples'+file_date+"tau_"+str(tau)+".csv", index=False)
 
 # plot all the estimates
 file_date_updated = dt_date
@@ -122,7 +136,6 @@ file_date_updated = file_date_updated.strftime("%Y-%m-%d")
 # read in an adjusted file
 df_NNDSS = read_in_NNDSS(dt_date.strftime("%d%b%Y"), apply_delay_at_read=True)
 df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
-
 
 fig, ax = plot_all_states(R_summary_states, df_interim, dates,
                           start=start_date, end=file_date_updated, save=True,

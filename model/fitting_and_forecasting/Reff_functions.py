@@ -320,10 +320,11 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
                                 rho_data = samples_sim[['brho_third_wave['+str(j)+']' 
                                                         for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
-                                if states_initials[state] == 'VIC':
-                                    TP_adjustment_factors = samples_sim[['TP_local_adjustment_factor['+str(j)+']' 
-                                                                         for j in range(1, 1+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
-                                    mu_hat *= TP_adjustment_factors
+                                
+                                # if states_initials[state] == 'VIC':
+                                #     TP_adjustment_factors = samples_sim[['TP_local_adjustment_factor['+str(j)+']' 
+                                #                                          for j in range(1, 1+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
+                                #     mu_hat *= TP_adjustment_factors
 
                                 voc_multiplier = samples_sim[['voc_effect_third_wave']].values.T
                                 # now we just modify the values before the introduction of the voc to be 1.0
@@ -347,16 +348,16 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
                     
                     mu_hat = rho_data * R_I_sim + (1 - rho_data) * mu_hat
                     
-                    if third_phase and states_initials[state] == 'VIC':
-                        os.makedirs('results/fit/', exist_ok=True)
-                        pd.DataFrame(TP_adjustment_factors).to_csv('results/fit/TP_adjustment_factors.csv')
-                        pd.DataFrame(md).to_csv('results/fit/md.csv')
-                        pd.DataFrame(logodds).to_csv('results/fit/logodds.csv')
-                        pd.DataFrame(vacc_post).to_csv('results/fit/vacc_post.csv')
-                        pd.DataFrame(sim_R).to_csv('results/fit/sim_R.csv')
-                        pd.DataFrame(R_I_sim).to_csv('results/fit/R_I_sim.csv')
-                        pd.DataFrame(rho_data).to_csv('results/fit/rho_data.csv')
-                        pd.DataFrame(voc_multiplier).to_csv('results/fit/voc_multiplier.csv')
+                    # if third_phase and states_initials[state] == 'VIC':
+                    #     os.makedirs('results/fit/', exist_ok=True)
+                    #     pd.DataFrame(TP_adjustment_factors).to_csv('results/fit/TP_adjustment_factors.csv')
+                    #     pd.DataFrame(md).to_csv('results/fit/md.csv')
+                    #     pd.DataFrame(logodds).to_csv('results/fit/logodds.csv')
+                    #     pd.DataFrame(vacc_post).to_csv('results/fit/vacc_post.csv')
+                    #     pd.DataFrame(sim_R).to_csv('results/fit/sim_R.csv')
+                    #     pd.DataFrame(R_I_sim).to_csv('results/fit/R_I_sim.csv')
+                    #     pd.DataFrame(rho_data).to_csv('results/fit/rho_data.csv')
+                    #     pd.DataFrame(voc_multiplier).to_csv('results/fit/voc_multiplier.csv')
 
                 if var is not None:
                     # Place the data derived delta here

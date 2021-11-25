@@ -83,7 +83,7 @@ parameters {
     real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
     real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
     real<lower=0> r_other;                                      // parameter for decay to heterogeneity
-    vector<lower=0>[N_third_wave] TP_local_adjustment_factor;                   // parameter for decay to heterogeneity
+    // vector<lower=0>[N_third_wave] TP_local_adjustment_factor;                   // parameter for decay to heterogeneity
 
 }
 transformed parameters {
@@ -182,9 +182,9 @@ transformed parameters {
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_third_wave*vacc_effect_tot;
                             
-                if (is_VIC[i] == 1 && VIC_tough_period[n] == 1) {
-                    TP_local *= TP_local_adjustment_factor[n]; 
-                } 
+                // if (is_VIC[i] == 1 && VIC_tough_period[n] == 1) {
+                //     TP_local *= TP_local_adjustment_factor[n]; 
+                // } 
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*TP_local;
                 pos += 1;
@@ -195,7 +195,7 @@ transformed parameters {
 model {
     int pos2;
 
-    bet ~ normal(0, 0.5);
+    bet ~ normal(0, 1.0);
     theta_md ~ lognormal(0, 0.5);
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
@@ -213,7 +213,7 @@ model {
 
     R_L ~ gamma(1.7*1.7/0.005,1.7/0.005); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(1000); //mean is 1/50=0.02
+    sig ~ exponential(100); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j_first_wave) {
@@ -266,14 +266,14 @@ model {
                                                 
                 // apply different smoothing effect based on the time. This acts as a noise factor somewhat 
                 // and enables us to revert to the TP from Epyreff
-                if (is_VIC[i] == 1){
-                    if (VIC_tough_period[n] == 1){
-                        TP_local_adjustment_factor[n] ~ normal(1, 0.5);
-                        // TP_local_adjustment_factor[n] ~ normal(1, 0.01);
-                    } else {
-                        TP_local_adjustment_factor[n] ~ normal(1, 0.01);
-                    }
-                } 
+                // if (is_VIC[i] == 1){
+                //     if (VIC_tough_period[n] == 1){
+                //         TP_local_adjustment_factor[n] ~ normal(1, 0.5);
+                //         // TP_local_adjustment_factor[n] ~ normal(1, 0.01);
+                //     } else {
+                //         TP_local_adjustment_factor[n] ~ normal(1, 0.01);
+                //     }
+                // } 
                 pos2+=1;
             }
         }

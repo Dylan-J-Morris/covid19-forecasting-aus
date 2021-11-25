@@ -2,7 +2,6 @@ import glob
 import os
 import sys
 
-from numpy.core.fromnumeric import std
 # these imports and usings need to be in the same order 
 sys.path.insert(0, '../')
 from Reff_functions import *
@@ -930,27 +929,27 @@ for typ in forecast_type:
         else:
             R_L = 2 * md * sim_R * expit(logodds) * voc_multiplier
 
-        if state == 'VIC':
-            # number of extra forecast days
-            third_days = (third_end_date - third_start_date).days
-            TP_adjustment_factors = samples[['TP_local_adjustment_factor['+str(j)+']' 
-                                             for j in range(1, third_days+1)]].values.T
+        # if state == 'VIC':
+        #     # number of extra forecast days
+        #     third_days = (third_end_date - third_start_date).days
+        #     TP_adjustment_factors = samples[['TP_local_adjustment_factor['+str(j)+']' 
+        #                                      for j in range(1, third_days+1)]].values.T
             
-            before_days = (third_start_date-pd.to_datetime(start_date)).days
-            # apply 1's before
-            TP_adj_before = np.ones((before_days, TP_adjustment_factors.shape[1])) 
-            TP_adjustment_factors = np.concatenate((TP_adj_before, TP_adjustment_factors))
-            # now we add in padding after the forecast (this is just 1's assuming our 
-            # model is correct )
-            after_days = sim_R.shape[0] - TP_adjustment_factors.shape[0]
-            TP_adj_after = np.ones((after_days, TP_adjustment_factors.shape[1])) 
-            TP_adjustment_factors = np.concatenate((TP_adjustment_factors, TP_adj_after))
+        #     before_days = (third_start_date-pd.to_datetime(start_date)).days
+        #     # apply 1's before
+        #     TP_adj_before = np.ones((before_days, TP_adjustment_factors.shape[1])) 
+        #     TP_adjustment_factors = np.concatenate((TP_adj_before, TP_adjustment_factors))
+        #     # now we add in padding after the forecast (this is just 1's assuming our 
+        #     # model is correct )
+        #     after_days = sim_R.shape[0] - TP_adjustment_factors.shape[0]
+        #     TP_adj_after = np.ones((after_days, TP_adjustment_factors.shape[1])) 
+        #     TP_adjustment_factors = np.concatenate((TP_adjustment_factors, TP_adj_after))
             
-            # tile to make same shape as other parameters
-            TP_adjustment_factors = np.tile(TP_adjustment_factors, 100)
+        #     # tile to make same shape as other parameters
+        #     TP_adjustment_factors = np.tile(TP_adjustment_factors, 100)
 
-            # adjust the local TP
-            R_L *= TP_adjustment_factors
+        #     # adjust the local TP
+        #     R_L *= TP_adjustment_factors
 
         # saving some output for SA — specifically focused on the RL through time
         # with and without effects of mding
@@ -1116,3 +1115,200 @@ df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date ==
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
 df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5', key='Reff')
+
+## Now we need to process the TP so that we revert to Reff when cases are high
+# read in forecasted TP
+print("=========================")
+print("Running TP adjustment model...")
+print("=========================")
+
+from helper_functions import read_in_Reff_file
+df_forecast = read_in_Reff_file(data_date)
+# read in Reff samples
+df_Reff = pd.read_csv("results/EpyReff/Reff_samples" + data_date.strftime("%Y-%m-%d") + "tau_4.csv", 
+                      parse_dates=['INFECTION_DATES'])
+
+# read in the case data and note that we want this to be infection dates to match up to Reff changes
+case_data = read_in_NNDSS(data_date, apply_delay_at_read=True, apply_inc_at_read=True)
+case_data = case_data[['date_inferred', 'STATE', 'imported', 'local']]
+# this is the forecasted TP dataframe, without R_L type 
+df_forecast_new = df_forecast.loc[df_forecast.type != 'R_L']
+end_date = pd.to_datetime(today) + timedelta(days=num_forecast_days)
+# NT is not fit to in EpyReff so we cannot revert to it
+states_to_adjust = ['NSW', 'QLD', 'SA', 'VIC', 'TAS', 'WA', 'ACT']
+
+# read in the samples for weighting between TP and Reff. 
+samples = pd.read_csv('results/samples_mov_gamma.csv')
+# extract the import values 
+R_I = samples.R_I.to_numpy()
+
+def calculate_Reff_local(Reff, RI, prop_import):
+    """
+    Apply the same mixture model idea as per the TP model to get
+    R_eff^L = (R_eff - rho * RI)/(1 - rho)
+    and use this to weight the TP historically. 
+    """
+    
+    # calculate this all in one step. Note that we set the Reff to -1 if 
+    # the prop_import = 1 as in that instance the relationship breaks due to division by 0.
+    Reff_local = [
+        (Reff[t] - prop_import[t] * RI) / (1 - prop_import[t]) 
+        if prop_import[t] < 1 else -1
+        for t in range(Reff.shape[0])
+    ]
+    
+    return Reff_local
+
+# loop over states and adjust RL 
+for state in states: 
+    
+    # filter case data by state
+    case_data_state = case_data.loc[case_data.STATE == state]
+    # take a sum of cases each day (this does not fill out missing days)
+    df_cases = case_data_state.groupby(['date_inferred', 'STATE']).agg(sum)
+    df_cases = df_cases.reset_index()
+    df_cases = df_cases.set_index('date_inferred')
+    # now we want to fill out indices by adding 0's on days with 0 cases and ensuring we go right up to the current truncated date
+    idx = pd.date_range(
+        pd.to_datetime('2020-03-01'), 
+        pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1)
+    )
+    df_cases = df_cases.reindex(idx, fill_value=0)
+    
+    # filter the TP and Reff by state
+    df_forecast_state = df_forecast.loc[((df_forecast.state == state) & (df_forecast.type == 'R_L'))]
+    df_Reff_state = df_Reff.loc[df_Reff.STATE == state]
+
+    # take a rolling average of the cases over the interval of consideration
+    idx = (
+        (df_forecast_state.date >= pd.to_datetime('2020-03-01')) & 
+        (df_forecast_state.date <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1))
+    )
+    df_forecast_state_sims = df_forecast_state.iloc[:,8:].loc[idx]
+    Reff = df_Reff_state.loc[
+        (df_Reff_state.INFECTION_DATES >= pd.to_datetime('2020-03-01')) &
+        (df_Reff_state.INFECTION_DATES <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1))
+    ]
+
+    # take 7-day moving averages for the local, imported, and total cases
+    ma_period = 7
+    df_cases_local = df_cases['local']
+    df_cases_imported = df_cases['imported']
+    df_cases_local_ma = df_cases_local.rolling(7, min_periods=1).mean()
+    # only want to use indices over the fitting horizon, after this point we rely on the TP model
+    idx = (
+        (df_cases.index >= pd.to_datetime('2020-03-01')) & 
+        (df_cases.index <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1))
+    )
+    df_cases_local = df_cases_local[idx]
+    df_cases_imported = df_cases_imported[idx]
+    df_cases_local_ma = df_cases_local_ma[idx]
+    # dictionary to store sampled Rt paths
+    Rt = {}
+    
+    ratio_import_to_local = df_cases_imported/(df_cases_local + df_cases_imported) 
+    # set nan or infs to 0
+    ratio_import_to_local.replace([np.nan, np.inf], 0, inplace=True)
+    ratio_import_to_local = ratio_import_to_local.rolling(7, min_periods=1).mean()
+    
+    # loop over the TP paths for a state
+    for col in df_forecast_state_sims: 
+        if state in states_to_adjust:
+            
+            # sample a Reff from EpyReff.
+            Reff_sample = Reff.iloc[:, col % 2000].to_numpy()
+            TP_local = np.array(df_forecast_state_sims[col])
+            Reff_local = calculate_Reff_local(Reff_sample, R_I[col % 2000], ratio_import_to_local)
+            Reff_local = np.array(Reff_local)
+            omega = pd.Series(
+                (np.random.beta(20, L_ma) if L_ma >= 5 else 1 for L_ma in df_cases_local_ma.to_numpy()), 
+                index=df_cases_local_ma.index
+            )
+            # apply the mixture modelling and the adjustment to ensure we don't get negative
+            Rt[col] = np.maximum(0, (1-omega)*Reff_local + omega*TP_local)
+        else: 
+            # if state is NT, do this instead
+            Rt[col] = np.maximum(0, np.array(df_forecast_state_sims[col]))
+        
+    # store Rt in a dataframe
+    Rt = pd.DataFrame.from_dict(Rt, orient='index', columns=df_cases_local_ma.index)
+    
+    # next step is to stich the adjusted df back with the forecasting of TP
+    idx = df_forecast_state.date > pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1)
+    df_forecast_after = df_forecast_state.iloc[:,8:].loc[idx].T
+    # concatenate updated df with the forecasted TP 
+    df_full = pd.concat([Rt, df_forecast_after], axis=1)
+    # starting date for the datastreams
+    start_date = '2020-03-01'
+    # transpose the full df for consistent structuring
+    df_full = df_full.T
+    # calculate the summary statistics as per the original df 
+    df_full['bottom'] = np.percentile(df_full, 5, axis=1)
+    df_full['lower'] = np.percentile(df_full, 25, axis=1)
+    df_full['median'] = np.percentile(df_full, 50, axis=1)
+    df_full['upper'] = np.percentile(df_full, 75, axis=1)
+    df_full['top'] = np.percentile(df_full, 95, axis=1)
+    df_full['mean'] = np.mean(df_full, axis=1)
+    df_full['std'] = np.std(df_full, axis=1)
+    # put date back in 
+    df_full['date'] = pd.date_range(start_date, periods=df_full.shape[0])
+    # put names back in 
+    df_full['state'] = [state]*df_full.shape[0]
+    df_full['type'] = ['R_L']*df_full.shape[0]
+    # reset indices
+    df_full.reset_index(drop=True, inplace=True)
+    # merge df back with the other variables 
+    df_forecast_new = pd.concat([df_forecast_new, df_full], axis=0)
+
+fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+for i, state in enumerate(plot_states):
+
+    row = i//2
+    col = i % 2
+
+    plot_df = df_forecast_new.loc[(df_forecast_new.state == state) & (df_forecast_new.type == 'R_L')]
+
+    ax[row, col].plot(plot_df.date, plot_df['median'])
+    ax[row, col].fill_between(plot_df.date, plot_df['lower'], plot_df['upper'], alpha=0.4, color='C0')
+    ax[row, col].fill_between(plot_df.date, plot_df['bottom'], plot_df['top'], alpha=0.4, color='C0')
+
+    ax[row, col].tick_params('x', rotation=90)
+    ax[row, col].set_title(state)
+    ax[row, col].set_yticks([1], minor=True,)
+    ax[row, col].set_yticks([0, 2, 3], minor=False)
+    ax[row, col].set_yticklabels([0, 2, 3], minor=False)
+    ax[row, col].yaxis.grid(which='minor', linestyle='--', color='black', linewidth=2)
+    ax[row, col].set_ylim((0, 3))
+
+    # ax[row, col].set_xticks([plot_df.date.values[-n_forecast]], minor=True)
+    ax[row, col].axvline(data_date, ls='-.', color='black', lw=1)
+    # create a plot window over the last six months
+    # plot window start date
+    plot_window_start_date = min(pd.to_datetime(today) - timedelta(days=6*30), 
+                                 sim_start_date-timedelta(days=10))
+    ax[row, col].set_xlim(plot_window_start_date,
+                          pd.to_datetime(today) + timedelta(days=num_forecast_days))
+    ax[row, col].axvline(sim_start_date, ls='--', color='green', lw=2)
+    ax[row, col].xaxis.grid(which='minor', linestyle='-.', color='grey', linewidth=2)
+
+fig.text(0.03, 0.5, 'Transmission potential', va='center', ha='center', rotation='vertical', fontsize=20)
+fig.text(0.525, 0.02, 'Date', va='center', ha='center', fontsize=20)
+plt.tight_layout(rect=[0.04, 0.04, 1, 1])
+plt.savefig("figs/mobility_forecasts/"+
+            data_date.strftime("%Y-%m-%d")+
+            "/soc_mob_R_L_hats_adjusted"+
+            data_date.strftime('%Y-%m-%d')+
+            ".png", 
+            dpi=144)
+
+print("=========================")
+print("Saving forecasting results...")
+print("=========================")
+
+# save everything, overwriting the originally forecasted estimates
+df_hdf = df_forecast_new.loc[df_forecast_new.type == 'R_L']
+df_hdf = df_hdf.append(df_forecast_new.loc[(df_forecast_new.type == 'R_I') & (df_forecast_new.date == '2020-03-01')])
+df_hdf = df_hdf.append(df_forecast_new.loc[(df_forecast_new.type == 'R_L0') & (df_forecast_new.date == '2020-03-01')])
+df_forecast_new.to_csv('results/third_wave_fit/soc_mob_R_adjusted'+data_date.strftime('%Y-%m-%d')+'.csv')
+df_hdf.to_hdf('results/soc_mob_R_adjusted'+data_date.strftime('%Y-%m-%d')+'.h5', key='Reff')
+
