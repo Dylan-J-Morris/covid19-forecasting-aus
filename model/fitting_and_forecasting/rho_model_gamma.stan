@@ -80,7 +80,7 @@ parameters {
     real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
     real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
     real<lower=0> r_other;                                      // parameter for decay to heterogeneity
-    real<lower=0, upper=1> vacc_effect;
+    // vector<lower=0, upper=1>[total_N_p_third] vacc_effect;
     // vector<lower=0>[N_third_wave] TP_local_adjustment_factor;                   // parameter for decay to heterogeneity
 
 }
@@ -176,7 +176,8 @@ transformed parameters {
 
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
-                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n] * vacc_effect;
+                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
+                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[pos];
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_third_wave*vacc_effect_tot;
                 
@@ -188,6 +189,10 @@ transformed parameters {
 }
 model {
     int pos2;
+    // real a_vacc; 
+    // real b_vacc;
+    // real vacc_sig = 0.001;
+    // real vacc_mu;
 
     bet ~ normal(0, 1.0);
     theta_md ~ lognormal(0, 0.5);
@@ -257,6 +262,12 @@ model {
                                              0.5+local_third_wave[n,i]); //ratio imported/ (imported + local)
                 mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), 
                                                 Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
+                
+                // vacc_mu = vaccine_effect_data[i][n];
+                // a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
+                // b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
+                
+                // vacc_effect[pos2] ~ Beta(a_vacc, b_vacc)
                                                 
                 // apply different smoothing effect based on the time. This acts as a noise factor somewhat 
                 // and enables us to revert to the TP from Epyreff

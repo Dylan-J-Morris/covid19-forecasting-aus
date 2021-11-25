@@ -232,7 +232,6 @@ for value in ['mean', 'std', 'local', 'imported']:
             values=value
         ).sort_index(axis='columns')
         
-
 # FIRST PHASE
 mobility_by_state = []
 mobility_std_by_state = []
@@ -840,26 +839,34 @@ if df2X.shape[0] > 0:
     fig.clear()
     plt.close(fig)
 
-if apply_vacc_to_R_L_hats:
-    # Load in vaccination data by state and date and this time do NOT isolate by fitting states
-    vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
-                                       parse_dates=['date'])
-    # there are a couple NA's early on in the time series but is likely due to slightly different start dates
-    vaccination_by_state.fillna(1, inplace=True)
-    vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
+# Load in vaccination data by state and date
+vaccination_by_state = pd.read_csv(
+    'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
+    parse_dates=['date']
+)
+# there are a couple NA's early on in the time series but is likely due to slightly different start dates
+vaccination_by_state.fillna(1, inplace=True)
+vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
-    third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
-    vaccination_by_state = vaccination_by_state[(vaccination_by_state.date >= third_start_date) & 
-                                                (vaccination_by_state.date <= third_end_date)]  # Get only the dates we need.
-    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
+# display the latest available date in the NSW data (will be the same date between states)
+print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
 
-    # If we are missing recent vaccination data, fill it in with the most recent available data.
-    latest_vacc_data = vaccination_by_state.columns[-1]
-    if latest_vacc_data < pd.to_datetime(third_end_date):
-        vaccination_by_state = pd.concat([vaccination_by_state]+
-                                         [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
-                                          for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
-                                         axis=1)
+vaccination_by_state = vaccination_by_state[
+    (vaccination_by_state.date >= third_start_date) & 
+    (vaccination_by_state.date <= third_end_date)
+]  # Get only the dates we need.
+vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
+vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
+
+# If we are missing recent vaccination data, fill it in with the most recent available data.
+latest_vacc_data = vaccination_by_state.columns[-1]
+if latest_vacc_data < pd.to_datetime(third_end_date):
+    vaccination_by_state = pd.concat(
+        [vaccination_by_state] +
+        [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
+         for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
+        axis=1
+    )
 
 if df3X.shape[0] > 0:
     df['is_third_wave'] = 0
@@ -867,8 +874,9 @@ if df3X.shape[0] > 0:
         df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values    
     
     # plot only if there is third phase data - have to have third_phase=True
-    ax4 = predict_plot(samples_mov_gamma, df.loc[(df.date >= third_start_date) & 
-                                                 (df.date <= third_end_date)],
+    ax4 = predict_plot(samples_mov_gamma, 
+                       df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
+                       third_date_range=third_date_range, 
                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
                        R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
                        R_I=samples_mov_gamma.R_I.values,

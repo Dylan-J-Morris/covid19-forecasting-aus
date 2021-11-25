@@ -60,7 +60,7 @@ def read_in_google(Aus_only=True, local=False, moving=False):
     return df
 
 
-def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True,
+def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, moving=True, grocery=True,
                  delta=1.0, R=2.2, sigma=1, md_arg=None,
                  ban='2020-03-16', single=False, var=None,
                  rho=None, R_I=None, winter=False, prop=None, second_phase=False, third_phase=False, vaccination=None):
@@ -183,15 +183,17 @@ def predict_plot(samples, df, split=True, gamma=False, moving=True, grocery=True
 
             if vaccination is not None:
                 if states_initials[state] == 'ACT':
-                    vacc_sim = vaccination.loc[states_initials[state]].values[-df_state.shape[0]:]
+                    print(vaccination.loc[states_initials[state]])
+                    vacc_sim = vaccination.loc[states_initials[state]][third_date_range[states_initials[state]]].values
                 else:
-                    vacc_sim = vaccination.loc[states_initials[state]].values[:df_state.shape[0]]
+                    print(vaccination.loc[states_initials[state]])
+                    vacc_sim = vaccination.loc[states_initials[state]][third_date_range[states_initials[state]]].values
+                    
                 vacc_sim = np.tile(vacc_sim, (1000, 1)).T
 
             if split:
 
                 # split model with parameters pre and post policy
-
                 df1 = df_state.loc[df_state.date <= ban]
                 df2 = df_state.loc[df_state.date > ban]
                 X1 = df1[value_vars]/100  # N by K
