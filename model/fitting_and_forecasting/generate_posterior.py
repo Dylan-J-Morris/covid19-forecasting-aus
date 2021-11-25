@@ -179,10 +179,10 @@ sec_date_range = {
 #                     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
 #                     'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values}
 third_date_range = {
-    'ACT': pd.date_range(start=third_start_date, end='2021-11-14').values,          # truncate further to deal with delay
-    'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
-    'QLD': pd.date_range(start=third_start_date, end='2021-10-10').values,
-    'VIC': pd.date_range(start=third_start_date, end=third_end_date).values
+    'ACT': pd.date_range(start='2021-08-16', end='2021-11-14').values,          # truncate further to deal with delay
+    'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
+    'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+    'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values
 }
 
 dfX['is_first_wave'] = 0
@@ -328,7 +328,7 @@ vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date',
 latest_vacc_data = vaccination_by_state.columns[-1]
 if latest_vacc_data < pd.to_datetime(third_end_date):
     vaccination_by_state = pd.concat(
-        [vaccination_by_state]+
+        [vaccination_by_state] +
         [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
          for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
         axis=1
@@ -434,6 +434,7 @@ if run_inference or run_inference_only:
 
     # import the stan model as a string
     model_file = open("model/fitting_and_forecasting/rho_model_gamma.stan", "r")
+    # model_file = open("model/fitting_and_forecasting/rho_model_gamma_no_vax_het.stan", "r")
     rho_model_gamma = model_file.read()
     model_file.close()
 

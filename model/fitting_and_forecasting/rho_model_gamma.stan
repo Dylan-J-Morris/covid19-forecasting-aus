@@ -80,6 +80,7 @@ parameters {
     real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
     real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
     real<lower=0> r_other;                                      // parameter for decay to heterogeneity
+    real<lower=0, upper=1> vacc_effect;
     // vector<lower=0>[N_third_wave] TP_local_adjustment_factor;                   // parameter for decay to heterogeneity
 
 }
@@ -175,7 +176,7 @@ transformed parameters {
 
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
-                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
+                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n] * vacc_effect;
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_third_wave*vacc_effect_tot;
                 
@@ -194,7 +195,7 @@ model {
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     // parametersiing the following as voc_eff ~ 1 + gamma(a,b)
     additive_voc_effect_sec_wave ~ gamma(0.4*0.4/0.075, 0.4/0.075);      
-    additive_voc_effect_third_wave ~ gamma(1.1*1.1/0.1, 1.1/0.1);
+    additive_voc_effect_third_wave ~ gamma(1.1*1.1/0.2, 1.1/0.2);
     
     // assume a hierarchical structure on the vaccine effect 
     eta_NSW ~ beta(2, 7);           // mean of 2/9
