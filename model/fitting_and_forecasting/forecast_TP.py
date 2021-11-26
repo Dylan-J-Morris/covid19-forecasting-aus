@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, '../')
 from Reff_functions import *
 from Reff_constants import *
-from params import num_forecast_days, VoC_start_date, apply_voc_to_R_L_hats, \
+from params import num_forecast_days, alpha_start_date, delta_start_date, apply_voc_to_R_L_hats, \
     vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date, start_date
 from scenarios import scenarios, scenario_dates
 from sys import argv
@@ -917,12 +917,19 @@ for typ in forecast_type:
 
         # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now)
         # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
-        voc_multiplier = np.tile(samples['voc_effect_third_wave'].values, (df_state.shape[0], mob_samples))
+        voc_multiplier_alpha = np.tile(samples['voc_effect_alpha'].values, (df_state.shape[0], mob_samples))
+        voc_multiplier_delta = np.tile(samples['voc_effect_delta'].values, (df_state.shape[0], mob_samples))
         # now we just modify the values before the introduction of the voc to be 1.0
+        voc_multiplier = np.zeros_like(voc_multiplier_delta)
+        
         if apply_voc_to_R_L_hats:
             for ii in range(voc_multiplier.shape[0]):
-                if ii < df_state.loc[df_state.date < VoC_start_date].shape[0]:
+                if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
                     voc_multiplier[ii] = 1.0
+                elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                    voc_multiplier[ii] = voc_multiplier_alpha[ii]
+                else:
+                    voc_multiplier[ii] = voc_multiplier_delta[ii]
 
         if apply_vacc_to_R_L_hats:
             R_L = 2 * md * sim_R * expit(logodds) * vacc_post * voc_multiplier

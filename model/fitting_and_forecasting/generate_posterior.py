@@ -114,6 +114,7 @@ end_date = '2020-03-31'
 
 # Second wave inputs
 sec_states = sorted(['NSW', 'VIC'])
+sec_states = sorted(['NSW'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
@@ -169,15 +170,9 @@ sec_date_range = {
     'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values
 }
 
+# apply_alpha_sec_wave = sec_date_range['NSW'] > pd.to_datetime(alpha_start_date)
+
 # choose dates for each state for third wave
-# third_date_range = {'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
-#                     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
-#                     'QLD': pd.date_range(start=third_start_date, end='2021-10-10').values,
-#                     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values}
-# third_date_range = {'ACT': pd.date_range(start='2021-08-16', end='2021-11-14').values,  # truncate further to deal with delay
-#                     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
-#                     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
-#                     'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values}
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-16', end='2021-11-14').values,          # truncate further to deal with delay
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
@@ -449,7 +444,7 @@ if run_inference or run_inference_only:
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
             print(fit.stansummary(pars=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
-                                        'voc_effect_sec_wave', 'voc_effect_third_wave', 
+                                        'voc_effect_alpha', 'voc_effect_delta', 
                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other']), file=f)
 
         # samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
@@ -458,7 +453,7 @@ if run_inference or run_inference_only:
         #                                            'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
-                                                   'voc_effect_sec_wave', 'voc_effect_third_wave', 
+                                                   'voc_effect_alpha', 'voc_effect_delta', 
                                                    'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
     else:
 
@@ -471,7 +466,7 @@ if run_inference or run_inference_only:
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
             print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
-                                             'voc_effect_sec_wave', 'voc_effect_third_wave', 
+                                             'voc_effect_alpha', 'voc_effect_delta', 
                                              'eta_NSW', 'eta_other', 'r_NSW', 'r_other']), file=f)
 
         ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
@@ -482,7 +477,7 @@ if run_inference or run_inference_only:
         #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                 'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
-                                                'voc_effect_sec_wave', 'voc_effect_third_wave', 
+                                                'voc_effect_alpha', 'voc_effect_delta', 
                                                 'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
 
         match_list_names = summary_df.index.to_list()
@@ -757,7 +752,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "R_priors_(without_prio
 # Making a new figure that doesn't include the priors
 fig, ax = plt.subplots(figsize=(12, 9))
 
-small_plot_cols = ['voc_effect_third_wave', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
+small_plot_cols = ['voc_effect_alpha', 'voc_effect_delta', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
 
 sns.violinplot(x='variable', y='value',
                data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -768,7 +763,7 @@ ax.set_yticks([0, 0.5, 1, 1.5, 2, 2.5, 3], minor=False)
 ax.set_yticklabels([0, 0.5, 1, 1.5, 2, 2.5, 3], minor=False)
 ax.set_ylim((0, 3))
 # state labels in alphabetical
-ax.set_xticklabels(['VoC 3rd wave', '$\eta$ (NSW)', '$\eta$ (not NSW)', '$r$ (NSW)', '$r$ (not NSW)'])
+ax.set_xticklabels(['VoC (Alpha)', 'VoC (Delta)', '$\eta$ (NSW)', '$\eta$ (not NSW)', '$r$ (NSW)', '$r$ (not NSW)'])
 ax.tick_params('x', rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('value')
@@ -855,7 +850,6 @@ vaccination_by_state = vaccination_by_state[
     (vaccination_by_state.date >= third_start_date) & 
     (vaccination_by_state.date <= third_end_date)
 ]  # Get only the dates we need.
-vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
 vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
 # If we are missing recent vaccination data, fill it in with the most recent available data.
@@ -880,7 +874,8 @@ if df3X.shape[0] > 0:
                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
                        R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
                        R_I=samples_mov_gamma.R_I.values,
-                       prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state)  # by states....
+                       prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state,
+                       third_states=third_states)  # by states....
     for ax in ax4:
         for a in ax:
             a.set_ylim((0, 3))
@@ -949,7 +944,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_T
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
-var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_third_wave', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
+var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_delta', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
 var_to_csv = var_to_csv + predictors + [
     'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
 ]

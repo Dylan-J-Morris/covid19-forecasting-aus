@@ -121,7 +121,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
         VoC_date: (date as string) date from which to increase Reff by VoC
     """
     from scipy.stats import beta
-    from params import VoC_start_date, use_vaccine_effect, use_voc_effect
+    from params import delta_start_date, use_vaccine_effect, use_voc_effect
 
     if file_date is None:
         raise Exception('Need to provide file date to Reff read.')
@@ -130,14 +130,14 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
     df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5', key='Reff')
 
     if use_voc_effect and (VoC_flag != '') and (VoC_flag is not None):
-        VoC_start_date = pd.to_datetime(VoC_start_date)
+        delta_start_date = pd.to_datetime(delta_start_date)
 
         if VoC_flag == 'Alpha':
             print('This VoC will be deprecated in future.')
             # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
             # We do so by editing a slice of the data frame. Forgive me for my sins.
             row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (
-                pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
+                pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= delta_start_date)
             index_map = df_forecast.index[row_bool_to_apply_VoC]
             # Index 9 and onwards are the 2000 Reff samples.
             df_slice_after_VoC = df_forecast.iloc[index_map, 8:]
@@ -147,7 +147,7 @@ def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
             # Here we apply the  beta(2,2)+3 scaling from VoC to the Reff based on CDC results.
             # We do so by editing a slice of the data frame. Forgive me for my sins.
             row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (
-                pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= VoC_start_date)
+                pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= delta_start_date)
             index_map = df_forecast.index[row_bool_to_apply_VoC]
             # Index 9 and onwards are the 2000 Reff samples.
             df_slice_after_VoC = df_forecast.iloc[index_map, 8:]

@@ -1,5 +1,6 @@
 import os
 import sys
+from numpy.core.numeric import zeros_like
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,7 +10,7 @@ plt.style.use('seaborn-poster')
 sys.path.insert(0, 'model')
 from helper_functions import read_in_NNDSS
 from Reff_constants import *
-from params import VoC_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
+from params import alpha_start_date, delta_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
 
 def read_in_posterior(date):
     """
@@ -63,7 +64,7 @@ def read_in_google(Aus_only=True, local=False, moving=False):
 def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, moving=True, grocery=True,
                  delta=1.0, R=2.2, sigma=1, md_arg=None,
                  ban='2020-03-16', single=False, var=None,
-                 rho=None, R_I=None, winter=False, prop=None, second_phase=False, third_phase=False, vaccination=None):
+                 rho=None, R_I=None, winter=False, prop=None, second_phase=False, third_phase=False, vaccination=None, third_states=None):
     """
     Produce posterior predictive plots for all states
     """
@@ -181,13 +182,23 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             post_values = samples_sim[['bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
 
-            if vaccination is not None:
+            if vaccination is not None and states_initials[state] in third_states:
                 if states_initials[state] == 'ACT':
-                    print(vaccination.loc[states_initials[state]])
-                    vacc_sim = vaccination.loc[states_initials[state]][third_date_range[states_initials[state]]].values
+                    # print(vaccination.loc[states_initials[state]])
+                    
+                    idx = (
+                        (vaccination.columns >= third_date_range[states_initials[state]][0]) & 
+                        (vaccination.columns <= third_date_range[states_initials[state]][-1]) 
+                    )
+                    
+                    vacc_sim = vaccination.loc[states_initials[state]][idx].values
                 else:
-                    print(vaccination.loc[states_initials[state]])
-                    vacc_sim = vaccination.loc[states_initials[state]][third_date_range[states_initials[state]]].values
+                    # print(vaccination.loc[states_initials[state]])
+                    idx = (
+                        (vaccination.columns >= third_date_range[states_initials[state]][0]) & 
+                        (vaccination.columns <= third_date_range[states_initials[state]][-1]) 
+                    )
+                    vacc_sim = vaccination.loc[states_initials[state]][idx].values
                     
                 vacc_sim = np.tile(vacc_sim, (1000, 1)).T
 
@@ -291,7 +302,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                 else:
                     sim_R = np.tile(samples_sim.R_L.values,(df_state.shape[0], 1))
 
-                if vaccination is not None:
+                if vaccination is not None and states_initials[state] in third_states:
                     mu_hat = 2 * md*sim_R * expit(logodds) * vacc_post
                 else:
                     mu_hat = 2 * md*sim_R * expit(logodds)
@@ -310,28 +321,26 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
 
                                 rho_data = samples_sim[['brho_sec_wave['+str(j)+']' for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_sec_wave.sum())]].values.T
 
-                                voc_multiplier = samples_sim[['voc_effect_sec_wave']].values.T
-
-                                # now modify the mu_hat
-                                mu_hat *= voc_multiplier
-
                                 pos = pos + df.loc[df.state == states_initials[state]].is_sec_wave.sum()
                             elif third_phase:
                                 # use brho_v
 
                                 rho_data = samples_sim[['brho_third_wave['+str(j)+']' 
                                                         for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
-                                
-                                # if states_initials[state] == 'VIC':
-                                #     TP_adjustment_factors = samples_sim[['TP_local_adjustment_factor['+str(j)+']' 
-                                #                                          for j in range(1, 1+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
-                                #     mu_hat *= TP_adjustment_factors
 
-                                voc_multiplier = samples_sim[['voc_effect_third_wave']].values.T
+                                voc_multiplier_alpha = samples_sim[['voc_effect_alpha']].values.T
+                                voc_multiplier_delta = samples_sim[['voc_effect_delta']].values.T
                                 # now we just modify the values before the introduction of the voc to be 1.0
+                                voc_multiplier = np.zeros_like(voc_multiplier_delta)
+                                
                                 for ii in range(voc_multiplier.shape[0]):
-                                    if ii < df_state.loc[df_state.date < VoC_start_date].shape[0]:
+                                    if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
                                         voc_multiplier[ii] = 1.0
+                                    elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                                        voc_multiplier[ii] = voc_multiplier_alpha[ii]
+                                    else:
+                                        voc_multiplier[ii] = voc_multiplier_delta[ii]
+                                        
                                 # now modify the mu_hat
                                 mu_hat *= voc_multiplier
 

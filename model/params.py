@@ -2,7 +2,7 @@
 use_linelist = True
 use_imputed_linelist = False
 on_phoenix = False   # flag for running on phoenix
-run_inference = False    # whether the inference should be run
+run_inference = True    # whether the inference should be run
 run_inference_only = False
 testing_inference = True
 testing_sim = False      # this flag will tet the simulation algorithm
@@ -18,7 +18,8 @@ else:
 third_start_date = '2021-06-15'
 start_date = '2021-06-10'  # Start date of forecast
 # start_date = '2021-08-01'  # Start date of forecast
-VoC_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase
+alpha_start_date = '2021-01-28'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
+delta_start_date = '2021-06-08'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
 vaccination_start_date = '2021-02-22'
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35
@@ -104,11 +105,13 @@ qi_d = {
 # alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe there are significant differences between hotel quarentine effectiveness between states.
 alpha_i_all = 1
 
-alpha_i = {'NSW': alpha_i_all,
-           'QLD': alpha_i_all,
-           'SA': alpha_i_all,
-           'TAS': alpha_i_all,
-           'VIC': alpha_i_all,
-           'WA': alpha_i_all,
-           'ACT': alpha_i_all,
-           'NT': alpha_i_all}
+alpha_i = {
+    'NSW': alpha_i_all,
+    'QLD': alpha_i_all,
+    'SA': alpha_i_all,
+    'TAS': alpha_i_all,
+    'VIC': alpha_i_all,
+    'WA': alpha_i_all,
+    'ACT': alpha_i_all,
+    'NT': alpha_i_all
+}
