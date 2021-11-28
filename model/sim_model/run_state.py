@@ -2,7 +2,7 @@ import sys
 from typing import MutableMapping
 sys.path.insert(0,'model')
 from sim_class import *
-from params import start_date, num_forecast_days, ncores, testing_sim  # External parameters
+from params import start_date, num_forecast_days, ncores, use_TP_adjustment  # External parameters
 from scenarios import scenarios
 
 import pandas as pd
@@ -27,14 +27,12 @@ from timeit import default_timer as timer
 
 profile_code = False
 
-if testing_sim:
-    n_sims = 100
-else: 
-    n_sims = int(argv[1])  # number of sims
     
+n_sims = int(argv[1])  # number of sims
 forecast_date = argv[2]  # Date of forecast
 state = argv[3] 
 apply_interstate_seeding = True if argv[4] == 'True' else False
+adjust_TP_forecast = use_TP_adjustment
 
 # print("Simulating state " + state)
 
@@ -129,17 +127,20 @@ if apply_interstate_seeding:
 else:
     from_jurisdiction_cases = init_from_jurisdiction_arrays(apply_interstate_seeding, start_date, n_sims, end_time)
 
-forecast_object = Forecast(current[state],
-                           state, 
-                           start_date, 
-                           forecast_date=forecast_date,
-                           cases_file_date=case_file_date,
-                           VoC_flag=VoC_flag, 
-                           scenario=scenarios[state], 
-                           end_time = end_time, 
-                           n_sims=n_sims, 
-                           from_jurisdiction_cases = from_jurisdiction_cases,
-                           apply_interstate_seeding = apply_interstate_seeding)
+forecast_object = Forecast(
+    current[state],
+    state, 
+    start_date, 
+    forecast_date=forecast_date,
+    cases_file_date=case_file_date,
+    VoC_flag=VoC_flag, 
+    scenario=scenarios[state], 
+    end_time = end_time, 
+    n_sims=n_sims, 
+    from_jurisdiction_cases = from_jurisdiction_cases,
+    apply_interstate_seeding = apply_interstate_seeding, 
+    adjust_TP_forecast=adjust_TP_forecast
+)
 
 ############ Run Simulations in parallel and return ############
 def worker(arg):

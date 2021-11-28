@@ -59,7 +59,8 @@ class Forecast:
         scenario='',
         n_sims=None, 
         from_jurisdiction_cases={}, 
-        apply_interstate_seeding=None
+        apply_interstate_seeding=None, 
+        adjust_TP_forecast=False
     ):
         """Create forecast object with parameters in preperation for running simulation.
 
@@ -77,7 +78,8 @@ class Forecast:
         # if applying interstate 
         self.print_at_iterations = False 
         self.apply_interstate_seeding = apply_interstate_seeding
-        self.old_approach = False
+        self.old_approach = True
+        self.adjust_TP_forecast = adjust_TP_forecast
 
         self.n_sims = n_sims
         self.state = state
@@ -268,7 +270,7 @@ class Forecast:
         indexed in a dictionary of dictionaries where the first dictionary is indexed by the sim number. 
         """
         # use the helper functions to read in the file from forecast_TPs
-        Reff_all = read_in_Reff_file(self.cases_file_date)
+        Reff_all = read_in_Reff_file(self.cases_file_date, self.adjust_TP_forecast)
     
         # use local dictionaries to store the TP paths for sims 
         import_Reffs = {}
@@ -662,8 +664,7 @@ class Forecast:
                             # print("Local outbreak in "+self.state+" not simulated on day %i" % day)
                             # cases to add
                             # treat current like empty list
-                            # self.current[2] = max(0, self.actual[day] - sum(self.observed_cases[day, 1:]))
-                            # input only a single person 
+                            # seed only a single case into the system and see if they are symptomatic or not
                             self.current[2] = 1
 
                             # how many cases are symp to asymp
@@ -858,7 +859,8 @@ class Forecast:
 
     def data_check(self, day):
         """
-        A metric to calculate how far the simulation is from the actual data
+        A metric to calculate how far the simulation is from the actual data. 
+        Need to refactor this to ensure 
         """
         try:
             # calculate the actual number of 3 day cases over day-2 to day
@@ -948,7 +950,7 @@ class Forecast:
         # number of days to unrestrict the simulation
         nowcast_days = 14
         # length of comparison windows 
-        window_length = 20
+        window_length = 14
         # number of days we are forecasting for
         forecast_days = self.end_time-self.forecast_date
         # get the index of the last date in the data

@@ -1,7 +1,7 @@
 import sys
 
 sys.path.insert(0,'model')
-from params import start_date, num_forecast_days
+from params import start_date, num_forecast_days, use_TP_adjustment
 from helper_functions import read_in_NNDSS, read_in_Reff_file
 from scipy.stats import beta
 import os
@@ -126,13 +126,13 @@ def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=N
         return ax
 
 
-def read_in_Reff(file_date, forecast_R=None, VoC_flag='', scenario=''):
+def read_in_Reff(file_date, forecast_R=None, adjust_TP_forecast=False):
     """
     Read in Reff csv from Price et al 2020. Originals are in RDS, are converted to csv in R script
     """
     import pandas as pd
 
-    df_forecast = read_in_Reff_file(file_date)
+    df_forecast = read_in_Reff_file(file_date, adjust_TP_forecast=adjust_TP_forecast)
     df_forecast = df_forecast.loc[df_forecast.type == forecast_R]
     df_forecast.set_index(['state', 'date'], inplace=True)
     return df_forecast
@@ -162,10 +162,11 @@ def read_in_cases(cases_file_date, apply_delay_at_read=True):
 # use arguments to make sure we have the right files
 n_sims = int(argv[1])
 data_date = argv[2]
+adjust_TP_forecast = use_TP_adjustment
 
 forecast_type = 'R_L'
 df_cases_state_time = read_in_cases(data_date)
-Reff = read_in_Reff(forecast_R=forecast_type, file_date=data_date)
+Reff = read_in_Reff(forecast_R=forecast_type, file_date=data_date, adjust_TP_forecast=adjust_TP_forecast)
 states = ['NSW', 'QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
 
 data_date = pd.to_datetime(data_date, format="%Y-%m-%d")

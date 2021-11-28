@@ -4,9 +4,9 @@ use_imputed_linelist = False
 on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
-testing_inference = False if on_phoenix else True
-testing_sim = False      # this flag will tet the simulation algorithm
 run_TP_adjustment = True
+use_TP_adjustment = True
+testing_inference = False if on_phoenix else True
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)

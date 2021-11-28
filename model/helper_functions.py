@@ -113,78 +113,19 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
         return df
 
 
-def read_in_Reff_file(file_date, VoC_flag=None, scenario=''):
+def read_in_Reff_file(file_date, adjust_TP_forecast=False):
     """
     Read in Reff h5 file produced by generate_RL_forecast. 
-    Args:
-        file_date: (date as string) date of data file
-        VoC_date: (date as string) date from which to increase Reff by VoC
     """
-    from scipy.stats import beta
-    from params import delta_start_date, use_vaccine_effect, use_voc_effect
 
     if file_date is None:
         raise Exception('Need to provide file date to Reff read.')
 
     file_date = pd.to_datetime(file_date).strftime("%Y-%m-%d")
-    df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5', key='Reff')
 
-    if use_voc_effect and (VoC_flag != '') and (VoC_flag is not None):
-        delta_start_date = pd.to_datetime(delta_start_date)
-
-        if VoC_flag == 'Alpha':
-            print('This VoC will be deprecated in future.')
-            # Here we apply the  beta(6,14)+1 scaling from VoC to the Reff.
-            # We do so by editing a slice of the data frame. Forgive me for my sins.
-            row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (
-                pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= delta_start_date)
-            index_map = df_forecast.index[row_bool_to_apply_VoC]
-            # Index 9 and onwards are the 2000 Reff samples.
-            df_slice_after_VoC = df_forecast.iloc[index_map, 8:]
-            multiplier = beta.rvs(6, 14, size=df_slice_after_VoC.shape) + 1
-
-        if VoC_flag == 'Delta':  # Increase from Delta
-            # Here we apply the  beta(2,2)+3 scaling from VoC to the Reff based on CDC results.
-            # We do so by editing a slice of the data frame. Forgive me for my sins.
-            row_bool_to_apply_VoC = (df_forecast.type == 'R_L') & (
-                pd.to_datetime(df_forecast.date, format='%Y-%m-%d') >= delta_start_date)
-            index_map = df_forecast.index[row_bool_to_apply_VoC]
-            # Index 9 and onwards are the 2000 Reff samples.
-            df_slice_after_VoC = df_forecast.iloc[index_map, 8:]
-            multiplier = beta.rvs(7, 7, size=df_slice_after_VoC.shape) + 2.6 - 0.5  # Mean 2.1 Delta
-
-        df_forecast.iloc[index_map, 8:] = df_slice_after_VoC*multiplier
-
-    if use_vaccine_effect:
-        # Load in vaccination effect data
-        vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries.csv', parse_dates=['date'])
-        vaccination_by_state = vaccination_by_state[['state', 'date', 'overall_transmission_effect']]
-
-        # Make datetime objs into strings
-        vaccination_by_state['date_str'] = pd.to_datetime(vaccination_by_state['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
-        df_forecast['date_str'] = pd.to_datetime(df_forecast['date'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
-
-        # Filling in future days will the same vaccination level as current.
-        for state, forecast_df_state in df_forecast.groupby('state'):
-            latest_Reff_data_date = max(forecast_df_state.date_str)
-            latest_vaccination_data_date = max(
-                vaccination_by_state.groupby('state').get_group(state)['date'])
-            latest_vaccination_date_effect = vaccination_by_state.groupby(['state', 'date']).get_group(
-                (state, latest_vaccination_data_date))['overall_transmission_effect'].iloc[0]
-            # Fill in the future dates with the same level of vaccination.
-            vaccination_by_state = vaccination_by_state.append(pd.DataFrame([(state, pd.to_datetime(date), latest_vaccination_date_effect, date.strftime(
-                '%Y-%m-%d')) for date in pd.date_range(latest_vaccination_data_date, latest_Reff_data_date)], columns=['state', 'date', 'overall_transmission_effect', 'date_str']))
-
-        # Create a (state,date) indexed map of transmission effect
-        overall_transmission_effect = vaccination_by_state.set_index(
-            ['state', 'date_str'])['overall_transmission_effect'].to_dict()
-
-        # Apply this effect to the forecast
-        vaccination_multiplier = df_forecast.apply(
-            lambda row: 1 if row['type'] != 'R_L' else overall_transmission_effect.get((row['state'], row['date_str']), 1), axis=1)
-        df_forecast = df_forecast.drop('date_str', axis='columns')
-        # Apply the vaccine effect to the forecast. The 8:onwards columns are all the Reff paths.
-        df_forecast.iloc[:, 8:] = df_forecast.iloc[:, 8:].multiply(
-            vaccination_multiplier.to_numpy(), axis='rows')
+    if adjust_TP_forecast:
+        df_forecast = pd.read_hdf('results/soc_mob_R_adjusted'+file_date+'.h5', key='Reff')
+    else:
+        df_forecast = pd.read_hdf('results/soc_mob_R'+file_date+'.h5', key='Reff')
 
     return df_forecast
