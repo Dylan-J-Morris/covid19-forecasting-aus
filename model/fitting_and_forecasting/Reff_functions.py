@@ -243,7 +243,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
 
                 # grab posterior sampled vaccination effects here and multiply by the daily efficacy
-                if vaccination is not None:
+                if vaccination is not None and states_initials[state] in third_states:
                     # transposing the vaccination sampled values so that it can be multiplied by the data
                     # the str(i+1) is required because the state indexing starts at 0
 
@@ -255,26 +255,36 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                         eta = samples_sim['eta_other']
                         r = samples_sim['r_other']
 
-                    # find days after forecast began that we want to apply the effect. From conversations with James and Nic we 
-                    # think the heterogeneity / assortativity was more prominent before late August (hence the fixed date)
-                    if states_initials[state] == 'ACT':
-                        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime('2021-08-12')).days
-                    else:
-                        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+                    # From conversations with James and Nic we think the heterogeneity / assortativity was more prominent before late 
+                    # August (hence the fixed date) 
+                    # in order for this to be correctly applied in the plot, we need to get the start dates after the beginning of 
+                    # the third wave data which we determine based off the third_date_range 
+                    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - third_date_range[states_initials[state]][0]).days
                     
                     # this will hold the posterior VE, with adjustement factors
                     vacc_post = np.zeros_like(vacc_sim)
 
                     # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
                     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
+                    # set the full vaccination data as the mean 
+                    vacc_sig = 0.001
+                    vacc_mu = vacc_sim
+                    # calculate shape and scale 
+                    a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
+                    b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
+                    # sample a noisier version of the vax effect
+                    vacc_sim_adj = np.random.beta(a_vacc, b_vacc)
+                    
                     for ii in range(vacc_post.shape[0]):
                         if ii < heterogeneity_delay_start_day:
-                            vacc_post[ii] = eta + (1-eta)*vacc_sim[ii]
+                            # vacc_post[ii] = eta + (1-eta)*vacc_sim[ii]
+                            vacc_post[ii] = eta + (1-eta)*vacc_sim_adj[ii]
                         else:
                             # number of days after the heterogeneity should start to wane
                             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                             decay_factor = np.exp(-r*heterogeneity_delay_days)
-                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_sim[ii]
+                            # vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_sim[ii]
+                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_sim_adj[ii]
 
                     for ii in range(vacc_post.shape[0]):
                         if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:

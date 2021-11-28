@@ -1,11 +1,12 @@
 ##### Key parameters
 use_linelist = True
 use_imputed_linelist = False
-on_phoenix = False   # flag for running on phoenix
+on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
-testing_inference = True
+testing_inference = False if on_phoenix else True
 testing_sim = False      # this flag will tet the simulation algorithm
+run_TP_adjustment = True
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
@@ -19,7 +20,7 @@ third_start_date = '2021-06-15'
 start_date = '2021-06-10'  # Start date of forecast
 # start_date = '2021-08-01'  # Start date of forecast
 alpha_start_date = '2021-01-28'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
-delta_start_date = '2021-06-08'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
+delta_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
 vaccination_start_date = '2021-02-22'
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35

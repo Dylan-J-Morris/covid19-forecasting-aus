@@ -24,8 +24,6 @@ matplotlib.use('Agg')
 tau = 4
 prior_a = 1.5
 prior_b = 1.7/1.5
-prior_a = 2
-prior_b = 1
 trunc_days = 21
 offset = 0
 shift = 0

@@ -113,7 +113,7 @@ start_date = '2020-03-01'
 end_date = '2020-03-31'
 
 # Second wave inputs
-sec_states = sorted(['NSW', 'VIC'])
+# sec_states = sorted(['NSW', 'VIC'])
 sec_states = sorted(['NSW'])
 sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
@@ -167,7 +167,7 @@ first_date_range = {
 # choose dates for each state for sec wave
 sec_date_range = {
     'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').values,
-    'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values
+    # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values
 }
 
 # apply_alpha_sec_wave = sec_date_range['NSW'] > pd.to_datetime(alpha_start_date)
@@ -428,7 +428,7 @@ if run_inference or run_inference_only:
 
     # import the stan model as a string
     model_file = open("model/fitting_and_forecasting/rho_model_gamma.stan", "r")
-    # model_file = open("model/fitting_and_forecasting/rho_model_gamma_no_vax_het.stan", "r")
+    # model_file = open("model/fitting_and_forecasting/rho_model_gamma_improved.stan", "r")
     rho_model_gamma = model_file.read()
     model_file.close()
 
@@ -476,7 +476,8 @@ if run_inference or run_inference_only:
         #                                         'voc_effect_sec_wave', 'voc_effect_third_wave', 
         #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-                                                'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
+                                                'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
+                                                # 'vacc_effect',
                                                 'voc_effect_alpha', 'voc_effect_delta', 
                                                 'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
 
@@ -948,8 +949,7 @@ var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_d
 var_to_csv = var_to_csv + predictors + [
     'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
 ]
-# var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' 
-#                            for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
+# var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
 
