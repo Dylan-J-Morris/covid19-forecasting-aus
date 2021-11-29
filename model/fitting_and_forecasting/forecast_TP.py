@@ -8,7 +8,7 @@ from Reff_functions import *
 from Reff_constants import *
 from params import num_forecast_days, alpha_start_date, delta_start_date, apply_voc_to_R_L_hats, \
     vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date, start_date, \
-    run_TP_adjustment
+    run_TP_adjustment, n_days_nowcast_TP_adjustment
 from scenarios import scenarios, scenario_dates
 from sys import argv
 from datetime import timedelta, datetime
@@ -34,7 +34,7 @@ data_date = pd.to_datetime(argv[1])
 print("Using data from", data_date)
 start_date = '2020-03-01'
 
-# Get Google Data
+# Get Google Data - Don't use the smoothed data? 
 df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 
 # Load in vaccination data by state and date which should have the same date as the NNDSS/linelist data
@@ -1139,9 +1139,11 @@ df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date =
 df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5', key='Reff')
 
-## Now we need to process the TP so that we revert to Reff when cases are high
-# read in forecasted TP
 if run_TP_adjustment:
+    """
+    Run adjustment model for the local TP estimates. This will adjust the local component of the 
+    TP 
+    """
 
     print("=========================")
     print("Running TP adjustment model...")
@@ -1151,7 +1153,7 @@ if run_TP_adjustment:
     df_forecast = read_in_Reff_file(data_date)
     # read in Reff samples
     df_Reff = pd.read_csv("results/EpyReff/Reff_samples" + data_date.strftime("%Y-%m-%d") + "tau_4.csv", 
-                        parse_dates=['INFECTION_DATES'])
+                          parse_dates=['INFECTION_DATES'])
 
     # read in the case data and note that we want this to be infection dates to match up to Reff changes
     case_data = read_in_NNDSS(data_date, apply_delay_at_read=True, apply_inc_at_read=True)
@@ -1196,7 +1198,7 @@ if run_TP_adjustment:
         # now we want to fill out indices by adding 0's on days with 0 cases and ensuring we go right up to the current truncated date
         idx = pd.date_range(
             pd.to_datetime('2020-03-01'), 
-            pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1)
+            pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days+n_days_nowcast_TP_adjustment-1)
         )
         df_cases = df_cases.reindex(idx, fill_value=0)
         
@@ -1207,12 +1209,14 @@ if run_TP_adjustment:
         # take a rolling average of the cases over the interval of consideration
         idx = (
             (df_forecast_state.date >= pd.to_datetime('2020-03-01')) & 
-            (df_forecast_state.date <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1))
+            (df_forecast_state.date <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days+n_days_nowcast_TP_adjustment-1))
         )
         df_forecast_state_sims = df_forecast_state.iloc[:,8:].loc[idx]
+        df_forecast_state_sims_std = df_forecast_state_sims.std(axis=1).to_numpy()
+
         Reff = df_Reff_state.loc[
             (df_Reff_state.INFECTION_DATES >= pd.to_datetime('2020-03-01')) &
-            (df_Reff_state.INFECTION_DATES <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1))
+            (df_Reff_state.INFECTION_DATES <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days+n_days_nowcast_TP_adjustment-1))
         ]
 
         # take 7-day moving averages for the local, imported, and total cases
@@ -1223,7 +1227,7 @@ if run_TP_adjustment:
         # only want to use indices over the fitting horizon, after this point we rely on the TP model
         idx = (
             (df_cases.index >= pd.to_datetime('2020-03-01')) & 
-            (df_cases.index <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1))
+            (df_cases.index <= pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days+n_days_nowcast_TP_adjustment-1))
         )
         df_cases_local = df_cases_local[idx]
         df_cases_imported = df_cases_imported[idx]
@@ -1246,11 +1250,16 @@ if run_TP_adjustment:
                 Reff_local = calculate_Reff_local(Reff_sample, R_I[col % 2000], ratio_import_to_local)
                 Reff_local = np.array(Reff_local)
                 omega = pd.Series(
-                    (np.random.beta(20, L_ma) if L_ma >= 5 else 1 for L_ma in df_cases_local_ma.to_numpy()), 
+                    (np.random.beta(35, L_ma) if L_ma >= 5 else 1 for L_ma in df_cases_local_ma.to_numpy()), 
                     index=df_cases_local_ma.index
                 )
+
                 # apply the mixture modelling and the adjustment to ensure we don't get negative
                 Rt[col] = np.maximum(0, (1-omega)*Reff_local + omega*TP_local)
+
+                # if there is minimal difference between TP and Reff, use TP
+                # Rt[col][np.abs(TP_local - Reff_local) <= df_forecast_state_sims_std] = TP_local
+
             else: 
                 # if state is NT, do this instead
                 Rt[col] = np.maximum(0, np.array(df_forecast_state_sims[col]))
@@ -1259,7 +1268,7 @@ if run_TP_adjustment:
         Rt = pd.DataFrame.from_dict(Rt, orient='index', columns=df_cases_local_ma.index)
         
         # next step is to stich the adjusted df back with the forecasting of TP
-        idx = df_forecast_state.date > pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days-1)
+        idx = df_forecast_state.date > pd.to_datetime(data_date)-pd.Timedelta(days=truncation_days+n_days_nowcast_TP_adjustment-1)
         df_forecast_after = df_forecast_state.iloc[:,8:].loc[idx].T
         # concatenate updated df with the forecasted TP 
         df_full = pd.concat([Rt, df_forecast_after], axis=1)

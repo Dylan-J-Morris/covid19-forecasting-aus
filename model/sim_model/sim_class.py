@@ -1004,14 +1004,14 @@ class Forecast:
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
         limit_factor_backcasts = 2.5
-        limit_factor_nowcast = 10.0
+        limit_factor_nowcast = 1.5
         # backcasts all have same limit
         self.max_cases_in_windows[:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-1]))
         self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 0.3
-        low_limit_nowcast = 0.0
+        low_limit_nowcast = 0.5
         
         # alter the minimum number of cases in the window based on those exceeding a threshold of 10 cases
         for i in range(len(self.min_cases_in_windows)-1):
