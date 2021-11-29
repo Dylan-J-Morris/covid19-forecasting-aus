@@ -950,7 +950,7 @@ class Forecast:
         # number of days to unrestrict the simulation
         nowcast_days = 14
         # length of comparison windows 
-        window_length = 14
+        window_length = 20
         # number of days we are forecasting for
         forecast_days = self.end_time-self.forecast_date
         # get the index of the last date in the data
@@ -1003,7 +1003,7 @@ class Forecast:
         self.min_cases_in_windows = np.zeros_like(self.cases_in_windows)
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
-        limit_factor_backcasts = 2.0
+        limit_factor_backcasts = 2.5
         limit_factor_nowcast = 10.0
         # backcasts all have same limit
         self.max_cases_in_windows[:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-1]))

@@ -455,6 +455,9 @@ if run_inference or run_inference_only:
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
                                                    'voc_effect_alpha', 'voc_effect_delta', 
                                                    'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
+
+        samples_mov_gamma.to_csv("results/samples_mov_gamma.csv")
+        
     else:
 
         # compile the stan model
