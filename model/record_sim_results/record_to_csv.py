@@ -33,8 +33,17 @@ date_col = [day.strftime('%Y-%m-%d')
 
 for i, state in enumerate(states):
 
-    df_results = pd.read_parquet("./results/"+state+start_date+"sim_"+forecast_type+str(
-        n_sims)+"days_"+str(days)+".parquet", columns=date_col)
+    # try to read the data with seeding first and then read the non-seeding forecasts 
+    try: 
+        df_results = pd.read_parquet(
+            "./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"days_"+
+            str(days)+".parquet", columns=date_col
+        )
+    except:
+        df_results = pd.read_parquet(
+            "./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"_seed_days_"+
+            str(days)+".parquet", columns=date_col
+        )
 
     df_local = df_results.loc['total_inci_obs']
 
