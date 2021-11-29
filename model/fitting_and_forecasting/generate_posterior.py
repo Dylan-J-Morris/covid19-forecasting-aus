@@ -174,7 +174,7 @@ sec_date_range = {
 
 # choose dates for each state for third wave
 third_date_range = {
-    'ACT': pd.date_range(start='2021-08-16', end='2021-11-14').values,          # truncate further to deal with delay
+    'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,          # truncate further to deal with delay
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
     'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values

@@ -7,7 +7,7 @@ run_inference_only = False
 run_TP_adjustment = True
 use_TP_adjustment = True
 testing_inference = False if on_phoenix else True
-n_days_nowcast_TP_adjustment = 14
+n_days_nowcast_TP_adjustment = 60
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
