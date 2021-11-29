@@ -133,8 +133,6 @@ forecast_object = Forecast(
     start_date, 
     forecast_date=forecast_date,
     cases_file_date=case_file_date,
-    VoC_flag=VoC_flag, 
-    scenario=scenarios[state], 
     end_time = end_time, 
     n_sims=n_sims, 
     from_jurisdiction_cases = from_jurisdiction_cases,

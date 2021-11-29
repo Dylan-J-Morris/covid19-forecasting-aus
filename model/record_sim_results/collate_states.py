@@ -36,8 +36,14 @@ vars_l = ['symp_inci_obs', 'imports_inci_obs', 'asymp_inci_obs',
           'symp_inci', 'asymp_inci', 'imports_inci', 'total_inci', 'total_inci_obs']
 good_sims_by_state = {}
 for state in states:
-    df_file = pd.read_parquet(
-        "./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"days_"+str(days)+".parquet")
+
+    try: 
+        df_file = pd.read_parquet(
+            "./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"_seed_days_"+str(days)+".parquet")
+    except:
+        df_file = pd.read_parquet(
+            "./results/"+state+start_date+"sim_"+forecast_type+str(n_sims)+"days_"+str(days)+".parquet")
+        
     # take only the good sims for plotting
     df = df_file.loc[df_file.bad_sim == 0]
     df = df_file[[col.strftime('%Y-%m-%d') for col in dates]]
