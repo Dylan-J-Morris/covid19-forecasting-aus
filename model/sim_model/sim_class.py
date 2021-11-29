@@ -55,8 +55,6 @@ class Forecast:
         forecast_date, 
         cases_file_date, 
         end_time = None,
-        VoC_flag='', 
-        scenario='',
         n_sims=None, 
         from_jurisdiction_cases={}, 
         apply_interstate_seeding=None, 
@@ -102,11 +100,6 @@ class Forecast:
         self.qua_ai = 1
         self.gam = 1/2
         self.ps = 0.7  # Probability of being symptomatic
-        # Increase Reff to due this VoC
-        self.VoC_flag = VoC_flag
-        # Add an optional scenario flag to load in specific Reff scenarios and save results. 
-        # This does not change the run behaviour of the simulations.
-        self.scenario = scenario
         # forecast_date and cases_file_date are usually the same.
         # Total number of days in simulation
         self.forecast_date = (pd.to_datetime(forecast_date, format='%Y-%m-%d') - self.start_date).days
@@ -133,54 +126,6 @@ class Forecast:
 
         self.num_bad_sims = 0
         self.num_too_many = 0
-
-    def interstate_seeding(self, from_jurisdiction_cases):
-        """
-        Seed cases into the jurisdiction. This will run a binomial 
-        """
-        to_jurisdiction = self.state
-            
-        # get the from jurisdictions out of the keys
-        from_jurisdictions = from_jurisdiction_cases.keys()
-        
-        # prob of travel between jurisdictions
-        prob_travel = {
-            "ACT-SA": 0.00066, 
-            "VIC-SA": 0.00192, 
-            "NSW-SA": 0.00074, 
-            "QLD-SA": 0.00063, 
-            "TAS-SA": 0.00053,      # placholder using WA-SA
-            "WA-SA": 0.00053, 
-            "NT-SA": 0.00053        # placeholder using WA-SA
-        }
-        
-        # this adjusts the probabilities of travelling between jurisdictions based on early estimates
-        # WILL NEED TO BE REVISED (Most likley upwards as interstate travel increases)
-        scaling_factor = 1.0
-        prob_travel = {k: p * scaling_factor for k, p in prob_travel.items()}
-        # estimated probability that the import is vaccinated
-        prob_vaccinated = 0.5
-
-        types = ['asymp_inci', 'symp_inci']
-        # vector to store the number imported from asymp and symp
-        try:
-            num_interstate_import = {type: np.zeros(shape=from_jurisdiction_cases['NSW']['symp_inci'].
-                                                    shape[0]) 
-                                    for type in types}
-        except: 
-            return None
-
-        # loop over the import jurisdictions and sample number of interstate imports each day 
-        for jur in from_jurisdictions:
-            # prob of person travelling and being vaccinated
-            to_from = jur + str('-') + to_jurisdiction
-            p = prob_vaccinated*prob_travel[to_from]
-            for type in types:
-                n = from_jurisdiction_cases[jur][type]
-                # calculate the number of interstate imports each day
-                num_interstate_import[type] = np.random.binomial(n = n, p = p)
-            
-        return num_interstate_import
     
     def initialise_sim(self, curr_time=0.0):
         """
@@ -263,65 +208,6 @@ class Forecast:
                 self.infected_queue.append(len(self.people))
                 self.people[len(self.people)] = new_person
                 self.cases[max(0, math.ceil(new_person.infection_time)), 2] += 1
-    
-    def read_in_all_Reffs(self):
-        """
-        Read in all the forecasted TP's and then process them into local and imported Reffs 
-        indexed in a dictionary of dictionaries where the first dictionary is indexed by the sim number. 
-        """
-        # use the helper functions to read in the file from forecast_TPs
-        Reff_all = read_in_Reff_file(self.cases_file_date, self.adjust_TP_forecast)
-    
-        # use local dictionaries to store the TP paths for sims 
-        import_Reffs = {}
-        local_Reffs = {}
-        for i in range(2000):
-            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(Reff_all, i)
-            
-        # store the results in self
-        self.import_Reffs = import_Reffs 
-        self.local_Reffs = local_Reffs
-
-    def set_Reff(self):
-        """
-        Set the TP to use for a given simulation. 
-        """
-        self.R_I = self.import_Reffs[self.num_of_sim % 2000]
-        self.Reff = self.local_Reffs[self.num_of_sim % 2000]
-
-    def read_in_Reff(self, Reff_all, i):
-        """
-        Read in Reff CSV that was produced by the generate_R_L_forecasts.py script.
-        """
-        import pandas as pd
-
-        df_forecast = Reff_all
-        
-        # Get R_I values and store in object.
-        R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
-                              (df_forecast.state == self.state), 
-                              i % 2000].values[0]
-
-        # Get only R_L forecasts
-        df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
-        df_forecast = df_forecast.set_index(['state', 'date'])
-        
-        Reff_lookupstate = {}
-        
-        # initialise a temporary df that is only for state of interest and 
-        # corresponds to the appropriate sim number
-        df_forecast_tmp = df_forecast.loc[self.state, i % 2000]
-        
-        # print(df_forecast_tmp)
-        # loop over the key-value pairs in the series df_forecast_tmp and 
-        # readjust based on the start date when storing in Reff_lookupstate
-        for (key, value) in df_forecast_tmp.items():
-            # instead of mean and std, take all columns as samples of Reff
-            # convert key to days since start date for easier indexing
-            newkey = (key - self.start_date).days
-            Reff_lookupstate[newkey] = value
-            
-        return R_I, Reff_lookupstate
     
     # @profile
     def generate_new_cases(self, parent_key, Reff, k, travel=False):
@@ -845,7 +731,6 @@ class Forecast:
         for var in sim_vars:
             df_results[var] = [results[var][sim] for cat, sim in df_results.index]
 
-        print('VoC_flag is', self.VoC_flag)
         print("Saving results for state "+self.state)
         # save separate versions depending on whether the model is being used for seeding of not
         if not self.apply_interstate_seeding:
@@ -994,6 +879,65 @@ class Forecast:
         print("Observation windows cumulative lengths: ", self.window_sizes)
         print("Number of cases in each window: ", self.cases_in_windows)
         
+    def read_in_all_Reffs(self):
+        """
+        Read in all the forecasted TP's and then process them into local and imported Reffs 
+        indexed in a dictionary of dictionaries where the first dictionary is indexed by the sim number. 
+        """
+        # use the helper functions to read in the file from forecast_TPs
+        Reff_all = read_in_Reff_file(self.cases_file_date, self.adjust_TP_forecast)
+    
+        # use local dictionaries to store the TP paths for sims 
+        import_Reffs = {}
+        local_Reffs = {}
+        for i in range(2000):
+            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(Reff_all, i)
+            
+        # store the results in self
+        self.import_Reffs = import_Reffs 
+        self.local_Reffs = local_Reffs
+
+    def set_Reff(self):
+        """
+        Set the TP to use for a given simulation. 
+        """
+        self.R_I = self.import_Reffs[self.num_of_sim % 2000]
+        self.Reff = self.local_Reffs[self.num_of_sim % 2000]
+
+    def read_in_Reff(self, Reff_all, i):
+        """
+        Read in Reff CSV that was produced by the generate_R_L_forecasts.py script.
+        """
+        import pandas as pd
+
+        df_forecast = Reff_all
+        
+        # Get R_I values and store in object.
+        R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
+                              (df_forecast.state == self.state), 
+                              i % 2000].values[0]
+
+        # Get only R_L forecasts
+        df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
+        df_forecast = df_forecast.set_index(['state', 'date'])
+        
+        Reff_lookupstate = {}
+        
+        # initialise a temporary df that is only for state of interest and 
+        # corresponds to the appropriate sim number
+        df_forecast_tmp = df_forecast.loc[self.state, i % 2000]
+        
+        # print(df_forecast_tmp)
+        # loop over the key-value pairs in the series df_forecast_tmp and 
+        # readjust based on the start date when storing in Reff_lookupstate
+        for (key, value) in df_forecast_tmp.items():
+            # instead of mean and std, take all columns as samples of Reff
+            # convert key to days since start date for easier indexing
+            newkey = (key - self.start_date).days
+            Reff_lookupstate[newkey] = value
+            
+        return R_I, Reff_lookupstate
+        
     def calculate_limits(self, df):
         """
         Calculates upper on lower bounds for each of the windows during the simulation 
@@ -1065,6 +1009,54 @@ class Forecast:
 
         # Set all betas to prior plus effective period size of 1
         self.b_dict = {i: prior_beta+1 for i in range(self.end_time)}
+        
+    def interstate_seeding(self, from_jurisdiction_cases):
+        """
+        Seed cases into the jurisdiction. This will run a binomial 
+        """
+        to_jurisdiction = self.state
+            
+        # get the from jurisdictions out of the keys
+        from_jurisdictions = from_jurisdiction_cases.keys()
+        
+        # prob of travel between jurisdictions
+        prob_travel = {
+            "ACT-SA": 0.00066, 
+            "VIC-SA": 0.00192, 
+            "NSW-SA": 0.00074, 
+            "QLD-SA": 0.00063, 
+            "TAS-SA": 0.00053,      # placholder using WA-SA
+            "WA-SA": 0.00053, 
+            "NT-SA": 0.00053        # placeholder using WA-SA
+        }
+        
+        # this adjusts the probabilities of travelling between jurisdictions based on early estimates
+        # WILL NEED TO BE REVISED (Most likley upwards as interstate travel increases)
+        scaling_factor = 1.0
+        prob_travel = {k: p * scaling_factor for k, p in prob_travel.items()}
+        # estimated probability that the import is vaccinated
+        prob_vaccinated = 0.5
+
+        types = ['asymp_inci', 'symp_inci']
+        # vector to store the number imported from asymp and symp
+        try:
+            num_interstate_import = {type: np.zeros(shape=from_jurisdiction_cases['NSW']['symp_inci'].
+                                                    shape[0]) 
+                                    for type in types}
+        except: 
+            return None
+
+        # loop over the import jurisdictions and sample number of interstate imports each day 
+        for jur in from_jurisdictions:
+            # prob of person travelling and being vaccinated
+            to_from = jur + str('-') + to_jurisdiction
+            p = prob_vaccinated*prob_travel[to_from]
+            for type in types:
+                n = from_jurisdiction_cases[jur][type]
+                # calculate the number of interstate imports each day
+                num_interstate_import[type] = np.random.binomial(n = n, p = p)
+            
+        return num_interstate_import
 
     def generate_times(self, size=50000):
         """
