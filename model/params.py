@@ -7,7 +7,7 @@ run_inference_only = False
 run_TP_adjustment = True
 use_TP_adjustment = True
 testing_inference = False if on_phoenix else True
-n_days_nowcast_TP_adjustment = 60
+n_days_nowcast_TP_adjustment = 45
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
@@ -18,7 +18,7 @@ else:
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
 third_start_date = '2021-06-15'
-start_date = '2021-06-10'  # Start date of forecast
+start_date = '2021-06-01'  # Start date of forecast
 # start_date = '2021-08-01'  # Start date of forecast
 alpha_start_date = '2021-01-28'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
 delta_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)

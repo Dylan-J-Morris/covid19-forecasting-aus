@@ -127,7 +127,7 @@ class Forecast:
         self.num_bad_sims = 0
         self.num_too_many = 0
     
-    def initialise_sim(self, curr_time=0.0):
+    def initialise_sim(self, curr_time=0.0, num_symp=0, num_asymp=0):
         """
         Given some number of cases in self.initial_state (copied),
         simulate undetected cases in each category and their
@@ -155,9 +155,6 @@ class Forecast:
                 self.people[person].infection_time = -1*next(self.get_detect_time)
         else:
             # reinitialising, so actual people need times assume all symptomatic
-            prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
-                self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps))
-            num_symp = binom_sample(n=int(self.current[2]), p=prob_symp_given_detect)
             for person in range(int(self.current[2])):
                 self.infected_queue.append(len(self.people))
                 # inf_time = next(self.get_inf_time) #remove?
@@ -281,15 +278,6 @@ class Forecast:
                         # first num_sympcases are symnptomatic, rest are asymptomatic
                         category = 'S'
                         self.cases[max(0, math.ceil(inf_time)-1), 2] += 1
-
-                        # if self.test_campaign_date is not None:
-                        #     # see if case is during a testing campaign
-                        #     if inf_time < self.test_campaign_date:
-                        #         detect_prob = self.symptomatic_detection_prob
-                        #     else:
-                        #         detect_prob = min(0.95, self.symptomatic_detection_prob*self.test_campaign_factor)
-                        # else:
-                        #     detect_prob = self.symptomatic_detection_prob
                         
                         detect_prob = self.symptomatic_detection_prob
                         if detection_rv < detect_prob:
@@ -300,14 +288,6 @@ class Forecast:
                     else:
                         category = 'A'
                         self.cases[max(0, math.ceil(inf_time)-1), 1] += 1
-                        #detect_time = 0
-                        # if self.test_campaign_date is not None:
-                        #     # see if case is during a testing campaign
-                        #     if inf_time < self.test_campaign_date:
-                        #         detect_prob = self.asymptomatic_detection_prob
-                        #     else:
-                        #        detect_prob = min(0.95, self.asymptomatic_detection_prob*self.test_campaign_factor)
-                        # else:
                         detect_prob = self.asymptomatic_detection_prob
                             
                         if detection_rv < detect_prob:
@@ -529,16 +509,16 @@ class Forecast:
 
                             # add asymptomatic
                             num_asymp = self.current[2] - num_symp
-                            self.observed_cases[max(0, day), 2] += num_asymp//2
-                            self.cases[max(0, day), 2] += num_asymp//2
+                            self.observed_cases[max(0, day), 1] += num_asymp//2
+                            self.cases[max(0, day), 1] += num_asymp//2
 
-                            self.observed_cases[max(0, day-1), 2] += num_asymp//3
-                            self.cases[max(0, day-1), 2] += num_asymp//3
+                            self.observed_cases[max(0, day-1), 1] += num_asymp//3
+                            self.cases[max(0, day-1), 1] += num_asymp//3
 
-                            self.observed_cases[max(0, day-2), 2] += num_asymp//6
-                            self.cases[max(0, day-2), 2] += num_asymp//6
+                            self.observed_cases[max(0, day-2), 1] += num_asymp//6
+                            self.cases[max(0, day-2), 1] += num_asymp//6
 
-                            self.initialise_sim(curr_time=day)
+                            self.initialise_sim(curr_time=day, num_symp=num_symp, num_asymp=num_asymp)
                             # print("Reinitialising with %i new cases "  % self.current[2] )
 
                             # reset days to zero
@@ -947,14 +927,14 @@ class Forecast:
         self.min_cases_in_windows = np.zeros_like(self.cases_in_windows)
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
-        limit_factor_backcasts = 2.5
+        limit_factor_backcasts = 2.0
         limit_factor_nowcast = 1.5
         # backcasts all have same limit
         self.max_cases_in_windows[:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-1]))
         self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
-        low_limit_backcast = 0.3
+        low_limit_backcast = 0.1
         low_limit_nowcast = 0.5
         
         # alter the minimum number of cases in the window based on those exceeding a threshold of 10 cases

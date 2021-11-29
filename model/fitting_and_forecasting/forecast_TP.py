@@ -780,7 +780,7 @@ for typ in forecast_type:
 
             # find days after forecast began that we want to apply the effect — currently this is fixed from the
             # 30th of Aug
-            heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(start_date)).days
+            heterogeneity_delay_start_day = (pd.to_datetime('2021-08-10') - pd.to_datetime(start_date)).days
 
             vacc_post = np.zeros_like(vacc_data_full)
 
@@ -796,7 +796,8 @@ for typ in forecast_type:
             a_vacc[a_vacc <= 0] = 100
             b_vacc[b_vacc <= 0] = 1
             # sample a noisier version of the vax effect
-            vacc_data_full_adj = np.random.beta(a_vacc, b_vacc)
+            # vacc_data_full_adj = np.random.beta(a_vacc, b_vacc)
+            vacc_data_full_adj = vacc_data_full
             
             for ii in range(vacc_post.shape[0]):
                 # calculate the heterogeneous vaccine effect 

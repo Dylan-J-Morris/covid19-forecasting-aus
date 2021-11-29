@@ -54,6 +54,7 @@ data {
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
+    // int days_into_sec;                                          // days into sec wave to apply VoC 
 
     int decay_start_date_third;
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data
@@ -125,6 +126,9 @@ transformed parameters {
                 md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
                 social_measures = ((1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n])*inv_logit(Mob_sec_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures; //mean estimate
+                // if (n > ){
+                //     TP_local *= voc_effect_alpha
+                // }
                 mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*TP_local;
                 pos += 1;
             }
@@ -162,7 +166,7 @@ transformed parameters {
 
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
-                md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
+                md_third_wave[pos] = pow(1+theta_md, -1*prop_md_third_wave[pos]);                
 
                 // applying the return to homogeneity in vaccination effect 
                 if (n < decay_start_date_third){
@@ -209,7 +213,7 @@ model {
     r_NSW ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
     r_other ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
 
-    R_L ~ gamma(1.7*1.7/0.005,1.7/0.005); //hyper-prior
+    R_L ~ gamma(1.8*1.8/0.005,1.8/0.005); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
     sig ~ exponential(1000); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates

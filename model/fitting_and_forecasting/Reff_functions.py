@@ -183,22 +183,12 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
 
             if vaccination is not None and states_initials[state] in third_states:
-                if states_initials[state] == 'ACT':
-                    # print(vaccination.loc[states_initials[state]])
-                    
-                    idx = (
-                        (vaccination.columns >= third_date_range[states_initials[state]][0]) & 
-                        (vaccination.columns <= third_date_range[states_initials[state]][-1]) 
-                    )
-                    
-                    vacc_sim = vaccination.loc[states_initials[state]][idx].values
-                else:
-                    # print(vaccination.loc[states_initials[state]])
-                    idx = (
-                        (vaccination.columns >= third_date_range[states_initials[state]][0]) & 
-                        (vaccination.columns <= third_date_range[states_initials[state]][-1]) 
-                    )
-                    vacc_sim = vaccination.loc[states_initials[state]][idx].values
+                # print(vaccination.loc[states_initials[state]])
+                idx = (
+                    (vaccination.columns >= third_date_range[states_initials[state]][0]) & 
+                    (vaccination.columns <= third_date_range[states_initials[state]][-1]) 
+                )
+                vacc_sim = vaccination.loc[states_initials[state]][idx].values
                     
                 vacc_sim = np.tile(vacc_sim, (1000, 1)).T
 
@@ -259,7 +249,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # August (hence the fixed date) 
                     # in order for this to be correctly applied in the plot, we need to get the start dates after the beginning of 
                     # the third wave data which we determine based off the third_date_range 
-                    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - third_date_range[states_initials[state]][0]).days
+                    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-10') - third_date_range[states_initials[state]][0]).days
                     
                     # this will hold the posterior VE, with adjustement factors
                     vacc_post = np.zeros_like(vacc_sim)
@@ -267,13 +257,14 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
                     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
                     # set the full vaccination data as the mean 
-                    vacc_sig = 0.001
-                    vacc_mu = vacc_sim
-                    # calculate shape and scale 
-                    a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
-                    b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
-                    # sample a noisier version of the vax effect
-                    vacc_sim_adj = np.random.beta(a_vacc, b_vacc)
+                    # vacc_sig = 0.001
+                    # vacc_mu = vacc_sim
+                    # # calculate shape and scale 
+                    # a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
+                    # b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
+                    # # sample a noisier version of the vax effect
+                    # vacc_sim_adj = np.random.beta(a_vacc, b_vacc)
+                    vacc_sim_adj = vacc_sim
                     
                     for ii in range(vacc_post.shape[0]):
                         if ii < heterogeneity_delay_start_day:

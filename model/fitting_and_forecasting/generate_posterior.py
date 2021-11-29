@@ -167,7 +167,7 @@ first_date_range = {
 # choose dates for each state for sec wave
 sec_date_range = {
     'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').values,
-    # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-20').values
+    # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-28').values
 }
 
 # apply_alpha_sec_wave = sec_date_range['NSW'] > pd.to_datetime(alpha_start_date)
@@ -337,7 +337,7 @@ is_VIC = (np.array(third_states) == 'VIC').astype(int)
 is_NSW = (np.array(third_states) == 'NSW').astype(int)
 
 # calculate how many days the end of august is after the third start date
-decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+decay_start_date_third = (pd.to_datetime('2021-08-10') - pd.to_datetime(third_start_date)).days
 
 # Make state by state arrays
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
@@ -898,7 +898,7 @@ dates = vaccination_by_state.columns
 fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
 # find days after the third start date began that we want to apply the effect — currently this is fixed from the
 # 20th of Aug and is not a problem with ACT as this is just a plot of the posterior vaccine effect
-heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+heterogeneity_delay_start_day = (pd.to_datetime('2021-08-10') - pd.to_datetime(third_start_date)).days
 for i, state in enumerate(states):
 
     # apply different vaccine form depending on if NSW

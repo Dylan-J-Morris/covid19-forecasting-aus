@@ -427,9 +427,14 @@ plot_start = pd.to_datetime(data_date) - pd.to_timedelta(60, unit="D")
 dates_plot = pd.date_range(start=plot_start, periods=89)
 for i, state in enumerate(states):
 
-    df_raw = pd.read_parquet("results/"+state+start_date+"sim_"+forecast_type+str(
-        n_sims)+"days_"+str(days)+".parquet",
-        columns=[d.strftime("%Y-%m-%d") for d in dates_plot])
+    try: 
+        df_raw = pd.read_parquet("results/"+state+start_date+"sim_"+forecast_type+str(
+            n_sims)+"_seed_days_"+str(days)+".parquet",
+            columns=[d.strftime("%Y-%m-%d") for d in dates_plot])
+    except:
+        df_raw = pd.read_parquet("results/"+state+start_date+"sim_"+forecast_type+str(
+            n_sims)+"days_"+str(days)+".parquet",
+            columns=[d.strftime("%Y-%m-%d") for d in dates_plot])
 
     Reff_used = [r % 2000 for r in good_sims[state]]
 
