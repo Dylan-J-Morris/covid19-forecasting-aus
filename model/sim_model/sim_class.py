@@ -504,16 +504,18 @@ class Forecast:
                         #print("Local outbreak in "+self.state+" not simulated on day %i" % day)
                         #cases to add
                         #treat current like empty list
-                        if self.state in {'VIC', 'NSW'}:
+                        self.current[2] = max(0,self.actual[day] - sum(self.observed_cases[day,1:]))
+                        self.current[2] += max(0,self.actual[day-1] - sum(self.observed_cases[day-1,1:]))
+                        self.current[2] += max(0,self.actual[day-2] - sum(self.observed_cases[day-2,1:]))
                         
-                            self.current[2] = 1
-                            self.observed_cases[max(0,day),2] += 1
-                            self.cases[max(0,day),2] += 1
+                        if self.state in {'VIC', 'NSW'}:
+                    
+                            num_symp = self.binom_sample(n=int(self.current[2]), p=0.2)
+                            
+                            self.observed_cases[max(0,day),2] += num_symp
+                            self.cases[max(0,day),2] += num_symp
                             
                         else:
-                            self.current[2] = max(0,self.actual[day] - sum(self.observed_cases[day,1:]))
-                            self.current[2] += max(0,self.actual[day-1] - sum(self.observed_cases[day-1,1:]))
-                            self.current[2] += max(0,self.actual[day-2] - sum(self.observed_cases[day-2,1:]))
 
                             #how many cases are symp to asymp
                             prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
