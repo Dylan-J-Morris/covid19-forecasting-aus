@@ -5,7 +5,7 @@ on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
 run_TP_adjustment = True
-use_TP_adjustment = False
+use_TP_adjustment = True
 testing_inference = False if on_phoenix else True
 n_days_nowcast_TP_adjustment = 45
 

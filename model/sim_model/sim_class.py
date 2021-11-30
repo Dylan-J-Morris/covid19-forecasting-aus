@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os
 import operator
 from helper_functions import read_in_NNDSS, read_in_Reff_file
-from params import case_insertion_threshold, n_days_nowcast_TP_adjustment
+from params import case_insertion_threshold, n_days_nowcast_TP_adjustment, delta_start_date
 from numpy.random import default_rng
 
 from collections import deque
@@ -112,9 +112,9 @@ class Forecast:
         # Date from which quarantine was started
         self.quarantine_change_date = pd.to_datetime('2020-04-15', format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
         # Day from whih to reduce imported overseas cases escapes due to quarantine worker vaccination
-        self.hotel_quarantine_vaccine_start = (pd.to_datetime("2021-05-01", format='%Y-%m-%d') - self.start_date).days
+        self.hotel_quarantine_vaccine_start = (pd.to_datetime(delta_start_date, format='%Y-%m-%d') - self.start_date).days
         # Day from which to start treating imported cases as delta cases
-        self.VoC_on_imported_effect_start = (pd.to_datetime("2021-05-01", format='%Y-%m-%d') - self.start_date).days
+        self.VoC_on_imported_effect_start = (pd.to_datetime(delta_start_date, format='%Y-%m-%d') - self.start_date).days
         # This is a paameter which decreases the detection probability before the date where VIC started testing properly. 
         # Could be removed in future.
         if state == "VIC":
@@ -168,13 +168,9 @@ class Forecast:
                 #inf_time = next(self.get_inf_time) #remove?
                 detection_time = next(self.get_detect_time)
                 if person <= num_symp:
-                    new_person = Person(-1,
-                    curr_time-1*detection_time ,
-                    curr_time, 0, 'S')
+                    new_person = Person(-1, curr_time-1*detection_time, curr_time, 0, 'S')
                 else:
-                    new_person = Person(-1,
-                    curr_time-1*detection_time ,
-                    curr_time, 0, 'A')
+                    new_person = Person(-1, curr_time-1*detection_time, curr_time, 0, 'A')
 
                 self.people[len(self.people)] = new_person
 
@@ -183,10 +179,9 @@ class Forecast:
 
         #num undetected is nbinom (num failures given num detected)
         if self.current[2]==0:
-            num_undetected_s = self.neg_binom_sample(1,self.symptomatic_detection_prob)
+            num_undetected_s = self.neg_binom_sample(1, self.symptomatic_detection_prob)
         else:
-            num_undetected_s = self.neg_binom_sample(self.current[2],self.symptomatic_detection_prob)
-
+            num_undetected_s = self.neg_binom_sample(self.current[2], self.symptomatic_detection_prob)
 
         total_s = num_undetected_s + self.current[2]
 
@@ -202,6 +197,7 @@ class Forecast:
             for n in range(num_undetected_a):
                 self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time) , 0, 0, 'A')
                 self.current[1] +=1
+                
             for n in range(num_undetected_s):
                 self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time) , 0, 0, 'S')
                 self.current[2] +=1
@@ -213,6 +209,7 @@ class Forecast:
                 self.infected_queue.append(len(self.people))
                 self.people[len(self.people)] = new_person
                 self.cases[max(0,math.ceil(new_person.infection_time)),1] +=1
+                
             for n in range(num_undetected_s):
                 new_person = Person(-1, curr_time-1*next(self.get_inf_time) , 0, 0, 'S')
                 self.infected_queue.append(len(self.people))
@@ -246,6 +243,7 @@ class Forecast:
             
         else:  # International import
             Reff = self.R_I
+            
             # Apply vaccine reduction for hotel quarantine workers
             if self.people[parent_key].infection_time >= self.hotel_quarantine_vaccine_start:
                 # p_{v,h} is the proportion of hotel quarantine workers vaccinated
@@ -507,20 +505,26 @@ class Forecast:
                         self.current[2] = max(0,self.actual[day] - sum(self.observed_cases[day,1:]))
                         self.current[2] += max(0,self.actual[day-1] - sum(self.observed_cases[day-1,1:]))
                         self.current[2] += max(0,self.actual[day-2] - sum(self.observed_cases[day-2,1:]))
+                        #how many cases are symp to asymp
+                        prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
+                            self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps)
+                        )
                         
                         if self.state in {'VIC', 'NSW'}:
-                    
-                            num_symp = self.binom_sample(n=int(self.current[2]), p=0.2)
+                        
+                            # VIC and NSW are having trouble in the initial phase of the outbreak
+                            # we need to be more careful here to sample less individuals as the state of 
+                            # the outbreak is changing rapidly
                             
-                            self.observed_cases[max(0,day),2] += num_symp
-                            self.cases[max(0,day),2] += num_symp
+                            # sample a day randomly
+                            day_insert = self.rng.randint(3)
+                            # sample a type 
+                            is_symp = 2 if self.rng.binomial(1, prob_symp_given_detect) else 2
+                            self.observed_cases[max(0, day_insert), is_symp] += 1
+                            self.cases[max(0, day_insert), is_symp] += 1
                             
                         else:
 
-                            #how many cases are symp to asymp
-                            prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
-                                self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps)
-                            )
                             num_symp = self.binom_sample(n=int(self.current[2]), p=prob_symp_given_detect)
                             #distribute observed cases over 3 days
                             #Triangularly
