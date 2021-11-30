@@ -555,7 +555,7 @@ class Forecast:
                         #reset days to zero
                         self.daycount = 0
                             
-                if n_resim > 20:
+                if n_resim > 50:
                     # print("This sim reinitilaised %i times" % n_resim)
                     self.bad_sim = True
                     n_resim = 0
@@ -870,7 +870,7 @@ class Forecast:
         print("Observation windows cumulative lengths: ", self.window_sizes)
         print("Number of cases in each window: ", self.cases_in_windows)
         
-    def read_in_all_Reffs(self, n_Reffs=2000):
+    def read_in_all_Reffs(self, n_Reffs=100):
         """
         Read in all the forecasted TP's and then process them into local and imported Reffs 
         indexed in a dictionary of dictionaries where the first dictionary is indexed by the sim number. 
@@ -888,7 +888,7 @@ class Forecast:
         self.import_Reffs = import_Reffs 
         self.local_Reffs = local_Reffs
 
-    def set_Reff(self, n_Reffs=2000):
+    def set_Reff(self, n_Reffs=100):
         """
         Set the TP to use for a given simulation. 
         """
