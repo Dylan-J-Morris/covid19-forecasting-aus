@@ -491,7 +491,7 @@ class Forecast:
                 
         if self.bad_sim == False:
             # Check simulation for discrepancies
-            for day in range(0, self.end_time):
+            for day in range(7, self.end_time):
                 # each day runs through self.infected_queue
                 missed_outbreak = self.data_check(day)  # True or False
                 if missed_outbreak:
@@ -515,6 +515,7 @@ class Forecast:
                             # VIC and NSW are having trouble in the initial phase of the outbreak
                             # we need to be more careful here to sample less individuals as the state of 
                             # the outbreak is changing rapidly
+                            self.current[2] = 1
                             
                             # sample a day randomly
                             day_insert = self.rng.choice(3)
@@ -1094,7 +1095,7 @@ class Forecast:
         """
         # return np.random.negative_binomial(k, p)
         return self.rng.negative_binomial(k, p)
-    # return nbinom.rvs(k, p)
+        # return nbinom.rvs(k, p)
     
 def init_from_jurisdiction_arrays(apply_intestate_seeding, start_date, n_sims, end_time):
     """

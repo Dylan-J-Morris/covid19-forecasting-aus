@@ -18,7 +18,7 @@ else:
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
 third_start_date = '2021-06-15'
-start_date = '2021-06-01'  # Start date of forecast
+start_date = '2021-06-10'  # Start date of forecast
 # start_date = '2021-08-01'  # Start date of forecast
 alpha_start_date = '2021-01-27'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
 delta_start_date = '2021-06-07'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
