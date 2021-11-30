@@ -86,8 +86,8 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
             # sample that number of delays from the distribution and take the ceiling. 
             # This was fitted to the third and second wave data, looking at the common differences 
             # between onsets and confirmations
-            rd = np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays)
-            rd = np.round(rd) * timedelta(days=1)
+            rd = offset_rd + np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays)
+            rd = np.ceil(rd) * timedelta(days=1)
             
             # fill missing days with the confirmation date, noting that this is adjusted when used
             df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'date_confirmation'] - rd
@@ -103,7 +103,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
             inc = np.random.gamma(shape=shape_inc, scale=scale_inc, size=n_infs)
             # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior 
             # doesnt work properly
-            inc = np.round(inc) * timedelta(days=1)
+            inc = np.ceil(inc) * timedelta(days=1)
             df['date_inferred'] = df['date_inferred'] - inc
             
         df['imported'] = [1 if stat =='imported' else 0 for stat in df['import_status']]

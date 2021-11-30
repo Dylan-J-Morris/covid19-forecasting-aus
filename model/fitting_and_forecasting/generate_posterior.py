@@ -122,6 +122,7 @@ sec_end_date = '2021-01-19'
 # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
 # third_states = sorted(['NSW', 'VIC'])
+# third_states = sorted(['NSW', 'VIC'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -179,6 +180,12 @@ third_date_range = {
     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
     'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values
 }
+# third_date_range = {
+#     # 'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
+#     'NSW': pd.date_range(start=third_start_date, end=third_end_date).values,
+#     # 'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+#     'VIC': pd.date_range(start=third_start_date, end=third_end_date).values
+# }
 
 dfX['is_first_wave'] = 0
 for state in first_states:
@@ -331,10 +338,10 @@ decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_st
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 
 third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
-VIC_tough_period = np.array(
-    (third_wave_dates >= pd.to_datetime('2021-07-13')) * 
-    (third_wave_dates <= pd.to_datetime('2021-08-01'))
-).astype(int)
+# VIC_tough_period = np.array(
+#     (third_wave_dates >= pd.to_datetime('2021-07-13')) * 
+#     (third_wave_dates <= pd.to_datetime('2021-08-01'))
+# ).astype(int)
 
 # input data block for stan model
 input_data = {

@@ -180,6 +180,7 @@ transformed parameters {
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
                 vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
+                // vacc_effect_tot = vaccine_effect_data[i][n];
                 // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[pos];
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_delta*vacc_effect_tot;
@@ -208,10 +209,12 @@ model {
     // assume a hierarchical structure on the vaccine effect 
     eta_NSW ~ beta(2, 7);           // mean of 2/9
     eta_other ~ beta(2, 7);         // mean of 2/9
+    // eta_NSW ~ beta(1, 100);           // mean of 2/9
+    // eta_other ~ beta(1, 100);         // mean of 2/9
 
     // want it to have mean 0.16 => log-mean is log(0.16)
-    r_NSW ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
-    r_other ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
+    r_NSW ~ lognormal(log(0.16), 0.1);        // r is lognormally distributed such that the mean is 28 days 
+    r_other ~ lognormal(log(0.16), 0.1);        // r is lognormally distributed such that the mean is 28 days 
 
     R_L ~ gamma(1.8*1.8/0.005,1.8/0.005); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);

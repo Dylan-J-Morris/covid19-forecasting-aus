@@ -52,7 +52,9 @@ offset_inc = 0
 # feasible and truncated this to be between 0 and 30 (plenty of retropsective cases with negatives etc)
 shape_rd = 1.28
 scale_rd = 2.31
-offset_rd = 0
+# shape_rd = 2
+# scale_rd = 1
+offset_rd = 1
 ## generation interval: 
 # generation inteval changed Oct 5 2021
 # shape_gen = 3.64/3.07
