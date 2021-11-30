@@ -517,7 +517,7 @@ class Forecast:
                             # the outbreak is changing rapidly
                             
                             # sample a day randomly
-                            day_insert = self.rng.randint(3)
+                            day_insert = self.rng.choice(3)
                             # sample a type 
                             is_symp = 2 if self.rng.binomial(1, prob_symp_given_detect) else 2
                             self.observed_cases[max(0, day_insert), is_symp] += 1
