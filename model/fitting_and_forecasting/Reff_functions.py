@@ -249,7 +249,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # August (hence the fixed date) 
                     # in order for this to be correctly applied in the plot, we need to get the start dates after the beginning of 
                     # the third wave data which we determine based off the third_date_range 
-                    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-10') - third_date_range[states_initials[state]][0]).days
+                    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - third_date_range[states_initials[state]][0]).days
                     
                     # this will hold the posterior VE, with adjustement factors
                     vacc_post = np.zeros_like(vacc_sim)

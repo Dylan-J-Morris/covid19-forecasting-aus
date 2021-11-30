@@ -4,8 +4,10 @@ from scipy.stats import erlang, beta, gamma, poisson, norm, nbinom, binom
 import math
 import matplotlib.pyplot as plt
 import os
+import operator
 from helper_functions import read_in_NNDSS, read_in_Reff_file
-from params import case_insertion_threshold
+from params import case_insertion_threshold, n_days_nowcast_TP_adjustment
+from numpy.random import default_rng
 
 from collections import deque
 import gc
@@ -76,7 +78,7 @@ class Forecast:
         # if applying interstate 
         self.print_at_iterations = False 
         self.apply_interstate_seeding = apply_interstate_seeding
-        self.old_approach = True
+        self.error_message = ''
         self.adjust_TP_forecast = adjust_TP_forecast
 
         self.n_sims = n_sims
@@ -127,7 +129,7 @@ class Forecast:
         self.num_bad_sims = 0
         self.num_too_many = 0
     
-    def initialise_sim(self, curr_time=0.0, num_symp=0, num_asymp=0):
+    def initialise_sim(self, curr_time=0.0):
         """
         Given some number of cases in self.initial_state (copied),
         simulate undetected cases in each category and their
@@ -154,57 +156,68 @@ class Forecast:
             for person in self.people.keys():
                 self.people[person].infection_time = -1*next(self.get_detect_time)
         else:
-            # reinitialising, so actual people need times assume all symptomatic
+            #reinitialising, so actual people need times
+            #assume all symptomatic
+            prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
+                self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps)
+            )
+            num_symp = self.binom_sample(n=int(self.current[2]), p=prob_symp_given_detect)
             for person in range(int(self.current[2])):
                 self.infected_queue.append(len(self.people))
-                # inf_time = next(self.get_inf_time) #remove?
+
+                #inf_time = next(self.get_inf_time) #remove?
                 detection_time = next(self.get_detect_time)
                 if person <= num_symp:
-                    new_person = Person(-1,curr_time-1*detection_time,curr_time, 0, 'S')
+                    new_person = Person(-1,
+                    curr_time-1*detection_time ,
+                    curr_time, 0, 'S')
                 else:
-                    new_person = Person(-1,curr_time-1*detection_time,curr_time, 0, 'A')
+                    new_person = Person(-1,
+                    curr_time-1*detection_time ,
+                    curr_time, 0, 'A')
 
                 self.people[len(self.people)] = new_person
 
                 #self.cases[max(0,ceil(new_person.infection_time)), 2] +=1
 
-        # num undetected is nbinom (num failures given num detected)
-        if self.current[2] == 0:
-            num_undetected_s = neg_binom_sample(1, self.symptomatic_detection_prob)
+
+        #num undetected is nbinom (num failures given num detected)
+        if self.current[2]==0:
+            num_undetected_s = self.neg_binom_sample(1,self.symptomatic_detection_prob)
         else:
-            num_undetected_s = neg_binom_sample(self.current[2], self.symptomatic_detection_prob)
+            num_undetected_s = self.neg_binom_sample(self.current[2],self.symptomatic_detection_prob)
+
 
         total_s = num_undetected_s + self.current[2]
 
-        # infer some non detected asymp at initialisation
-        if total_s == 0:
-            num_undetected_a = neg_binom_sample(1, self.ps)
-            # num_undetected_a = nbinom.rvs(1,self.symptomatic_detection_prob)
+        #infer some non detected asymp at initialisation
+        if total_s==0:
+            num_undetected_a = self.neg_binom_sample(1, self.ps)
         else:
-            num_undetected_a = neg_binom_sample(total_s, self.ps)
+            num_undetected_a = self.neg_binom_sample(total_s, self.ps)
 
-        # simulate cases that will be detected within the next week
-        if curr_time == 0:
-            # Add each undetected case into people
+        #simulate cases that will be detected within the next week
+        if curr_time==0:
+            #Add each undetected case into people
             for n in range(num_undetected_a):
-                self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time), 0, 0, 'A')
-                self.current[1] += 1
+                self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time) , 0, 0, 'A')
+                self.current[1] +=1
             for n in range(num_undetected_s):
-                self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time), 0, 0, 'S')
-                self.current[2] += 1
+                self.people[len(self.people)] = Person(0, curr_time-1*next(self.get_inf_time) , 0, 0, 'S')
+                self.current[2] +=1
         else:
-            # reinitialised, so add these cases back onto cases
-            # Add each undetected case into people
+            #reinitialised, so add these cases back onto cases
+             #Add each undetected case into people
             for n in range(num_undetected_a):
-                new_person = Person(-1, curr_time-1*next(self.get_inf_time), 0, 0, 'A')
+                new_person = Person(-1, curr_time-1*next(self.get_inf_time) , 0, 0, 'A')
                 self.infected_queue.append(len(self.people))
                 self.people[len(self.people)] = new_person
-                self.cases[max(0, math.ceil(new_person.infection_time)), 1] += 1
+                self.cases[max(0,math.ceil(new_person.infection_time)),1] +=1
             for n in range(num_undetected_s):
-                new_person = Person(-1, curr_time-1*next(self.get_inf_time), 0, 0, 'S')
+                new_person = Person(-1, curr_time-1*next(self.get_inf_time) , 0, 0, 'S')
                 self.infected_queue.append(len(self.people))
                 self.people[len(self.people)] = new_person
-                self.cases[max(0, math.ceil(new_person.infection_time)), 2] += 1
+                self.cases[max(0,math.ceil(new_person.infection_time)),2] +=1
     
     # @profile
     def generate_new_cases(self, parent_key, Reff, k, travel=False):
@@ -216,20 +229,20 @@ class Forecast:
 
         # Check parent category
         if self.people[parent_key].category == 'S':  # Symptomatic
-            num_offspring = neg_binom_sample(k, 1.0 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
+            num_offspring = self.neg_binom_sample(k, 1.0 - self.alpha_s*Reff/(self.alpha_s*Reff + k))
             
         elif self.people[parent_key].category == 'A':  # Asymptomatic
-            num_offspring = neg_binom_sample(k, 1.0 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
+            num_offspring = self.neg_binom_sample(k, 1.0 - self.alpha_a*Reff/(self.alpha_a*Reff + k))
             
         elif self.people[parent_key].category == 'TS':  # Symptomatic interstate traveller
             # half the infectiousness of an interstate traveller
             Reff_tmp = Reff*self.relative_infectiousness_interstate_traveller
-            num_offspring = neg_binom_sample(k, 1.0 - self.alpha_s*Reff_tmp/(self.alpha_s*Reff_tmp + k))
+            num_offspring = self.neg_binom_sample(k, 1.0 - self.alpha_s*Reff_tmp/(self.alpha_s*Reff_tmp + k))
             
         elif self.people[parent_key].category == 'TA':  # Asymptomatic interstate traveller
             # half the infectiousness of an interstate traveller
             Reff_tmp = Reff*self.relative_infectiousness_interstate_traveller
-            num_offspring = neg_binom_sample(k, 1.0 - self.alpha_a*Reff_tmp/(self.alpha_a*Reff_tmp + k))
+            num_offspring = self.neg_binom_sample(k, 1.0 - self.alpha_a*Reff_tmp/(self.alpha_a*Reff_tmp + k))
             
         else:  # International import
             Reff = self.R_I
@@ -247,13 +260,13 @@ class Forecast:
 
             if self.people[parent_key].infection_time < self.quarantine_change_date:
                 # factor of 3 times infectiousness prequarantine changes
-                num_offspring = neg_binom_sample(k, 1.0 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
+                num_offspring = self.neg_binom_sample(k, 1.0 - self.qua_ai*Reff/(self.qua_ai*Reff + k))
             else:
-                num_offspring = neg_binom_sample(k, 1.0 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
+                num_offspring = self.neg_binom_sample(k, 1.0 - self.alpha_i*Reff/(self.alpha_i*Reff + k))
 
         if num_offspring > 0:
             # generate number of symptomatic cases
-            num_sympcases = binom_sample(n=num_offspring, p=self.ps)
+            num_sympcases = self.binom_sample(n=num_offspring, p=self.ps)
             
             # if self.people[parent_key].category == 'A':
             #     child_times = []
@@ -313,6 +326,7 @@ class Forecast:
         # compared to the scipy method. Yes it was checked that numpy and scipy produce the same RVs.
         np.random.seed(seed)
         self.num_of_sim = sim
+        self.rng = default_rng(seed)
         
         # self.read_in_Reff()
         self.set_Reff()
@@ -336,10 +350,10 @@ class Forecast:
             a = self.a_dict[day]
             b = self.b_dict[day]
             # Dij = number of observed imported infectious individuals
-            Dij = neg_binom_sample(a, 1-1/(b+1))
+            Dij = self.neg_binom_sample(a, 1-1/(b+1))
             # Uij = number of *unobserved* imported infectious individuals
             unobserved_a = 1 if Dij == 0 else Dij
-            Uij = neg_binom_sample(unobserved_a, self.qi)
+            Uij = self.neg_binom_sample(unobserved_a, self.qi)
             unobs_imports.append(Uij)
             new_imports.append(Dij + Uij)
 
@@ -398,6 +412,13 @@ class Forecast:
                         self.people[len(self.people)] = new_person
             except: 
                 None
+
+        # sort the people by infection time which will let us iterate over them in order when they're added to the queue
+        # people_tmp = {}
+        # for idx, person in enumerate(sorted(self.people.values(), key=operator.attrgetter('infection_time'))):
+        #     people_tmp[idx] = person
+
+        # self.people = people_tmp
 
         # Create queue for infected people
         self.infected_queue = deque()
@@ -470,91 +491,64 @@ class Forecast:
                 # recorded within generate new cases
                 self.generate_new_cases(parent_key=parent_key, Reff=Reff, k=self.k)
                 
-        # self.people.clear()
         if self.bad_sim == False:
             # Check simulation for discrepancies
-            for day in range(7, self.end_time):
+            for day in range(0, self.end_time):
                 # each day runs through self.infected_queue
                 missed_outbreak = self.data_check(day)  # True or False
                 if missed_outbreak:
                     # print("missing an outbreak")
                     self.daycount += 1
-                    if self.daycount >= reinitialising_window:
-
-                        if self.old_approach:
-
-                            n_resim += 1
-                            # print("Local outbreak in "+self.state+" not simulated on day %i" % day)
-                            # cases to add
-                            # treat current like empty list
-                            self.current[2] = max(0, self.actual[day] - sum(self.observed_cases[day, 1:]))
-                            self.current[2] += max(0, self.actual[day-1] - sum(self.observed_cases[day-1, 1:]))
-                            self.current[2] += max(0, self.actual[day-2] - sum(self.observed_cases[day-2, 1:]))
-
-                            # how many cases are symp to asymp
-                            prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
-                                self.symptomatic_detection_prob*self.ps +
-                                self.asymptomatic_detection_prob*(1-self.ps)
-                            )
-                            num_symp = binom_sample(n=int(self.current[2]), p=prob_symp_given_detect)
-                            # distribute observed cases over 3 days Triangularly
-                            self.observed_cases[max(0, day), 2] += num_symp//2
-                            self.cases[max(0, day), 2] += num_symp//2
-
-                            self.observed_cases[max(0, day-1), 2] += num_symp//3
-                            self.cases[max(0, day-1), 2] += num_symp//3
-
-                            self.observed_cases[max(0, day-2), 2] += num_symp//6
-                            self.cases[max(0, day-2), 2] += num_symp//6
-
-                            # add asymptomatic
-                            num_asymp = self.current[2] - num_symp
-                            self.observed_cases[max(0, day), 1] += num_asymp//2
-                            self.cases[max(0, day), 1] += num_asymp//2
-
-                            self.observed_cases[max(0, day-1), 1] += num_asymp//3
-                            self.cases[max(0, day-1), 1] += num_asymp//3
-
-                            self.observed_cases[max(0, day-2), 1] += num_asymp//6
-                            self.cases[max(0, day-2), 1] += num_asymp//6
-
-                            self.initialise_sim(curr_time=day, num_symp=num_symp, num_asymp=num_asymp)
-                            # print("Reinitialising with %i new cases "  % self.current[2] )
-
-                            # reset days to zero
-                            self.daycount = 0
-
-                        else:
-                    
-                            n_resim += 1
-                            # print("Local outbreak in "+self.state+" not simulated on day %i" % day)
-                            # cases to add
-                            # treat current like empty list
-                            # seed only a single case into the system and see if they are symptomatic or not
+                    if (self.daycount >= reinitialising_window):
+                        n_resim +=1
+                        #print("Local outbreak in "+self.state+" not simulated on day %i" % day)
+                        #cases to add
+                        #treat current like empty list
+                        if self.state in {'VIC', 'NSW'}:
+                        
                             self.current[2] = 1
+                            self.observed_cases[max(0,day),2] += 1
+                            self.cases[max(0,day),2] += 1
+                            
+                        else:
+                            self.current[2] = max(0,self.actual[day] - sum(self.observed_cases[day,1:]))
+                            self.current[2] += max(0,self.actual[day-1] - sum(self.observed_cases[day-1,1:]))
+                            self.current[2] += max(0,self.actual[day-2] - sum(self.observed_cases[day-2,1:]))
 
-                            # how many cases are symp to asymp
+                            #how many cases are symp to asymp
                             prob_symp_given_detect = self.symptomatic_detection_prob*self.ps/(
-                                self.symptomatic_detection_prob*self.ps +
-                                self.asymptomatic_detection_prob*(1-self.ps)
+                                self.symptomatic_detection_prob*self.ps + self.asymptomatic_detection_prob*(1-self.ps)
                             )
-                            num_symp = binom_sample(n=int(self.current[2]), p=prob_symp_given_detect)
-                            # distribute observed cases over 3 days Triangularly
-                            self.observed_cases[max(0, day), 2] += num_symp
-                            self.cases[max(0, day), 2] += num_symp
+                            num_symp = self.binom_sample(n=int(self.current[2]), p=prob_symp_given_detect)
+                            #distribute observed cases over 3 days
+                            #Triangularly
+                            self.observed_cases[max(0,day),2] += num_symp//2
+                            self.cases[max(0,day),2] += num_symp//2
 
-                            # add asymptomatic
+                            self.observed_cases[max(0,day-1),2] += num_symp//3
+                            self.cases[max(0,day-1),2] += num_symp//3
+
+                            self.observed_cases[max(0,day-2),2] += num_symp//6
+                            self.cases[max(0,day-2),2] +=num_symp//6
+
+                            #add asymptomatic
                             num_asymp = self.current[2] - num_symp
-                            self.observed_cases[max(0, day), 2] += num_asymp
-                            self.cases[max(0, day), 2] += num_asymp
+                            self.observed_cases[max(0,day),2] += num_asymp//2
+                            self.cases[max(0,day),2] += num_asymp//2
 
-                            self.initialise_sim(curr_time=day)
-                            # print("Reinitialising with %i new cases "  % self.current[2] )
+                            self.observed_cases[max(0,day-1),2] += num_asymp//3
+                            self.cases[max(0,day-1),2] += num_asymp//3
 
-                            # reset days to zero
-                            self.daycount = 0
+                            self.observed_cases[max(0,day-2),2] += num_asymp//6
+                            self.cases[max(0,day-2),2] +=num_asymp//6
 
-                if n_resim > 50:
+                        self.initialise_sim(curr_time=day)
+                        #print("Reinitialising with %i new cases "  % self.current[2] )
+
+                        #reset days to zero
+                        self.daycount = 0
+                            
+                if n_resim > 20:
                     # print("This sim reinitilaised %i times" % n_resim)
                     self.bad_sim = True
                     n_resim = 0
@@ -577,7 +571,6 @@ class Forecast:
 
                             self.observed_cases[math.ceil(day_inf):, 2] = self.observed_cases[math.ceil(day_inf)-2, 2]
                             self.num_too_many += 1
-                            
                             break
                         
                     # stop if parent infection time greater than end time
@@ -599,6 +592,7 @@ class Forecast:
                                 curr_time += 1
                                 continue
                             break
+                            
                         # generate new cases with times
                         parent_key = self.infected_queue.popleft()
                         self.generate_new_cases(parent_key=parent_key, Reff=Reff, k=self.k)
@@ -625,6 +619,7 @@ class Forecast:
             # return NaN arrays for all bad_sims
             if self.print_at_iterations:
                 print("Bad sim...")
+                print(self.error_message)
                 print(np.sum(self.observed_cases, axis=0))
             self.cumulative_cases = np.empty_like(self.cases)
             self.cumulative_cases[:] = np.nan
@@ -649,10 +644,9 @@ class Forecast:
         # loop over windows and check for whether we have exceeded the cases in any window 
         # don't check the last window corresponding to nowcast
         if (self.sim_cases_in_window > self.max_cases_in_windows).any(): 
+            tmp = np.where(self.sim_cases_in_window > self.max_cases_in_windows)[0][0]
             if self.print_at_iterations:
-                print("too many in window:", np.where(self.sim_cases_in_window > self.max_cases_in_windows))
-                print("cases: ", self.sim_cases_in_window[np.where(self.sim_cases_in_window > self.max_cases_in_windows)], 
-                        "max cases: ", self.max_cases_in_windows[np.where(self.sim_cases_in_window > self.max_cases_in_windows)])
+                self.error_message = "too many in window: " + str(tmp) + " cases: " + str(self.sim_cases_in_window[tmp]) + " max cases: " + str(self.max_cases_in_windows[tmp])
             return True 
         else: 
             return False
@@ -664,8 +658,9 @@ class Forecast:
         
         # loop over the windows and check to see whether we are below the windows
         if (self.sim_cases_in_window < self.min_cases_in_windows).any():
+            tmp = np.where(self.sim_cases_in_window < self.min_cases_in_windows)[0][0]
             if self.print_at_iterations:
-                print("too few in window: ", np.where(self.sim_cases_in_window < self.min_cases_in_windows))
+                self.error_message = "too many in window: " + str(tmp) + " cases: " + str(self.sim_cases_in_window[tmp]) + " max cases: " + str(self.max_cases_in_windows[tmp])
             self.bad_sim = True 
         
     def increment_counters(self, detect_time, category):
@@ -694,6 +689,7 @@ class Forecast:
         """
         Put results from the simulation into a pandas dataframe and record as h5 format. This is called externally by the run_state.py script.
         """
+        
         import pandas as pd
 
         df_results = pd.DataFrame()
@@ -727,11 +723,11 @@ class Forecast:
         A metric to calculate how far the simulation is from the actual data. 
         Need to refactor this to ensure 
         """
+        
         try:
             # calculate the actual number of 3 day cases over day-2 to day
             actual_3_day_total = 0
-            for i in range(3):
-                actual_3_day_total += self.actual[max(0, day-i)]
+            actual_3_day_total = sum(self.actual[max(0, day-i)] for i in range(3))
                 
             # calculate the number of cases in the simulation 
             threshold = case_insertion_threshold*max(
@@ -742,10 +738,10 @@ class Forecast:
             )
             
             if actual_3_day_total > threshold:
-                if self.print_at_iterations:
-                    print("actual cases: ", actual_3_day_total)
-                    print("threshold: ", threshold)
-                return min(3, actual_3_day_total/threshold)
+                # if self.print_at_iterations:
+                    # print("actual cases: ", actual_3_day_total)
+                    # print("threshold: ", threshold)
+                return True
             else:
                 # long absence, then a case, reintroduce
                 week_in_sim = sum(
@@ -753,9 +749,9 @@ class Forecast:
                     self.observed_cases[max(0, day-7):day+1, 2]  
                 )
                 if week_in_sim == 0 and actual_3_day_total > 0:
-                    if self.print_at_iterations:
-                        print("week in sim: ", week_in_sim)
-                    return actual_3_day_total
+                    # if self.print_at_iterations:
+                        # print("week in sim: ", week_in_sim)
+                    return True
                 else: 
                     # no outbreak missed
                     return False
@@ -769,6 +765,7 @@ class Forecast:
         Read in NNDSS case data to measure incidence against simulation. Nothing is returned as results are saved in object.
         This also calculates the lower and upper case limits in each of the observation windows.
         """
+        
         import pandas as pd
         from datetime import timedelta
         import glob
@@ -822,30 +819,37 @@ class Forecast:
         cases_in_window = np.array([])
         # sum the nowcast cases
         cases_in_window = np.append(cases_in_window, sum(df.local.values[-1*(nowcast_days+forecast_days):]))
+        cases_in_window = np.append(
+            cases_in_window, 
+            sum(df.local.values[-1*(n_days_nowcast_TP_adjustment+nowcast_days+forecast_days):]) - 
+            sum(df.local.values[-1*(nowcast_days+forecast_days):])
+        )
         # get the number of days the simulation is run for (with data) where we subtract nowcast_days 
         # as this is the nowcast 
-        n_days = self.forecast_date - nowcast_days
+        n_days = self.forecast_date - nowcast_days - n_days_nowcast_TP_adjustment
         # number of windows is integer division of n_days by 30
         n_windows = n_days // window_length
         # get the number of days in the first window 
         n_days_first_window = n_days - window_length*n_windows
         # the last window is for the nowcast and consists of the last two weeks before the forecast date
-        window_sizes = np.array([nowcast_days])
+        window_sizes = np.array([nowcast_days, n_days_nowcast_TP_adjustment])
+        
+        starting_day = nowcast_days + n_days_nowcast_TP_adjustment
         
         for n in range(n_windows):
             # we initially end at the beginning of the nowcast (so -(nowcast_days+forecast_days)) and 
             # add on a month per window. 
-            start_index = -(nowcast_days+forecast_days+window_length*(n+1))
+            start_index = -(starting_day+forecast_days+window_length*(n+1))
             # we initially end at the beginning of the nowcast (so -(nowcast_days+forecast_days)) and 
             # add on a month-1 per window. 
-            end_index = -(nowcast_days+forecast_days+window_length*n)-1
+            end_index = -(starting_day+forecast_days+window_length*n)-1
             cases_in_window = np.append(cases_in_window, 
                                         sum(df.local.values[start_index:end_index]))
             window_sizes = np.append(window_sizes, window_length)
         
         if n_days_first_window != 0:
             # the last index is the number of windows+1
-            end_index = -(nowcast_days+forecast_days+window_length*(n_windows+1))-1
+            end_index = -(starting_day+forecast_days+window_length*(n_windows+1))-1
             # now add in the cases in the last window 
             cases_in_window[-1] += sum(df.local.values[:end_index])
             window_sizes[-1] += n_days_first_window
@@ -859,7 +863,7 @@ class Forecast:
         print("Observation windows cumulative lengths: ", self.window_sizes)
         print("Number of cases in each window: ", self.cases_in_windows)
         
-    def read_in_all_Reffs(self):
+    def read_in_all_Reffs(self, n_Reffs=2000):
         """
         Read in all the forecasted TP's and then process them into local and imported Reffs 
         indexed in a dictionary of dictionaries where the first dictionary is indexed by the sim number. 
@@ -870,24 +874,26 @@ class Forecast:
         # use local dictionaries to store the TP paths for sims 
         import_Reffs = {}
         local_Reffs = {}
-        for i in range(2000):
-            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(Reff_all, i)
+        for i in range(n_Reffs):
+            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(Reff_all, i, n_Reffs=n_Reffs)
             
         # store the results in self
         self.import_Reffs = import_Reffs 
         self.local_Reffs = local_Reffs
 
-    def set_Reff(self):
+    def set_Reff(self, n_Reffs=2000):
         """
         Set the TP to use for a given simulation. 
         """
-        self.R_I = self.import_Reffs[self.num_of_sim % 2000]
-        self.Reff = self.local_Reffs[self.num_of_sim % 2000]
+        
+        self.R_I = self.import_Reffs[self.num_of_sim % n_Reffs]
+        self.Reff = self.local_Reffs[self.num_of_sim % n_Reffs]
 
-    def read_in_Reff(self, Reff_all, i):
+    def read_in_Reff(self, Reff_all, i, n_Reffs=2000):
         """
         Read in Reff CSV that was produced by the generate_R_L_forecasts.py script.
         """
+        
         import pandas as pd
 
         df_forecast = Reff_all
@@ -895,7 +901,7 @@ class Forecast:
         # Get R_I values and store in object.
         R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
                               (df_forecast.state == self.state), 
-                              i % 2000].values[0]
+                              i % n_Reffs].values[0]
 
         # Get only R_L forecasts
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
@@ -905,7 +911,7 @@ class Forecast:
         
         # initialise a temporary df that is only for state of interest and 
         # corresponds to the appropriate sim number
-        df_forecast_tmp = df_forecast.loc[self.state, i % 2000]
+        df_forecast_tmp = df_forecast.loc[self.state, i % n_Reffs]
         
         # print(df_forecast_tmp)
         # loop over the key-value pairs in the series df_forecast_tmp and 
@@ -927,15 +933,16 @@ class Forecast:
         self.min_cases_in_windows = np.zeros_like(self.cases_in_windows)
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
-        limit_factor_backcasts = 2.0
+        limit_factor_backcasts = 2.5
         limit_factor_nowcast = 1.5
         # backcasts all have same limit
-        self.max_cases_in_windows[:-1] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-1]))
+        self.max_cases_in_windows[:-2] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-2]))
+        self.max_cases_in_windows[-2] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-2]))
         self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 0.1
-        low_limit_nowcast = 0.5
+        low_limit_nowcast = 0.3
         
         # alter the minimum number of cases in the window based on those exceeding a threshold of 10 cases
         for i in range(len(self.min_cases_in_windows)-1):
@@ -1042,9 +1049,9 @@ class Forecast:
         """
         Helper function. Generate large amount of gamma draws to save on simulation time later
         """
-        self.detect_rv = np.random.random(size=size)  # shape and scale
-        self.inf_times = offset_gen + np.random.gamma(shape_gen, scale_gen, size=size)  # shape and scale
-        self.detect_times = np.random.gamma(shape_inc, scale_inc, size=size)
+        self.detect_rv = self.rng.random(size=size)  # shape and scale
+        self.inf_times = offset_gen + self.rng.gamma(shape_gen, scale_gen, size=size)  # shape and scale
+        self.detect_times = self.rng.gamma(shape_inc, scale_inc, size=size)
 
     def iter_detect_rv(self):
         """
@@ -1067,18 +1074,20 @@ class Forecast:
         for time in cycle(self.detect_times):
             yield time
         
-def binom_sample(n, p):
-    """
-    Helper function. Wrapper for binomial sampler.
-    """
-    return np.random.binomial(n, p)
-    # return binom.rvs(n, p)
-    
-def neg_binom_sample(k, p):
-    """
-    Helper function. Wrapper for negative binomial sampler. 
-    """
-    return np.random.negative_binomial(k, p)
+    def binom_sample(self, n, p):
+        """
+        Helper function. Wrapper for binomial sampler.
+        """
+        # return np.random.binomial(n, p)
+        return self.rng.binomial(n, p)
+        # return binom.rvs(n, p)
+        
+    def neg_binom_sample(self, k, p):
+        """
+        Helper function. Wrapper for negative binomial sampler. 
+        """
+        # return np.random.negative_binomial(k, p)
+        return self.rng.negative_binomial(k, p)
     # return nbinom.rvs(k, p)
     
 def init_from_jurisdiction_arrays(apply_intestate_seeding, start_date, n_sims, end_time):

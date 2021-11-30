@@ -174,7 +174,7 @@ sec_date_range = {
 
 # choose dates for each state for third wave
 third_date_range = {
-    'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,          # truncate further to deal with delay
+    'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
     'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values
@@ -238,23 +238,12 @@ survey_respond = survey_respond_base.loc[:dfX.date.values[-1]]
 survey_counts = survey_counts_base.loc[:dfX.date.values[-1]]
 include_in_first_wave = []
 
-def exponential_smoother(x, alpha=1.0):
-    """
-    Smooths an input vector x using the standard exponential moving average with parameter alpha = 1.
-    """
-    s = np.zeros_like(x)
-    s[0] = x[0]
-    for i in range(1, len(x)):
-        s[i] = alpha * x[i] + (1-alpha) * s[i-1]
-        
-    return s
-
 for state in first_states:
-    mobility_by_state.append(exponential_smoother(dfX.loc[dfX.state == state, predictors].values/100))
-    mobility_std_by_state.append(exponential_smoother(dfX.loc[dfX.state == state, [val+'_std' for val in predictors]].values/100))
-    count_by_state.append(exponential_smoother(survey_counts.loc[start_date:end_date, state].values))
-    respond_by_state.append(exponential_smoother(survey_respond.loc[start_date:end_date, state].values))
-    include_in_first_wave.append(exponential_smoother(dfX.loc[dfX.state == state, 'is_first_wave'].values))
+    mobility_by_state.append(dfX.loc[dfX.state == state, predictors].values/100)
+    mobility_std_by_state.append(dfX.loc[dfX.state == state, [val+'_std' for val in predictors]].values/100)
+    count_by_state.append(survey_counts.loc[start_date:end_date, state].values)
+    respond_by_state.append(survey_respond.loc[start_date:end_date, state].values)
+    include_in_first_wave.append(dfX.loc[dfX.state == state, 'is_first_wave'].values)
 
 # SECOND PHASE
 sec_mobility_by_state = []
@@ -268,11 +257,11 @@ survey_respond = survey_respond_base.loc[:df2X.date.values[-1]]
 survey_counts = survey_counts_base.loc[:df2X.date.values[-1]]
 
 for state in sec_states:
-    sec_mobility_by_state.append(exponential_smoother(df2X.loc[df2X.state == state, predictors].values/100))
-    sec_mobility_std_by_state.append(exponential_smoother(df2X.loc[df2X.state == state, [val+'_std' for val in predictors]].values/100))
-    sec_count_by_state.append(exponential_smoother(survey_counts.loc[sec_start_date:sec_end_date, state].values))
-    sec_respond_by_state.append(exponential_smoother(survey_respond.loc[sec_start_date:sec_end_date, state].values))
-    include_in_sec_wave.append(exponential_smoother(df2X.loc[df2X.state == state, 'is_sec_wave'].values))
+    sec_mobility_by_state.append(df2X.loc[df2X.state == state, predictors].values/100)
+    sec_mobility_std_by_state.append(df2X.loc[df2X.state == state, [val+'_std' for val in predictors]].values/100)
+    sec_count_by_state.append(survey_counts.loc[sec_start_date:sec_end_date, state].values)
+    sec_respond_by_state.append(survey_respond.loc[sec_start_date:sec_end_date, state].values)
+    include_in_sec_wave.append(df2X.loc[df2X.state == state, 'is_sec_wave'].values)
 
 # THIRD WAVE
 third_mobility_by_state = []
@@ -286,11 +275,11 @@ survey_respond = survey_respond_base.loc[:df3X.date.values[-1]]
 survey_counts = survey_counts_base.loc[:df3X.date.values[-1]]
 
 for state in third_states:
-    third_mobility_by_state.append(exponential_smoother(df3X.loc[df3X.state == state, predictors].values/100))
-    third_mobility_std_by_state.append(exponential_smoother(df3X.loc[df3X.state == state, [val+'_std' for val in predictors]].values/100))
-    third_count_by_state.append(exponential_smoother(survey_counts.loc[third_start_date:third_end_date, state].values))
-    third_respond_by_state.append(exponential_smoother(survey_respond.loc[third_start_date:third_end_date, state].values))
-    include_in_third_wave.append(exponential_smoother(df3X.loc[df3X.state == state, 'is_third_wave'].values))
+    third_mobility_by_state.append(df3X.loc[df3X.state == state, predictors].values/100)
+    third_mobility_std_by_state.append(df3X.loc[df3X.state == state, [val+'_std' for val in predictors]].values/100)
+    third_count_by_state.append(survey_counts.loc[third_start_date:third_end_date, state].values)
+    third_respond_by_state.append(survey_respond.loc[third_start_date:third_end_date, state].values)
+    include_in_third_wave.append(df3X.loc[df3X.state == state, 'is_third_wave'].values)
 
 # policy boolean flag for after travel ban in each wave
 policy = dfX.loc[dfX.state == first_states[0],'post_policy']     # this is the post ban policy
@@ -333,11 +322,10 @@ vaccination_by_state_array = vaccination_by_state.to_numpy()
 
 # elementwise comparison of the third states with NSW and then convert to int which is easier than 
 # keeping track of indices in the stan code
-is_VIC = (np.array(third_states) == 'VIC').astype(int)
 is_NSW = (np.array(third_states) == 'NSW').astype(int)
 
 # calculate how many days the end of august is after the third start date
-decay_start_date_third = (pd.to_datetime('2021-08-10') - pd.to_datetime(third_start_date)).days
+decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
 
 # Make state by state arrays
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
@@ -898,7 +886,7 @@ dates = vaccination_by_state.columns
 fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
 # find days after the third start date began that we want to apply the effect — currently this is fixed from the
 # 20th of Aug and is not a problem with ACT as this is just a plot of the posterior vaccine effect
-heterogeneity_delay_start_day = (pd.to_datetime('2021-08-10') - pd.to_datetime(third_start_date)).days
+heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
 for i, state in enumerate(states):
 
     # apply different vaccine form depending on if NSW

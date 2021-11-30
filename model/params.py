@@ -5,7 +5,7 @@ on_phoenix = True   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
 run_TP_adjustment = True
-use_TP_adjustment = True
+use_TP_adjustment = False
 testing_inference = False if on_phoenix else True
 n_days_nowcast_TP_adjustment = 45
 
@@ -20,9 +20,9 @@ else:
 third_start_date = '2021-06-15'
 start_date = '2021-06-01'  # Start date of forecast
 # start_date = '2021-08-01'  # Start date of forecast
-alpha_start_date = '2021-01-28'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
-delta_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
-vaccination_start_date = '2021-02-22'
+alpha_start_date = '2021-01-27'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
+delta_start_date = '2021-06-07'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
+vaccination_start_date = '2021-02-21'
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35
 # setting this to False lets us check that the soc_mob_R_L_hats look ok without the VoC and Vax effects 
@@ -82,11 +82,11 @@ local_detection = {
 
 # Also known as qa, this is the probability of detecting an asymptomatic case.
 a_local_detection = {
-    'NSW': 0.15,
+    'NSW': 0.1,
     'QLD': 0.1,
     'SA': 0.1,
     'TAS': 0.1,
-    'VIC': 0.15,
+    'VIC': 0.1,
     'WA': 0.1,
     'ACT': 0.1,
     'NT': 0.1
