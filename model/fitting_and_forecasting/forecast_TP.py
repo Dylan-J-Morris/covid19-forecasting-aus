@@ -156,8 +156,8 @@ n_training = 14  # Period to examine trend
 n_baseline = 91  # Period to create baseline
 
 # calculate the maximum vaccination effect here
-max_vac_effect = 0.9*np.minimum(
-    vaccination_by_state.loc[s].values[-1] for s in vaccination_by_state['state'].unique()
+max_vac_effect = 0.9*min(
+    vaccination_by_state.loc[s].values[-1] for s in states
 )
 
 # since this can be useful, predictor ordering is: 

@@ -76,7 +76,7 @@ class Forecast:
         from params import local_detection, a_local_detection, qi_d, alpha_i, k
         
         # if applying interstate 
-        self.print_at_iterations = False 
+        self.print_at_iterations = True 
         self.apply_interstate_seeding = apply_interstate_seeding
         self.error_message = ''
         self.adjust_TP_forecast = adjust_TP_forecast
@@ -940,25 +940,25 @@ class Forecast:
         self.min_cases_in_windows = np.zeros_like(self.cases_in_windows)
         self.max_cases_in_windows = np.zeros_like(self.cases_in_windows)
         # max cases factors
-        limit_factor_backcasts = 3.0
+        limit_factor_backcasts = 2.5
         limit_factor_nowcast = 1.5
         # backcasts all have same limit
-        self.max_cases_in_windows[:-2] = np.maximum(100, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-2]))
-        self.max_cases_in_windows[-2] = np.maximum(100, np.ceil(2 * self.cases_in_windows[-2]))
-        self.max_cases_in_windows[-1] = np.maximum(100, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
+        self.max_cases_in_windows[:-1] = np.maximum(200, np.ceil(limit_factor_backcasts * self.cases_in_windows[:-1]))
+        # self.max_cases_in_windows[-2] = np.maximum(100, np.ceil(2 * self.cases_in_windows[-2]))
+        self.max_cases_in_windows[-1] = np.maximum(200, np.ceil(limit_factor_nowcast * self.cases_in_windows[-1]))
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 0.3
         low_limit_nowcast = 0.5
         
         # alter the minimum number of cases in the window based on those exceeding a threshold of 10 cases
-        for i in range(len(self.min_cases_in_windows)-2):
+        for i in range(len(self.min_cases_in_windows)-1):
             # this is the same approach used for the max_cases_in_windows but ensures the minimum number of cases is 0 
             tmp = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[i]))
-            self.min_cases_in_windows[i] = tmp if tmp >= 10 else 0 
+            self.min_cases_in_windows[i] = tmp if tmp >= 50 else 0 
         
         # self.min_cases_in_windows[:-1] = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[:-1]))
-        self.min_cases_in_windows[-2] = np.maximum(0, np.floor(0.4*self.cases_in_windows[-2]))
+        # self.min_cases_in_windows[-2] = np.maximum(0, np.floor(0.4*self.cases_in_windows[-2]))
         self.min_cases_in_windows[-1] = np.maximum(0, np.floor(low_limit_nowcast*self.cases_in_windows[-1]))
         self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
 

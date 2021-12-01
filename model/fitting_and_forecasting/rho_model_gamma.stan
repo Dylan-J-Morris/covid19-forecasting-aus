@@ -173,11 +173,18 @@ transformed parameters {
                 md_third_wave[pos] = pow(1+theta_md, -1*prop_md_third_wave[pos]);                
 
                 // applying the return to homogeneity in vaccination effect 
+                // if (n < decay_start_date_third){
+                //     decay_in_heterogeneity = 1.0;
+                // } else if (n >= decay_start_date_third && n < decay_start_date_third + 45){
+                //     decay_in_heterogeneity = exp(-r*(n-decay_start_date_third));
+                // } else {
+                //     decay_in_heterogeneity = 0.0;
+                // }
                 if (n < decay_start_date_third){
-                    decay_in_heterogeneity = 1;
+                    decay_in_heterogeneity = 1.0;
                 } else{
                     decay_in_heterogeneity = exp(-r*(n-decay_start_date_third));
-                }
+                } 
                 
                 eta_tmp = eta*decay_in_heterogeneity;
 

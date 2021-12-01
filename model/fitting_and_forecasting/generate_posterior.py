@@ -949,7 +949,7 @@ var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_d
 var_to_csv = var_to_csv + predictors + [
     'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
 ]
-var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
+# var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
 
