@@ -54,6 +54,8 @@ data {
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
+    int is_VIC[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
+    int VIC_tough_period[N_third_wave];                                   // indicator vector of which state is NSW in the third wave
     // int days_into_sec;                                          // days into sec wave to apply VoC 
 
     int decay_start_date_third;
@@ -82,6 +84,7 @@ parameters {
     real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
     real<lower=0> r_other;                                      // parameter for decay to heterogeneity
     // vector<lower=0, upper=1>[total_N_p_third] vacc_effect;
+    // vector<lower=0>[N_third_wave] TP_local_adjustment_factor;                   // parameter for decay to heterogeneity
 
 }
 transformed parameters {
@@ -125,6 +128,7 @@ transformed parameters {
             if (include_in_sec_wave[i][n]==1){        
                 md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
                 social_measures = ((1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n])*inv_logit(Mob_sec_wave[i][n,:]*(bet));
+                // TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures*voc_effect_alpha; //mean estimate
                 TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures; //mean estimate
                 // if (n > ){
                 //     TP_local *= voc_effect_alpha
@@ -185,6 +189,10 @@ transformed parameters {
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_delta*vacc_effect_tot;
                 
+                // if (is_VIC[i] == 1 && VIC_tough_period[n] == 1) {
+                //     TP_local *= TP_local_adjustment_factor[n]; 
+                // } 
+                
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*TP_local;
                 pos += 1;
             }
@@ -203,7 +211,7 @@ model {
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     // parametersiing the following as voc_eff ~ 1 + gamma(a,b)
-    additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);      
+    additive_voc_effect_alpha ~ gamma(0.4*0.4/0.2, 0.4/0.2);      
     additive_voc_effect_delta ~ gamma(1.1*1.1/0.075, 1.1/0.075);
     
     // assume a hierarchical structure on the vaccine effect 
@@ -217,8 +225,9 @@ model {
     r_other ~ lognormal(log(0.16), 0.1);        // r is lognormally distributed such that the mean is 28 days 
 
     R_L ~ gamma(1.8*1.8/0.005,1.8/0.005); //hyper-prior
+    // R_L ~ gamma(2.0*2.0/0.005,2.0/0.005); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
-    sig ~ exponential(1000); //mean is 1/50=0.02
+    sig ~ exponential(50); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
     for (i in 1:j_first_wave) {

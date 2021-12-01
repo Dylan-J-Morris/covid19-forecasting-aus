@@ -155,6 +155,11 @@ mob_samples = 1000
 n_training = 14  # Period to examine trend
 n_baseline = 91  # Period to create baseline
 
+# calculate the maximum vaccination effect here
+max_vac_effect = 0.9*np.minimum(
+    vaccination_by_state.loc[s].values[-1] for s in vaccination_by_state['state'].unique()
+)
+
 # since this can be useful, predictor ordering is: 
 # ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
 # Loop through states and run forecasting.
@@ -279,7 +284,7 @@ for i, state in enumerate(states):
                         adjusted_baseline_drift_mean = R_baseline_0 - current
                         # we purposely scale the transit measure so that we increase a little more quickly
                         # tmp = 0.05 * adjusted_baseline_drift_mean[3]
-                        adjusted_baseline_drift_mean *= 0.025
+                        adjusted_baseline_drift_mean *= 0.01
                         # adjusted_baseline_drift_mean[3] = tmp
                         regression_to_baseline_force = np.random.multivariate_normal(adjusted_baseline_drift_mean, cov) # Generate a single forward realisation of baseline regression
                         new_forcast_points = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force # Find overall simulation step
@@ -415,6 +420,7 @@ for i, state in enumerate(states):
              timedelta(days=x) for x in range(1, n_forecast+extra_days_md+1)]
 
     if apply_vacc_to_R_L_hats:
+        
         # Forecasting vaccine effect
         # Get a baseline value of vaccination
         mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:])
@@ -453,7 +459,6 @@ for i, state in enumerate(states):
 
         vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
         vacc_sims = np.minimum(1, vacc_sims)
-        max_vac_effect = np.minimum(0.9*vaccination_by_state.loc[state].values[-1], 0.3)
         vacc_sims = np.maximum(max_vac_effect, vacc_sims)      # apply a maximum effect of 0.35 based off current observations from Nick
 
         # get dates

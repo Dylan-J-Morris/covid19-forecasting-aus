@@ -119,9 +119,7 @@ sec_start_date = '2020-06-01'
 sec_end_date = '2021-01-19'
 
 # Third wave inputs
-# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
-# third_states = sorted(['NSW', 'VIC'])
 # third_states = sorted(['NSW', 'VIC'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
@@ -178,7 +176,7 @@ third_date_range = {
     'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
-    'VIC': pd.date_range(start='2021-07-14', end=third_end_date).values
+    'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
 }
 # third_date_range = {
 #     # 'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
@@ -330,6 +328,7 @@ vaccination_by_state_array = vaccination_by_state.to_numpy()
 # elementwise comparison of the third states with NSW and then convert to int which is easier than 
 # keeping track of indices in the stan code
 is_NSW = (np.array(third_states) == 'NSW').astype(int)
+is_VIC = (np.array(third_states) == 'VIC').astype(int)
 
 # calculate how many days the end of august is after the third start date
 decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
@@ -338,10 +337,10 @@ decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_st
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 
 third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
-# VIC_tough_period = np.array(
-#     (third_wave_dates >= pd.to_datetime('2021-07-13')) * 
-#     (third_wave_dates <= pd.to_datetime('2021-08-01'))
-# ).astype(int)
+VIC_tough_period = np.array(
+    (third_wave_dates >= pd.to_datetime('2021-07-14')) * 
+    (third_wave_dates <= pd.to_datetime('2021-08-01'))
+).astype(int)
 
 # input data block for stan model
 input_data = {
@@ -401,6 +400,9 @@ input_data = {
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
 
     'is_NSW': is_NSW,   # indicator for whether we are looking at NSW
+    'is_VIC': is_VIC,   # indicator for whether we are looking at NSW
+    'VIC_tough_period': VIC_tough_period,   # indicator for whether we are looking at NSW
+    
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
@@ -444,7 +446,7 @@ if run_inference or run_inference_only:
 
         # samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
         #                                            'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
-        #                                            'voc_effect_sec_wave', 'voc_effect_third_wave', 
+        #                                            'voc_effect_alpha', 'voc_effect_delta', 
         #                                            'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
@@ -471,7 +473,7 @@ if run_inference or run_inference_only:
         # create extended summary of parameters to index the samples by
         # summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
         #                                         'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
-        #                                         'voc_effect_sec_wave', 'voc_effect_third_wave', 
+        #                                         'voc_effect_alpha', 'voc_effect_delta', 
         #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other', 'TP_local_adjustment_factor'])
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                 'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
@@ -947,7 +949,7 @@ var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_d
 var_to_csv = var_to_csv + predictors + [
     'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
 ]
-# var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
+var_to_csv = var_to_csv + ['TP_local_adjustment_factor['+str(j)+']' for j in range(1, 1+df.loc[df.state == 'VIC'].is_third_wave.sum())]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
 

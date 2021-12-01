@@ -305,6 +305,9 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
 
                 if vaccination is not None and states_initials[state] in third_states:
                     mu_hat = 2 * md*sim_R * expit(logodds) * vacc_post
+                    # if states_initials[state] == 'VIC':
+                    #     pd.DataFrame(2 * md*sim_R * expit(logodds)).to_csv('mu_hat.csv')
+                    #     pd.DataFrame(vacc_post).to_csv('vacc_post.csv')
                 else:
                     mu_hat = 2 * md*sim_R * expit(logodds)
 
@@ -330,20 +333,30 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                                                         for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
 
                                 voc_multiplier_alpha = samples_sim[['voc_effect_alpha']].values.T
-                                voc_multiplier_delta = samples_sim[['voc_effect_delta']].values.T
+                                voc_multiplier_delta = np.tile(samples_sim[['voc_effect_delta']].values.T, (mu_hat.shape[0], 1))
                                 # now we just modify the values before the introduction of the voc to be 1.0
                                 voc_multiplier = np.zeros_like(voc_multiplier_delta)
                                 
-                                for ii in range(voc_multiplier.shape[0]):
-                                    if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-                                        voc_multiplier[ii] = 1.0
-                                    elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-                                        voc_multiplier[ii] = voc_multiplier_alpha[ii]
-                                    else:
-                                        voc_multiplier[ii] = voc_multiplier_delta[ii]
-                                        
+                                # for ii in range(voc_multiplier.shape[0]):
+                                #     if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
+                                #         voc_multiplier[ii] = 1.0
+                                #     elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                                #         voc_multiplier[ii] = voc_multiplier_alpha[ii]
+                                #     else:
+                                #         voc_multiplier[ii] = voc_multiplier_delta[ii]
+                                
+                                voc_multiplier = voc_multiplier_delta
+                                
+                                # if states_initials[state] == 'VIC':
+                                #     pd.DataFrame(voc_multiplier).to_csv('voc_multiplier.csv')
+                                            
                                 # now modify the mu_hat
                                 mu_hat *= voc_multiplier
+                                
+                                # if states_initials[state] == 'VIC':
+                                #     TP_adjustment_factors = samples_sim[['TP_local_adjustment_factor['+str(j)+']' 
+                                #                                          for j in range(1, 1+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
+                                #     mu_hat *= TP_adjustment_factors
 
                                 pos = pos + df.loc[df.state == states_initials[state]].is_third_wave.sum()
 
