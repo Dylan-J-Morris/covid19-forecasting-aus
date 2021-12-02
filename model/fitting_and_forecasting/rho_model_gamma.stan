@@ -185,7 +185,7 @@ transformed parameters {
                 // vacc_effect_tot = vaccine_effect_data[i][n];
                 
                 // instead of using the actual vaccination data as truth, use a transformed version
-                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[pos];
+                vacc_effect_tot = eta_tmp + (1-eta_tmp) * max(vacc_effect[pos-1], vacc_effect[pos]);
                 
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_delta*vacc_effect_tot;
