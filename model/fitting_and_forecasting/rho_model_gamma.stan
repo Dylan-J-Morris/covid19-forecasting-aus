@@ -203,7 +203,7 @@ model {
     real a_vacc; 
     real b_vacc;
     // mean and variacne parameters for the beta (used for the transformation)
-    real vacc_sig = 0.001;
+    real vacc_sig = 0.005;
     real vacc_mu;
 
     bet ~ normal(0, 1.0);
@@ -283,8 +283,9 @@ model {
                 // transform to shape and scale 
                 a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
                 b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
-                // vaccine effect distributed around mean of the vaccine effect
-                vacc_effect[pos2] ~ beta(a_vacc, b_vacc);
+                // vaccine effect distributed around mean of the vaccine effect but 
+                // needs to be truncated above by the previous value 
+                vacc_effect[pos2] ~ beta(a_vacc, b_vacc) T[0, vaccine_effect_data[i][n-1]];
                                             
                 pos2+=1;
             }
