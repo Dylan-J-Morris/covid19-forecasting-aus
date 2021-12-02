@@ -2,6 +2,8 @@
 from datetime import time, timedelta
 from math import trunc
 import sys
+
+from pandas.core.tools.datetimes import to_datetime
 sys.path.insert(0, 'model')
 sys.path.insert(0, 'model/fitting_and_forecasting')
 from Reff_constants import *
@@ -138,16 +140,16 @@ sec_date_range = {
 
 # Third wave inputs
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
-# third_states = sorted(['NSW', 'VIC'])
+third_states = sorted(['VIC'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
 # choose dates for each state for third wave
 third_date_range = {
-    'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
-    'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
-    'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+    # 'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
+    # 'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
+    # 'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
 }
 
@@ -298,10 +300,11 @@ vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 # display the latest available date in the NSW data (will be the same date between states)
 print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
 
+# Get only the dates we need + 1 (this serves as the initial value)
 vaccination_by_state = vaccination_by_state[
-    (vaccination_by_state.date >= third_start_date) & 
+    (vaccination_by_state.date >= pd.to_datetime(third_start_date) - timedelta(days=1)) & 
     (vaccination_by_state.date <= third_end_date)
-]  # Get only the dates we need.
+]  
 vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
 vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
@@ -315,8 +318,14 @@ if latest_vacc_data < pd.to_datetime(third_end_date):
         axis=1
     )
     
-# Convert to simple array only useful to pass to stan
-vaccination_by_state_array = vaccination_by_state.to_numpy()
+# now get the intial vax effect on day -1 of the fitting 
+vaccination_by_state_array_initial = np.zeros(len(third_states))
+for (idx, s) in enumerate(third_states):
+    state_third_start = pd.to_datetime(third_date_range[s][0]) - timedelta(days=1)
+    vaccination_by_state_array_initial[idx] = vaccination_by_state.loc[s][state_third_start]
+    
+# Convert to simple array only useful to pass to stan (index 1 onwards)
+vaccination_by_state_array = vaccination_by_state.iloc[:, 1:].to_numpy()
 
 # elementwise comparison of the third states with NSW and then convert to int which is easier than 
 # keeping track of indices in the stan code
@@ -330,6 +339,13 @@ decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_st
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 
 third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
+
+# number of days in the third wave
+N_vaccine_data_third = [v.shape[0] for (k, v) in third_date_range.items()]
+# indices for the third wave
+# third_inds = {
+#     k: range(third_days[idx], third_days[idx+1]) for (idx, k) in enumerate(third_date_range.keys())
+# }
 
 apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int)
 
@@ -396,6 +412,8 @@ input_data = {
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
+    'N_vaccine_data_third': N_vaccine_data_third,
+    'vaccine_effect_data_initial': vaccination_by_state_array_initial
 }
 
 # make results dir

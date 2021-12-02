@@ -58,8 +58,12 @@ data {
 
     int decay_start_date_third;
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data
+    int N_vaccine_data_third[j_third_wave];     //vaccination data
+    
+    vector[j_third_wave] vaccine_effect_data_initial;
 
 }
+
 parameters {
     vector[K] bet;                                              // coefficients
     real<lower=0> R_I;                                          // base level imports,
@@ -80,10 +84,12 @@ parameters {
     real<lower=0,upper=1> eta_NSW;                              // array of adjustment factor for each third wave state
     real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
     real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
-    real<lower=0> r_other;                                      // parameter for decay to heterogeneity
-    vector<lower=0, upper=1>[total_N_p_third] vacc_effect;      // adjusted vaccine effect parameter centered on the supplied timeseries
-
+    real<lower=0> r_other;                                      // parameter for decay to 
+    // vector<lower=0,upper=1>[total_N_p_third] vacc_effect_unconstrained;                                      // parameter for decay to 
+    // vector<lower=0, upper=1>[total_N_p_third] vacc_adjustment;      // adjusted vaccine effect parameter centered on the supplied timeseries
+    // positive_ordered[total_N_p_third] vacc_effect;      // adjusted vaccine effect parameter centered on the supplied timeseries
 }
+
 transformed parameters {
     // this parametrisation results in voc ~ 1 + Gamma(a, b) (i.e. truncated below at 1)
     real<lower=0> voc_effect_alpha = 1 + additive_voc_effect_alpha;
@@ -140,6 +146,7 @@ transformed parameters {
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
         int pos;
+        int reset_pos = 0;
         real TP_local;
         real social_measures;
         // parameters for the vaccination effects  
@@ -152,9 +159,11 @@ transformed parameters {
         
         if (i==1){
             pos=1;
+            reset_pos = 1;
         } else {
             //Add 1 to get to start of new group, not end of old group
             pos = pos_starts_third[i-1]+1;
+            reset_pos = 1;
         }
 
         // apply different heterogeneity effects depending on whether we are looking at NSW or not
@@ -168,6 +177,7 @@ transformed parameters {
 
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
+                
                 md_third_wave[pos] = pow(1+theta_md, -1*prop_md_third_wave[pos]);                
 
                 // applying the return to homogeneity in vaccination effect 
@@ -181,11 +191,12 @@ transformed parameters {
 
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
-                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
+                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
                 // vacc_effect_tot = vaccine_effect_data[i][n];
+                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[pos];
+                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[N_vaccine_data_third[i]+1-pos];
                 
                 // instead of using the actual vaccination data as truth, use a transformed version
-                vacc_effect_tot = eta_tmp + (1-eta_tmp) * max(vacc_effect[pos-1], vacc_effect[pos]);
                 
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_delta*vacc_effect_tot;
@@ -196,6 +207,7 @@ transformed parameters {
         }
     }
 }
+
 model {
     // indexer for moving through the items in the second and third waves
     int pos2;
@@ -211,14 +223,12 @@ model {
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     // parametersiing the following as voc_eff ~ 1 + gamma(a,b)
-    additive_voc_effect_alpha ~ gamma(0.4*0.4/0.2, 0.4/0.2);      
+    additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);      
     additive_voc_effect_delta ~ gamma(1.1*1.1/0.075, 1.1/0.075);
     
     // assume a hierarchical structure on the vaccine effect 
     eta_NSW ~ beta(2, 7);           // mean of 2/9
     eta_other ~ beta(2, 7);         // mean of 2/9
-    // eta_NSW ~ beta(1, 100);           // mean of 2/9
-    // eta_other ~ beta(1, 100);         // mean of 2/9
 
     // want it to have mean 0.16 => log-mean is log(0.16)
     r_NSW ~ lognormal(log(0.16), 0.1);        // r is lognormally distributed such that the mean is 28 days 
@@ -279,13 +289,15 @@ model {
                                                 Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
                 
                 // the mean vaccination effect should be the data supplied
-                vacc_mu = vaccine_effect_data[i][n];
+                // vacc_mu = vaccine_effect_data[i][n];
                 // transform to shape and scale 
-                a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
-                b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
+                // a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
+                // b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
                 // vaccine effect distributed around mean of the vaccine effect but 
                 // needs to be truncated above by the previous value 
-                vacc_effect[pos2] ~ beta(a_vacc, b_vacc) T[0, vaccine_effect_data[i][n-1]];
+                // vacc_effect_unconstrained[pos2] ~ beta(a_vacc, b_vacc);
+                // vacc_effect[pos2] ~ beta(a_vacc, b_vacc);
+                // vacc_effect[N_vaccine_data_third[i]+1-pos2] ~ beta(a_vacc, b_vacc);
                                             
                 pos2+=1;
             }
