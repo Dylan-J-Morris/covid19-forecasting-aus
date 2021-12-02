@@ -6,7 +6,7 @@ from scipy.stats import gamma
 from sys import argv
 from epyreff import *
 # this is not used in the estimation routine, it just lets the plot know what we ignore
-from params import truncation_days, third_start_date, start_date 
+from params import truncation_days, third_start_date, start_date
 
 from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, \
     offset_rd, offset_inc, offset_gen
@@ -78,6 +78,7 @@ for state in states:
     
     # store the date
     dates[state] = df_state_I.index.values[trunc_days-1+tau:]
+    
     # store sampled Reffs
     R_store[state] = R
     # temporarily store important information

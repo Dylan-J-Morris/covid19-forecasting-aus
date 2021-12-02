@@ -387,7 +387,7 @@ for i, state in enumerate(states):
                     # Generate step realisations in training trend direction
                     trend_force = np.random.normal(mu_diffs, std_baseline)
                     # Generate realisations that draw closer to baseline
-                    regression_to_baseline_force = np.random.normal(0.05*(mu_baseline_0 - current), std_baseline)
+                    regression_to_baseline_force = np.random.normal(0.005*(mu_baseline_0 - current), std_baseline)
                     current = current+regression_to_baseline_force  # Balance forces
             
             elif scenarios[state] == "immediately_baseline":

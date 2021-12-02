@@ -23,6 +23,7 @@ data {
     vector[N_sec_wave] policy_sec_wave;                         // micro distancing compliance
     matrix[N_sec_wave,j_sec_wave] local_sec_wave;               // local cases in VIC
     matrix[N_sec_wave,j_sec_wave] imported_sec_wave;            // imported cases in VIC
+    vector[N_sec_wave] apply_alpha_sec_wave;                    // when to apply an increase due to alpha
 
     // data for the third wave  
     int N_third_wave;                                           // length of VIC days
@@ -54,9 +55,6 @@ data {
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
     int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
-    int is_VIC[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
-    int VIC_tough_period[N_third_wave];                                   // indicator vector of which state is NSW in the third wave
-    // int days_into_sec;                                          // days into sec wave to apply VoC 
 
     int decay_start_date_third;
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data
@@ -83,18 +81,18 @@ parameters {
     real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
     real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
     real<lower=0> r_other;                                      // parameter for decay to heterogeneity
-    // vector<lower=0, upper=1>[total_N_p_third] vacc_effect;
-    // vector<lower=0>[N_third_wave] TP_local_adjustment_factor;                   // parameter for decay to heterogeneity
+    vector<lower=0, upper=1>[total_N_p_third] vacc_effect;      // adjusted vaccine effect parameter centered on the supplied timeseries
 
 }
 transformed parameters {
     // this parametrisation results in voc ~ 1 + Gamma(a, b) (i.e. truncated below at 1)
     real<lower=0> voc_effect_alpha = 1 + additive_voc_effect_alpha;
     real<lower=0> voc_effect_delta = 1 + additive_voc_effect_delta;
-    
+    // TP model for each wave 
     matrix<lower=0>[N,j_first_wave] mu_hat;
     vector<lower=0>[total_N_p_sec] mu_hat_sec_wave;
     vector<lower=0>[total_N_p_third] mu_hat_third_wave;
+    // microdistancing effect for each wave
     matrix<lower=0>[N,j_first_wave] md;                                    // micro distancing
     vector<lower=0>[total_N_p_sec] md_sec_wave;
     vector<lower=0>[total_N_p_third] md_third_wave;
@@ -130,9 +128,9 @@ transformed parameters {
                 social_measures = ((1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n])*inv_logit(Mob_sec_wave[i][n,:]*(bet));
                 // TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures*voc_effect_alpha; //mean estimate
                 TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures; //mean estimate
-                // if (n > ){
-                //     TP_local *= voc_effect_alpha
-                // }
+                if (apply_alpha_sec_wave[n]==1){
+                    TP_local *= voc_effect_alpha;
+                }
                 mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*TP_local;
                 pos += 1;
             }
@@ -173,13 +171,6 @@ transformed parameters {
                 md_third_wave[pos] = pow(1+theta_md, -1*prop_md_third_wave[pos]);                
 
                 // applying the return to homogeneity in vaccination effect 
-                // if (n < decay_start_date_third){
-                //     decay_in_heterogeneity = 1.0;
-                // } else if (n >= decay_start_date_third && n < decay_start_date_third + 45){
-                //     decay_in_heterogeneity = exp(-r*(n-decay_start_date_third));
-                // } else {
-                //     decay_in_heterogeneity = 0.0;
-                // }
                 if (n < decay_start_date_third){
                     decay_in_heterogeneity = 1.0;
                 } else{
@@ -190,15 +181,14 @@ transformed parameters {
 
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
-                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
+                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
                 // vacc_effect_tot = vaccine_effect_data[i][n];
-                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[pos];
+                
+                // instead of using the actual vaccination data as truth, use a transformed version
+                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[pos];
+                
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_delta*vacc_effect_tot;
-                
-                // if (is_VIC[i] == 1 && VIC_tough_period[n] == 1) {
-                //     TP_local *= TP_local_adjustment_factor[n]; 
-                // } 
                 
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*TP_local;
                 pos += 1;
@@ -207,11 +197,14 @@ transformed parameters {
     }
 }
 model {
+    // indexer for moving through the items in the second and third waves
     int pos2;
-    // real a_vacc; 
-    // real b_vacc;
-    // real vacc_sig = 0.001;
-    // real vacc_mu;
+    // shape and scale parameters for the prior distribution on the vaccination effect
+    real a_vacc; 
+    real b_vacc;
+    // mean and variacne parameters for the beta (used for the transformation)
+    real vacc_sig = 0.001;
+    real vacc_mu;
 
     bet ~ normal(0, 1.0);
     theta_md ~ lognormal(0, 0.5);
@@ -285,22 +278,14 @@ model {
                 mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), 
                                                 Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
                 
-                // vacc_mu = vaccine_effect_data[i][n];
-                // a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
-                // b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
-                
-                // vacc_effect[pos2] ~ Beta(a_vacc, b_vacc)
-                                                
-                // apply different smoothing effect based on the time. This acts as a noise factor somewhat 
-                // and enables us to revert to the TP from Epyreff
-                // if (is_VIC[i] == 1){
-                //     if (VIC_tough_period[n] == 1){
-                //         TP_local_adjustment_factor[n] ~ normal(1, 0.5);
-                //         // TP_local_adjustment_factor[n] ~ normal(1, 0.01);
-                //     } else {
-                //         TP_local_adjustment_factor[n] ~ normal(1, 0.01);
-                //     }
-                // } 
+                // the mean vaccination effect should be the data supplied
+                vacc_mu = vaccine_effect_data[i][n];
+                // transform to shape and scale 
+                a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
+                b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
+                // vaccine effect distributed around mean of the vaccine effect
+                vacc_effect[pos2] ~ beta(a_vacc, b_vacc);
+                                            
                 pos2+=1;
             }
         }

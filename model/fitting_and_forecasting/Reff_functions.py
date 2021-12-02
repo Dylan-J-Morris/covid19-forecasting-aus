@@ -337,15 +337,13 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                                 # now we just modify the values before the introduction of the voc to be 1.0
                                 voc_multiplier = np.zeros_like(voc_multiplier_delta)
                                 
-                                # for ii in range(voc_multiplier.shape[0]):
-                                #     if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-                                #         voc_multiplier[ii] = 1.0
-                                #     elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-                                #         voc_multiplier[ii] = voc_multiplier_alpha[ii]
-                                #     else:
-                                #         voc_multiplier[ii] = voc_multiplier_delta[ii]
-                                
-                                voc_multiplier = voc_multiplier_delta
+                                for ii in range(voc_multiplier.shape[0]):
+                                    if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
+                                        voc_multiplier[ii] = 1.0
+                                    elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                                        voc_multiplier[ii] = voc_multiplier_alpha[ii]
+                                    else:
+                                        voc_multiplier[ii] = voc_multiplier_delta[ii]
                                 
                                 # if states_initials[state] == 'VIC':
                                 #     pd.DataFrame(voc_multiplier).to_csv('voc_multiplier.csv')
