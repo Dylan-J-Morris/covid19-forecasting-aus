@@ -85,9 +85,8 @@ parameters {
     real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
     real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
     real<lower=0> r_other;                                      // parameter for decay to 
-    // vector<lower=0,upper=1>[total_N_p_third] vacc_effect_unconstrained;                                      // parameter for decay to 
-    // vector<lower=0, upper=1>[total_N_p_third] vacc_adjustment;      // adjusted vaccine effect parameter centered on the supplied timeseries
-    // positive_ordered[total_N_p_third] vacc_effect;      // adjusted vaccine effect parameter centered on the supplied timeseries
+    
+    positive_ordered[total_N_p_third+1] vacc_effect;            // reverse ordered vaccine effect parameter centered on the supplied timeseries
 }
 
 transformed parameters {
@@ -191,13 +190,11 @@ transformed parameters {
 
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
-                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
+                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vaccine_effect_data[i][n];
                 // vacc_effect_tot = vaccine_effect_data[i][n];
-                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[pos];
-                // vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[N_vaccine_data_third[i]+1-pos];
+                vacc_effect_tot = eta_tmp + (1-eta_tmp) * vacc_effect[total_N_p_third+1-pos];
                 
                 // instead of using the actual vaccination data as truth, use a transformed version
-                
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_delta*vacc_effect_tot;
                 
@@ -211,11 +208,8 @@ transformed parameters {
 model {
     // indexer for moving through the items in the second and third waves
     int pos2;
-    // shape and scale parameters for the prior distribution on the vaccination effect
-    real a_vacc; 
-    real b_vacc;
-    // mean and variacne parameters for the beta (used for the transformation)
-    real vacc_sig = 0.005;
+    // mean and variance parameters for the vaccine data
+    real vacc_sig = 0.05;
     real vacc_mu;
 
     bet ~ normal(0, 1.0);
@@ -277,28 +271,29 @@ model {
             //Add 1 to get to start of new group, not end of old group
             pos2=pos_starts_third[i-1]+1; 
         }
+        
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
+                if (pos2==1){
+                    // the mean vaccination effect should be the data supplied
+                    vacc_mu = vaccine_effect_data[i][n-1]; 
+                    vacc_effect[total_N_p_third+2-pos2] ~ normal(vacc_mu, 0.001);    
+                }
+                
                 prop_md_third_wave[pos2] ~ beta(1+count_md_third_wave[i][n], 
                                                 1+respond_md_third_wave[i][n]-count_md_third_wave[i][n]);
-                // brho_third_wave[pos2] ~ beta(0.2+c*imported_third_wave[n,i], 
-                //                              0.2+c*local_third_wave[n,i]); //ratio imported/ (imported + local)
                 brho_third_wave[pos2] ~ beta(0.5+imported_third_wave[n,i], 
                                              0.5+local_third_wave[n,i]); //ratio imported/ (imported + local)
                 mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), 
                                                 Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
                 
                 // the mean vaccination effect should be the data supplied
-                // vacc_mu = vaccine_effect_data[i][n];
-                // transform to shape and scale 
-                // a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
-                // b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1);
+                vacc_mu = vaccine_effect_data[i][n];
                 // vaccine effect distributed around mean of the vaccine effect but 
                 // needs to be truncated above by the previous value 
-                // vacc_effect_unconstrained[pos2] ~ beta(a_vacc, b_vacc);
-                // vacc_effect[pos2] ~ beta(a_vacc, b_vacc);
-                // vacc_effect[N_vaccine_data_third[i]+1-pos2] ~ beta(a_vacc, b_vacc);
-                                            
+                vacc_effect[total_N_p_third+1-pos2] ~ normal(vacc_mu, vacc_sig);
+                vacc_effect[pos2] ~ beta(a_vacc, b_vacc);
+                
                 pos2+=1;
             }
         }
