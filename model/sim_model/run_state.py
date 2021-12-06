@@ -2,7 +2,7 @@ import sys
 from typing import MutableMapping
 sys.path.insert(0,'model')
 from sim_class import *
-from params import start_date, num_forecast_days, ncores, use_TP_adjustment  # External parameters
+from params import start_date, num_forecast_days, ncores, use_TP_adjustment, start_dates  # External parameters
 from scenarios import scenarios
 
 import pandas as pd
@@ -22,17 +22,18 @@ if mp.cpu_count() < ncores:
     print("=========================")
     ncores = int(mp.cpu_count() / 2)
 
-
 from timeit import default_timer as timer
 
 profile_code = False
-
     
 n_sims = int(argv[1])  # number of sims
 forecast_date = argv[2]  # Date of forecast
 state = argv[3] 
 apply_interstate_seeding = True if argv[4] == 'True' else False
 adjust_TP_forecast = use_TP_adjustment
+
+plot_date = start_date
+state_start_date = start_dates[state]
 
 # print("Simulating state " + state)
 
@@ -44,13 +45,14 @@ end_date = pd.to_datetime(forecast_date, format="%Y-%m-%d") + pd.Timedelta(days=
 # else:
 #     end_time = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days
 
-end_time = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days    
+max_case_size = (end_date - pd.to_datetime(plot_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days    
+end_time = (end_date - pd.to_datetime(state_start_date, format="%Y-%m-%d")).days  # end_time is recorded as a number of days    
 
 case_file_date = pd.to_datetime(forecast_date).strftime("%d%b%Y")  # Convert date to format used in case file
 
 # initialise the number of cases 
 # note that these are of the form [import (I), asymptomatic (A), symptomatic (S)]
-if start_date == "2020-03-01":
+if state_start_date == "2020-03-01":
     current = {
         'ACT': [0, 0, 0],
         'NSW': [4, 0, 2],  # 1
@@ -61,7 +63,7 @@ if start_date == "2020-03-01":
         'VIC': [2, 0, 0],  # 1
         'WA': [0, 0, 0],
     }
-elif start_date == "2020-09-01":
+elif state_start_date == "2020-09-01":
     current = {
         'ACT': [0, 0, 0],
         'NSW': [3, 0, 7],  # 1
@@ -72,7 +74,7 @@ elif start_date == "2020-09-01":
         'VIC': [0, 0, 60],  # 1
         'WA': [1, 0, 0],
     }
-elif start_date == "2020-12-01":
+elif state_start_date == "2020-12-01":
     current = {  # based on locally acquired cases in the days preceding the start date
         'ACT': [0, 0, 0],
         'NSW': [0, 0, 1],
@@ -83,7 +85,7 @@ elif start_date == "2020-12-01":
         'VIC': [0, 0, 0],
         'WA': [0, 0, 0],
     }
-elif start_date == '2021-04-01':
+elif state_start_date == '2021-04-01':
     current = {  # based on locally acquired cases in the days preceding the start date
         'ACT': [3, 0, 0],
         'NSW': [3, 0, 10],
@@ -94,7 +96,7 @@ elif start_date == '2021-04-01':
         'VIC': [0, 0, 3],
         'WA': [18, 0, 2],
     }
-elif start_date == '2021-05-15':
+elif state_start_date == '2021-05-15':
     current = {  # based on locally acquired cases in the days preceding the start date
         'ACT': [3, 0, 0],
         'NSW': [3, 0, 10],
@@ -125,12 +127,13 @@ VoC_flag = 'Delta'
 if apply_interstate_seeding:
     from_jurisdiction_cases = {}
 else:
-    from_jurisdiction_cases = init_from_jurisdiction_arrays(apply_interstate_seeding, start_date, n_sims, end_time)
+    from_jurisdiction_cases = init_from_jurisdiction_arrays(apply_interstate_seeding, state_start_date, n_sims, end_time)
 
 forecast_object = Forecast(
     current[state],
     state, 
-    start_date, 
+    state_start_date, 
+    plot_start_date=plot_date,
     forecast_date=forecast_date,
     cases_file_date=case_file_date,
     end_time = end_time, 
@@ -146,9 +149,10 @@ def worker(arg):
     return getattr(obj, methname)(*arg[2:])
 
 if __name__ == "__main__" and not profile_code:
-    # initialise arrays
+    # Initialise arrays as the largest sim duration. This will then fill out the latter parts and 
+    # enables use of the preexisting plotting code.
 
-    import_sims = np.zeros(shape=(end_time, n_sims), dtype=float)
+    import_sims = np.zeros(shape=(max_case_size, n_sims), dtype=float)
     import_sims_obs = np.zeros_like(import_sims)
 
     import_inci = np.zeros_like(import_sims)
@@ -162,7 +166,7 @@ if __name__ == "__main__" and not profile_code:
 
     bad_sim = np.zeros(shape=(n_sims), dtype=int)
 
-    travel_seeds = np.zeros(shape=(end_time, n_sims), dtype=int)
+    travel_seeds = np.zeros(shape=(max_case_size, n_sims), dtype=int)
     travel_induced_cases = np.zeros_like(travel_seeds)
 
     forecast_object.read_in_cases()
@@ -182,13 +186,13 @@ if __name__ == "__main__" and not profile_code:
                 bad_sim[n] = 1
             
             # record cases appropriately
-            import_inci[:, n] = cases[:, 0]
-            asymp_inci[:, n] = cases[:, 1]
-            symp_inci[:, n] = cases[:, 2]
+            import_inci[-end_time:, n] = cases[:, 0]
+            asymp_inci[-end_time:, n] = cases[:, 1]
+            symp_inci[-end_time:, n] = cases[:, 2]
 
-            import_inci_obs[:, n] = obs_cases[:, 0]
-            asymp_inci_obs[:, n] = obs_cases[:, 1]
-            symp_inci_obs[:, n] = obs_cases[:, 2]
+            import_inci_obs[-end_time:, n] = obs_cases[:, 0]
+            asymp_inci_obs[-end_time:, n] = obs_cases[:, 1]
+            symp_inci_obs[-end_time:, n] = obs_cases[:, 2]
             pbar.update()
 
     pool.close()

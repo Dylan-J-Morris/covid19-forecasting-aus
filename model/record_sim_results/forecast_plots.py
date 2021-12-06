@@ -1,7 +1,9 @@
 import sys
 
 sys.path.insert(0,'model')
+sys.path.insert(0,'model/record_sim_results')
 from params import start_date, num_forecast_days, use_TP_adjustment
+from collate_states import states
 from helper_functions import read_in_NNDSS, read_in_Reff_file
 from scipy.stats import beta
 import os
@@ -167,7 +169,7 @@ adjust_TP_forecast = use_TP_adjustment
 forecast_type = 'R_L'
 df_cases_state_time = read_in_cases(data_date)
 Reff = read_in_Reff(forecast_R=forecast_type, file_date=data_date, adjust_TP_forecast=adjust_TP_forecast)
-states = ['NSW', 'QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
+# states = ['NSW', 'QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
 
 data_date = pd.to_datetime(data_date, format="%Y-%m-%d")
 end_date = data_date + pd.Timedelta(days=num_forecast_days)

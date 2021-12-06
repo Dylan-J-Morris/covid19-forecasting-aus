@@ -54,6 +54,7 @@ class Forecast:
         current, 
         state, 
         start_date,
+        plot_start_date,
         forecast_date, 
         cases_file_date, 
         end_time = None,
@@ -106,7 +107,9 @@ class Forecast:
         # Total number of days in simulation
         self.forecast_date = (pd.to_datetime(forecast_date, format='%Y-%m-%d') - self.start_date).days
         self.cases_file_date = cases_file_date
-        # Load in Rff data before running all sims
+        
+        # Load in Reff data before running all sims
+        self.n_Reffs = 3000
         self.read_in_all_Reffs()
         # Assumption dates.
         # Date from which quarantine was started
@@ -128,6 +131,8 @@ class Forecast:
 
         self.num_bad_sims = 0
         self.num_too_many = 0
+        
+        self.plot_start_date = pd.to_datetime(plot_start_date, format='%Y-%m-%d')
     
     def initialise_sim(self, curr_time=0.0):
         """
@@ -709,7 +714,7 @@ class Forecast:
                 df_results = df_results.append(
                     pd.DataFrame(item.T, index=pd.MultiIndex.from_product([[key], range(n_sims)], names=['Category', 'sim']))
                 )
-        df_results.columns = pd.date_range(start=self.start_date, periods=days)
+        df_results.columns = pd.date_range(start=self.plot_start_date, periods=days)
         df_results.columns = [col.strftime('%Y-%m-%d') for col in df_results.columns]
         # Record simulation variables
         for var in sim_vars:
@@ -718,10 +723,10 @@ class Forecast:
         print("Saving results for state "+self.state)
         # save separate versions depending on whether the model is being used for seeding of not
         if not self.apply_interstate_seeding:
-            df_results.to_parquet("./results/"+self.state+self.start_date.strftime(format='%Y-%m-%d')+
+            df_results.to_parquet("./results/"+self.state+self.plot_start_date.strftime(format='%Y-%m-%d')+
                                   "sim_R_L"+str(n_sims)+"_seed_"+"days_"+str(days)+".parquet")
         else:
-            df_results.to_parquet("./results/"+self.state+self.start_date.strftime(format='%Y-%m-%d')+
+            df_results.to_parquet("./results/"+self.state+self.plot_start_date.strftime(format='%Y-%m-%d')+
                                   "sim_R_L"+str(n_sims)+"days_"+str(days)+".parquet")
 
         return df_results
@@ -871,7 +876,7 @@ class Forecast:
         print("Observation windows cumulative lengths: ", self.window_sizes)
         print("Number of cases in each window: ", self.cases_in_windows)
         
-    def read_in_all_Reffs(self, n_Reffs=100):
+    def read_in_all_Reffs(self):
         """
         Read in all the forecasted TP's and then process them into local and imported Reffs 
         indexed in a dictionary of dictionaries where the first dictionary is indexed by the sim number. 
@@ -882,22 +887,22 @@ class Forecast:
         # use local dictionaries to store the TP paths for sims 
         import_Reffs = {}
         local_Reffs = {}
-        for i in range(n_Reffs):
-            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(Reff_all, i, n_Reffs=n_Reffs)
+        for i in range(self.n_Reffs):
+            import_Reffs[i], local_Reffs[i] = self.read_in_Reff(Reff_all, i)
             
         # store the results in self
         self.import_Reffs = import_Reffs 
         self.local_Reffs = local_Reffs
 
-    def set_Reff(self, n_Reffs=100):
+    def set_Reff(self):
         """
         Set the TP to use for a given simulation. 
         """
         
-        self.R_I = self.import_Reffs[self.num_of_sim % n_Reffs]
-        self.Reff = self.local_Reffs[self.num_of_sim % n_Reffs]
+        self.R_I = self.import_Reffs[self.num_of_sim % self.n_Reffs]
+        self.Reff = self.local_Reffs[self.num_of_sim % self.n_Reffs]
 
-    def read_in_Reff(self, Reff_all, i, n_Reffs=2000):
+    def read_in_Reff(self, Reff_all, i):
         """
         Read in Reff CSV that was produced by the generate_R_L_forecasts.py script.
         """
@@ -909,7 +914,7 @@ class Forecast:
         # Get R_I values and store in object.
         R_I = df_forecast.loc[(df_forecast.type == 'R_I') & 
                               (df_forecast.state == self.state), 
-                              i % n_Reffs].values[0]
+                              i % self.n_Reffs].values[0]
 
         # Get only R_L forecasts
         df_forecast = df_forecast.loc[df_forecast.type == 'R_L']
@@ -919,7 +924,7 @@ class Forecast:
         
         # initialise a temporary df that is only for state of interest and 
         # corresponds to the appropriate sim number
-        df_forecast_tmp = df_forecast.loc[self.state, i % n_Reffs]
+        df_forecast_tmp = df_forecast.loc[self.state, i % self.n_Reffs]
         
         # print(df_forecast_tmp)
         # loop over the key-value pairs in the series df_forecast_tmp and 
