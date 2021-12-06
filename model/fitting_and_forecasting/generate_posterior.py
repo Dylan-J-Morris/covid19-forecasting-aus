@@ -448,16 +448,16 @@ if run_inference or run_inference_only:
         with open(results_dir+filename, 'w') as f:
             print(fit.stansummary(pars=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
                                         'voc_effect_alpha', 'voc_effect_delta', 
-                                        'eta_NSW', 'eta_other', 'r_NSW', 'r_other']), file=f)
+                                        'eta', 'r']), file=f)
 
+        # samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
+        #                                            'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
+        #                                            'voc_effect_alpha', 'voc_effect_delta', 
+        #                                            'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
                                                    'voc_effect_alpha', 'voc_effect_delta', 
-                                                   'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
-        samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-                                                   'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
-                                                   'voc_effect_alpha', 'voc_effect_delta', 
-                                                   'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
+                                                   'eta', 'r'])
 
         samples_mov_gamma.to_csv("results/samples_mov_gamma.csv")
         
