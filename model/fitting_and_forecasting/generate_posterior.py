@@ -140,16 +140,16 @@ sec_date_range = {
 
 # Third wave inputs
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
-third_states = sorted(['VIC'])
+# third_states = sorted(['VIC'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
 # choose dates for each state for third wave
 third_date_range = {
-    # 'ACT': pd.date_range(start='2021-08-16', end=third_end_date).values,
-    # 'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
-    # 'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+    'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
+    'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
+    'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
 }
 
@@ -412,8 +412,6 @@ input_data = {
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
-    'N_vaccine_data_third': N_vaccine_data_third,
-    'vaccine_effect_data_initial': vaccination_by_state_array_initial
 }
 
 # make results dir
@@ -473,9 +471,12 @@ if run_inference or run_inference_only:
 
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
+            # print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
+            #                                  'voc_effect_alpha', 'voc_effect_delta', 
+            #                                  'eta_NSW', 'eta_other', 'r_NSW', 'r_other']), file=f)
             print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
                                              'voc_effect_alpha', 'voc_effect_delta', 
-                                             'eta_NSW', 'eta_other', 'r_NSW', 'r_other']), file=f)
+                                             'eta', 'r']), file=f)
 
         ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
         # create extended summary of parameters to index the samples by
@@ -484,11 +485,14 @@ if run_inference or run_inference_only:
         #                                         # 'vacc_effect',
         #                                         'voc_effect_alpha', 'voc_effect_delta', 
         #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
+        # summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
+        #                                         'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
+        #                                         'voc_effect_alpha', 'voc_effect_delta', 
+        #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                 'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
-                                                'vacc_effect',
                                                 'voc_effect_alpha', 'voc_effect_delta', 
-                                                'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
+                                                'eta', 'r'])
 
         match_list_names = summary_df.index.to_list()
 
@@ -762,7 +766,8 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "R_priors_(without_prio
 # Making a new figure that doesn't include the priors
 fig, ax = plt.subplots(figsize=(12, 9))
 
-small_plot_cols = ['voc_effect_alpha', 'voc_effect_delta', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
+# small_plot_cols = ['voc_effect_alpha', 'voc_effect_delta', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
+small_plot_cols = ['eta[' + str(i+1) + ']' for (i, state) in enumerate(third_states)] + ['r[' + str(i+1) + ']' for (i, state) in enumerate(third_states)]
 
 sns.violinplot(x='variable', y='value',
                data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -771,9 +776,13 @@ sns.violinplot(x='variable', y='value',
 ax.set_yticks([1], minor=True,)
 ax.set_yticks([0, 0.5, 1, 1.5, 2, 2.5, 3], minor=False)
 ax.set_yticklabels([0, 0.5, 1, 1.5, 2, 2.5, 3], minor=False)
-ax.set_ylim((0, 3))
+ax.set_ylim((0, 1))
 # state labels in alphabetical
-ax.set_xticklabels(['VoC (Alpha)', 'VoC (Delta)', '$\eta$ (NSW)', '$\eta$ (not NSW)', '$r$ (NSW)', '$r$ (not NSW)'])
+# ax.set_xticklabels(['VoC (Alpha)', 'VoC (Delta)', '$\eta$ (NSW)', '$\eta$ (not NSW)', '$r$ (NSW)', '$r$ (not NSW)'])
+
+labels = ['$\eta$ ' + state for state in third_states] + ['$r$ ' + state for state in third_states]
+ 
+ax.set_xticklabels(labels)
 ax.tick_params('x', rotation=90)
 ax.set_xlabel('')
 ax.set_ylabel('value')
@@ -905,15 +914,17 @@ fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=T
 # find days after the third start date began that we want to apply the effect — currently this is fixed from the
 # 20th of Aug and is not a problem with ACT as this is just a plot of the posterior vaccine effect
 heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+
+third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
 for i, state in enumerate(states):
 
     # apply different vaccine form depending on if NSW
-    if state == 'NSW':
-        eta = samples_mov_gamma.eta_NSW
-        r = samples_mov_gamma.r_NSW
+    if state in third_states:
+        eta = samples_mov_gamma['eta[' + str(third_states_indices[state]) + ']']
+        r = samples_mov_gamma['r[' + str(third_states_indices[state]) + ']']
     else:
-        eta = samples_mov_gamma.eta_other
-        r = samples_mov_gamma.r_other
+        eta = samples_mov_gamma['eta[1]']
+        r = samples_mov_gamma['r[1]']
 
     # tile the states vaccination data from Curtin
     vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0], 1)).T
@@ -954,10 +965,12 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_T
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
-var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_delta', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
+var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_delta']
 var_to_csv = var_to_csv + predictors + [
     'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
 ]
+var_to_csv = var_to_csv + ['eta['+str(v)+']' for v in third_states_indices.values()]
+var_to_csv = var_to_csv + ['r['+str(v)+']' for v in third_states_indices.values()]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
 

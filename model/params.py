@@ -2,12 +2,13 @@
 use_linelist = True
 use_imputed_linelist = False
 on_phoenix = False   # flag for running on phoenix
-run_inference = True    # whether the inference should be run
-run_inference_only = True
-run_TP_adjustment = False
+run_inference = False    # whether the inference should be run
+run_inference_only = False
+run_TP_adjustment = True
 use_TP_adjustment = False
 testing_inference = False if on_phoenix else True
 n_days_nowcast_TP_adjustment = 45
+num_TP_samples = 3000       # number of forecasted TP samples to save 
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
@@ -18,7 +19,7 @@ else:
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
 third_start_date = '2021-06-15'
-start_date = '2021-06-10'  # Start date of forecast
+start_date = '2021-06-23'
 # start_date = '2021-08-01'  # Start date of forecast
 # alpha_start_date = '2021-01-27'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
 alpha_start_date = '2020-12-01'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 

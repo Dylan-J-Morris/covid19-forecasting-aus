@@ -8,7 +8,7 @@ from Reff_functions import *
 from Reff_constants import *
 from params import num_forecast_days, alpha_start_date, delta_start_date, apply_voc_to_R_L_hats, \
     vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date, start_date, \
-    run_TP_adjustment, n_days_nowcast_TP_adjustment
+    run_TP_adjustment, n_days_nowcast_TP_adjustment, num_TP_samples
 from scenarios import scenarios, scenario_dates
 from sys import argv
 from datetime import timedelta, datetime
@@ -774,14 +774,24 @@ for typ in forecast_type:
             # first we tile the vaccine data to get an array of size (T, mob_samples) (hence the transposing)
             vacc_data_full = np.tile(vacc_sim, (mob_samples**2, 1)).T
 
-            if state == 'NSW':
-                # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-                eta = np.tile(samples['eta_NSW'], (df_state.shape[0], mob_samples))
-                # rate of return to homogeneity - chosen to return after 28 days
-                r = np.tile(samples['r_NSW'], (df_state.shape[0], mob_samples))
+            # apply different vaccine form depending on if NSW
+            third_states = sorted(['ACT', 'NSW', 'QLD', 'VIC'])
+            third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
+            if state in third_states:
+                eta = np.tile(samples['eta[' + str(third_states_indices[state]) + ']'], (df_state.shape[0], mob_samples))
+                r = np.tile(samples['r[' + str(third_states_indices[state]) + ']'], (df_state.shape[0], mob_samples))
             else:
-                eta = np.tile(samples['eta_other'], (df_state.shape[0], mob_samples))
-                r = np.tile(samples['r_other'], (df_state.shape[0], mob_samples))
+                eta = np.tile(samples['eta[1]'], (df_state.shape[0], mob_samples))
+                r = np.tile(samples['r[1]'], (df_state.shape[0], mob_samples))
+
+            # if state == 'NSW':
+            #     # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
+            #     eta = np.tile(samples['eta_NSW'], (df_state.shape[0], mob_samples))
+            #     # rate of return to homogeneity - chosen to return after 28 days
+            #     r = np.tile(samples['r_NSW'], (df_state.shape[0], mob_samples))
+            # else:
+            #     eta = np.tile(samples['eta_other'], (df_state.shape[0], mob_samples))
+            #     r = np.tile(samples['r_other'], (df_state.shape[0], mob_samples))
 
             # find days after forecast began that we want to apply the effect — currently this is fixed from the
             # 30th of Aug
@@ -1137,12 +1147,12 @@ plt.savefig("figs/mobility_forecasts/"+
             dpi=144)
 
 # now we save the posterior stuff
-df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top']+[i for i in range(2000)]]
+df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top']+[i for i in range(num_TP_samples)]]
 
 df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
-df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
+# df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5', key='Reff')
 
 if run_TP_adjustment:
@@ -1250,9 +1260,10 @@ if run_TP_adjustment:
         for col in df_forecast_state_sims: 
             if state in states_to_adjust:
                 
-                # sample a Reff from EpyReff.
+                # sample a Reff path from EpyReff (there are only 2000 of these)
                 Reff_sample = Reff.iloc[:, col % 2000].to_numpy()
                 TP_local = np.array(df_forecast_state_sims[col])
+                # R_I also only has 2000 as this is saved from stan (normally)
                 Reff_local = calculate_Reff_local(Reff_sample, R_I[col % 2000], ratio_import_to_local)
                 Reff_local = np.array(Reff_local)
                 omega = pd.Series(

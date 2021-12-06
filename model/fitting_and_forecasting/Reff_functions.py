@@ -236,14 +236,16 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                 if vaccination is not None and states_initials[state] in third_states:
                     # transposing the vaccination sampled values so that it can be multiplied by the data
                     # the str(i+1) is required because the state indexing starts at 0
-
+                    
+                    third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
+                    
                     # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-                    if states_initials[state] == 'NSW':
-                        eta = samples_sim['eta_NSW']
-                        r = samples_sim['r_NSW']
+                    if states_initials[state] in third_states:
+                        eta = samples_sim['eta[' + str(third_states_indices[states_initials[state]]) + ']']
+                        r = samples_sim['eta[' + str(third_states_indices[states_initials[state]]) + ']']
                     else:
-                        eta = samples_sim['eta_other']
-                        r = samples_sim['r_other']
+                        eta = samples_sim['eta[1]']
+                        r = samples_sim['r[1]']
 
                     # From conversations with James and Nic we think the heterogeneity / assortativity was more prominent before late 
                     # August (hence the fixed date) 
