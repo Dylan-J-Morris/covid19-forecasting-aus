@@ -37,7 +37,7 @@ The `on_phoenix` flag tells the model to use a slightly older version of Pystan 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ## Required arguments
 ```
-DATADATE='2021-11-29'   # Date of NNDSS data file
+DATADATE='2021-12-06'   # Date of NNDSS data file
 NSIMS=20000               # Total number of simulations to run should be > 5000
 APPLY_SEEDING='False'
 ```
@@ -57,6 +57,7 @@ do
     python model/sim_model/run_state.py $NSIMS $DATADATE $STATE "False"
 done
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
+states=("NSW" "VIC")
 for STATE in "${states[@]}"
 do
     python model/sim_model/run_state.py $NSIMS $DATADATE $STATE "True"
@@ -72,6 +73,7 @@ jid_estimator=$(sbatch --parsable sbatch_run_scripts/phoenix_run_estimator.sh ${
 jid_posteriors_a=$(sbatch --parsable --dependency=afterok:$jid_estimator sbatch_run_scripts/phoenix_run_posteriors.sh ${DATADATE})
 jid_TP_a=$(sbatch --parsable --dependency=afterok:$jid_posteriors_a sbatch_run_scripts/phoenix_TP_forecasting.sh ${DATADATE})
 jid_simulate_a_seeding=$(sbatch --parsable --dependency=afterok:$jid_TP_a sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} 'False')
+jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a_seeding sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE})
 jid_simulate_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a_seeding sbatch_run_scripts/phoenix_all_states.sh ${NSIMS} ${DATADATE} 'True')
 jid_savefigs_and_csv_a=$(sbatch --parsable --dependency=afterok:$jid_simulate_a sbatch_run_scripts/phoenix_final_plots_csv.sh ${NSIMS} ${DATADATE})
 ```
