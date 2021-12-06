@@ -4,6 +4,8 @@ import sys
 
 # these imports and usings need to be in the same order 
 sys.path.insert(0, '../')
+sys.path.insert(0, 'model')
+sys.path.insert(0, 'model/fitting_and_forecasting')
 from Reff_functions import *
 from Reff_constants import *
 from params import num_forecast_days, alpha_start_date, delta_start_date, apply_voc_to_R_L_hats, \
@@ -800,30 +802,16 @@ for typ in forecast_type:
             vacc_post = np.zeros_like(vacc_data_full)
 
             # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
-            # note that in here we apply the entire sample to the vaccination data to create a days by samples array
-            vacc_sig = 0.001
-            # set the full vaccination data as the mean 
-            vacc_mu = vacc_data_full
-            # calculate shape and scale 
-            a_vacc = vacc_mu*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
-            b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
-            # if we have an effect of 1, a < 0 but we know there should be high mass near 1 
-            a_vacc[a_vacc <= 0] = 100
-            b_vacc[b_vacc <= 0] = 1
-            # sample a noisier version of the vax effect
-            # vacc_data_full_adj = np.random.beta(a_vacc, b_vacc)
             vacc_data_full_adj = vacc_data_full
             
             for ii in range(vacc_post.shape[0]):
                 # calculate the heterogeneous vaccine effect 
                 if ii < heterogeneity_delay_start_day:
-                    # vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_data_full[ii]
                     vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_data_full_adj[ii]
                 else:
                     # number of days after the heterogeneity should start to wane
                     heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                     decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
-                    # vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_data_full[ii]
                     vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_data_full_adj[ii]
 
             # last thing to do is modify the vacc_post values before the start of vaccination
