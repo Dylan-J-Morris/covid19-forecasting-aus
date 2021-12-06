@@ -7,7 +7,7 @@ from sys import argv
 import json
 
 states = ['NSW', 'QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
-states = ['VIC']
+# states = ['NSW', 'VIC']
 
 n_sims = int(argv[1])  # number of sims
 
