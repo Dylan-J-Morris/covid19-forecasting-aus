@@ -29,7 +29,7 @@ for n in range(n_sims):
 
 print("forecast up to: {}".format(end_date))
 date_col = [day.strftime('%Y-%m-%d')
-            for day in pd.date_range(start_date, end_date)]
+            for day in pd.date_range(forecast_date, end_date)]
 
 for i, state in enumerate(states):
 
@@ -45,7 +45,7 @@ for i, state in enumerate(states):
             str(days)+".parquet", columns=date_col
         )
 
-    df_local = df_results.loc['total_inci_obs']
+    df_local = df_results.loc['total_inci_obs'].iloc[:, -num_forecast_days:]
 
     sims_dict['onset date'].extend(date_col)
     sims_dict['state'].extend([state]*len(date_col))
@@ -79,5 +79,5 @@ df = pd.DataFrame.from_dict(sims_dict)
 df["data date"] = forecast_date
 
 key = 'local_obs'
-df[df.select_dtypes(float).columns] = df.select_dtypes(float).astype(int)
+# df[df.select_dtypes(float).columns] = df.select_dtypes(float).astype(int)     # not needed?
 df.to_csv('./results/UoA_'+forecast_date+str(key)+'.csv')
