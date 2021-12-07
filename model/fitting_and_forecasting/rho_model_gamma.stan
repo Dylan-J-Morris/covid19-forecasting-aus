@@ -84,8 +84,7 @@ parameters {
     // real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
     // real<lower=0> r_other;                                      // parameter for decay to heterogeneity
     // vector<lower=0, upper=1>[total_N_p_third] vacc_effect;      // scaling parameter for the vaccine effect 
-    positive_ordered[N_third_wave+1] vacc_effect_raw[j_third_wave];            // reverse ordered vaccine effect parameter centered on the supplied timeseries
-
+    positive_ordered[N_third_wave+1] vacc_effect_ordered[j_third_wave];            // reverse ordered strictly positive vaccine effect parameter centered on the supplied timeseries
 }
 transformed parameters {
     // this parametrisation results in voc ~ 1 + Gamma(a, b) (i.e. truncated below at 1)
@@ -99,23 +98,21 @@ transformed parameters {
     vector<lower=0>[total_N_p_sec] md_sec_wave;
     vector<lower=0>[total_N_p_third] md_third_wave;
     
-    // ordered vaccine effect with length equal to total number of waves 
+    // ordered vaccine effect with length equal to total number of waves        
     vector[total_N_p_third] vacc_effect;       
     
     // reverse the ordering of the raw vax effects
     {
         int pos = 1;    
-        int pos2;
         for (i in 1:j_third_wave){
-            pos2 = 1;
-            
+            // vacc_effect_raw_initial[i] = vacc_effect_raw[i][N_third_wave+1];
             // reverse the array
             for (n in 1:N_third_wave){
                 if (include_in_third_wave[i][n] == 1){
-                    vacc_effect[pos] = vacc_effect_raw[i][N_third_wave-pos2+1];
-                    
+                    // take a maximum of 1 and the sampled ordered vax effect (this might break HMC)
+                    // vacc_effect[pos] = fmin(1, vacc_effect_ordered[i][N_third_wave-n+1]);
+                    vacc_effect[pos] = vacc_effect_ordered[i][N_third_wave-n+1];
                     pos += 1;
-                    pos2 += 1;
                 }
             }
         }
@@ -178,15 +175,6 @@ transformed parameters {
             pos = pos_starts_third[i-1]+1;
         }
 
-        // apply different heterogeneity effects depending on whether we are looking at NSW or not
-        // if (is_NSW[i] == 1){
-        //     eta = eta_NSW;
-        //     r = r_NSW;
-        // } else {
-        //     eta = eta_other;
-        //     r = r_other;
-        // }
-
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
@@ -224,16 +212,10 @@ model {
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);      
     additive_voc_effect_delta ~ gamma(1.1*1.1/0.075, 1.1/0.075);
     
-    // // assume a hierarchical structure on the vaccine effect 
-    // eta_NSW ~ beta(2, 7);           // mean of 2/9
-    // eta_other ~ beta(2, 7);         // mean of 2/9
-    // // want it to have mean 0.16 => log-mean is log(0.16)
-    // r_NSW ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
-    // r_other ~ lognormal(log(0.16),0.1);        // r is lognormally distributed such that the mean is 28 days 
-    
     eta ~ beta(2, 7);
     r ~ lognormal(log(0.16), 0.1);
 
+    // hierarchical model for the baseline RL's
     R_L ~ gamma(1.7*1.7/0.005,1.7/0.005); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);
     sig ~ exponential(1000); //mean is 1/50=0.02
@@ -296,7 +278,9 @@ model {
                 if (pos3 == 1){
                     // the mean vaccination effect should be the data supplied
                     vacc_mu = vaccine_effect_data[i][n-1]; 
-                    vacc_effect_raw[i][N_third_wave+1] ~ normal(vacc_mu, 0.005);    
+                    vacc_effect_ordered[i][N_third_wave+2-n] ~ normal(vacc_mu, 0.05);    
+                    // vacc_effect_ordered[i][N_third_wave+1] ~ vacc_mu;
+                    pos3 += 1;
                 }
                 
                 // the mean vaccination effect should be the data supplied
@@ -304,7 +288,7 @@ model {
                 // vaccine effect distributed around mean of the vaccine effect but 
                 // needs to be truncated above by the previous value and as sampling here
                 // then transforming, no Jacobian adjustment needed 
-                vacc_effect_raw[i][N_third_wave+1-n] ~ normal(vacc_mu, 0.05);
+                vacc_effect_ordered[i][N_third_wave+1-n] ~ normal(vacc_mu, 0.05);
                 
             }
         }

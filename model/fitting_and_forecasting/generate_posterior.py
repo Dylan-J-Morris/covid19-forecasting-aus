@@ -19,6 +19,8 @@ import pandas as pd
 from arviz.utils import _var_names
 import matplotlib
 from numpy.random import sample
+from scipy.stats import truncnorm
+
 matplotlib.use('Agg')
 from params import apply_vacc_to_R_L_hats, truncation_days, download_google_automatically, \
     run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference
@@ -865,10 +867,7 @@ vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 # display the latest available date in the NSW data (will be the same date between states)
 print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
 
-vaccination_by_state = vaccination_by_state[
-    (vaccination_by_state.date >= third_start_date) & 
-    (vaccination_by_state.date <= third_end_date)
-]  # Get only the dates we need.
+vaccination_by_state = vaccination_by_state  # Get only the dates we need.
 vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
 # If we are missing recent vaccination data, fill it in with the most recent available data.
@@ -881,69 +880,134 @@ if latest_vacc_data < pd.to_datetime(third_end_date):
         axis=1
     )
 
+# flag for plotting the third wave fit
+plot_third_fit = False
+
 if df3X.shape[0] > 0:
     df['is_third_wave'] = 0
     for state in third_states:
         df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values    
-    
-    # plot only if there is third phase data - have to have third_phase=True
-    ax4 = predict_plot(samples_mov_gamma, 
-                       df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
-                       third_date_range=third_date_range, 
-                       gamma=True, moving=True, split=split, grocery=True, ban=ban,
-                       R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
-                       R_I=samples_mov_gamma.R_I.values,
-                       prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state,
-                       third_states=third_states)  # by states....
-    for ax in ax4:
-        for a in ax:
-            a.set_ylim((0, 3))
-            # a.set_xlim((start_date,end_date))
-            
-    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
 
-    # remove plots from memory
-    fig.clear()
-    plt.close(fig)
+    if plot_third_fit:
+    
+        # plot only if there is third phase data - have to have third_phase=True
+        ax4 = predict_plot(samples_mov_gamma, 
+                        df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
+                        third_date_range=third_date_range, 
+                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
+                        R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
+                        R_I=samples_mov_gamma.R_I.values,
+                        prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state,
+                        third_states=third_states)  # by states....
+        for ax in ax4:
+            for a in ax:
+                a.set_ylim((0, 3))
+                # a.set_xlim((start_date,end_date))
+                
+        plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
+
+        # remove plots from memory
+        fig.clear()
+        plt.close(fig)
 
 ######### plotting the inferred vaccine effect trajectory #########
-
+# get the dates for vaccination
 dates = vaccination_by_state.columns
 
-fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
 # find days after the third start date began that we want to apply the effect — currently this is fixed from the
 # 20th of Aug and is not a problem with ACT as this is just a plot of the posterior vaccine effect
 heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
 
 third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
-for i, state in enumerate(states):
+
+third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
+third_days_cumulative = np.append([0], np.cumsum([v for v in third_days.values()]))
+vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
+third_days_tot = sum(v for v in third_days.values())
+sampled_vax_effects_all = samples_mov_gamma[["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]].T
+
+fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
+for i, state in enumerate(third_states):
+
+    # grab states vaccination data 
+    vacc_ts_data = vaccination_by_state.loc[state]
 
     # apply different vaccine form depending on if NSW
     if state in third_states:
         eta = samples_mov_gamma['eta[' + str(third_states_indices[state]) + ']']
         r = samples_mov_gamma['r[' + str(third_states_indices[state]) + ']']
+        # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
+        vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[state],:]
+        # get before and after fitting and tile them
+        vacc_ts_data_before = pd.concat(
+            [vacc_ts_data.loc[vacc_ts_data.index < third_date_range[state][0]]] * eta.shape[0], 
+            axis=1
+        )
+        vacc_ts_data_after = pd.concat(
+            [vacc_ts_data.loc[vacc_ts_data.index > third_date_range[state][-1]]] * eta.shape[0], 
+            axis=1
+        )
+        # rename columns for easy merging
+        vacc_ts_data_before.columns = vacc_tmp.columns
+        vacc_ts_data_after.columns = vacc_tmp.columns
+        # merge in order
+        vacc_ts = pd.concat(
+            [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after], axis=0, ignore_index=True         
+        )
+        # reset the index to be the dates for easier information handling
+        vacc_ts.set_index(vacc_ts_data.index, inplace=True)
+        
     else:
+        # if not in the third phase, use the lowest reasonable estimates from ACT (basically the prior)
         eta = samples_mov_gamma['eta[1]']
         r = samples_mov_gamma['r[1]']
+        # just tile the data
+        vacc_ts = pd.concat(
+            [vacc_ts_data] * eta.shape[0], 
+            axis=1
+        )
+        # reset the index to be the dates for easier information handling
+        vacc_ts.set_index(vacc_ts_data.index, inplace=True)
 
-    # tile the states vaccination data from Curtin
-    vacc_tmp = np.tile(vaccination_by_state.loc[state], (samples_mov_gamma.shape[0], 1)).T
+    # need to sample from the prior for the missing data
+    for idx in vacc_ts.index:
+        print(idx)
+        # upper cut depends on what point of the sampling we are at
+        if idx == pd.to_datetime(vaccination_start_date)+timedelta(1):
+            upper_cut = 1.0
+        else: 
+            upper_cut = vacc_ts.loc[idx-timedelta(days=1)]
+            
+        if idx < third_date_range[state][0]:  
+            # lower cut needs to at least be above what we have already sampled 
+            lower_cut = vacc_ts.loc[third_date_range[state][0]]
+        elif idx > third_date_range[state][-1]:
+            # lower cut needs to at least be above what we have already sampled 
+            lower_cut = 0.0
+            
+
+        if (idx < third_date_range[state][0]) or (idx > third_date_range[state][-1]):
+            # map to appropriate interval for standard normal
+            a, b = (lower_cut - vacc_ts.loc[idx]) / 0.05, (upper_cut - vacc_ts.loc[idx]) / 0.05
+            # sample and store
+            vacc_ts.loc[idx] = truncnorm.rvs(a, b, loc=vacc_ts.loc[idx], scale=0.05)
+    
     # create zero vector to fill in with vaccine effect
-    vacc_eff = np.zeros_like(vacc_tmp)
+    vacc_eff = np.zeros_like(vacc_ts)
 
-    # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
+    # loop over days in third wave and apply the appropriate form (i.e. decay or not)
     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
-    for ii in range(vacc_tmp.shape[0]):
+    for ii in range(vacc_eff.shape[0]):
         if ii < heterogeneity_delay_start_day:
-            vacc_eff[ii] = eta + (1-eta)*vacc_tmp[ii]
+            vacc_eff[ii] = eta + (1-eta)*vacc_ts.iloc[ii, :]
         else:
             # number of days after the heterogeneity should start to wane
             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
             decay_factor = np.exp(-r*heterogeneity_delay_days)
-            vacc_eff[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_tmp[ii]
+            vacc_eff[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]
 
     row = i % 4
-    col = i//4
+    col = i // 4
 
     ax[row, col].plot(dates, vaccination_by_state.loc[state].values, label='data', color='C1')
     ax[row, col].plot(dates, np.median(vacc_eff, axis=1), label='fit', color='C0')
