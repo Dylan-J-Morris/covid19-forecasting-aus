@@ -6,7 +6,7 @@ from scipy.stats import gamma
 from sys import argv
 from epyreff import *
 # this is not used in the estimation routine, it just lets the plot know what we ignore
-from params import truncation_days, third_start_date, start_date
+from params import truncation_days, third_start_date, start_date, use_TP_adjustment
 
 from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, \
     offset_rd, offset_inc, offset_gen
@@ -46,7 +46,7 @@ df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
 df_linel = tidy_cases_lambda(df_interim)
 
 # generate possible infection dates from the notification data
-df_inf = draw_inf_dates(df_linel, nreplicates=2000,
+df_inf = draw_inf_dates(df_linel, nreplicates=1000,
                         shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc, 
                         shape_rd=shape_rd, scale_rd=scale_rd, offset_rd=offset_rd)
 
@@ -81,11 +81,12 @@ for state in states:
     
     # store sampled Reffs
     R_store[state] = R
-    # temporarily store important information
-    temp = pd.DataFrame.from_dict(R_store[state])
-    temp['INFECTION_DATES'] = dates[state]
-    temp['STATE'] = state
-    df_R_samples = df_R_samples.append(temp, ignore_index=True)
+    if use_TP_adjustment:
+        # temporarily store important information
+        temp = pd.DataFrame.from_dict(R_store[state])
+        temp['INFECTION_DATES'] = dates[state]
+        temp['STATE'] = state
+        df_R_samples = df_R_samples.append(temp, ignore_index=True)
     
     # summarise for plots and file printing
     R_summary_states[state] = generate_summary(R)

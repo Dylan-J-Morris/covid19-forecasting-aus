@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=False):
+def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=False, running_epyreff=False):
     """
     A general function to read in the NNDSS data. Alternatively this can be manually set to read in the linelist instead.
     Args:
@@ -70,15 +70,20 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
 
         if len(glob.glob(path)) == 0:
             raise FileNotFoundError("Calculated linelist not found. Did you want to use NNDSS or the imputed linelist?")
-
-        # take the representative dates 
-        df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
-        # create boolean of when confirmation dates used
-        df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
-        df['is_confirmation'] = df['date_onset'].isna()
-
-        # set the known onset dates 
-        df['date_inferred'] = df['date_onset']
+        
+        if running_epyreff:
+            df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+            # set the known confirmation dates 
+            df['date_inferred'] = df['date_confirmation']
+        
+        else:
+            # take the representative dates 
+            df['date_onset'] = pd.to_datetime(df['date_onset'], errors='coerce')
+            # create boolean of when confirmation dates used
+            df['date_confirmation'] = pd.to_datetime(df['date_confirmation'], errors='coerce')
+            df['is_confirmation'] = df['date_onset'].isna()
+            # set the known onset dates 
+            df['date_inferred'] = df['date_onset']
         
         if apply_delay_at_read:
             # calculate number of delays to sample 
