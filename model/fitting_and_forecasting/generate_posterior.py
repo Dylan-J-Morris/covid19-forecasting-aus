@@ -916,7 +916,7 @@ dates = vaccination_by_state.columns
 
 # find days after the third start date began that we want to apply the effect — currently this is fixed from the
 # 20th of Aug and is not a problem with ACT as this is just a plot of the posterior vaccine effect
-heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(vaccination_start_date)).days
 
 third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
 
@@ -927,7 +927,12 @@ third_days_tot = sum(v for v in third_days.values())
 sampled_vax_effects_all = samples_mov_gamma[["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]].T
 
 fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
+# temporary state vector
+# states_tmp = ['ACT']
+# matplotlib.use('MacOSX')
+
 for i, state in enumerate(third_states):
+# for i, state in enumerate(states_tmp):
 
     # grab states vaccination data 
     vacc_ts_data = vaccination_by_state.loc[state]
@@ -970,34 +975,47 @@ for i, state in enumerate(third_states):
         vacc_ts.set_index(vacc_ts_data.index, inplace=True)
 
     # need to sample from the prior for the missing data
-    for idx in vacc_ts.index:
-        # upper cut depends on what point of the sampling we are at
-        if idx == pd.to_datetime(vaccination_start_date)+timedelta(1):
-            upper_cut = 1.0
-        else: 
-            upper_cut = vacc_ts.loc[idx-timedelta(days=1)]
+    # for idx in vacc_ts.index:
+    #     # upper cut depends on what point of the sampling we are at
+    #     if idx == pd.to_datetime(vaccination_start_date)+timedelta(1):
+    #         upper_cut = 1.0
+    #     else: 
+    #         upper_cut = vacc_ts.loc[idx-timedelta(days=1)]
             
-        if idx < third_date_range[state][0]:  
-            # lower cut needs to at least be above what we have already sampled 
-            lower_cut = vacc_ts.loc[third_date_range[state][0]]
-        elif idx > third_date_range[state][-1]:
-            # lower cut needs to at least be above what we have already sampled 
-            lower_cut = 0.0
+    #     if idx < third_date_range[state][0]:  
+    #         # lower cut needs to at least be above what we have already sampled 
+    #         lower_cut = vacc_ts.loc[third_date_range[state][0]]
+    #     elif idx > third_date_range[state][-1]:
+    #         # lower cut needs to at least be above what we have already sampled 
+    #         lower_cut = 0.0
 
-        if (idx < third_date_range[state][0]) or (idx > third_date_range[state][-1]):
-            # map to appropriate interval for standard normal
-            a, b = (lower_cut - vacc_ts.loc[idx]) / 0.005, (upper_cut - vacc_ts.loc[idx]) / 0.005
+    #     if (idx < third_date_range[state][0]) or (idx > third_date_range[state][-1]):
+    #         # variance for the truncated normal
+    #         vacc_sig = 0.025
+    #         # map to appropriate interval for truncated standard normal dist 
+    #         a, b = (lower_cut - vacc_ts.loc[idx]) / vacc_sig, (upper_cut - vacc_ts.loc[idx]) / vacc_sig
             
-            # sample and store
-            vacc_ts.loc[idx].iloc[np.where(a < b)] = truncnorm.rvs(a[np.where(a < b)[0]], b[np.where(a < b)[0]], loc=vacc_ts.loc[idx].iloc[np.where(a < b)], scale=0.005)
-            if (a >= b).any():
-                if (idx < third_date_range[state][0]):
-                    vacc_ts.loc[idx].iloc[np.where(a >= b)] = lower_cut[np.where(a >= b)[0]]
-    
-    # create zero vector to fill in with vaccine effect
+    #         # sample from the prior 
+    #         vacc_ts.loc[idx].iloc[np.where(a < b)] = truncnorm.rvs(
+    #             a[np.where(a < b)[0]], 
+    #             b[np.where(a < b)[0]], 
+    #             loc=vacc_ts.loc[idx].iloc[np.where(a < b)], 
+    #             scale=vacc_sig)
+    #         # occassionally the interval gets too narrow and to deal with this we revert that estimate to be a point mass 
+    #         # at the previous value
+    #         if (a >= b).any():
+    #             if (idx < third_date_range[state][0]):
+    #                 # adjust slightly differently if it's the first date in the simulation.
+    #                 if (idx > pd.to_datetime(vaccination_start_date)+timedelta(days=1)): 
+    #                     vacc_ts.loc[idx].iloc[np.where(a >= b)] = vacc_ts.loc[idx-timedelta(days=1)].iloc[np.where(a >= b)[0]]
+    #                 else:
+    #                     vacc_ts.loc[idx].iloc[np.where(a >= b)] = 1
+    #             elif (idx > third_date_range[state][-1]):
+    #                 vacc_ts.loc[idx].iloc[np.where(a >= b)] = vacc_ts.loc[idx-timedelta(days=1)].iloc[np.where(a >= b)[0]]
+                    
+    # create zero array to fill in with the full vaccine effect model
     vacc_eff = np.zeros_like(vacc_ts)
 
-    # loop over days in third wave and apply the appropriate form (i.e. decay or not)
     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
     for ii in range(vacc_eff.shape[0]):
         if ii < heterogeneity_delay_start_day:
@@ -1022,8 +1040,9 @@ for i, state in enumerate(third_states):
     ax[row, col].set_title(state)
     ax[row, col].tick_params(axis='x', rotation=90)
 
-# ax[0, 0].set_ylabel('reduction in TP from vaccination')
 ax[1, 0].set_ylabel('reduction in TP from vaccination')
+
+# plt.show()
 
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_TP.png", dpi=144)
 

@@ -204,7 +204,7 @@ model {
     int pos2;
     int pos3;
     real vacc_mu;
-    real vacc_sig = 0.005;
+    real vacc_sig = 0.025;
     
     // social mobility parameters 
     bet ~ normal(0, 1.0);
@@ -280,7 +280,8 @@ model {
                 if (pos3 == 0){
                     // the mean vaccination effect should be the data supplied
                     vacc_mu = vaccine_effect_data[i][n-1]; 
-                    vacc_effect_ordered[i][N_third_wave+1] ~ normal(vacc_mu, vacc_sig);    
+                    // for the first value we assume the mean of the data as the initial value
+                    vacc_effect_ordered[i][N_third_wave+1] ~ normal(vacc_mu, 0.001);    
                     pos3 += 1;
                 }
                 
