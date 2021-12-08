@@ -880,36 +880,6 @@ if latest_vacc_data < pd.to_datetime(third_end_date):
         axis=1
     )
 
-# flag for plotting the third wave fit
-plot_third_fit = False
-
-if df3X.shape[0] > 0:
-    df['is_third_wave'] = 0
-    for state in third_states:
-        df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values    
-
-    if plot_third_fit:
-    
-        # plot only if there is third phase data - have to have third_phase=True
-        ax4 = predict_plot(samples_mov_gamma, 
-                        df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
-                        third_date_range=third_date_range, 
-                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
-                        R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
-                        R_I=samples_mov_gamma.R_I.values,
-                        prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state,
-                        third_states=third_states)  # by states....
-        for ax in ax4:
-            for a in ax:
-                a.set_ylim((0, 3))
-                # a.set_xlim((start_date,end_date))
-                
-        plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
-
-        # remove plots from memory
-        fig.clear()
-        plt.close(fig)
-
 ######### plotting the inferred vaccine effect trajectory #########
 # get the dates for vaccination
 dates = vaccination_by_state.columns
@@ -1045,6 +1015,36 @@ ax[1, 0].set_ylabel('reduction in TP from vaccination')
 # plt.show()
 
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_TP.png", dpi=144)
+
+# flag for plotting the third wave fit
+plot_third_fit = True
+
+if df3X.shape[0] > 0:
+    df['is_third_wave'] = 0
+    for state in third_states:
+        df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values    
+
+    if plot_third_fit:
+    
+        # plot only if there is third phase data - have to have third_phase=True
+        ax4 = predict_plot(samples_mov_gamma, 
+                        df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
+                        third_date_range=third_date_range, 
+                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
+                        R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
+                        R_I=samples_mov_gamma.R_I.values,
+                        prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state,
+                        third_states=third_states)  # by states....
+        for ax in ax4:
+            for a in ax:
+                a.set_ylim((0, 3))
+                # a.set_xlim((start_date,end_date))
+                
+        plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
+
+        # remove plots from memory
+        fig.clear()
+        plt.close(fig)
 
 ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 

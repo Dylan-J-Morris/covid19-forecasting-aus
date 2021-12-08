@@ -64,7 +64,8 @@ def read_in_google(Aus_only=True, local=False, moving=False):
 def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, moving=True, grocery=True,
                  delta=1.0, R=2.2, sigma=1, md_arg=None,
                  ban='2020-03-16', single=False, var=None,
-                 rho=None, R_I=None, winter=False, prop=None, second_phase=False, third_phase=False, vaccination=None, third_states=None):
+                 rho=None, R_I=None, winter=False, prop=None, second_phase=False, third_phase=False, 
+                 vaccination=None, third_states=None):
     """
     Produce posterior predictive plots for all states
     """
@@ -182,16 +183,6 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             post_values = samples_sim[['bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
 
-            if vaccination is not None and states_initials[state] in third_states:
-                # print(vaccination.loc[states_initials[state]])
-                idx = (
-                    (vaccination.columns >= third_date_range[states_initials[state]][0]) & 
-                    (vaccination.columns <= third_date_range[states_initials[state]][-1]) 
-                )
-                vacc_sim = vaccination.loc[states_initials[state]][idx].values
-                    
-                vacc_sim = np.tile(vacc_sim, (1000, 1)).T
-
             if split:
 
                 # split model with parameters pre and post policy
@@ -237,8 +228,22 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # transposing the vaccination sampled values so that it can be multiplied by the data
                     # the str(i+1) is required because the state indexing starts at 0
                     
-                    third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
+                    # print(vaccination.loc[states_initials[state]])
+                    idx = (
+                        (vaccination.columns >= third_date_range[states_initials[state]][0]) & 
+                        (vaccination.columns <= third_date_range[states_initials[state]][-1]) 
+                    )
+                    vacc_ts_data = vaccination.loc[states_initials[state]][idx]
                     
+                    third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
+
+                    third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
+                    third_days_cumulative = np.append([0], np.cumsum([v for v in third_days.values()]))
+                    vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
+                    third_days_tot = sum(v for v in third_days.values())
+                    # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
+                    sampled_vax_effects_all = samples_sim[["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]].T
+                    vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[states_initials[state]],:]
                     # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
                     if states_initials[state] in third_states:
                         eta = samples_sim['eta[' + str(third_states_indices[states_initials[state]]) + ']']
@@ -246,6 +251,28 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     else:
                         eta = samples_sim['eta[1]']
                         r = samples_sim['r[1]']
+                        
+                    # get before and after fitting and tile them
+                    vacc_ts_data_before = pd.concat(
+                        [vacc_ts_data.loc[vacc_ts_data.index < third_date_range[states_initials[state]][0]]] * eta.shape[0], 
+                        axis=1
+                    )
+                    vacc_ts_data_after = pd.concat(
+                        [vacc_ts_data.loc[vacc_ts_data.index > third_date_range[states_initials[state]][-1]]] * eta.shape[0], 
+                        axis=1
+                    )
+                    # rename columns for easy merging
+                    vacc_ts_data_before.columns = vacc_tmp.columns
+                    vacc_ts_data_after.columns = vacc_tmp.columns
+                    # merge in order
+                    vacc_ts = pd.concat(
+                        [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after], axis=0, ignore_index=True         
+                    )
+                    # reset the index to be the dates for easier information handling
+                    vacc_ts.set_index(vacc_ts_data.index, inplace=True)
+                    
+                    third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
+                    
 
                     # From conversations with James and Nic we think the heterogeneity / assortativity was more prominent before late 
                     # August (hence the fixed date) 
@@ -254,7 +281,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - third_date_range[states_initials[state]][0]).days
                     
                     # this will hold the posterior VE, with adjustement factors
-                    vacc_post = np.zeros_like(vacc_sim)
+                    vacc_post = np.zeros_like(vacc_ts)
 
                     # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
                     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
@@ -266,18 +293,18 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # b_vacc = (1-vacc_mu)*(vacc_mu*(1-vacc_mu)/vacc_sig - 1)
                     # # sample a noisier version of the vax effect
                     # vacc_sim_adj = np.random.beta(a_vacc, b_vacc)
-                    vacc_sim_adj = vacc_sim
-                    
+                    # create zero array to fill in with the full vaccine effect model
+                    vacc_post = np.zeros_like(vacc_ts)
+
+                    # note that in here we apply the entire sample to the vaccination data to create a days by samples array
                     for ii in range(vacc_post.shape[0]):
                         if ii < heterogeneity_delay_start_day:
-                            # vacc_post[ii] = eta + (1-eta)*vacc_sim[ii]
-                            vacc_post[ii] = eta + (1-eta)*vacc_sim_adj[ii]
+                            vacc_post[ii] = eta + (1-eta)*vacc_ts.iloc[ii, :]
                         else:
                             # number of days after the heterogeneity should start to wane
                             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                             decay_factor = np.exp(-r*heterogeneity_delay_days)
-                            # vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_sim[ii]
-                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_sim_adj[ii]
+                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]
 
                     for ii in range(vacc_post.shape[0]):
                         if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:
