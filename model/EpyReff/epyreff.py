@@ -17,24 +17,16 @@ plt.style.use('seaborn-poster')
 
 # Code taken from read_in_cases from Reff_functions. Preprocessing was not helpful for this situation.
 
-# def read_cases_lambda(case_file_date):
-#     """
-#     Read in NNDSS data
-#     """
-#     df_NNDSS = read_in_NNDSS(case_file_date)
-    
-#     if use_linelist:
-#         df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
-#     else:
-#         df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
-#     return(df_interim)
-
 def read_cases_lambda(case_file_date):
     """
     Read in NNDSS data
     """
-    df_NNDSS = read_in_NNDSS(case_file_date, running_epyreff=True)
-    df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
+    df_NNDSS = read_in_NNDSS(case_file_date)
+    
+    if use_linelist:
+        df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
+    else:
+        df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
     return(df_interim)
 
 def tidy_cases_lambda(interim_data, remove_territories=True):
@@ -48,35 +40,16 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
     # Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
     # i.e. create linelist data
-    df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
+    if use_linelist:
+        df_linel = df_linel.melt(id_vars=['date_inferred','STATE','is_confirmation'], var_name='SOURCE', value_name='n_cases')
+    else:
+        df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
 
     # Reset index or the joining doesn't work
     df_linel = df_linel[df_linel.n_cases != 0]
     df_linel = df_linel.reset_index(drop=True)
     
     return df_linel
-
-# def tidy_cases_lambda(interim_data, remove_territories=True):
-    
-#     # Remove non-existent notification dates
-#     interim_data = interim_data[~np.isnat(interim_data.date_inferred)]
-
-#     # Filter out territories
-#     if(remove_territories):
-#         df_linel = interim_data[(interim_data['STATE'] != 'NT')]
-
-#     # Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
-#     # i.e. create linelist data
-#     if use_linelist:
-#         df_linel = df_linel.melt(id_vars=['date_inferred','STATE','is_confirmation'], var_name='SOURCE', value_name='n_cases')
-#     else:
-#         df_linel = df_linel.melt(id_vars=['date_inferred','STATE'], var_name='SOURCE', value_name='n_cases')
-
-#     # Reset index or the joining doesn't work
-#     df_linel = df_linel[df_linel.n_cases != 0]
-#     df_linel = df_linel.reset_index(drop=True)
-    
-#     return df_linel
 
 # gamma draws take arguments (shape, scale)
 
@@ -90,8 +63,21 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
 
     # Draw from incubation distribution
     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
-    rd_period = offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))
-    id_nd_diff = inc_period + rd_period
+    
+    if use_linelist:
+        # apply the delay at the point of applying the incubation 
+        # as we are taking a posterior sample 
+        # extract boolean indicator of when the confirmation date was used
+        is_confirmation_date = df_linelist['is_confirmation'].to_numpy()
+        # first construct an array to set the notification delays to 0 when we have the true onset date
+        is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
+        rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
+
+        # infection date is id_nd_diff days before notification date. This is also a long vector.
+        id_nd_diff = inc_period + rd_period
+        
+    else: 
+        id_nd_diff = inc_period
 
     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
     whole_day_diff = np.ceil(id_nd_diff)
@@ -106,60 +92,15 @@ def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, 
     # Make infection dates into a dataframe
     datecolnames = [*map(str, range(nreplicates))]
     infdates_df = pd.DataFrame(infection_dates, columns=datecolnames)
+    
+    # need to remove the confirmation boolean variable from the df to ensure that the 
+    # rest of epyreff runs as per normal 
+    df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
 
     # Combine infection dates and original dataframe
     df_inf = pd.concat([df_linelist, infdates_df], axis=1, verify_integrity=True)
 
     return df_inf
-
-# def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, shape_rd=2, scale_rd=1, offset_rd=1, nreplicates=1):
-
-#     # these aren't really notification dates, they are a combination of onset and confirmation dates 
-#     notification_dates = df_linelist['date_inferred']
-    
-#     # the above are the same size so this works
-#     nsamples = notification_dates.shape[0]
-
-#     # Draw from incubation distribution
-#     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
-    
-#     if use_linelist:
-#         # apply the delay at the point of applying the incubation 
-#         # as we are taking a posterior sample 
-#         # extract boolean indicator of when the confirmation date was used
-#         is_confirmation_date = df_linelist['is_confirmation'].to_numpy()
-#         # first construct an array to set the notification delays to 0 when we have the true onset date
-#         is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
-#         rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
-
-#         # infection date is id_nd_diff days before notification date. This is also a long vector.
-#         id_nd_diff = inc_period + rd_period
-        
-#     else: 
-#         id_nd_diff = inc_period
-
-#     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
-#     whole_day_diff = np.ceil(id_nd_diff)
-#     time_day_diffmat = whole_day_diff.astype('timedelta64[D]').reshape((nsamples, nreplicates))
-
-#     # notification_dates is repeated as a column nreplicates times.
-#     notification_mat = np.tile(notification_dates, (nreplicates, 1)).T
-    
-#     # infection dates are just the difference 
-#     infection_dates = notification_mat - time_day_diffmat
-
-#     # Make infection dates into a dataframe
-#     datecolnames = [*map(str, range(nreplicates))]
-#     infdates_df = pd.DataFrame(infection_dates, columns=datecolnames)
-    
-#     # need to remove the confirmation boolean variable from the df to ensure that the 
-#     # rest of epyreff runs as per normal 
-#     df_linelist = df_linelist.loc[:, df_linelist.columns != 'is_confirmation']
-
-#     # Combine infection dates and original dataframe
-#     df_inf = pd.concat([df_linelist, infdates_df], axis=1, verify_integrity=True)
-
-#     return df_inf
 
 
 def index_by_infection_date(infections_wide):
@@ -276,7 +217,7 @@ def Reff_from_case(cases_by_infection, lamb, prior_a=1, prior_b=5, tau=7, sample
     Using Cori at al. 2013, given case incidence by date of infection, and the force
     of infection \Lambda_t on day t, estimate the effective reproduction number at time
     t with smoothing parameter \tau.
-
+ 
     cases_by_infection: A T by N array, for T days and N samples 
     lamb : A T by N array, for T days and N samples
     """

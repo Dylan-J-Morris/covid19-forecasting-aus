@@ -971,7 +971,6 @@ for i, state in enumerate(third_states):
 
     # need to sample from the prior for the missing data
     for idx in vacc_ts.index:
-        print(idx)
         # upper cut depends on what point of the sampling we are at
         if idx == pd.to_datetime(vaccination_start_date)+timedelta(1):
             upper_cut = 1.0
@@ -984,13 +983,16 @@ for i, state in enumerate(third_states):
         elif idx > third_date_range[state][-1]:
             # lower cut needs to at least be above what we have already sampled 
             lower_cut = 0.0
-            
 
         if (idx < third_date_range[state][0]) or (idx > third_date_range[state][-1]):
             # map to appropriate interval for standard normal
-            a, b = (lower_cut - vacc_ts.loc[idx]) / 0.05, (upper_cut - vacc_ts.loc[idx]) / 0.05
+            a, b = (lower_cut - vacc_ts.loc[idx]) / 0.005, (upper_cut - vacc_ts.loc[idx]) / 0.005
+            
             # sample and store
-            vacc_ts.loc[idx] = truncnorm.rvs(a, b, loc=vacc_ts.loc[idx], scale=0.05)
+            vacc_ts.loc[idx].iloc[np.where(a < b)] = truncnorm.rvs(a[np.where(a < b)[0]], b[np.where(a < b)[0]], loc=vacc_ts.loc[idx].iloc[np.where(a < b)], scale=0.005)
+            if (a >= b).any():
+                if (idx < third_date_range[state][0]):
+                    vacc_ts.loc[idx].iloc[np.where(a >= b)] = lower_cut[np.where(a >= b)[0]]
     
     # create zero vector to fill in with vaccine effect
     vacc_eff = np.zeros_like(vacc_ts)
@@ -1035,6 +1037,7 @@ var_to_csv = var_to_csv + predictors + [
 ]
 var_to_csv = var_to_csv + ['eta['+str(v)+']' for v in third_states_indices.values()]
 var_to_csv = var_to_csv + ['r['+str(v)+']' for v in third_states_indices.values()]
+var_to_csv = var_to_csv + ["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
 

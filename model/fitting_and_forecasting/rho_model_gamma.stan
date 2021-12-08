@@ -79,45 +79,48 @@ parameters {
     real<lower=0> additive_voc_effect_delta;
     vector<lower=0,upper=1>[j_third_wave] eta;                              // array of adjustment factor for each third wave state
     vector<lower=0>[j_third_wave] r;                                        // parameter for decay to heterogeneity
-    // real<lower=0,upper=1> eta_NSW;                            // array of adjustment factor for each third wave state
-    // real<lower=0,upper=1> eta_other;                            // array of adjustment factor for each third wave state
-    // real<lower=0> r_NSW;                                        // parameter for decay to heterogeneity
-    // real<lower=0> r_other;                                      // parameter for decay to heterogeneity
-    // vector<lower=0, upper=1>[total_N_p_third] vacc_effect;      // scaling parameter for the vaccine effect 
     positive_ordered[N_third_wave+1] vacc_effect_ordered[j_third_wave];            // reverse ordered strictly positive vaccine effect parameter centered on the supplied timeseries
 }
 transformed parameters {
-    // this parametrisation results in voc ~ 1 + Gamma(a, b) (i.e. truncated below at 1)
+    // adjusted voc effects, we only sample the additive component to improve efficiency of stan 
     real<lower=0> voc_effect_alpha = 1 + additive_voc_effect_alpha;
     real<lower=0> voc_effect_delta = 1 + additive_voc_effect_delta;
     
+    // TP models
     matrix<lower=0>[N,j_first_wave] mu_hat;
     vector<lower=0>[total_N_p_sec] mu_hat_sec_wave;
     vector<lower=0>[total_N_p_third] mu_hat_third_wave;
-    matrix<lower=0>[N,j_first_wave] md;                                    // micro distancing
+    
+    // micro distancing model 
+    matrix<lower=0>[N,j_first_wave] md;
     vector<lower=0>[total_N_p_sec] md_sec_wave;
     vector<lower=0>[total_N_p_third] md_third_wave;
     
-    // ordered vaccine effect with length equal to total number of waves        
+    // ordered vaccine effect with length equal to total number of days across each jurisdiction         
     vector[total_N_p_third] vacc_effect;       
     
-    // reverse the ordering of the raw vax effects
+    // reverse the ordering of the raw vax effects in a local scope. This trick lets us define local parameters pos and pos2
     {
+        // index for vacc_effect vector 
         int pos = 1;    
+        // index for the ordered vaccine effects (gets reset in outer loop)
+        int pos2;    
         for (i in 1:j_third_wave){
-            // vacc_effect_raw_initial[i] = vacc_effect_raw[i][N_third_wave+1];
+            pos2 = 1;
             // reverse the array
             for (n in 1:N_third_wave){
                 if (include_in_third_wave[i][n] == 1){
-                    // take a maximum of 1 and the sampled ordered vax effect (this might break HMC)
-                    // vacc_effect[pos] = fmin(1, vacc_effect_ordered[i][N_third_wave-n+1]);
-                    vacc_effect[pos] = vacc_effect_ordered[i][N_third_wave-n+1];
+                    // take a maximum of 1 and the sampled ordered vax effect or the previous vax effect 
+                    // (this might break continuinty needed for HMC but it doesn't look too bad and helps with the start of the fitting)
+                    vacc_effect[pos] = min([1, vacc_effect_ordered[i][N_third_wave+1-(pos2-1)], vacc_effect_ordered[i][N_third_wave+1-pos2]]);
                     pos += 1;
+                    pos2 += 1;
                 }
             }
         }
     }    
 
+    // first wave model 
     for (i in 1:j_first_wave) {
         real TP_local;
         real social_measures;
@@ -131,11 +134,14 @@ transformed parameters {
             }
         }
     }
+    
+    // second wave model 
     for (i in 1:j_sec_wave){
         // define these within the scope of the loop only
         int pos;
         real TP_local;
         real social_measures;
+        
         if (i==1){
             pos=1;
         }
@@ -154,6 +160,7 @@ transformed parameters {
         }
     }
 
+    // third wave model 
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
         int pos;
@@ -161,15 +168,10 @@ transformed parameters {
         real social_measures;
         // parameters for the vaccination effects  
         real vacc_effect_tot;
-        // real eta;
-        // real eta_tmp;
-        // real r;
         real decay_in_heterogeneity;
-        int pos2;
         
         if (i==1){
             pos=1;
-            pos2=1;
         } else {
             //Add 1 to get to start of new group, not end of old group
             pos = pos_starts_third[i-1]+1;
@@ -188,7 +190,6 @@ transformed parameters {
 
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
-                // vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vaccine_effect_data[i][n];
                 vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos];
                 social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_delta*vacc_effect_tot;
@@ -203,7 +204,9 @@ model {
     int pos2;
     int pos3;
     real vacc_mu;
-
+    real vacc_sig = 0.005;
+    
+    // social mobility parameters 
     bet ~ normal(0, 1.0);
     theta_md ~ lognormal(0, 0.5);
 
@@ -212,6 +215,7 @@ model {
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);      
     additive_voc_effect_delta ~ gamma(1.1*1.1/0.075, 1.1/0.075);
     
+    // vaccination heterogeneity 
     eta ~ beta(2, 7);
     r ~ lognormal(log(0.16), 0.1);
 
@@ -221,6 +225,7 @@ model {
     sig ~ exponential(1000); //mean is 1/50=0.02
     R_Li ~ gamma(R_L*R_L/sig,R_L/sig); //partial pooling of state level estimates
 
+    // first wave model 
     for (i in 1:j_first_wave) {
         for (n in 1:N){
             prop_md[n,i] ~ beta(1 + count_md[i][n], 
@@ -230,10 +235,8 @@ model {
         }
     }
     
+    // second wave model 
     for (i in 1:j_sec_wave){
-        
-        pos3 = 1;
-        
         if (i==1){
             pos2=1;
         }
@@ -254,10 +257,9 @@ model {
         }
     }
 
+    // third wave model 
     for (i in 1:j_third_wave){
-        
-        pos3 = 1;
-        
+        pos3 = 0;
         if (i==1){
             pos2=1;
         } else {
@@ -275,11 +277,10 @@ model {
                                                 Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
                 pos2+=1;
                 
-                if (pos3 == 1){
+                if (pos3 == 0){
                     // the mean vaccination effect should be the data supplied
                     vacc_mu = vaccine_effect_data[i][n-1]; 
-                    vacc_effect_ordered[i][N_third_wave+2-n] ~ normal(vacc_mu, 0.05);    
-                    // vacc_effect_ordered[i][N_third_wave+1] ~ vacc_mu;
+                    vacc_effect_ordered[i][N_third_wave+1] ~ normal(vacc_mu, vacc_sig);    
                     pos3 += 1;
                 }
                 
@@ -288,8 +289,8 @@ model {
                 // vaccine effect distributed around mean of the vaccine effect but 
                 // needs to be truncated above by the previous value and as sampling here
                 // then transforming, no Jacobian adjustment needed 
-                vacc_effect_ordered[i][N_third_wave+1-n] ~ normal(vacc_mu, 0.05);
-                
+                vacc_effect_ordered[i][N_third_wave+1-pos3] ~ normal(vacc_mu, vacc_sig);
+                pos3 += 1;
             }
         }
     }
