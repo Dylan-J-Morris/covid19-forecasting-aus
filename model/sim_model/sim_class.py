@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os
 import operator
 from helper_functions import read_in_NNDSS, read_in_Reff_file
-from params import case_insertion_threshold, n_days_nowcast_TP_adjustment, delta_start_date
+from params import case_insertion_threshold, n_days_nowcast_TP_adjustment, delta_start_date, num_TP_samples
 from numpy.random import default_rng
 
 from collections import deque
@@ -109,7 +109,7 @@ class Forecast:
         self.cases_file_date = cases_file_date
         
         # Load in Reff data before running all sims
-        self.n_Reffs = 3000
+        self.n_Reffs = num_TP_samples
         self.read_in_all_Reffs()
         # Assumption dates.
         # Date from which quarantine was started
