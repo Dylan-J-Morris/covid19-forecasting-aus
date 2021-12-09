@@ -290,7 +290,8 @@ model {
                 // vaccine effect distributed around mean of the vaccine effect but 
                 // needs to be truncated above by the previous value (dealt with by the 
                 // ordered vector type)
-                // Note that we apply a different variance at the start and end of the fitting period 
+                // Note that we apply a different variance at the start and end of the fitting period (this anchors
+                // the interior points to be in appropriate ranges). 
                 if (n < N_third_wave && include_in_third_wave[i][n+1] != 0){
                     vacc_effect_ordered[i][N_third_wave+2-pos3] ~ normal(vacc_mu, vacc_sig);    
                 } else if (n == N_third_wave || (n < N_third_wave && include_in_third_wave[i][n+1]==0) ) {
