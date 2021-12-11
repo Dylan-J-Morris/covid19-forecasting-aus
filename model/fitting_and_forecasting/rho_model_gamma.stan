@@ -44,6 +44,7 @@ data {
     vector[N_third_wave] count_md_third_wave[j_third_wave];     // count of always
     vector[N_third_wave] respond_md_third_wave[j_third_wave];   // num respondants
 
+    // mapping and number in each state
     int map_to_state_index_first[j_first_wave];                     // indices of second wave to map to first
     int map_to_state_index_sec[j_sec_wave];                     // indices of second wave to map to first
     int map_to_state_index_third[j_third_wave];                 // indices of second wave to map to first
@@ -54,10 +55,13 @@ data {
     vector[N_third_wave] include_in_third_wave[j_third_wave];   // dates include in sec_wave 
     int pos_starts_sec[j_sec_wave];                             // starting positions for each state in the second wave
     int pos_starts_third[j_third_wave];                         // starting positions for each state in the third wave 
-    int is_NSW[j_third_wave];                                   // indicator vector of which state is NSW in the third wave
 
-    int decay_start_date_third;
+    int decay_start_date_third;                                 // date at which to apply decay in heterogenous vaccine effect 
     vector[N_third_wave] vaccine_effect_data[j_third_wave];     //vaccination data
+    
+    // omicron data
+    int omicron_start_date;             // date to apply omicron mix 
+    int total_N_p_third_omicron;        // number of days where omicron is a risk 
 
 }
 parameters {
@@ -80,11 +84,16 @@ parameters {
     vector<lower=0,upper=1>[j_third_wave] eta;                              // array of adjustment factor for each third wave state
     vector<lower=0>[j_third_wave] r;                                        // parameter for decay to heterogeneity
     positive_ordered[N_third_wave+2] vacc_effect_ordered[j_third_wave];            // reverse ordered strictly positive vaccine effect parameter centered on the supplied timeseries
+    
+    real<lower=0> additive_voc_effect_omicron;
+    real<lower=0,upper=1> reduction_vacc_effect_omicron;
+    vector<lower=0,upper=1>[total_N_p_third_omicron] prop_omicron_to_delta;   // estimate of proportion of imported cases
 }
 transformed parameters {
     // adjusted voc effects, we only sample the additive component to improve efficiency of stan 
     real<lower=0> voc_effect_alpha = 1 + additive_voc_effect_alpha;
     real<lower=0> voc_effect_delta = 1 + additive_voc_effect_delta;
+    real<lower=0> voc_effect_omicron = 1 + additive_voc_effect_omicron;
     
     // TP models
     matrix<lower=0>[N,j_first_wave] mu_hat;
@@ -164,13 +173,15 @@ transformed parameters {
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
         int pos;
+        int pos_omicron;
         real TP_local;
         real social_measures;
         // parameters for the vaccination effects  
         real vacc_effect_tot;
         real decay_in_heterogeneity;
+        real voc_effect_tot; 
         
-        if (i==1){
+        if (i == 1){
             pos=1;
         } else {
             //Add 1 to get to start of new group, not end of old group
@@ -182,7 +193,7 @@ transformed parameters {
                 md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
 
                 // applying the return to homogeneity in vaccination effect 
-                if (n < decay_start_date_third){
+                if (n < decay_start_date_third) {
                     decay_in_heterogeneity = 1;
                 } else{
                     decay_in_heterogeneity = eta[i]*exp(-r[i]*(n-decay_start_date_third));
@@ -191,9 +202,17 @@ transformed parameters {
                 // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
                 // vaccination effect around the 20th of August 
                 vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos];
-                social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
-                TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_delta*vacc_effect_tot;
+                // apply reduction in vacc effect and increase in voc for omicron 
+                if (n < omicron_start_date) {
+                    voc_effect_tot = voc_effect_delta;
+                } else if (n >= omicron_start_date) {
+                    vacc_effect_tot = vacc_effect_tot * (1 + prop_omicron_to_delta[pos_omicron] * (r-1));
+                    voc_effect_tot = voc_effect_omicron * prop_omicron_to_delta[pos_omicron] + voc_effect_delta * (1-prop_omicron_to_delta[pos_omicron]);
+                    pos_omicron += 1;
+                }
                 
+                social_measures = ((1-policy_third_wave[n])+md_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
+                TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_tot*vacc_effect_tot;
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*TP_local;
                 pos += 1;
             }
@@ -201,8 +220,12 @@ transformed parameters {
     }
 }
 model {
+    // indexers for moving through parameter vectors 
     int pos2;
     int pos3;
+    int pos_omicron;
+    
+    // fixed parameters for the vaccine effect priors
     real vacc_mu;
     real vacc_sig = 0.025;
     
@@ -214,10 +237,13 @@ model {
     // parametersiing the following as voc_eff ~ 1 + gamma(a,b)
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);      
     additive_voc_effect_delta ~ gamma(1.1*1.1/0.075, 1.1/0.075);
+    additive_voc_effect_omicron ~ gamma(1.1*1.1/0.075, 1.1/0.075);
     
     // vaccination heterogeneity 
     eta ~ beta(2, 7);
     r ~ lognormal(log(0.16), 0.1);
+    // reduction in vaccine effect due to omicron mean of 0.7
+    reduction_vacc_effect_omicron ~ beta(21, 9);
 
     // hierarchical model for the baseline RL's
     R_L ~ gamma(1.7*1.7/0.005,1.7/0.005); //hyper-prior
@@ -237,13 +263,12 @@ model {
     
     // second wave model 
     for (i in 1:j_sec_wave){
-        if (i==1){
-            pos2=1;
-        }
-        else {
+        if (i==1) {
+            pos2 = 1;
+        } else {
             //Add 1 to get to start of new group, not end of old group
-            pos2 =pos_starts_sec[i-1]+1; 
-            }
+            pos2 = pos_starts_sec[i-1]+1; 
+        }
         for (n in 1:N_sec_wave){
             if (include_in_sec_wave[i][n]==1){
                 prop_md_sec_wave[pos2] ~ beta(1+count_md_sec_wave[i][n], 
@@ -260,15 +285,16 @@ model {
     // third wave model 
     for (i in 1:j_third_wave){
         pos3 = 0;
-        if (i==1){
-            pos2=1;
+        if (i == 1){
+            pos2 = 1;
+            pos_omicron = 1;
         } else {
             //Add 1 to get to start of new group, not end of old group
             pos2=pos_starts_third[i-1]+1; 
         }
         
         for (n in 1:N_third_wave){
-            if (include_in_third_wave[i][n]==1){
+            if (include_in_third_wave[i][n] == 1){
                 prop_md_third_wave[pos2] ~ beta(1+count_md_third_wave[i][n], 
                                                 1+respond_md_third_wave[i][n]-count_md_third_wave[i][n]);
                 brho_third_wave[pos2] ~ beta(0.5+imported_third_wave[n,i], 
@@ -288,14 +314,18 @@ model {
                 // the mean vaccination effect should be the data supplied
                 vacc_mu = vaccine_effect_data[i][n];
                 // vaccine effect distributed around mean of the vaccine effect but 
-                // needs to be truncated above by the previous value (dealt with by the 
-                // ordered vector type)
+                // needs to be truncated above by the previous value (dealt with by the ordered vector type)
                 // Note that we apply a different variance at the start and end of the fitting period (this anchors
                 // the interior points to be in appropriate ranges). 
                 if (n < N_third_wave && include_in_third_wave[i][n+1] != 0){
                     vacc_effect_ordered[i][N_third_wave+2-pos3] ~ normal(vacc_mu, vacc_sig);    
-                } else if (n == N_third_wave || (n < N_third_wave && include_in_third_wave[i][n+1]==0) ) {
+                } else if (n == N_third_wave || (n < N_third_wave && include_in_third_wave[i][n+1] == 0) ) {
                     vacc_effect_ordered[i][N_third_wave+2-(pos3+1)] ~ normal(vacc_mu, 0.001);    
+                }
+                // assuming predominant delta 
+                if (n >= omicron_start_date) {
+                    prop_omicron_to_delta[pos_omicron] ~ beta(2, 200);
+                    pos_omicron += 1;
                 }
                 
                 pos3 += 1;

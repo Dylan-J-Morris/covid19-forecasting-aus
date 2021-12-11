@@ -47,7 +47,8 @@ for file in glob.glob(path):
 surveys = surveys.sort_values(by='date')
 print("Latest Microdistancing survey is {}".format(surveys.date.values[-1]))
 
-surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT', 'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
+# surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT', 'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
+surveys['state'] = surveys['state'].map(states_initials).fillna(surveys['state'])
 surveys['proportion'] = surveys['count']/surveys.respondents
 surveys.date = pd.to_datetime(surveys.date)
 
@@ -281,7 +282,7 @@ for state in third_states:
     third_mobility_std_by_state.append(df3X.loc[df3X.state == state, [val+'_std' for val in predictors]].values/100)
     third_count_by_state.append(survey_counts.loc[third_start_date:third_end_date, state].values)
     third_respond_by_state.append(survey_respond.loc[third_start_date:third_end_date, state].values)
-    include_in_third_wave.append(df3X.loc[df3X.state == state, 'is_third_wave'].values)
+    include_in_third_wave.append(df3X.loc[df3X.state == state, 'is_third_wave'].values) 
 
 # policy boolean flag for after travel ban in each wave
 policy = dfX.loc[dfX.state == first_states[0],'post_policy']     # this is the post ban policy
@@ -329,11 +330,6 @@ for (idx, s) in enumerate(third_states):
 # Convert to simple array only useful to pass to stan (index 1 onwards)
 vaccination_by_state_array = vaccination_by_state.iloc[:, 1:].to_numpy()
 
-# elementwise comparison of the third states with NSW and then convert to int which is easier than 
-# keeping track of indices in the stan code
-is_NSW = (np.array(third_states) == 'NSW').astype(int)
-is_VIC = (np.array(third_states) == 'VIC').astype(int)
-
 # calculate how many days the end of august is after the third start date
 decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
 
@@ -344,12 +340,13 @@ third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
 
 # number of days in the third wave
 N_vaccine_data_third = [v.shape[0] for (k, v) in third_date_range.items()]
-# indices for the third wave
-# third_inds = {
-#     k: range(third_days[idx], third_days[idx+1]) for (idx, k) in enumerate(third_date_range.keys())
-# }
 
+# dates to apply alpha in the second wave 
 apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int)
+
+# set the start date for omicron cases and count total number of days with omicron cases 
+omicron_start_date = (pd.to_datetime('2021-11-23') - pd.to_datetime(third_start_date)).days
+total_N_p_third_omicron = sum(sum(v > pd.to_datetime('2021-11-23')) for v in third_date_range.values())
 
 # input data block for stan model
 input_data = {
@@ -408,12 +405,14 @@ input_data = {
     'include_in_third_wave': include_in_third_wave,
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
-
-    'is_NSW': is_NSW,   # indicator for whether we are looking at NSW
     
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
+    
+    # omicron stuff
+    'omicron_start_date': omicron_start_date,
+    'total_N_p_third_omicron': total_N_p_third_omicron, 
 }
 
 # make results dir
@@ -449,7 +448,7 @@ if run_inference or run_inference_only:
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
             print(fit.stansummary(pars=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
-                                        'voc_effect_alpha', 'voc_effect_delta', 
+                                        'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron', 
                                         'eta', 'r']), file=f)
 
         # samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
@@ -458,8 +457,8 @@ if run_inference or run_inference_only:
         #                                            'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
-                                                   'voc_effect_alpha', 'voc_effect_delta', 
-                                                   'eta', 'r', 'vacc_effect'])
+                                                   'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron'
+                                                   'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta'])
 
         samples_mov_gamma.to_csv("results/samples_mov_gamma.csv")
         
@@ -477,8 +476,8 @@ if run_inference or run_inference_only:
             #                                  'voc_effect_alpha', 'voc_effect_delta', 
             #                                  'eta_NSW', 'eta_other', 'r_NSW', 'r_other']), file=f)
             print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
-                                             'voc_effect_alpha', 'voc_effect_delta', 
-                                             'eta', 'r']), file=f)
+                                             'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
+                                             'eta', 'r', 'reduction_vacc_effect_omicron']), file=f)
 
         ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
         # create extended summary of parameters to index the samples by
@@ -493,8 +492,8 @@ if run_inference or run_inference_only:
         #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                 'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
-                                                'voc_effect_alpha', 'voc_effect_delta', 
-                                                'eta', 'r', 'vacc_effect'])
+                                                'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron' 
+                                                'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta'])
 
         match_list_names = summary_df.index.to_list()
 
