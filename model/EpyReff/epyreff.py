@@ -27,6 +27,7 @@ def read_cases_lambda(case_file_date):
         df_interim = df_NNDSS[['date_inferred', 'is_confirmation', 'STATE', 'imported', 'local']]
     else:
         df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
+        
     return(df_interim)
 
 def tidy_cases_lambda(interim_data, remove_territories=True):

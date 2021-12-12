@@ -10,7 +10,7 @@ plt.style.use('seaborn-poster')
 sys.path.insert(0, 'model')
 from helper_functions import read_in_NNDSS
 from Reff_constants import *
-from params import alpha_start_date, delta_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
+from params import alpha_start_date, delta_start_date, omicron_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
 
 def read_in_posterior(date):
     """
@@ -65,7 +65,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                  delta=1.0, R=2.2, sigma=1, md_arg=None,
                  ban='2020-03-16', single=False, var=None,
                  rho=None, R_I=None, winter=False, prop=None, second_phase=False, third_phase=False, 
-                 vaccination=None, third_states=None):
+                 vaccination=None, third_states=None, prop_omicron_to_delta=None):
     """
     Produce posterior predictive plots for all states
     """
@@ -182,7 +182,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             samples_sim = samples.sample(1000)
             post_values = samples_sim[['bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
-
+            
             if split:
 
                 # split model with parameters pre and post policy
@@ -214,7 +214,6 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     md[:logodds.shape[0]] = 1
                     # make logodds by appending post ban values
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
-
                 else:
                     # take right size of md to be N by N
                     md = np.tile(samples_sim['md'].values,(df_state.shape[0], 1))
@@ -272,13 +271,13 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     vacc_ts.set_index(vacc_ts_data.index, inplace=True)
                     
                     third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
-                    
 
                     # From conversations with James and Nic we think the heterogeneity / assortativity was more prominent before late 
                     # August (hence the fixed date) 
                     # in order for this to be correctly applied in the plot, we need to get the start dates after the beginning of 
                     # the third wave data which we determine based off the third_date_range 
                     heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - third_date_range[states_initials[state]][0]).days
+                    omicron_start_day = (pd.to_datetime(omicron_start_date) - third_date_range[states_initials[state]][0]).days
                     
                     # this will hold the posterior VE, with adjustement factors
                     vacc_post = np.zeros_like(vacc_ts)
@@ -295,16 +294,34 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # vacc_sim_adj = np.random.beta(a_vacc, b_vacc)
                     # create zero array to fill in with the full vaccine effect model
                     vacc_post = np.zeros_like(vacc_ts)
+                    
+                    days_into_omicron = np.cumsum(np.append([0], [(v >= pd.to_datetime(omicron_start_date)).sum() for v in third_date_range.values()]))
+                    idx = {}
+                    kk = 0
+                    for k in third_date_range.keys():
+                        idx[k] = range(days_into_omicron[kk], days_into_omicron[kk+1])
+                        kk += 1
+                    
+                    m = prop_omicron_to_delta.iloc[:, idx[states_initials[state]]].to_numpy()
+                    m = m[:vacc_post.shape[1]].T
+                    
+                    reduction_vacc_effect_omicron = samples_sim['reduction_vacc_effect_omicron'].to_numpy()
 
                     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
                     for ii in range(vacc_post.shape[0]):
                         if ii < heterogeneity_delay_start_day:
                             vacc_post[ii] = eta + (1-eta)*vacc_ts.iloc[ii, :]
-                        else:
+                        elif ii < omicron_start_day:
                             # number of days after the heterogeneity should start to wane
                             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                             decay_factor = np.exp(-r*heterogeneity_delay_days)
                             vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]
+                        else:
+                            # number of days after the heterogeneity should start to wane
+                            heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+                            jj = ii - omicron_start_day
+                            decay_factor = np.exp(-r*heterogeneity_delay_days)
+                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]*(1-m[jj]*(reduction_vacc_effect_omicron-1))
 
                     for ii in range(vacc_post.shape[0]):
                         if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:
@@ -363,6 +380,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
 
                                 voc_multiplier_alpha = samples_sim[['voc_effect_alpha']].values.T
                                 voc_multiplier_delta = np.tile(samples_sim[['voc_effect_delta']].values.T, (mu_hat.shape[0], 1))
+                                voc_multiplier_omicron = np.tile(samples_sim[['voc_effect_omicron']].values.T, (mu_hat.shape[0], 1))
                                 # now we just modify the values before the introduction of the voc to be 1.0
                                 voc_multiplier = np.zeros_like(voc_multiplier_delta)
                                 
@@ -371,19 +389,14 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                                         voc_multiplier[ii] = 1.0
                                     elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
                                         voc_multiplier[ii] = voc_multiplier_alpha[ii]
-                                    else:
+                                    elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
                                         voc_multiplier[ii] = voc_multiplier_delta[ii]
-                                
-                                # if states_initials[state] == 'VIC':
-                                #     pd.DataFrame(voc_multiplier).to_csv('voc_multiplier.csv')
+                                    else:
+                                        jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
+                                        voc_multiplier[ii] = m[jj]*voc_multiplier_omicron[ii] + (1-m[jj])*voc_multiplier_delta[ii]
                                             
                                 # now modify the mu_hat
                                 mu_hat *= voc_multiplier
-                                
-                                # if states_initials[state] == 'VIC':
-                                #     TP_adjustment_factors = samples_sim[['TP_local_adjustment_factor['+str(j)+']' 
-                                #                                          for j in range(1, 1+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
-                                #     mu_hat *= TP_adjustment_factors
 
                                 pos = pos + df.loc[df.state == states_initials[state]].is_third_wave.sum()
 
@@ -398,17 +411,6 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0], 1))
                     
                     mu_hat = rho_data * R_I_sim + (1 - rho_data) * mu_hat
-                    
-                    # if third_phase and states_initials[state] == 'VIC':
-                    #     os.makedirs('results/fit/', exist_ok=True)
-                    #     pd.DataFrame(TP_adjustment_factors).to_csv('results/fit/TP_adjustment_factors.csv')
-                    #     pd.DataFrame(md).to_csv('results/fit/md.csv')
-                    #     pd.DataFrame(logodds).to_csv('results/fit/logodds.csv')
-                    #     pd.DataFrame(vacc_post).to_csv('results/fit/vacc_post.csv')
-                    #     pd.DataFrame(sim_R).to_csv('results/fit/sim_R.csv')
-                    #     pd.DataFrame(R_I_sim).to_csv('results/fit/R_I_sim.csv')
-                    #     pd.DataFrame(rho_data).to_csv('results/fit/rho_data.csv')
-                    #     pd.DataFrame(voc_multiplier).to_csv('results/fit/voc_multiplier.csv')
 
                 if var is not None:
                     # Place the data derived delta here
@@ -441,12 +443,10 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             ax[i//3, i % 3].plot(df_state.date, df_state['mean'], label='$R_{eff}$', color='C1')
             ax[i//3, i % 3].fill_between(df_state.date, df_state['bottom'], df_state['top'], color='C1', alpha=0.3)
             ax[i//3, i % 3].fill_between(df_state.date, df_state['lower'], df_state['upper'], color='C1', alpha=0.3)
-
             ax[i//3, i % 3].plot(df_state.date, df_hat.quantile(0.5, axis=0), label='$\hat{\mu}$', color='C0')
             ax[i//3, i % 3].fill_between(df_state.date, df_hat.quantile(0.25, axis=0), df_hat.quantile(0.75, axis=0), color='C0', alpha=0.3)
             ax[i//3, i % 3].fill_between(df_state.date, df_hat.quantile(0.05, axis=0), df_hat.quantile(0.95, axis=0), color='C0', alpha=0.3)
             ax[i//3, i % 3].set_title(state)
-
             # grid line at R_eff =1
             ax[i//3, i % 3].set_yticks([1], minor=True,)
             ax[i//3, i % 3].set_yticks([0, 2, 3], minor=False)

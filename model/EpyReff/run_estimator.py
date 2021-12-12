@@ -21,9 +21,9 @@ print('Running EpyReff on NNDSS data')
 matplotlib.use('Agg')
 
 # parameters
-tau = 4
+tau = 2
 prior_a = 1
-prior_b = 2
+prior_b = 3
 trunc_days = 21
 offset = 0
 shift = 0

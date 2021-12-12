@@ -23,7 +23,7 @@ from scipy.stats import truncnorm
 
 matplotlib.use('Agg')
 from params import apply_vacc_to_R_L_hats, truncation_days, download_google_automatically, \
-    run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference
+    run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference, omicron_start_date
 # depending on whether we are on phoenix or not changes the version of stan
 if on_phoenix:
     import pystan
@@ -341,12 +341,12 @@ third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
 # number of days in the third wave
 N_vaccine_data_third = [v.shape[0] for (k, v) in third_date_range.items()]
 
-# dates to apply alpha in the second wave 
+# dates to apply alpha in the second wave (this won't allow for VIC to be added as the date_ranges are different)
 apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int)
 
 # set the start date for omicron cases and count total number of days with omicron cases 
-omicron_start_date = (pd.to_datetime('2021-11-23') - pd.to_datetime(third_start_date)).days
-total_N_p_third_omicron = sum(sum(v > pd.to_datetime('2021-11-23')) for v in third_date_range.values())
+omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)).days
+total_N_p_third_omicron = sum(sum(v >= pd.to_datetime(omicron_start_date))+1 for v in third_date_range.values())
 
 # input data block for stan model
 input_data = {
@@ -411,7 +411,7 @@ input_data = {
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
     
     # omicron stuff
-    'omicron_start_date': omicron_start_date,
+    'omicron_start_date': omicron_start_day,
     'total_N_p_third_omicron': total_N_p_third_omicron, 
 }
 
@@ -424,7 +424,7 @@ if testing_inference:
     num_chains = 2
     num_samples = 1000
 else:
-    num_chains = 2
+    num_chains = 4
     num_samples = 3000
     
 # to run the inference set run_inference to True in params
@@ -451,10 +451,6 @@ if run_inference or run_inference_only:
                                         'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron', 
                                         'eta', 'r']), file=f)
 
-        # samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-        #                                            'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
-        #                                            'voc_effect_alpha', 'voc_effect_delta', 
-        #                                            'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
                                                    'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron'
@@ -481,18 +477,9 @@ if run_inference or run_inference_only:
 
         ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
         # create extended summary of parameters to index the samples by
-        # summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-        #                                         'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
-        #                                         # 'vacc_effect',
-        #                                         'voc_effect_alpha', 'voc_effect_delta', 
-        #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
-        # summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-        #                                         'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
-        #                                         'voc_effect_alpha', 'voc_effect_delta', 
-        #                                         'eta_NSW', 'eta_other', 'r_NSW', 'r_other'])
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                 'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
-                                                'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron' 
+                                                'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
                                                 'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta'])
 
         match_list_names = summary_df.index.to_list()
@@ -1015,35 +1002,42 @@ ax[1, 0].set_ylabel('reduction in TP from vaccination')
 
 plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_TP.png", dpi=144)
 
+# remove plots from memory
+fig.clear()
+plt.close(fig)
+
 # flag for plotting the third wave fit
 plot_third_fit = True
+
+# extract the propn of omicron to delta
+prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta[" + str(j) + "]" for j in range(1, total_N_p_third_omicron+1)]]
 
 if df3X.shape[0] > 0:
     df['is_third_wave'] = 0
     for state in third_states:
         df.loc[df.state == state, 'is_third_wave'] = df.loc[df.state == state].date.isin(third_date_range[state]).astype(int).values    
-
-    if plot_third_fit:
     
-        # plot only if there is third phase data - have to have third_phase=True
-        ax4 = predict_plot(samples_mov_gamma, 
-                        df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
-                        third_date_range=third_date_range, 
-                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
-                        R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
-                        R_I=samples_mov_gamma.R_I.values,
-                        prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state,
-                        third_states=third_states)  # by states....
-        for ax in ax4:
-            for a in ax:
-                a.set_ylim((0, 3))
-                # a.set_xlim((start_date,end_date))
-                
-        plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
+    # plot only if there is third phase data - have to have third_phase=True
+    ax4 = predict_plot(
+        samples_mov_gamma, 
+        df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
+        third_date_range=third_date_range, 
+        gamma=True, moving=True, split=split, grocery=True, ban=ban,
+        R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
+        R_I=samples_mov_gamma.R_I.values,
+        prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state,
+        third_states=third_states, prop_omicron_to_delta=prop_omicron_to_delta)  # by states....
+    
+    for ax in ax4:
+        for a in ax:
+            a.set_ylim((0, 3))
+            # a.set_xlim((start_date,end_date))
+            
+    plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"Reff_third_phase.png", dpi=144)
 
-        # remove plots from memory
-        fig.clear()
-        plt.close(fig)
+    # remove plots from memory
+    fig.clear()
+    plt.close(fig)
 
 ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 
