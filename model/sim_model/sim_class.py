@@ -77,7 +77,7 @@ class Forecast:
         from params import local_detection, a_local_detection, qi_d, alpha_i, k
         
         # if applying interstate 
-        self.print_at_iterations = True 
+        self.print_at_iterations = False 
         self.apply_interstate_seeding = apply_interstate_seeding
         self.error_message = ''
         self.adjust_TP_forecast = adjust_TP_forecast
