@@ -122,8 +122,9 @@ transformed parameters {
                 if (include_in_third_wave[i][n] == 1){
                     // take a maximum of 1 and the sampled ordered vax effect or the previous vax effect 
                     // (this might break continuinty needed for HMC but it doesn't look too bad and helps with the start of the fitting)
-                    vacc_effect[pos] = min(
-                        [1, vacc_effect_ordered[i][N_third_wave+2-(pos2-1)], vacc_effect_ordered[i][N_third_wave+2-pos2]]
+                    
+                    vacc_effect[pos] = fmin(
+                        vacc_effect_ordered[i][N_third_wave+2-(pos2-1)], vacc_effect_ordered[i][N_third_wave+2-pos2]
                     );
                     pos += 1;
                     pos2 += 1;
@@ -192,11 +193,11 @@ transformed parameters {
 
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n]==1){
-                md_third_wave[pos] = pow(1+theta_md ,-1*prop_md_third_wave[pos]);                
+                md_third_wave[pos] = pow(1+theta_md, -1*prop_md_third_wave[pos]);                
 
                 // applying the return to homogeneity in vaccination effect 
                 if (n < decay_start_date_third) {
-                    decay_in_heterogeneity = 1;
+                    decay_in_heterogeneity = eta[i];
                 } else{
                     decay_in_heterogeneity = eta[i]*exp(-r[i]*(n - decay_start_date_third));
                 }
@@ -208,6 +209,7 @@ transformed parameters {
                     vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos];
                     voc_effect_tot = voc_effect_delta;
                 } else {
+                    // vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos] * (1 + prop_omicron_to_delta[pos_omicron] * (1-reduction_vacc_effect_omicron));
                     vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos] * (1 + prop_omicron_to_delta[pos_omicron] * (1-reduction_vacc_effect_omicron));
                     voc_effect_tot = voc_effect_omicron * prop_omicron_to_delta[pos_omicron] + voc_effect_delta * (1-prop_omicron_to_delta[pos_omicron]);
                     pos_omicron += 1;
@@ -325,14 +327,24 @@ model {
                 // needs to be truncated above by the previous value (dealt with by the ordered vector type)
                 // Note that we apply a different variance at the start and end of the fitting period (this anchors
                 // the interior points to be in appropriate ranges). 
+                // if (n < N_third_wave && include_in_third_wave[i][n+1] != 0){
+                //     vacc_effect_ordered[i][N_third_wave+2-pos3] ~ normal(vacc_mu, vacc_sig);    
+                // } else if (n == N_third_wave || (n < N_third_wave && include_in_third_wave[i][n+1] == 0) ) {
+                //     vacc_effect_ordered[i][N_third_wave+2-(pos3+1)] ~ normal(vacc_mu, 0.001);    
+                // }
                 if (n < N_third_wave && include_in_third_wave[i][n+1] != 0){
                     vacc_effect_ordered[i][N_third_wave+2-pos3] ~ normal(vacc_mu, vacc_sig);    
-                } else if (n == N_third_wave || (n < N_third_wave && include_in_third_wave[i][n+1] == 0) ) {
+                } else {
                     vacc_effect_ordered[i][N_third_wave+2-(pos3+1)] ~ normal(vacc_mu, 0.001);    
                 }
+                
                 // assuming predominant delta 
                 if (n >= omicron_start_date) {
-                    prop_omicron_to_delta[pos_omicron] ~ beta(2, 200);
+                    if (map_to_state_index_third[i] == 2){
+                        prop_omicron_to_delta[pos_omicron] ~ beta(2, 25);
+                    } else {
+                        prop_omicron_to_delta[pos_omicron] ~ beta(2, 200);
+                    }
                     pos_omicron += 1;
                 }
                 

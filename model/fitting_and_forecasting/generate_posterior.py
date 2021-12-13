@@ -336,7 +336,7 @@ decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_st
 # Make state by state arrays
 state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
 
-third_wave_dates = pd.date_range(start=third_start_date,end=third_end_date)
+third_wave_dates = pd.date_range(start=third_start_date, end=third_end_date)
 
 # number of days in the third wave
 N_vaccine_data_third = [v.shape[0] for (k, v) in third_date_range.items()]
