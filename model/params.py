@@ -35,6 +35,7 @@ start_dates = {
 # alpha_start_date = '2021-01-27'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
 alpha_start_date = '2020-12-01'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
 delta_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
+omicron_start_date = '2021-11-10'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
 vaccination_start_date = '2021-02-21'
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35
