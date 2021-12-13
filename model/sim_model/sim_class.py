@@ -954,7 +954,7 @@ class Forecast:
         
         # now we calculate the lower limit, this is used to exclude forecasts following simulation 
         low_limit_backcast = 0.3
-        low_limit_nowcast = 0.5
+        low_limit_nowcast = 0.3
         
         # alter the minimum number of cases in the window based on those exceeding a threshold of 10 cases
         for i in range(len(self.min_cases_in_windows)-1):
