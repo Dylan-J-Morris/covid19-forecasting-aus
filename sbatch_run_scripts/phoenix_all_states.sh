@@ -3,7 +3,7 @@
 #SBATCH --qos=express
 #SBATCH -N 1
 #SBATCH -n 12
-#SBATCH --time=08:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=60GB
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=$USER@adelaide.edu.au
