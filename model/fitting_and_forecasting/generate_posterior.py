@@ -346,7 +346,11 @@ apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date
 
 # set the start date for omicron cases and count total number of days with omicron cases 
 omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)).days
-total_N_p_third_omicron = sum(sum(v >= pd.to_datetime(omicron_start_date))+1 for v in third_date_range.values())
+total_N_p_third_omicron = 0
+for v in third_date_range.values():
+    tmp = sum(v >= pd.to_datetime(omicron_start_date))
+    # add a plus one for inclusion of end date (the else 0 is due to QLD having no Omicron potential)
+    total_N_p_third_omicron += tmp + 1 if tmp > 0 else 0
 
 # input data block for stan model
 input_data = {
