@@ -453,11 +453,11 @@ if run_inference or run_inference_only:
         with open(results_dir+filename, 'w') as f:
             print(fit.stansummary(pars=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
                                         'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron', 
-                                        'eta', 'r']), file=f)
+                                        'eta', 'r', 'reduction_vacc_effect_omicron']), file=f)
 
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
-                                                   'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron'
+                                                   'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
                                                    'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta'])
 
         samples_mov_gamma.to_csv("results/samples_mov_gamma.csv")
