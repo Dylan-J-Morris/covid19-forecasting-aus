@@ -258,8 +258,10 @@ model {
     // first wave model 
     for (i in 1:j_first_wave) {
         for (n in 1:N){
-            prop_md[n,i] ~ beta(1 + count_md[i][n], 
-                                1 + respond_md[i][n] - count_md[i][n]);
+            prop_md[n,i] ~ beta(
+                1 + count_md[i][n], 
+                1 + respond_md[i][n] - count_md[i][n]
+            );
             brho[n,i] ~ beta(0.5+imported[n,i], 0.5+local[n,i]); //ratio imported/ (imported + local)
         }
     }
@@ -274,10 +276,14 @@ model {
         }
         for (n in 1:N_sec_wave){
             if (include_in_sec_wave[i][n]==1){
-                prop_md_sec_wave[pos2] ~ beta(1+count_md_sec_wave[i][n], 
-                                              1+respond_md_sec_wave[i][n]-count_md_sec_wave[i][n]);
-                brho_sec_wave[pos2] ~ beta(0.5+imported_sec_wave[n,i], 
-                                           0.5+local_sec_wave[n,i]); //ratio imported/ (imported + local)   
+                prop_md_sec_wave[pos2] ~ beta(
+                    1+count_md_sec_wave[i][n], 
+                    1+respond_md_sec_wave[i][n]-count_md_sec_wave[i][n]
+                );
+                brho_sec_wave[pos2] ~ beta(
+                    0.5+imported_sec_wave[n,i], 
+                    0.5+local_sec_wave[n,i]
+                ); //ratio imported/ (imported + local)   
                 pos2+=1;
             }
         }
@@ -290,16 +296,20 @@ model {
             pos2 = 1;
         } else {
             //Add 1 to get to start of new group, not end of old group
-            pos2=pos_starts_third[i-1]+1; 
+            pos2 = pos_starts_third[i-1]+1; 
         }
         
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n] == 1){
-                prop_md_third_wave[pos2] ~ beta(1+count_md_third_wave[i][n], 
-                                                1+respond_md_third_wave[i][n]-count_md_third_wave[i][n]);
-                brho_third_wave[pos2] ~ beta(0.5+imported_third_wave[n,i], 
-                                            0.5+local_third_wave[n,i]); //ratio imported/ (imported + local)
-                pos2+=1;
+                prop_md_third_wave[pos2] ~ beta(
+                    1+count_md_third_wave[i][n], 
+                    1+respond_md_third_wave[i][n]-count_md_third_wave[i][n]
+                );
+                brho_third_wave[pos2] ~ beta(
+                    0.5+imported_third_wave[n,i], 
+                    0.5+local_third_wave[n,i]
+                ); //ratio imported/ (imported + local)
+                pos2 += 1;
                 
                 if (pos3 == 0){
                     // the mean vaccination effect should be the data supplied
@@ -335,24 +345,28 @@ model {
     // first wave model 
     for (i in 1:j_first_wave) {
         for (n in 1:N){
-            mu_hat[n,i] ~ gamma(Reff[n,i]*Reff[n,i]/(sigma2[n,i]), 
-                                Reff[n,i]/sigma2[n,i]); //Stan uses shape/inverse scale
+            mu_hat[n,i] ~ gamma(
+                Reff[n,i]*Reff[n,i]/(sigma2[n,i]), 
+                Reff[n,i]/sigma2[n,i]
+            ); //Stan uses shape/inverse scale
         }
     }
     
     // second wave model 
     for (i in 1:j_sec_wave){
-        if (i==1) {
+        if (i == 1) {
             pos2 = 1;
         } else {
             //Add 1 to get to start of new group, not end of old group
             pos2 = pos_starts_sec[i-1]+1; 
         }
         for (n in 1:N_sec_wave){
-            if (include_in_sec_wave[i][n]==1){
-                mu_hat_sec_wave[pos2] ~ gamma(Reff_sec_wave[n,i]*Reff_sec_wave[n,i]/(sigma2_sec_wave[n,i]), 
-                                              Reff_sec_wave[n,i]/sigma2_sec_wave[n,i]);
-                pos2+=1;
+            if (include_in_sec_wave[i][n] == 1){
+                mu_hat_sec_wave[pos2] ~ gamma(
+                    Reff_sec_wave[n,i]*Reff_sec_wave[n,i]/(sigma2_sec_wave[n,i]), 
+                    Reff_sec_wave[n,i]/sigma2_sec_wave[n,i]
+                );
+                pos2 += 1;
             }
         }
     }
@@ -364,14 +378,16 @@ model {
             pos2 = 1;
         } else {
             //Add 1 to get to start of new group, not end of old group
-            pos2=pos_starts_third[i-1]+1; 
+            pos2 = pos_starts_third[i-1]+1; 
         }
         
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n] == 1){
-                mu_hat_third_wave[pos2] ~ gamma(Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), 
-                                                Reff_third_wave[n,i]/sigma2_third_wave[n,i]);
-                pos2+=1;
+                mu_hat_third_wave[pos2] ~ gamma(
+                    Reff_third_wave[n,i]*Reff_third_wave[n,i]/(sigma2_third_wave[n,i]), 
+                    Reff_third_wave[n,i]/sigma2_third_wave[n,i]
+                );
+                pos2 += 1;
             }
         }
     }
