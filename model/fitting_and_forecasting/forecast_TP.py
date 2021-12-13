@@ -933,12 +933,8 @@ for typ in forecast_type:
                 heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                 kk += 1
                 Rt = R0 * np.exp(vacc_ts[ii, :]*(voc_multiplier_omicron[ii]*(1+reduction_vacc_effect_omicron[ii]) - voc_multiplier_delta[ii])*kk)
-                
-                if kk == 1:
-                    Rt_vec = Rt
-                else: 
-                    Rt_vec = np.vstack([Rt_vec, Rt])
-                
+                # Rt_vec = Rt if kk == 1 else np.vstack([Rt_vec, Rt])
+                # forecast the proportion of omicron cases
                 m[jj] = Rt / (1 + Rt) 
                     
                 decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
