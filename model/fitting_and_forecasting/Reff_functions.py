@@ -321,7 +321,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                             jj = ii - omicron_start_day
                             decay_factor = np.exp(-r*heterogeneity_delay_days)
-                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]*(1-m[jj]*(reduction_vacc_effect_omicron-1))
+                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]*(1+m[jj]*(1-reduction_vacc_effect_omicron))
 
                     for ii in range(vacc_post.shape[0]):
                         if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:

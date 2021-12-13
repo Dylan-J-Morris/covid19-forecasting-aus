@@ -1047,13 +1047,14 @@ if df3X.shape[0] > 0:
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
-var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_delta']
+var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron', 'reduction_vacc_effect_omicron']
 var_to_csv = var_to_csv + predictors + [
     'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
 ]
 var_to_csv = var_to_csv + ['eta['+str(v)+']' for v in third_states_indices.values()]
 var_to_csv = var_to_csv + ['r['+str(v)+']' for v in third_states_indices.values()]
 var_to_csv = var_to_csv + ["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]
+var_to_csv = var_to_csv + ["prop_omicron_to_delta[" + str(j)  + "]" for j in range(1, total_N_p_third_omicron+1)]
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
 

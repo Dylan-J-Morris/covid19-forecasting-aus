@@ -201,14 +201,14 @@ transformed parameters {
                     decay_in_heterogeneity = eta[i]*exp(-r[i]*(n - decay_start_date_third));
                 }
 
-                // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
-                // vaccination effect around the 20th of August 
-                vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos];
                 // apply reduction in vacc effect and increase in voc for omicron 
                 if (n < omicron_start_date) {
+                    // total vaccination effect has the form of a mixture model which captures heterogeneity in the 
+                    // vaccination effect around the 20th of August 
+                    vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos];
                     voc_effect_tot = voc_effect_delta;
                 } else {
-                    vacc_effect_tot = vacc_effect_tot * (1 + prop_omicron_to_delta[pos_omicron] * (reduction_vacc_effect_omicron-1));
+                    vacc_effect_tot = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos] * (1 + prop_omicron_to_delta[pos_omicron] * (1-reduction_vacc_effect_omicron));
                     voc_effect_tot = voc_effect_omicron * prop_omicron_to_delta[pos_omicron] + voc_effect_delta * (1-prop_omicron_to_delta[pos_omicron]);
                     pos_omicron += 1;
                 }

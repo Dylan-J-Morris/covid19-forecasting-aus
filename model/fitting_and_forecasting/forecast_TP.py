@@ -750,6 +750,63 @@ state_key = {
     'WA': '7',
 }
 
+total_N_p_third_omicron = 0
+for v in third_date_range.values():
+    tmp = sum(v >= pd.to_datetime(omicron_start_date))
+    # add a plus one for inclusion of end date (the else 0 is due to QLD having no Omicron potential)
+    total_N_p_third_omicron += tmp + 1 if tmp > 0 else 0
+
+# flags for advanced scenario modelling
+advanced_scenario_modelling = False
+save_for_SA = False
+# since this can be useful, predictor ordering is: 
+# ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
+n_samples = 100
+df_R = df_R.sort_values('date')
+samples = df_samples.sample(n_samples)  # test on sample of 2
+# samples = df_samples
+forecast_type = ['R_L', 'R_L0']
+state_Rs = {
+    'state': [],
+    'date': [],
+    'type': [],
+    'median': [],
+    'lower': [],
+    'upper': [],
+    'bottom': [],
+    'top': [],
+    'mean': [],
+    'std': [],
+}
+ban = '2020-03-20'
+# VIC and NSW allow gatherings of up to 20 people, other jurisdictions allow for
+new_pol = '2020-06-01'
+
+expo_decay = True
+
+# start and end date for the third wave
+# Subtract 10 days to avoid right truncation
+third_end_date = data_date - pd.Timedelta(days=truncation_days)
+
+typ_state_R = {}
+mob_forecast_date = df_forecast.date.min()
+
+state_key = {
+    'ACT': '1',
+    'NSW': '2',
+    'QLD': '3',
+    'SA': '4',
+    'TAS': '5',
+    'VIC': '6',
+    'WA': '7',
+}
+
+total_N_p_third_omicron = 0
+for v in third_date_range.values():
+    tmp = sum(v >= pd.to_datetime(omicron_start_date))
+    # add a plus one for inclusion of end date (the else 0 is due to QLD having no Omicron potential)
+    total_N_p_third_omicron += tmp + 1 if tmp > 0 else 0
+
 # flags for advanced scenario modelling
 advanced_scenario_modelling = False
 save_for_SA = False
@@ -758,11 +815,10 @@ save_for_SA = False
 for typ in forecast_type:
     state_R = {}
     for state in states:
-    # for state in {'VIC'}:
-        # for state in {'NSW'}:
-        # sort df_R by date so that rows are dates
-
-        # rows are dates, columns are predictors
+# for typ in {'R_L'}:
+#     state_R = {}
+#     for state in {'NSW'}:
+        # sort df_R by date so that rows are dates. rows are dates, columns are predictors
         df_state = df_R.loc[df_R.state == state]
         dd = df_state.date
         post_values = samples[predictors].values.T
@@ -810,27 +866,88 @@ for typ in forecast_type:
                 [vacc_ts_data] * n_samples**2,
                 axis=1
             ).to_numpy()
-        
+
         # From conversations with James and Nic we think the heterogeneity / assortativity was more prominent before late 
         # August (hence the fixed date) 
         heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(start_date)).days
+    
+        # setup some variables for handling the omicron starts
+        third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
+        omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(start_date)).days
+        days_into_omicron = np.cumsum(np.append([0], [(v >= pd.to_datetime(omicron_start_date)).sum() for v in third_date_range.values()]))
+
+        prop_omicron_to_delta = samples[["prop_omicron_to_delta[" + str(j) + "]" for j in range(1, total_N_p_third_omicron+1)]]
+        idx = {}
+        kk = 0
+        for k in third_date_range.keys():
+            idx[k] = range(days_into_omicron[kk], days_into_omicron[kk+1])
+            kk += 1 
+            
+        for k in states:
+            if k not in third_date_range.keys():
+                idx[k] = range(days_into_omicron[kk], days_into_omicron[kk])
+
+        # tile the reduction in vaccination effect for omicron (i.e. VE is (1+r)*VE)
+        reduction_vacc_effect_omicron = np.tile(samples['reduction_vacc_effect_omicron'].to_numpy(), (df_state.shape[0], n_samples))
         vacc_post = np.zeros_like(vacc_ts)
+
+        if state in third_states and state != 'QLD': 
+            m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
+        else:
+            # assume proxy of ACT (low Omicron presence )
+            m_tmp = prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
+            
+        # initialise array for holding the proportion attributable to Omicron 
+        m = np.zeros(shape=(df_state.shape[0] - omicron_start_day, n_samples*m_tmp.shape[1]))
+        # calculate the voc effects 
+        voc_multiplier_delta = np.tile(samples['voc_effect_delta'].values, (df_state.shape[0], n_samples))
+        voc_multiplier_omicron = np.tile(samples['voc_effect_omicron'].values, (df_state.shape[0], n_samples))
 
         # loop ober days in third wave and apply the appropriate form (i.e. decay or not)
         # note that in here we apply the entire sample to the vaccination data to create a days by samples array
         for ii in range(vacc_post.shape[0]):
             if ii < heterogeneity_delay_start_day:
                 vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
-            else:
+            elif ii < omicron_start_day:
                 # number of days after the heterogeneity should start to wane
                 heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                 decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
                 vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
+            elif ii < omicron_start_day + len(idx[state]):
+                # number of days after the heterogeneity should start to wane
+                heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+                jj = ii - omicron_start_day
+                m[jj] = np.tile(m_tmp[jj], n_samples)
+                decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+                vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]*(1+m[jj]*(1-reduction_vacc_effect_omicron[ii]))
+                kk = 0    
+            else: 
+                if kk == 0:
+                    if state not in {'ACT', 'VIC', 'NSW'}:
+                        R0 = 0.0005 
+                    else: 
+                        R0 = m[jj] 
+                
+                jj = ii - omicron_start_day
+                # number of days after the heterogeneity should start to wane
+                heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+                kk += 1
+                Rt = R0 * np.exp(vacc_ts[ii, :]*(voc_multiplier_omicron[ii]*(1+reduction_vacc_effect_omicron[ii]) - voc_multiplier_delta[ii])*kk)
+                
+                if kk == 1:
+                    Rt_vec = Rt
+                else: 
+                    Rt_vec = np.vstack([Rt_vec, Rt])
+                
+                m[jj] = Rt / (1 + Rt) 
+                    
+                decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+                vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]*(1+m[jj]*(1-reduction_vacc_effect_omicron[ii]))
 
         for ii in range(vacc_post.shape[0]):
             if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:
                 vacc_post[ii] = 1.0
-                    
+                
         # sample the right R_L
         if state == "NT":
             sim_R = np.tile(samples.R_L.values, (df_state.shape[0], n_samples))
@@ -909,7 +1026,7 @@ for typ in forecast_type:
                 elif typ == 'R_L0':
 
                     df2 = df_state.loc[(df_state.date > ban)
-                                       & (df_state.date < new_pol)]
+                                        & (df_state.date < new_pol)]
                     df3 = df_state.loc[df_state.date >= new_pol]
                     X2 = df2[predictors]
                     X3 = np.zeros_like(df3[predictors])
@@ -938,53 +1055,25 @@ for typ in forecast_type:
         # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
         voc_multiplier_alpha = np.tile(samples['voc_effect_alpha'].values, (df_state.shape[0], n_samples))
         voc_multiplier_delta = np.tile(samples['voc_effect_delta'].values, (df_state.shape[0], n_samples))
+        voc_multiplier_omicron = np.tile(samples['voc_effect_omicron'].values, (df_state.shape[0], n_samples))
         # now we just modify the values before the introduction of the voc to be 1.0
         voc_multiplier = np.zeros_like(voc_multiplier_delta)
-        
+
         for ii in range(voc_multiplier.shape[0]):
             if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
                 voc_multiplier[ii] = 1.0
             elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
                 voc_multiplier[ii] = voc_multiplier_alpha[ii]
-            else:
+            elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
                 voc_multiplier[ii] = voc_multiplier_delta[ii]
+            else: 
+                jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
+                voc_multiplier[ii] = m[jj]*voc_multiplier_omicron[ii] + (1-m[jj])*voc_multiplier_delta[ii]
 
         if apply_vacc_to_R_L_hats:
             R_L = 2 * md * sim_R * expit(logodds) * vacc_post * voc_multiplier
         else:
             R_L = 2 * md * sim_R * expit(logodds) * voc_multiplier
-
-        # saving some output for SA — specifically focused on the RL through time
-        # with and without effects of mding
-        if typ == 'R_L' and state == 'SA' and save_for_SA:
-            if advanced_scenario_modelling:
-                tmp_res_path = "results/SA_forecasted/only_grocery/"
-            else:
-                tmp_res_path = "results/SA_forecasted/normal/"
-                
-            os.makedirs(tmp_res_path, exist_ok=True)
-            
-            pd.DataFrame(md).to_csv(tmp_res_path+'md.csv')
-            pd.DataFrame(2*expit(logodds)).to_csv(tmp_res_path+'macro.csv')
-            pd.DataFrame(sim_R).to_csv(tmp_res_path+'sim_R.csv')
-            pd.DataFrame(vacc_post).to_csv(tmp_res_path+'vacc_post.csv')
-            pd.DataFrame(voc_multiplier).to_csv(tmp_res_path+'voc_multiplier.csv')
-            mobility_and_micro_effects = 2*md*expit(logodds)
-            mobility_only = 2*expit(logodds)
-            micro_only = md
-            
-            if advanced_scenario_modelling: 
-                # drop the micro adjustment factors 
-                mu_hat_no_rev = 2 * sim_R * expit(logodds) * voc_multiplier     # TP without vax and micro (mobility effects)
-            else:
-                # the full TP model 
-                mu_hat_no_rev = 2 * md * sim_R * expit(logodds) * voc_multiplier  # TP without vax (micro distancing and mobility effects)
-                
-            pd.DataFrame(dd.values).to_csv(tmp_res_path+'dates.csv')
-            pd.DataFrame(mobility_and_micro_effects).to_csv(tmp_res_path+'mobility_and_micro_effects.csv')
-            pd.DataFrame(micro_only).to_csv(tmp_res_path+'micro_only.csv')
-            pd.DataFrame(mobility_only).to_csv(tmp_res_path+'mobility_only.csv')
-            pd.DataFrame(mu_hat_no_rev).to_csv(tmp_res_path+'mu_hat_SA_no_rev.csv')
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)
@@ -1005,8 +1094,9 @@ for typ in forecast_type:
         state_Rs['std'].extend(np.std(R_L, axis=1))
 
         state_R[state] = R_L
-        
+
     typ_state_R[typ] = state_R
+                
 
 
 for state in states:
