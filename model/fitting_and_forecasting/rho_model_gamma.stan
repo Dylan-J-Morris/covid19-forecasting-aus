@@ -62,6 +62,8 @@ data {
     // omicron data
     int omicron_start_date;                                                 // date to apply omicron mix 
     int total_N_p_third_omicron;                                            // number of days where omicron is a risk 
+    int total_N_p_third_omicron_blocks;                                            // number of days where omicron is a risk 
+    // int N_p_third_omicron_blocks[j_third_wave];                                            // number of days where omicron is a risk 
 }
 
 parameters {
@@ -87,7 +89,8 @@ parameters {
     
     real<lower=0> additive_voc_effect_omicron;
     real<lower=0,upper=1> reduction_vacc_effect_omicron;
-    vector<lower=0,upper=1>[total_N_p_third_omicron] prop_omicron_to_delta; // estimate of proportion of imported cases
+    vector<lower=0,upper=1>[total_N_p_third_omicron_blocks] prop_omicron_to_delta_3_day_block; // estimate of proportion of imported cases
+    
 }
 
 transformed parameters {
@@ -108,6 +111,7 @@ transformed parameters {
     
     // ordered vaccine effect with length equal to total number of days across each jurisdiction         
     vector[total_N_p_third] vacc_effect;       
+    vector<lower=0,upper=1>[total_N_p_third_omicron] prop_omicron_to_delta; // estimate of proportion of imported cases
     
     // reverse the ordering of the raw vax effects in a local scope. This trick lets us define local parameters pos and pos2
     {
@@ -115,19 +119,36 @@ transformed parameters {
         int pos = 1;    
         // index for the ordered vaccine effects (gets reset in outer loop)
         int pos2;    
+        // indices for moving through the omicron vector
+        int pos_omicron1 = 1;
+        int pos_omicron2 = 1;
+        
         for (i in 1:j_third_wave){
             pos2 = 1;
             // reverse the array
             for (n in 1:N_third_wave){
                 if (include_in_third_wave[i][n] == 1){
                     // take a maximum of 1 and the sampled ordered vax effect or the previous vax effect 
-                    // (this might break continuinty needed for HMC but it doesn't look too bad and helps with the start of the fitting)
-                    
-                    vacc_effect[pos] = fmin(
-                        vacc_effect_ordered[i][N_third_wave+2-(pos2-1)], vacc_effect_ordered[i][N_third_wave+2-pos2]
-                    );
+                    // (this might break continuinty needed for EFFICIENT HMC but it doesn't look to be performing too poorlyand helps with the start of the fitting)
+                    // vacc_effect[pos] = fmin(
+                    //     vacc_effect_ordered[i][N_third_wave+2-(pos2-1)], vacc_effect_ordered[i][N_third_wave+2-pos2]
+                    // );
+                    vacc_effect[pos] = vacc_effect_ordered[i][N_third_wave+2-pos2];
                     pos += 1;
                     pos2 += 1;
+                    
+                    # only want to add the component if in omicron phase            
+                    if (n >= omicron_start_date) {
+                        prop_omicron_to_delta[pos_omicron1] = prop_omicron_to_delta_3_day_block[pos_omicron2];
+                        // only iterate the 3 day block if this holds 
+                        if (pos_omicron1 % 3 == 0) {
+                            pos_omicron2 += 1;
+                        }
+                        // move through the full daily vector 
+                        pos_omicron1 += 1;
+                    }
+                    
+                    
                 }
             }
         }
@@ -228,7 +249,8 @@ model {
     // indexers for moving through parameter vectors 
     int pos2;
     int pos3;
-    int pos_omicron = 1;
+    int pos_omicron1 = 1;
+    int pos_omicron2 = 1;
     
     // fixed parameters for the vaccine effect priors
     real vacc_mu;
@@ -338,14 +360,18 @@ model {
                     vacc_effect_ordered[i][N_third_wave+2-(pos3+1)] ~ normal(vacc_mu, 0.001);    
                 }
                 
-                // assuming predominant delta 
+                // assuming delta is dominant early on and proportion of omicron is low in comparison
                 if (n >= omicron_start_date) {
-                    if (map_to_state_index_third[i] == 2){
-                        prop_omicron_to_delta[pos_omicron] ~ beta(2, 25);
-                    } else {
-                        prop_omicron_to_delta[pos_omicron] ~ beta(2, 200);
+                    // only want to sample once per 3 day block so only sample on first entry in window
+                    if (pos_omicron1 % 3 == 1) {
+                        if (map_to_state_index_third[i] == 2){
+                            prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2, 50);
+                        } else {
+                            prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2, 200);
+                        }
+                        pos_omicron2 += 1;
                     }
-                    pos_omicron += 1;
+                    pos_omicron1 += 1;
                 }
                 
                 pos3 += 1;

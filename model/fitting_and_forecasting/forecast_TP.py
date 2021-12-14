@@ -297,7 +297,7 @@ for i, state in enumerate(states):
                         adjusted_baseline_drift_mean = R_baseline_0 - current
                         # we purposely scale the transit measure so that we increase a little more quickly
                         # tmp = 0.05 * adjusted_baseline_drift_mean[3]
-                        adjusted_baseline_drift_mean *= 0.01
+                        adjusted_baseline_drift_mean *= 0.005
                         # adjusted_baseline_drift_mean[3] = tmp
                         regression_to_baseline_force = np.random.multivariate_normal(adjusted_baseline_drift_mean, cov) # Generate a single forward realisation of baseline regression
                         new_forcast_points = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force # Find overall simulation step
@@ -931,11 +931,19 @@ for typ in forecast_type:
                 jj = ii - omicron_start_day
                 # number of days after the heterogeneity should start to wane
                 heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+                # for indexing days into omicron 
                 kk += 1
-                Rt = R0 * np.exp(vacc_ts[ii, :]*(voc_multiplier_omicron[ii]*(1+reduction_vacc_effect_omicron[ii]) - voc_multiplier_delta[ii])*kk)
+                if kk % 3 == 1:
+                    # exponential model of the number of omicron cases
+                    Rt = R0 * np.exp(vacc_ts[ii, :]*(voc_multiplier_omicron[ii]*(1+1-reduction_vacc_effect_omicron[ii]) - voc_multiplier_delta[ii])*kk)
+                
                 # Rt_vec = Rt if kk == 1 else np.vstack([Rt_vec, Rt])
                 # forecast the proportion of omicron cases
-                m[jj] = Rt / (1 + Rt) 
+                mu_m = Rt / (1 + Rt) 
+                sig_m = 0.001
+                a_m = mu_m * (mu_m*(1-mu_m)/sig_m)
+                b_m =(1-mu_m) * (mu_m*(1-mu_m)/sig_m)
+                m[jj] = np.random.beta(a_m, b_m)
                     
                 decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
                 vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]*(1+m[jj]*(1-reduction_vacc_effect_omicron[ii]))
