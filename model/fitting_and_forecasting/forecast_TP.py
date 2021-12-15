@@ -818,9 +818,6 @@ save_for_SA = False
 for typ in forecast_type:
     state_R = {}
     for state in states:
-# for typ in {'R_L'}:
-#     state_R = {}
-#     for state in {'NSW'}:
         # sort df_R by date so that rows are dates. rows are dates, columns are predictors
         df_state = df_R.loc[df_R.state == state]
         dd = df_state.date
@@ -1034,20 +1031,22 @@ for typ in forecast_type:
                 decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
                 vacc_post_delta[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
                 
-                omicron_reduction = 1 - reduction_vacc_effect_omicron[ii]*(1-vacc_ts[ii, :])
+                omicron_reduction = reduction_vacc_effect_omicron[ii]*(1-vacc_ts[ii, :])
                 vacc_post_omicron[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*(1-omicron_reduction)
                 
         # calculate the TP for delta and omicron 
         TP_delta = 2*md*sim_R*expit(logodds)*voc_multiplier_delta*vacc_post_delta
         TP_omicron = 2*md*sim_R*expit(logodds)*voc_multiplier_omicron*vacc_post_omicron
         # calculate the expected TP each day for delta and omicron using the posterior sample
-        E_TP_delta = np.mean(TP_delta, axis=1)
-        E_TP_omicron = np.mean(TP_omicron, axis=1)
+        rows = (omicron_start_day + len(idx[state]))
+        E_TP_delta = np.mean(TP_delta[rows:, :])
+        E_TP_omicron = np.mean(TP_omicron[rows:, :])
         # expected generation interval (Gamma(2.75, 1))
         E_gen_int = 2.75
         # exponent term in exponential increase of cases 
-        # E_exponent = (E_TP_omicron - E_TP_delta)/E_gen_int
-        E_exponent = (E_TP_omicron - E_TP_delta)
+        E_exponent = (E_TP_omicron - E_TP_delta)/E_gen_int
+        
+        # E_exponent = (E_TP_omicron[rows:, :] - E_TP_delta[rows:, :])
         # number of days into omicron forecast
         tt = 0    
         
@@ -1084,7 +1083,7 @@ for typ in forecast_type:
                 # for indexing days into omicron 
                 tt += 1
                 # exponential model of the ratio of omicron cases to delta (can be > 1)
-                phi_t = phi_0 * np.exp(E_exponent[ii]*tt)
+                phi_t = phi_0 * np.exp(E_exponent*tt)
                 # transform to propotion
                 m_t = phi_t / (1 + phi_t)
                 # variance on beta distribution centered at m_t
