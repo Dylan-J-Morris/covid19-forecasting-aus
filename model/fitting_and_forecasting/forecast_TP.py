@@ -1044,7 +1044,8 @@ for typ in forecast_type:
         # expected generation interval (Gamma(2.75, 1))
         E_gen_int = 2.75
         # exponent term in exponential increase of cases 
-        E_exponent = (E_TP_omicron - E_TP_delta)/E_gen_int
+        # E_exponent = (E_TP_omicron - E_TP_delta)/E_gen_int
+        E_exponent = (E_TP_omicron - E_TP_delta)
         
         # E_exponent = (E_TP_omicron[rows:, :] - E_TP_delta[rows:, :])
         # number of days into omicron forecast
@@ -1084,17 +1085,17 @@ for typ in forecast_type:
                 tt += 1
                 # exponential model of the ratio of omicron cases to delta (can be > 1)
                 phi_t = phi_0 * np.exp(E_exponent*tt)
-                # transform to propotion
-                m_t = phi_t / (1 + phi_t)
+                # transform to proportion capping at maximum of 0.99 to facilitate the transformation 
+                m_t = np.minimum(0.99, phi_t / (1 + phi_t))
                 # variance on beta distribution centered at m_t
                 sig_m = 0.0005
-                # calculate shape and scale
-                a_m = m_t * ((m_t*(1-m_t)/sig_m)-1)
-                b_m =(1-m_t) * ((m_t*(1-m_t)/sig_m)-1)
+                # calculate shape and scale 
+                a_m = m_t * ((m_t*(1-m_t)/sig_m) - 1)
+                b_m =(1-m_t) * ((m_t*(1-m_t)/sig_m) - 1)
                 # now sample m's assuming mean of m_t
                 m_t_prime = np.random.beta(a_m, b_m)
                 # transform to get the proportion of cases 
-                m[jj] = m_t_prime / (1 + m_t_prime)
+                m[jj] = m_t_prime
                 # apply the vaccination model 
                 decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
                 # this is just the vaccination model for delta
