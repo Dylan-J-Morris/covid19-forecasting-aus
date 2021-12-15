@@ -37,7 +37,7 @@ The `on_phoenix` flag tells the model to use a slightly older version of Pystan 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ## Required arguments
 ```
-DATADATE='2021-12-13'   # Date of NNDSS data file
+DATADATE='2021-12-14'   # Date of NNDSS data file
 NSIMS=20000               # Total number of simulations to run should be > 5000
 APPLY_SEEDING='False'
 ```

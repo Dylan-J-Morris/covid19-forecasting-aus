@@ -295,11 +295,12 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # create zero array to fill in with the full vaccine effect model
                     vacc_post = np.zeros_like(vacc_ts)
                     
-                    days_into_omicron = np.cumsum(np.append([0], [(v >= pd.to_datetime(omicron_start_date)).sum() for v in third_date_range.values()]))
+                    days_into_omicron = np.cumsum(np.append([0], [(v >= pd.to_datetime(omicron_start_date)).sum()+1 for v in third_date_range.values()]))
+                    print(days_into_omicron)
                     idx = {}
                     kk = 0
                     for k in third_date_range.keys():
-                        idx[k] = range(days_into_omicron[kk], days_into_omicron[kk+1])
+                        idx[k] = range(days_into_omicron[kk], days_into_omicron[kk+1]-1)
                         kk += 1
                     
                     m = prop_omicron_to_delta.iloc[:, idx[states_initials[state]]].to_numpy()
@@ -321,7 +322,10 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                             jj = ii - omicron_start_day
                             decay_factor = np.exp(-r*heterogeneity_delay_days)
-                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]*(1+m[jj]*(1-reduction_vacc_effect_omicron))
+                            # calculate the raw vax effect
+                            vacc_tmp = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]
+                            # calculate the full vaccination effect
+                            vacc_post[ii] = 1+(m[jj] - m[jj]*reduction_vacc_effect_omicron - 1) * (1-vacc_tmp)
 
                     for ii in range(vacc_post.shape[0]):
                         if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:

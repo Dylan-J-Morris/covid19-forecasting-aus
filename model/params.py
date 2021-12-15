@@ -12,10 +12,8 @@ num_TP_samples = 2000       # number of forecasted TP samples to save
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
-    # this flag will run the inference only and quit after it's done
 else: 
     ncores = 4     # number of cores to use (this is relevant for the simulation)
-    # this flag will run the inference only and quit after it's done
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
 third_start_date = '2021-06-15'
@@ -54,7 +52,7 @@ case_insertion_threshold = 5
 download_google_automatically = False
 assume_local_cases_if_unknown = True
 # number of days to remove to stop the issues with the right-truncation
-truncation_days = 15
+truncation_days = 12
 
 ##### Simulation parameters/transmission parameters
 # incubation period: taken from Lauer et al. 2020
