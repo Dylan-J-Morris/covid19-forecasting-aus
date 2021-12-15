@@ -983,6 +983,8 @@ for i, state in enumerate(third_states):
     #             elif (idx > third_date_range[state][-1]):
     #                 vacc_ts.loc[idx].iloc[np.where(a >= b)] = vacc_ts.loc[idx-timedelta(days=1)].iloc[np.where(a >= b)[0]]
                     
+    pd.DataFrame(vacc_ts).to_csv('results/adjusted_vaccine_ts'+data_date.strftime("%Y-%m-%d")+".csv")
+                    
     # create zero array to fill in with the full vaccine effect model
     vacc_eff = np.zeros_like(vacc_ts)
 

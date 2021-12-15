@@ -111,6 +111,7 @@ class Forecast:
         # Load in Reff data before running all sims
         self.n_Reffs = num_TP_samples
         self.read_in_all_Reffs()
+        
         # Assumption dates.
         # Date from which quarantine was started
         self.quarantine_change_date = pd.to_datetime('2020-04-15', format='%Y-%m-%d').dayofyear - self.start_date.dayofyear
@@ -965,7 +966,7 @@ class Forecast:
         # self.min_cases_in_windows[:-1] = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[:-1]))
         self.min_cases_in_windows[-1] = np.maximum(0, np.floor(low_limit_nowcast*self.cases_in_windows[-1]))
         
-        self.max_cases = max(500000, sum(df.local.values) + sum(df.imported.values))
+        self.max_cases = max(1000000, sum(df.local.values) + sum(df.imported.values))
 
     def import_cases_model(self, df):
         """

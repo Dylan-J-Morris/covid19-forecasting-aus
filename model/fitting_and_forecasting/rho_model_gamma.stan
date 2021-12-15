@@ -281,9 +281,9 @@ model {
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     // parametersiing the following as voc_eff ~ 1 + gamma(a,b)
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);      
-    additive_voc_effect_delta ~ gamma(2.0*2.0/0.075, 2.0/0.075);
+    additive_voc_effect_delta ~ gamma(1.5*1.5/0.05, 1.5/0.05);
     // assume that omicron is similar to delta
-    additive_voc_effect_omicron ~ gamma(2.0*2.0/0.075, 2.0/0.075);;
+    additive_voc_effect_omicron ~ gamma(1.5*1.5/0.05, 1.5/0.05);;
     // additive_voc_effect_omicron ~ gamma(1.1*1.1/0.075, 1.1/0.075);
     
     // vaccination heterogeneity 
@@ -291,7 +291,7 @@ model {
     r ~ lognormal(log(0.16), 0.1);
     
     // reduction in vaccine effect due to omicron mean of 0.7
-    reduction_vacc_effect_omicron ~ beta(21, 9);
+    reduction_vacc_effect_omicron ~ beta(75, 50);
 
     // hierarchical model for the baseline RL's
     R_L ~ gamma(1.7*1.7/0.005,1.7/0.005); //hyper-prior
