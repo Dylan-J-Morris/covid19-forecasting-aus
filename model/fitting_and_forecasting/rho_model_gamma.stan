@@ -43,6 +43,14 @@ data {
     vector[N_sec_wave] respond_md_sec_wave[j_sec_wave];                     // num respondants
     vector[N_third_wave] count_md_third_wave[j_third_wave];                 // count of always
     vector[N_third_wave] respond_md_third_wave[j_third_wave];               // num respondants
+    
+    // data relating to mobility and microdistancing
+    vector[N] count_masks[j_first_wave];                                       // count of always
+    vector[N] respond_masks[j_first_wave];                                     // num respondants
+    vector[N_sec_wave] count_masks_sec_wave[j_sec_wave];                       // count of always
+    vector[N_sec_wave] respond_masks_sec_wave[j_sec_wave];                     // num respondants
+    vector[N_third_wave] count_masks_third_wave[j_third_wave];                 // count of always
+    vector[N_third_wave] respond_masks_third_wave[j_third_wave];               // num respondants
 
     // mapping and number in each state
     int map_to_state_index_first[j_first_wave];                             // indices of second wave to map to first
@@ -280,7 +288,7 @@ model {
 
     // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
     // parametersiing the following as voc_eff ~ 1 + gamma(a,b)
-    additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);      
+    additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
     additive_voc_effect_delta ~ gamma(1.5*1.5/0.05, 1.5/0.05);
     // assume that omicron is similar to delta
     additive_voc_effect_omicron ~ gamma(1.5*1.5/0.05, 1.5/0.05);;

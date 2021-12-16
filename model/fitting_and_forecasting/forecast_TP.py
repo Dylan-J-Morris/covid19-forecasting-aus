@@ -55,6 +55,10 @@ vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+
                                     data_date.strftime('%Y-%m-%d')+
                                     '.csv', 
                                     parse_dates=['date'])
+# vaccination_by_state = pd.read_csv('results/adjusted_vaccine_ts'+ 
+#                                     data_date.strftime('%Y-%m-%d')+
+#                                     '.csv', 
+#                                     parse_dates=['date'])
 vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
 third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
@@ -169,6 +173,10 @@ n_training = 14  # Period to examine trend
 n_baseline = 91  # Period to create baseline
 
 # calculate the maximum vaccination effect here
+# max_vac_effect = 0.9*min(
+#     vaccination_by_state.loc[s, ~vaccination_by_state.loc[s].isna()].values[-1] for s in states
+# )
+
 max_vac_effect = 0.9*min(
     vaccination_by_state.loc[s].values[-1] for s in states
 )
@@ -349,8 +357,7 @@ for i, state in enumerate(states):
     mu_diffs = np.mean(md_diffs)
     std_diffs = np.std(md_diffs)
 
-    extra_days_md = (pd.to_datetime(df_google.date.values[-1]) - 
-                     pd.to_datetime(prop[state].index.values[-1])).days
+    extra_days_md = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(prop[state].index.values[-1])).days
 
     # Set all values to current value.
     current = [prop[state].values[-1]] * 1000
@@ -429,54 +436,52 @@ for i, state in enumerate(states):
     md_sims = np.minimum(1, md_sims)
     md_sims = np.maximum(0, md_sims)
 
-    dd_md = [prop[state].index[-1] + 
-             timedelta(days=x) for x in range(1, n_forecast+extra_days_md+1)]
-
-    if apply_vacc_to_R_L_hats:
+    dd_md = [prop[state].index[-1] + timedelta(days=x) for x in range(1, n_forecast+extra_days_md+1)]
         
-        # Forecasting vaccine effect
-        # Get a baseline value of vaccination
-        mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:])
-        vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
-        mu_diffs = np.mean(vacc_diffs)
-        std_diffs = np.std(vacc_diffs)
+    # Forecasting vaccine effect
+    # Get a baseline value of vaccination
+    mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:])
+    vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
+    # mu_overall = np.mean(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_baseline:])
+    # vacc_diffs = np.diff(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_training:])
+    mu_diffs = np.mean(vacc_diffs)
+    std_diffs = np.std(vacc_diffs)
 
-        extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - 
-                           pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
+    # vaccination_last_fit_date = vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].index.values[-1] + pd.Timedelta(days=1)
+    # extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_last_fit_date)).days
 
+    extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
+
+    # Set all values to current value but this will be filled 
+    # current = [vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-1]] * 1000
+    # current_tmp = [vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-1]] * 1000
+    # Set all values to current value but this will be filled 
         # Set all values to current value but this will be filled 
-        current = [vaccination_by_state.loc[state].values[-1]] * 1000
-        current_tmp = [vaccination_by_state.loc[state].values[-1]] * 1000
-        new_vacc_forecast = []
-        # Forecast mobility forward sequentially by day.
-        total_forecasting_days = n_forecast + extra_days_vacc
-        
-        # convert current to numpy array so we can take advantage of logical indexing
-        current = np.array(current)
-        for i in range(total_forecasting_days):
+    # Set all values to current value but this will be filled 
+    current = [vaccination_by_state.loc[state].values[-1]] * 1000
+    current_tmp = [vaccination_by_state.loc[state].values[-1]] * 1000
+    new_vacc_forecast = []
+    # Forecast mobility forward sequentially by day.
+    total_forecasting_days = n_forecast + extra_days_vacc
+    
+    # convert current to numpy array so we can take advantage of logical indexing
+    current = np.array(current)
+    for i in range(total_forecasting_days):
+        # trend force is consistent for vaccination 
             # trend force is consistent for vaccination 
-            trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
-            # apply a different effect depending on proximity to threshold. This is crude atm but should suffice
-            # for apply a smoother transition to 0.3
-            # if any(current < 0.4): 
-            #     current[current == 0.3] = current[current == 0.3] 
-            #     current[(current > 0.3) & (current < 0.4)] = current[(current > 0.3) & (current < 0.4)] + (
-            #         trend_force[(current > 0.3) & (current < 0.4)]*(
-            #             1 - 1/(1+np.exp(1/(-(current[(current > 0.3) & (current < 0.4)] - 0.3))))))
-            #     current[current >= 0.4] = current[current >= 0.4] + trend_force[current >= 0.4]
-            # else: 
-            current = current + trend_force
-            
-            # append to vaccination forecast list 
-            new_vacc_forecast.append(current.tolist())
+        # trend force is consistent for vaccination 
+        trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
+        current = current + trend_force
+        new_vacc_forecast.append(current.tolist())
 
-        vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
-        vacc_sims = np.minimum(1, vacc_sims)
-        vacc_sims = np.maximum(max_vac_effect, vacc_sims)      # apply a maximum effect of 0.35 based off current observations from Nick
+    vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
+    vacc_sims = np.minimum(1, vacc_sims)
+    vacc_sims = np.maximum(max_vac_effect, vacc_sims)      # apply a maximum effect of 0.35 based off current observations from Nick
 
-        # get dates
-        dd_vacc = [vaccination_by_state.loc[state].index[-1] + 
-                   timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
+    # get dates
+    # dd_vacc = [pd.to_datetime(vaccination_last_fit_date) + timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
+    dd_vacc = [vaccination_by_state.loc[state].index[-1] + 
+                timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
 
     for j, var in enumerate(predictors+['md_prop']+['vaccination']):
         # Record data
@@ -517,11 +522,11 @@ for i, state in enumerate(states):
 
             elif var == 'vaccination':
                 # vaccination plot
-                axs[rownum, colnum].plot(vaccination_by_state.loc[state].index, 
-                                         vaccination_by_state.loc[state].values, lw=1)
-                axs[rownum, colnum].plot(dd_vacc, np.median(vacc_sims, axis=1), 'k', lw=1)
+                axs[rownum, colnum].plot(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].index, 
+                                         vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].values, lw=1)
+                axs[rownum, colnum].plot(dd_vacc, np.median(vacc_sims, axis=1), color='C1', lw=1)
                 axs[rownum, colnum].fill_between(dd_vacc, np.quantile(vacc_sims, 0.25, axis=1),
-                                                 np.quantile(vacc_sims, 0.75, axis=1), color='k', alpha=0.1)
+                                                 np.quantile(vacc_sims, 0.75, axis=1), color='C1', alpha=0.1)
 
             else:
                 # all other predictors
@@ -531,8 +536,8 @@ for i, state in enumerate(states):
                                                  np.percentile(Rmed_array[:, j, :], 75, axis=1),
                                                  alpha=0.5)
 
-                axs[rownum, colnum].plot(dd, sims_med[:, j], 'k', lw=1)
-                axs[rownum, colnum].fill_between(dd, sims_q25[:, j], sims_q75[:, j], color='k', alpha=0.1)
+                axs[rownum, colnum].plot(dd, sims_med[:, j], color='C1', lw=1)
+                axs[rownum, colnum].fill_between(dd, sims_q25[:, j], sims_q75[:, j], color='C1', alpha=0.1)
 
             # axs[rownum,colnum].axvline(dd[-num_forecast_days], ls = '--', color = 'black', lw=1)            # plotting a vertical line at the end of the data date
             # axs[rownum,colnum].axvline(dd[-(num_forecast_days+truncation_days)], ls = '-.', color='grey', lw=1)            # plotting a vertical line at the forecast date

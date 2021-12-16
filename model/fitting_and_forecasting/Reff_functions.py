@@ -296,7 +296,6 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     vacc_post = np.zeros_like(vacc_ts)
                     
                     days_into_omicron = np.cumsum(np.append([0], [(v >= pd.to_datetime(omicron_start_date)).sum()+1 for v in third_date_range.values()]))
-                    print(days_into_omicron)
                     idx = {}
                     kk = 0
                     for k in third_date_range.keys():
