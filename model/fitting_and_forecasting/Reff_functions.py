@@ -270,6 +270,8 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # reset the index to be the dates for easier information handling
                     vacc_ts.set_index(vacc_ts_data.index, inplace=True)
                     
+                    vacc_ts = vacc_tmp
+                    
                     third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
 
                     # From conversations with James and Nic we think the heterogeneity / assortativity was more prominent before late 
@@ -278,6 +280,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # the third wave data which we determine based off the third_date_range 
                     heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - third_date_range[states_initials[state]][0]).days
                     omicron_start_day = (pd.to_datetime(omicron_start_date) - third_date_range[states_initials[state]][0]).days
+                    omicron_start_day = 0 if omicron_start_day < 0 else omicron_start_day
                     
                     # this will hold the posterior VE, with adjustement factors
                     vacc_post = np.zeros_like(vacc_ts)
@@ -295,18 +298,18 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # create zero array to fill in with the full vaccine effect model
                     vacc_post = np.zeros_like(vacc_ts)
                     
-                    days_into_omicron = np.cumsum(np.append([0], [(v >= pd.to_datetime(omicron_start_date)).sum()+1 for v in third_date_range.values()]))
+                    days_into_omicron = np.cumsum(np.append([0], [(v >= pd.to_datetime(omicron_start_date)).sum() for v in third_date_range.values()]))
                     idx = {}
                     kk = 0
                     for k in third_date_range.keys():
-                        idx[k] = range(days_into_omicron[kk], days_into_omicron[kk+1]-1)
+                        idx[k] = range(days_into_omicron[kk], days_into_omicron[kk+1])
                         kk += 1
                     
                     m = prop_omicron_to_delta.iloc[:, idx[states_initials[state]]].to_numpy()
                     m = m[:vacc_post.shape[1]].T
                     
                     reduction_vacc_effect_omicron = samples_sim['reduction_vacc_effect_omicron'].to_numpy()
-
+                    
                     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
                     for ii in range(vacc_post.shape[0]):
                         if ii < heterogeneity_delay_start_day:

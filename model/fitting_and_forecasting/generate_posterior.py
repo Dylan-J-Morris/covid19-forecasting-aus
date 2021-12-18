@@ -20,6 +20,7 @@ from arviz.utils import _var_names
 import matplotlib
 from numpy.random import sample
 from scipy.stats import truncnorm
+from math import ceil
 
 matplotlib.use('Agg')
 from params import apply_vacc_to_R_L_hats, truncation_days, download_google_automatically, \
@@ -180,17 +181,25 @@ sec_date_range = {
 }
 
 # Third wave inputs
-third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
-# third_states = sorted(['VIC'])
+# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
 # choose dates for each state for third wave
+# third_date_range = {
+#     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
+#     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
+#     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+#     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
+# }
+# NOTE: These need to be in order
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+    'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
 }
 
@@ -229,9 +238,16 @@ df2X['is_sec_wave'] = 0
 for state in sec_states:
     df2X.loc[df2X.state == state, 'is_sec_wave'] = df2X.loc[df2X.state == state].date.isin(sec_date_range[state]).astype(int).values
 
+# used to index what dates are also featured in omicron 
+omicron_date_range = pd.date_range(start=omicron_start_date, end=third_end_date)
+
 df3X['is_third_wave'] = 0
 for state in third_states:
     df3X.loc[df3X.state == state, 'is_third_wave'] = df3X.loc[df3X.state == state].date.isin(third_date_range[state]).astype(int).values
+    # condition on being in third wave AND omicron
+    df3X.loc[df3X.state == state, 'is_omicron_wave'] = (
+        df3X.loc[df3X.state == state].date.isin(omicron_date_range) * df3X.loc[df3X.state == state].date.isin(third_date_range[state])
+    ).astype(int).values
 
 data_by_state = {}
 sec_data_by_state = {}
@@ -324,12 +340,11 @@ third_respond_by_state = []
 third_mask_wearing_count_by_state = []
 third_mask_wearing_respond_by_state = []
 include_in_third_wave = []
+include_in_omicron_wave = []
 
 # filtering survey responses to dates before this wave fitting
 survey_respond = survey_respond_base.loc[:df3X.date.values[-1]]
 survey_counts = survey_counts_base.loc[:df3X.date.values[-1]]
-mask_wearing_respond = mask_wearing_respond_base.loc[:df3X.date.values[-1]]
-mask_wearing_counts = mask_wearing_counts_base.loc[:df3X.date.values[-1]]
 
 for state in third_states:
     third_mobility_by_state.append(df3X.loc[df3X.state == state, predictors].values/100)
@@ -339,6 +354,7 @@ for state in third_states:
     third_mask_wearing_count_by_state.append(mask_wearing_counts.loc[third_start_date:third_end_date, state].values)
     third_mask_wearing_respond_by_state.append(mask_wearing_respond.loc[third_start_date:third_end_date, state].values)
     include_in_third_wave.append(df3X.loc[df3X.state == state, 'is_third_wave'].values) 
+    include_in_omicron_wave.append(df3X.loc[df3X.state == state, 'is_omicron_wave'].values) 
 
 # policy boolean flag for after travel ban in each wave
 policy = dfX.loc[dfX.state == first_states[0],'post_policy']     # this is the post ban policy
@@ -398,27 +414,12 @@ third_wave_dates = pd.date_range(start=third_start_date, end=third_end_date)
 N_vaccine_data_third = [v.shape[0] for (k, v) in third_date_range.items()]
 
 # dates to apply alpha in the second wave (this won't allow for VIC to be added as the date_ranges are different)
-apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int)
-
-# set the start date for omicron cases and count total number of days with omicron cases 
-omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)).days
-total_N_p_third_omicron = 0
-total_N_p_third_omicron_3_blocks = 0
-pos_starts_third_omicron = np.zeros(len(third_states))
-for i, v in enumerate(third_date_range.values()):
-    tmp = sum(v >= pd.to_datetime(omicron_start_date))
-    tmp2 = tmp // 3
-    # add a plus one for inclusion of end date (the else 0 is due to QLD having no Omicron potential)
-    total_N_p_third_omicron += tmp+1 if tmp > 0 else 0
-    total_N_p_third_omicron_3_blocks += tmp2+1 if tmp2 > 0 else 0
-    pos_starts_third_omicron[i] = tmp2+1 if tmp2 > 0 else 0
-    
-pos_starts_third_omicron = np.cumsum(pos_starts_third_omicron).astype(int)
+apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int) 
+omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)).days    
     
 # input data block for stan model
 input_data = {
     'j_total': len(states_to_fit_all_waves),
-    
     'N': dfX.loc[dfX.state == first_states[0]].shape[0],
     'K': len(predictors),
     'j_first_wave': len(first_states),
@@ -457,13 +458,6 @@ input_data = {
     'respond_md_sec_wave': sec_respond_by_state,
     'count_md_third_wave': third_count_by_state,
     'respond_md_third_wave': third_respond_by_state,
-    
-    'count_masks': mask_wearing_count_by_state,
-    'respond_masks': mask_wearing_respond_by_state,
-    'count_masks_sec_wave': sec_mask_wearing_count_by_state,
-    'respond_masks_sec_wave': sec_mask_wearing_respond_by_state,
-    'count_masks_third_wave': third_mask_wearing_count_by_state,
-    'respond_masks_third_wave': third_mask_wearing_respond_by_state,
 
     'map_to_state_index_first': [state_index[state] for state in first_states],
     'map_to_state_index_sec': [state_index[state] for state in sec_states],
@@ -485,10 +479,12 @@ input_data = {
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
     
     # omicron stuff
-    'omicron_start_date': omicron_start_day,
-    'total_N_p_third_omicron': total_N_p_third_omicron, 
-    'total_N_p_third_omicron_3_blocks': total_N_p_third_omicron_3_blocks, 
-    'pos_starts_third_omicron': pos_starts_third_omicron
+    'omicron_start_day': omicron_start_day,
+    'include_in_omicron_wave': include_in_omicron_wave,
+    'total_N_p_third_omicron': int(sum([sum(x) for x in include_in_omicron_wave]).item()),
+    'pos_starts_third_omicron': np.cumsum([sum(x) for x in include_in_omicron_wave]).astype(int),
+    'total_N_p_third_omicron_3_blocks': int(sum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave])),
+    'pos_starts_third_omicron_3_blocks': np.cumsum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave]).astype(int)
 }
 
 # make results dir
@@ -544,9 +540,6 @@ if run_inference or run_inference_only:
 
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
-            # print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
-            #                                  'voc_effect_alpha', 'voc_effect_delta', 
-            #                                  'eta_NSW', 'eta_other', 'r_NSW', 'r_other']), file=f)
             print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
                                              'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
                                              'eta', 'r', 'reduction_vacc_effect_omicron']), file=f)
@@ -1096,7 +1089,10 @@ plt.close(fig)
 plot_third_fit = True
 
 # extract the propn of omicron to delta
+total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
+print(total_N_p_third_omicron)
 prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta[" + str(j) + "]" for j in range(1, total_N_p_third_omicron+1)]]
+pd.DataFrame(prop_omicron_to_delta.to_csv('prop_omicron_to_delta.csv'))
 
 if df3X.shape[0] > 0:
     df['is_third_wave'] = 0
