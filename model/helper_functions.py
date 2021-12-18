@@ -25,23 +25,46 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
 
         for file in glob.glob(path):  # Allows us to use the * option
             df = pd.read_excel(file,
-                               parse_dates=['SPECIMEN_DATE', 'NOTIFICATION_DATE',
-                                            'NOTIFICATION_RECEIVE_DATE', 'TRUE_ONSET_DATE'],
+                               parse_dates=['SPECIMEN_DATE', 'NOTIFICATION_DATE', 'NOTIFICATION_RECEIVE_DATE', 'TRUE_ONSET_DATE'],
                                dtype={'PLACE_OF_ACQUISITION': str})
         if len(glob.glob(path)) != 1:
             print("There are %i files with the same date" % len(glob.glob(path)))
         if len(glob.glob(path)) == 0:
-            raise FileNotFoundError(
-                "NNDSS no found. Did you want to use a linelist? Or is the file named wrong?")
+            raise FileNotFoundError("NNDSS no found. Did you want to use a linelist? Or is the file named wrong?")
 
         # Fixes errors in updated python versions
         df.TRUE_ONSET_DATE = pd.to_datetime(df.TRUE_ONSET_DATE, errors='coerce')
         df.NOTIFICATION_DATE = pd.to_datetime(df.NOTIFICATION_DATE, errors='coerce')
-
+        
         # Find most representative date
         df['date_inferred'] = df.TRUE_ONSET_DATE
-        df.loc[df.TRUE_ONSET_DATE.isna(), 'date_inferred'] = df.loc[df.TRUE_ONSET_DATE.isna()].NOTIFICATION_DATE - timedelta(days=5)
-        df.loc[df.date_inferred.isna(), 'date_inferred'] = df.loc[df.date_inferred.isna()].NOTIFICATION_RECEIVE_DATE - timedelta(days=6)
+        df['is_confirmation'] = df['date_inferred'].isna()
+        
+        if apply_delay_at_read:
+            # calculate number of delays to sample 
+            n_delays = df['date_inferred'].isna().sum()
+            # sample that number of delays from the distribution and take the ceiling. 
+            # This was fitted to the third and second wave data, looking at the common differences 
+            # between onsets and confirmations
+            rd = np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays)
+            rd = np.ceil(rd) * timedelta(days=1)
+            
+            # fill missing days with the confirmation date, noting that this is adjusted when used
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'NOTIFICATION_DATE'] - rd
+        else:
+            # just apply the confirmation date and let EpyReff handle the delay distribution 
+            df.loc[df['date_inferred'].isna(), 'date_inferred'] = df.loc[df['date_inferred'].isna(), 'NOTIFICATION_DATE'] 
+            
+        # now we apply the incubation period to the inferred onset date. Note that this should never be done in the 
+        # absence of the delay 
+        if apply_inc_at_read:
+            # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
+            n_infs = df['date_inferred'].shape[0]
+            inc = np.random.gamma(shape=shape_inc, scale=scale_inc, size=n_infs)
+            # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior 
+            # doesnt work properly
+            inc = np.ceil(inc) * timedelta(days=1)
+            df['date_inferred'] = df['date_inferred'] - inc
 
         # The first 4 digits is the country code. We use this to determin if the cases is local or imported. We can choose which assumption we keep. This should be set to true during local outbreak waves.
         if assume_local_cases_if_unknown:
@@ -49,12 +72,12 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
             df.PLACE_OF_ACQUISITION.fillna('11019999', inplace=True)
         else:
             # Fill blanks with unknown international code
-            df.PLACE_OF_ACQUISITION.fillna('00038888', inplace=True)
+            df.PLACE_OF_ACQUISITION.fillna('00048888', inplace=True)
 
         # IMPORTANT NOTE: State of infection is determined by the STATE column, not the PLACE_OF_ACQUISITION column
 
         # Set imported cases, local cases have 1101 as first 4 digits.
-        df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if x[:4] != '1101' else 0)
+        df['imported'] = df.PLACE_OF_ACQUISITION.apply(lambda x: 1 if (x[:4] != '1101') & (x[:4] != '0003') else 0)
         df['local'] = 1 - df.imported
 
         return df
