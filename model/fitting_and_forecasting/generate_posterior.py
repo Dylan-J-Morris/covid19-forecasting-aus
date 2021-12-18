@@ -188,17 +188,11 @@ third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA'])
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
 # choose dates for each state for third wave
-# third_date_range = {
-#     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
-#     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
-#     'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
-#     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
-# }
-# NOTE: These need to be in order
+# NOTE: These need to be in date sorted order
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
-    'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+    'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
     'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
 }

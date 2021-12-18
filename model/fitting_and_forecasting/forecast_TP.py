@@ -38,12 +38,14 @@ start_date = '2020-03-01'
 third_start_date = pd.to_datetime(third_start_date)
 third_end_date = data_date - timedelta(truncation_days)
 
-third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA'])
 # choose dates for each state for third wave
+# NOTE: These need to be in date sorted order
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
-    'QLD': pd.date_range(start='2021-07-30', end='2021-10-10').values,
+    'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
+    'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
 }
 
@@ -759,7 +761,7 @@ total_N_p_third_omicron = 0
 for v in third_date_range.values():
     tmp = sum(v >= pd.to_datetime(omicron_start_date))
     # add a plus one for inclusion of end date (the else 0 is due to QLD having no Omicron potential)
-    total_N_p_third_omicron += tmp + 1 if tmp > 0 else 0
+    total_N_p_third_omicron += tmp if tmp > 0 else 0
 
 # flags for advanced scenario modelling
 advanced_scenario_modelling = False
@@ -900,7 +902,7 @@ for typ in forecast_type:
         if state in third_states and state != 'QLD': 
             m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
         else:
-            # assume proxy of ACT (low Omicron presence )
+            # assume proxy of ACT (low Omicron presence ) 
             m_tmp = prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
             
         # initialise array for holding the proportion attributable to Omicron 
