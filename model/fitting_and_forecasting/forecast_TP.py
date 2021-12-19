@@ -812,7 +812,7 @@ total_N_p_third_omicron = 0
 for v in third_date_range.values():
     tmp = sum(v >= pd.to_datetime(omicron_start_date))
     # add a plus one for inclusion of end date (the else 0 is due to QLD having no Omicron potential)
-    total_N_p_third_omicron += tmp + 1 if tmp > 0 else 0
+    total_N_p_third_omicron += tmp if tmp > 0 else 0
 
 # flags for advanced scenario modelling
 advanced_scenario_modelling = False
@@ -899,10 +899,10 @@ for typ in forecast_type:
         vacc_post = np.zeros_like(vacc_ts)
     
         # take sample of reduction 
-        if state in third_states and state != 'QLD': 
+        if state in {'VIC', 'NSW'}: 
             m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
         else:
-            # assume proxy of ACT (low Omicron presence ) 
+            # assume proxy of ACT (low Omicron presence) 
             m_tmp = prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
             
         # initialise array for holding the proportion attributable to Omicron 

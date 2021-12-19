@@ -1084,7 +1084,6 @@ plot_third_fit = True
 
 # extract the propn of omicron to delta
 total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
-print(total_N_p_third_omicron)
 prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta[" + str(j) + "]" for j in range(1, total_N_p_third_omicron+1)]]
 pd.DataFrame(prop_omicron_to_delta.to_csv('prop_omicron_to_delta.csv'))
 
