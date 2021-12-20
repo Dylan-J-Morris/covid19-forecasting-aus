@@ -88,8 +88,7 @@ for file in glob.glob(path):
     mask_wearing = mask_wearing.append(pd.read_csv(file, parse_dates=['date']))
 
 mask_wearing = mask_wearing.sort_values(by='date')
-print("Latest Microdistancing survey is {}".format(mask_wearing.date.values[-1]))
-
+print("Latest Mask wearing survey is {}".format(mask_wearing.date.values[-1]))
 
 mask_wearing['state'] = mask_wearing['state'].map(states_initials).fillna(mask_wearing['state'])
 mask_wearing['proportion'] = mask_wearing['count']/mask_wearing.respondents
@@ -105,8 +104,6 @@ mask_wearing_always.index.name = 'date'
 # fill back to earlier and between weeks.
 # Assume survey on day x applies for all days up to x - 6
 mask_wearing_always = mask_wearing_always.fillna(method='bfill')
-# assume values continue forward if survey hasn't completed
-mask_wearing_always = mask_wearing_always.fillna(method='ffill')
 mask_wearing_always = mask_wearing_always.stack(['state'])
 
 # Zero out before first survey 20th March
@@ -339,6 +336,8 @@ include_in_omicron_wave = []
 # filtering survey responses to dates before this wave fitting
 survey_respond = survey_respond_base.loc[:df3X.date.values[-1]]
 survey_counts = survey_counts_base.loc[:df3X.date.values[-1]]
+mask_wearing_respond = mask_wearing_respond_base.loc[:df3X.date.values[-1]]
+mask_wearing_counts = mask_wearing_counts_base.loc[:df3X.date.values[-1]]
 
 for state in third_states:
     third_mobility_by_state.append(df3X.loc[df3X.state == state, predictors].values/100)
@@ -424,7 +423,6 @@ input_data = {
     'policy': policy.values,
     'local': data_by_state['local'].values,
     'imported': data_by_state['imported'].values,
-
     'N_sec_wave': df2X.loc[df2X.state == sec_states[0]].shape[0],
     'j_sec_wave': len(sec_states),
     'Reff_sec_wave': sec_data_by_state['mean'].values,
@@ -434,8 +432,7 @@ input_data = {
     'policy_sec_wave': policy_sec_wave,
     'local_sec_wave': sec_data_by_state['local'].values,
     'imported_sec_wave': sec_data_by_state['imported'].values,
-    'apply_alpha_sec_wave': apply_alpha_sec_wave,       # only for NSW 
-
+    'apply_alpha_sec_wave': apply_alpha_sec_wave,       
     'N_third_wave': df3X.loc[df3X.state == third_states[0]].shape[0],
     'j_third_wave': len(third_states),
     'Reff_third_wave': third_data_by_state['mean'].values,
@@ -445,33 +442,28 @@ input_data = {
     'policy_third_wave': policy_third_wave,
     'local_third_wave': third_data_by_state['local'].values,
     'imported_third_wave': third_data_by_state['imported'].values,
-
     'count_md': count_by_state,
     'respond_md': respond_by_state,
     'count_md_sec_wave': sec_count_by_state,
     'respond_md_sec_wave': sec_respond_by_state,
     'count_md_third_wave': third_count_by_state,
     'respond_md_third_wave': third_respond_by_state,
-
+    'count_masks_third_wave': third_mask_wearing_count_by_state,
+    'respond_masks_third_wave': third_mask_wearing_respond_by_state,
     'map_to_state_index_first': [state_index[state] for state in first_states],
     'map_to_state_index_sec': [state_index[state] for state in sec_states],
     'map_to_state_index_third': [state_index[state] for state in third_states],
-    # needed to convert this to primitive int for pystan
     'total_N_p_sec': sum([sum(x) for x in include_in_sec_wave]).item(),
-    # needed to convert this to primitive int for pystan
     'total_N_p_third': sum([sum(x) for x in include_in_third_wave]).item(),
-    
     # The include_in_..._wave variables are used for appropriate indexing inside of stan
     'include_in_first_wave': include_in_first_wave,
     'include_in_sec_wave': include_in_sec_wave,
     'include_in_third_wave': include_in_third_wave,
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
-    
     # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
     'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
-    
     # omicron stuff
     'omicron_start_day': omicron_start_day,
     'include_in_omicron_wave': include_in_omicron_wave,
@@ -497,10 +489,8 @@ else:
 if run_inference or run_inference_only:
 
     # import the stan model as a string
-    model_file = open("model/fitting_and_forecasting/rho_model_gamma.stan", "r")
-    # model_file = open("model/fitting_and_forecasting/rho_model_gamma_improved.stan", "r")
-    rho_model_gamma = model_file.read()
-    model_file.close()
+    with open('model/fitting_and_forecasting/rho_model_gamma.stan') as f:
+        rho_model_gamma = f.read()
 
     # slightly different setup depending if we are running on phoenix or locally due to
     # different versions of pystan
@@ -513,12 +503,12 @@ if run_inference or run_inference_only:
 
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
-            print(fit.stansummary(pars=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
+            print(fit.stansummary(pars=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
                                         'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron', 
                                         'eta', 'r', 'reduction_vacc_effect_omicron']), file=f)
 
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-                                                   'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave',
+                                                   'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave',
                                                    'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
                                                    'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta'])
 
@@ -534,14 +524,14 @@ if run_inference or run_inference_only:
 
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
-            print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'sig',
+            print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
                                              'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
                                              'eta', 'r', 'reduction_vacc_effect_omicron']), file=f)
 
         ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
         # create extended summary of parameters to index the samples by
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-                                                'brho', 'theta_md', 'brho_sec_wave', 'brho_third_wave', 
+                                                'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave', 
                                                 'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
                                                 'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta'])
 
@@ -972,10 +962,13 @@ for i, state in enumerate(states):
         vacc_ts_data_before.columns = vacc_tmp.columns
         vacc_ts_data_after.columns = vacc_tmp.columns
         # merge in order
+        # vacc_ts = pd.concat(
+        #     [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after], axis=0, ignore_index=True         
+        # )
         vacc_ts = pd.concat(
-            [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after], axis=0, ignore_index=True         
+            [vacc_ts_data_before, vacc_tmp], axis=0, ignore_index=True         
         )
-        vacc_ts.set_index(vacc_ts_data.index, inplace=True)
+        vacc_ts.set_index(vacc_ts_data.index[:vacc_ts.shape[0]], inplace=True)
         # vacc_ts = pd.concat(
         #     [vacc_ts_data_before, vacc_tmp], axis=0, ignore_index=True         
         # )
@@ -1056,7 +1049,7 @@ for i, state in enumerate(states):
     row = i % 4
     col = i // 4
 
-    ax[row, col].plot(dates, vaccination_by_state.loc[state].values, label='data', color='C1')
+    ax[row, col].plot(dates, vaccination_by_state.loc[state][:dates.shape[0]].values, label='data', color='C1')
     ax[row, col].plot(dates, np.median(vacc_eff, axis=1), label='fit', color='C0')
     ax[row, col].fill_between(dates, 
                               np.quantile(vacc_eff, 0.25, axis=1), 
@@ -1100,8 +1093,8 @@ if df3X.shape[0] > 0:
         gamma=True, moving=True, split=split, grocery=True, ban=ban,
         R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
         R_I=samples_mov_gamma.R_I.values,
-        prop=survey_X.loc[third_start_date:third_end_date], vaccination=vaccination_by_state,
-        third_states=third_states, prop_omicron_to_delta=prop_omicron_to_delta)  # by states....
+        prop=survey_X.loc[third_start_date:third_end_date], masks_prop=mask_wearing_X[third_start_date:third_end_date], 
+        vaccination=vaccination_by_state, third_states=third_states, prop_omicron_to_delta=prop_omicron_to_delta)  # by states....
     
     for ax in ax4:
         for a in ax:
@@ -1118,7 +1111,12 @@ if df3X.shape[0] > 0:
 
 var_to_csv = predictors
 samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
-var_to_csv = ['R_I', 'R_L', 'sig', 'theta_md', 'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron', 'reduction_vacc_effect_omicron']
+var_to_csv = [
+    'R_I', 'R_L', 'sig', 'theta_md', 
+    'theta_masks', 'voc_effect_alpha', 
+    'voc_effect_delta', 'voc_effect_omicron', 
+    'reduction_vacc_effect_omicron'
+]
 var_to_csv = var_to_csv + predictors + [
     'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
 ]

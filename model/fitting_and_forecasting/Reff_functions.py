@@ -64,7 +64,8 @@ def read_in_google(Aus_only=True, local=False, moving=False):
 def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, moving=True, grocery=True,
                  delta=1.0, R=2.2, sigma=1, md_arg=None,
                  ban='2020-03-16', single=False, var=None,
-                 rho=None, R_I=None, winter=False, prop=None, second_phase=False, third_phase=False, 
+                 rho=None, R_I=None, winter=False, prop=None, masks_prop=None,
+                 second_phase=False, third_phase=False, 
                  vaccination=None, third_states=None, prop_omicron_to_delta=None):
     """
     Produce posterior predictive plots for all states
@@ -179,6 +180,9 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             elif third_phase:
                 df_state = df_state.loc[df_state.is_third_wave == 1] 
                 
+            if third_phase:    
+                masks_prop_sim = masks_prop[states_initials[state]].values[:df_state.shape[0]]
+                
             samples_sim = samples.sample(1000)
             post_values = samples_sim[['bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
@@ -204,6 +208,13 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     md = ((1+theta_md).T**(-1 * prop_sim)).T
                     # set preban md values to 1
                     md[:logodds.shape[0]] = 1
+                    if third_phase:
+                        theta_masks = samples_sim.theta_masks.values  # 1 by samples shape
+                        # each row is a date, column a new sample
+                        theta_masks = np.tile(theta_masks, (df_state.shape[0], 1))
+                        masks = ((1+theta_masks).T**(-1 * masks_prop_sim)).T
+                        # set preban mask values to 1
+                        masks[:logodds.shape[0]] = 1
                     # make logodds by appending post ban values
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
                 elif md_arg == 'logistic':
@@ -356,10 +367,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     sim_R = np.tile(samples_sim.R_L.values,(df_state.shape[0], 1))
 
                 if vaccination is not None and states_initials[state] in third_states:
-                    mu_hat = 2 * md*sim_R * expit(logodds) * vacc_post
-                    # if states_initials[state] == 'VIC':
-                    #     pd.DataFrame(2 * md*sim_R * expit(logodds)).to_csv('mu_hat.csv')
-                    #     pd.DataFrame(vacc_post).to_csv('vacc_post.csv')
+                    mu_hat = 2 * md * masks * sim_R * expit(logodds) * vacc_post
                 else:
                     mu_hat = 2 * md*sim_R * expit(logodds)
 

@@ -31,6 +31,7 @@ sim_start_date = pd.to_datetime(start_date)
 # Add 3 days buffer to mobility forecast
 num_forecast_days = num_forecast_days + 3
 data_date = pd.to_datetime(argv[1])
+# data_date = pd.to_datetime('2021-12-14')
 print("Using data from", data_date)
 start_date = '2020-03-01'
 
@@ -53,33 +54,31 @@ third_date_range = {
 df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 
 # Load in vaccination data by state and date which should have the same date as the NNDSS/linelist data
-vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+ 
-                                    data_date.strftime('%Y-%m-%d')+
-                                    '.csv', 
-                                    parse_dates=['date'])
-# vaccination_by_state = pd.read_csv('results/adjusted_vaccine_ts'+ 
+# use the Curtin VE
+# vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+ 
 #                                     data_date.strftime('%Y-%m-%d')+
 #                                     '.csv', 
 #                                     parse_dates=['date'])
+# use the inferred VE 
+vaccination_by_state = pd.read_csv('results/adjusted_vaccine_ts'+ 
+                                    data_date.strftime('%Y-%m-%d')+
+                                    '.csv', 
+                                    parse_dates=['date'])
 vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
-
 third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
-# vaccination_by_state = vaccination_by_state[(vaccination_by_state.date >= third_start_date) & 
-    # vaccination_by_state = vaccination_by_state[(vaccination_by_state.date >= third_start_date) & 
-# vaccination_by_state = vaccination_by_state[(vaccination_by_state.date >= third_start_date) & 
-#                                             (vaccination_by_state.date <= third_end_date)] # Get only the dates we need.
-
 vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
-
 # Convert to simple array for indexing
 vaccination_by_state_array = vaccination_by_state.to_numpy()
+
 
 # Get survey data
 surveys = pd.DataFrame()
 path = "data/md/Barometer wave*.csv"
 for file in glob.glob(path):
     surveys = surveys.append(pd.read_csv(file, parse_dates=['date']))
+    
 surveys = surveys.sort_values(by='date')
+print("Latest microdistancing survey is {}".format(surveys.date.values[-1]))
 
 surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT', 'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
 surveys['proportion'] = surveys['count']/surveys.respondents
@@ -106,6 +105,40 @@ always = always.reset_index().set_index(['state', 'date'])
 survey_X = pd.pivot_table(data=always, index='date', columns='state', values='proportion')
 prop_all = survey_X
 
+## read in and process mask wearing data 
+mask_wearing = pd.DataFrame()
+path = "data/face_coverings/face_covering_*_.csv"
+for file in glob.glob(path):
+    mask_wearing = mask_wearing.append(pd.read_csv(file, parse_dates=['date']))
+    
+mask_wearing = mask_wearing.sort_values(by='date')
+print("Latest mask wearing survey is {}".format(mask_wearing.date.values[-1]))
+
+# mask_wearing['state'] = mask_wearing['state'].map(states_initials).fillna(mask_wearing['state'])
+mask_wearing.loc[mask_wearing.state != 'ACT', 'state'] = mask_wearing.loc[mask_wearing.state != 'ACT', 'state'].map(states_initials).fillna(mask_wearing.loc[mask_wearing.state != 'ACT', 'state'])
+mask_wearing['proportion'] = mask_wearing['count']/mask_wearing.respondents
+mask_wearing.date = pd.to_datetime(mask_wearing.date)
+
+mask_wearing_always = mask_wearing.loc[mask_wearing.face_covering == 'Always'].set_index(["state", 'date'])
+mask_wearing_always = mask_wearing_always.unstack(['state'])
+
+idx = pd.date_range('2020-03-01', pd.to_datetime("today"))
+mask_wearing_always = mask_wearing_always.reindex(idx, fill_value=np.nan)
+mask_wearing_always.index.name = 'date'
+# fill back to earlier and between weeks.
+# Assume survey on day x applies for all days up to x - 6
+mask_wearing_always = mask_wearing_always.fillna(method='bfill')
+mask_wearing_always = mask_wearing_always.stack(['state'])
+
+# Zero out before first survey 20th March
+mask_wearing_always = mask_wearing_always.reset_index().set_index('date')
+mask_wearing_always.loc[:'2020-03-20', 'count'] = 0
+mask_wearing_always.loc[:'2020-03-20', 'respondents'] = 0
+mask_wearing_always.loc[:'2020-03-20', 'proportion'] = 0
+
+mask_wearing_X = pd.pivot_table(data=mask_wearing_always, index='date', columns='state', values='proportion')
+mask_wearing_all = mask_wearing_X
+
 # Get posterior
 df_samples = read_in_posterior(date=data_date.strftime("%Y-%m-%d"))
 
@@ -117,6 +150,7 @@ days_from_March = (one_month - pd.to_datetime(start_date)).days
 
 # filter out future info
 prop = prop_all.loc[:data_date]
+masks = mask_wearing_all.loc[:data_date]
 df_google = df_google_all.loc[df_google_all.date <= data_date]
 
 # use this trick of saving the google data and then reloading it to kill
@@ -164,6 +198,12 @@ fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
 axes.append(ax_states)
 figs.append(fig)
 
+# extra fig for mask wearing
+var = 'Proportion people always wearing masks'
+fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
+axes.append(ax_states)
+figs.append(fig)
+
 var = 'Reduction in Reff due to vaccination'
 fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
 axes.append(ax_states)
@@ -173,15 +213,18 @@ figs.append(fig)
 mob_samples = 1000
 n_training = 14  # Period to examine trend
 n_baseline = 91  # Period to create baseline
+n_training_vaccination = 30  # period to create trend for vaccination
 
 # calculate the maximum vaccination effect here
+# this is for when we use the Curtin estimate 
 # max_vac_effect = 0.9*min(
-#     vaccination_by_state.loc[s, ~vaccination_by_state.loc[s].isna()].values[-1] for s in states
+#     vaccination_by_state.loc[s].values[-1] for s in states
 # )
-
+# this is for when we use the inferred estimate
 max_vac_effect = 0.9*min(
-    vaccination_by_state.loc[s].values[-1] for s in states
+    vaccination_by_state.loc[s, ~vaccination_by_state.loc[s].isna()].values[-1] for s in states
 )
+
 
 # since this can be useful, predictor ordering is: 
 # ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
@@ -439,29 +482,116 @@ for i, state in enumerate(states):
     md_sims = np.maximum(0, md_sims)
 
     dd_md = [prop[state].index[-1] + timedelta(days=x) for x in range(1, n_forecast+extra_days_md+1)]
+    
+    # forecast mask wearing compliance
+    # Get a baseline value of microdistancing
+    mu_overall = np.mean(masks[state].values[-n_baseline:])
+    md_diffs = np.diff(masks[state].values[-n_training:])
+    mu_diffs = np.mean(md_diffs)
+    std_diffs = np.std(md_diffs)
+
+    extra_days_masks = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(masks[state].index.values[-1])).days
+
+    # Set all values to current value.
+    current = [masks[state].values[-1]] * 1000
+    new_masks_forecast = []
+    # Forecast mobility forward sequentially by day.
+    for i in range(n_forecast + extra_days_masks):
+
+        # SCENARIO MODELLING
+        # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
+        if scenarios[state] == '':
+            # masksortion of trend_force to regression_to_baseline_force
+            p_force = (n_forecast+extra_days_masks-i)/(n_forecast+extra_days_masks)
+            # Generate step realisations in training trend direction
+            trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
+            # Generate realisations that draw closer to baseline
+            regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
+            current = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
         
+        elif scenarios[state] != '':
+            current = np.array(current)
+        
+            # Make baseline cov for generating points
+            std_baseline = np.std(masks[state].values[-42:-28])
+            mu_baseline = np.mean(masks[state].values[-42:-28], axis=0)
+            mu_current = masks[state].values[-1]
+
+            if scenario_dates[state] != '':
+                scenario_change_point = (pd.to_datetime(scenario_dates[state]) - data_date).days + extra_days_masks
+
+            # Constant Lockdown
+            if scenarios[state] == "no_reversion":
+                # use only more recent data to forecast under a no-reversion scenario
+                # std_lockdown = np.std(masks[state].values[-24:-4])
+                # current = np.random.normal(mu_current, std_lockdown)
+                current = np.random.normal(mu_current, std_baseline)
+
+            # No Lockdown
+            elif scenarios[state] == "full_reversion":
+                if i < scenario_change_point:
+                    current = np.random.normal(mu_current, std_baseline)
+                else:
+                    mu_baseline_0 = 0.2
+                    # masksortion of trend_force to regression_to_baseline_force
+                    p_force = (n_forecast+extra_days_masks-i)/(n_forecast+extra_days_masks)
+                    # take a mean of the differences over the last 2 weeks
+                    mu_diffs = np.mean(np.diff(masks[state].values[-14:]))
+                    # Generate step realisations in training trend direction
+                    trend_force = np.random.normal(mu_diffs, std_baseline)
+                    # Generate realisations that draw closer to baseline
+                    regression_to_baseline_force = np.random.normal(0.005*(mu_baseline_0 - current), std_baseline)
+                    current = current+regression_to_baseline_force  # Balance forces
+            
+            elif scenarios[state] == "immediately_baseline":
+                # this scenario is an immediate return to baseline values 
+                if i < scenario_change_point:
+                    current = np.random.normal(mu_current, std_baseline)
+                else:
+                    mu_baseline_0 = 0.2
+                    # jump immediately to baseline
+                    current = np.random.normal(mu_baseline_0, std_baseline)
+
+            # Temporary Lockdown
+            elif scenarios[state] == "half_reversion":  # No Lockdown
+                if i < scenario_change_point:
+                    current = np.random.normal(mu_current, std_baseline)
+                else:
+                    # Revert to values halfway between the before and after
+                    current = np.random.normal((mu_current + mu_baseline)/2, std_baseline)
+
+            # # Stage 4
+            # Not yet implemented
+
+        new_masks_forecast.append(current)
+
+    masks_sims = np.vstack(new_masks_forecast)  # Put forecast days together
+    masks_sims = np.minimum(1, masks_sims)
+    masks_sims = np.maximum(0, masks_sims)
+
+    dd_masks = [masks[state].index[-1] + timedelta(days=x) for x in range(1, n_forecast+extra_days_masks+1)]
+    
     # Forecasting vaccine effect
     # Get a baseline value of vaccination
-    mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:])
-    vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
-    # mu_overall = np.mean(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_baseline:])
-    # vacc_diffs = np.diff(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_training:])
+    # forecasting using the Curtin VE 
+    # mu_overall = np.mean(vaccination_by_state.loc[state].values[-n_baseline:])
+    # vacc_diffs = np.diff(vaccination_by_state.loc[state].values[-n_training:])
+    # extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
+    # Set all values to current value but this will be filled 
+    # current = [vaccination_by_state.loc[state].values[-1]] * 1000
+    # current_tmp = [vaccination_by_state.loc[state].values[-1]] * 1000
+    
+    # forecasting using the inferred VE 
+    mu_overall = np.mean(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_baseline:])
+    vacc_diffs = np.diff(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_training_vaccination:])
     mu_diffs = np.mean(vacc_diffs)
     std_diffs = np.std(vacc_diffs)
-
-    # vaccination_last_fit_date = vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].index.values[-1] + pd.Timedelta(days=1)
-    # extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_last_fit_date)).days
-
-    extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_by_state.loc[state].index.values[-1])).days
+    vaccination_last_fit_date = vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].index.values[-1] + pd.Timedelta(days=1)
+    extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_last_fit_date)).days
 
     # Set all values to current value but this will be filled 
-    # current = [vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-1]] * 1000
-    # current_tmp = [vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-1]] * 1000
-    # Set all values to current value but this will be filled 
-        # Set all values to current value but this will be filled 
-    # Set all values to current value but this will be filled 
-    current = [vaccination_by_state.loc[state].values[-1]] * 1000
-    current_tmp = [vaccination_by_state.loc[state].values[-1]] * 1000
+    current = [vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-1]] * 1000
+    current_tmp = [vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-1]] * 1000
     new_vacc_forecast = []
     # Forecast mobility forward sequentially by day.
     total_forecasting_days = n_forecast + extra_days_vacc
@@ -469,11 +599,12 @@ for i, state in enumerate(states):
     # convert current to numpy array so we can take advantage of logical indexing
     current = np.array(current)
     for i in range(total_forecasting_days):
-        # trend force is consistent for vaccination 
-            # trend force is consistent for vaccination 
+        p_force = (total_forecasting_days-i)/(total_forecasting_days)
         # trend force is consistent for vaccination 
         trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
-        current = current + trend_force
+        # take the minimum of the previuos vax effect or the forecasted estimate 
+        # mixture model (to get slowdown) of p_force*trend_force + (1-p_force)*0 (i.e. flatline)
+        current = np.minimum(current, current + p_force*trend_force)
         new_vacc_forecast.append(current.tolist())
 
     vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
@@ -481,11 +612,13 @@ for i, state in enumerate(states):
     vacc_sims = np.maximum(max_vac_effect, vacc_sims)      # apply a maximum effect of 0.35 based off current observations from Nick
 
     # get dates
-    # dd_vacc = [pd.to_datetime(vaccination_last_fit_date) + timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
-    dd_vacc = [vaccination_by_state.loc[state].index[-1] + 
-                timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
+    # if using the Curtin VE 
+    # dd_vacc = [vaccination_by_state.loc[state].index[-1] + 
+                # timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
+    # if using the inferred VE 
+    dd_vacc = [pd.to_datetime(vaccination_last_fit_date) + timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
 
-    for j, var in enumerate(predictors+['md_prop']+['vaccination']):
+    for j, var in enumerate(predictors+['md_prop']+['masks_prop']+['vaccination']):
         # Record data
         axs = axes[j]
         if (state == 'AUS') and (var == 'md_prop'):
@@ -497,6 +630,13 @@ for i, state in enumerate(states):
             outdata['date'].extend([d.strftime('%Y-%m-%d') for d in dd_md])
             outdata['mean'].extend(np.mean(md_sims, axis=1))
             outdata['std'].extend(np.std(md_sims, axis=1))
+            
+        elif var == 'masks_prop':
+            outdata['type'].extend([var]*len(dd_masks))
+            outdata['state'].extend([state]*len(dd_masks))
+            outdata['date'].extend([d.strftime('%Y-%m-%d') for d in dd_masks])
+            outdata['mean'].extend(np.mean(masks_sims, axis=1))
+            outdata['std'].extend(np.std(masks_sims, axis=1))
 
         elif var == 'vaccination':
             outdata['type'].extend([var]*len(dd_vacc))
@@ -521,6 +661,14 @@ for i, state in enumerate(states):
                 axs[rownum, colnum].fill_between(dd_md, 
                                                  np.quantile(md_sims, 0.25, axis=1),
                                                  np.quantile(md_sims, 0.75, axis=1), color='k', alpha=0.1)
+                
+            elif var == 'masks_prop':
+                # masks plot
+                axs[rownum, colnum].plot(masks[state].index, masks[state].values, lw=1)
+                axs[rownum, colnum].plot(dd_masks, np.median(masks_sims, axis=1), 'k', lw=1)
+                axs[rownum, colnum].fill_between(dd_masks, 
+                                                 np.quantile(masks_sims, 0.25, axis=1),
+                                                 np.quantile(masks_sims, 0.75, axis=1), color='k', alpha=0.1)
 
             elif var == 'vaccination':
                 # vaccination plot
@@ -561,6 +709,8 @@ for i, state in enumerate(states):
                 axs[rownum, colnum].set_ylabel(predictors[j].replace('_', ' ')[:-5], fontsize=7)
             elif var == 'md_prop':
                 axs[rownum, colnum].set_ylabel('Proportion of respondents\n micro-distancing', fontsize=7)
+            elif var == 'masks_prop':
+                axs[rownum, colnum].set_ylabel('Proportion of respondents\n wearing masks', fontsize=7)
             elif var == 'vaccination':
                 axs[rownum, colnum].set_ylabel('Reduction in TP \n from vaccination', fontsize=7)
                 
@@ -581,6 +731,11 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/micro_dist.png", 
                     dpi=400)
+        
+    elif i == len(predictors)+1:      # this plots the microdistancing forecasts
+        fig.tight_layout()
+        fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/mask_wearing.png", 
+                    dpi=400)
 
     else:       # finally this plots the vaccination forecasts
         fig.tight_layout()
@@ -590,17 +745,20 @@ for i, fig in enumerate(figs):
 df_out = pd.DataFrame.from_dict(outdata)
 
 df_md = df_out.loc[df_out.type == 'md_prop']
+df_masks = df_out.loc[df_out.type == 'masks_prop']
 df_vaccination = df_out.loc[df_out.type == 'vaccination']
-df_out = df_out.loc[df_out.type != 'vaccination']
 
-# pull out md and vaccination in 2 steps cause not sure how to do it by a list
+df_out = df_out.loc[df_out.type != 'vaccination']
 df_out = df_out.loc[df_out.type != 'md_prop']
+df_out = df_out.loc[df_out.type != 'masks_prop']
 
 df_forecast = pd.pivot_table(df_out, columns=['type'], index=['date', 'state'], values=['mean'])
 df_std = pd.pivot_table(df_out, columns=['type'], index=['date', 'state'], values=['std'])
 
 df_forecast_md = pd.pivot_table(df_md, columns=['state'], index=['date'], values=['mean'])
 df_forecast_md_std = pd.pivot_table(df_md, columns=['state'], index=['date'], values=['std'])
+df_forecast_masks = pd.pivot_table(df_masks, columns=['state'], index=['date'], values=['mean'])
+df_forecast_masks_std = pd.pivot_table(df_masks, columns=['state'], index=['date'], values=['std'])
 
 # align with google order in columns
 df_forecast = df_forecast.reindex([('mean', val) for val in predictors], axis=1)
@@ -610,27 +768,36 @@ df_std.columns = predictors
 
 df_forecast_md = df_forecast_md.reindex([('mean', state) for state in states], axis=1)
 df_forecast_md_std = df_forecast_md_std.reindex([('std', state) for state in states], axis=1)
+df_forecast_masks = df_forecast_masks.reindex([('mean', state) for state in states], axis=1)
+df_forecast_masks_std = df_forecast_masks_std.reindex([('std', state) for state in states], axis=1)
 
 df_forecast_md.columns = states
 df_forecast_md_std.columns = states
+df_forecast_masks.columns = states
+df_forecast_masks_std.columns = states
 
 df_forecast = df_forecast.reset_index()
 df_std = df_std.reset_index()
 
 df_forecast_md = df_forecast_md.reset_index()
 df_forecast_md_std = df_forecast_md_std.reset_index()
+df_forecast_masks = df_forecast_masks.reset_index()
+df_forecast_masks_std = df_forecast_masks_std.reset_index()
 
 df_forecast.date = pd.to_datetime(df_forecast.date)
 df_std.date = pd.to_datetime(df_std.date)
 
 df_forecast_md.date = pd.to_datetime(df_forecast_md.date)
 df_forecast_md_std.date = pd.to_datetime(df_forecast_md_std.date)
+df_forecast_masks.date = pd.to_datetime(df_forecast_masks.date)
+df_forecast_masks_std.date = pd.to_datetime(df_forecast_masks_std.date)
 
 df_R = df_google[['date', 'state']+mov_values + [val+'_std' for val in mov_values]]
 df_R = pd.concat([df_R, df_forecast], ignore_index=True, sort=False)
 df_R['policy'] = (df_R.date >= '2020-03-20').astype('int8')
 
 df_md = pd.concat([prop, df_forecast_md.set_index('date')])
+df_masks = pd.concat([masks, df_forecast_masks.set_index('date')])
 
 df_forecast_vaccination = pd.pivot_table(df_vaccination, columns=['state'], index=['date'], values=['mean'])
 df_forecast_vaccination_std = pd.pivot_table(df_vaccination, columns=['state'], index=['date'], values=['std'])
@@ -715,6 +882,51 @@ fig.text(0.5, 0.04,
 
 plt.tight_layout(rect=[0.05, 0.04, 1, 1])
 fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/md_factor.png", 
+            dpi=144)
+
+theta_masks = np.tile(df_samples['theta_masks'].values, (df_masks['NSW'].shape[0], 1))
+
+fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+
+for i, state in enumerate(plot_states):
+    # np.random.normal(df_md[state].values, df_md_std.values)
+    masks_prop_sim = df_masks[state].values
+    if expo_decay:
+        mask_wearing_factor = ((1+theta_masks).T**(-1 * masks_prop_sim)).T
+    else:
+        mask_wearing_factor = (2*expit(-1*theta_masks*masks_prop_sim[:, np.newaxis]))
+
+    row = i//2
+    col = i % 2
+
+    ax[row, col].plot(df_masks[state].index, np.median(mask_wearing_factor, axis=1), label='Microdistancing')
+    ax[row, col].fill_between(df_masks[state].index, np.quantile(mask_wearing_factor, 0.25, axis=1), np.quantile(mask_wearing_factor, 0.75, axis=1),
+                              label='Microdistancing',
+                              alpha=0.4,
+                              color='C0')
+    ax[row, col].fill_between(df_masks[state].index, np.quantile(mask_wearing_factor, 0.05, axis=1), np.quantile(mask_wearing_factor, 0.95, axis=1),
+                              label='Microdistancing',
+                              alpha=0.4,
+                              color='C0')
+    ax[row, col].set_title(state)
+    ax[row, col].tick_params('x', rotation=45)
+
+    ax[row, col].set_xticks([df_masks[state].index.values[-n_forecast-extra_days_masks]], minor=True,)
+    ax[row, col].xaxis.grid(which='minor', linestyle='-.',
+                            color='grey', linewidth=1)
+
+fig.text(0.03, 0.5,
+         'Multiplicative effect \n of mask-wearing $M_d$',
+         ha='center', va='center', rotation='vertical',
+         fontsize=20)
+
+fig.text(0.5, 0.04,
+         'Date',
+         ha='center', va='center',
+         fontsize=20)
+
+plt.tight_layout(rect=[0.05, 0.04, 1, 1])
+fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/mask_wearing_factor.png", 
             dpi=144)
 
 n_samples = 100
@@ -830,13 +1042,17 @@ for typ in forecast_type:
         dd = df_state.date
         post_values = samples[predictors].values.T
         prop_sim = df_md[state].values
+        masks_prop_sim = df_masks[state].values
         # grab vaccination data 
         vacc_ts_data = df_vaccination[state]
 
         # take right size of md to be N by N
         theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0], n_samples))
+        theta_masks = np.tile(samples['theta_md'].values, (df_state.shape[0], n_samples))
+        
         if expo_decay:
             md = ((1+theta_md).T**(-1*prop_sim)).T
+            mask_wearing_factor = ((1+theta_masks).T**(-1*masks_prop_sim)).T
                 
         if state in third_states:
             third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
@@ -1148,7 +1364,7 @@ for typ in forecast_type:
                     voc_multiplier[ii] = voc_multiplier_delta[ii]
 
         # calculate TP 
-        R_L = 2 * md * sim_R * expit(logodds) * vacc_post * voc_multiplier
+        R_L = 2 * md * mask_wearing_factor * sim_R * expit(logodds) * vacc_post * voc_multiplier
 
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)
@@ -1231,8 +1447,7 @@ for i, state in enumerate(plot_states):
 
     plot_df = df_Rhats.loc[(df_Rhats.state == state) & (df_Rhats.type == 'R_L')]
 
-    ax[row, col].plot(plot_df.date, plot_df['mean'])
-
+    ax[row, col].plot(plot_df.date, plot_df['median'])
     ax[row, col].fill_between(plot_df.date, plot_df['lower'], plot_df['upper'], alpha=0.4, color='C0')
     ax[row, col].fill_between(plot_df.date, plot_df['bottom'], plot_df['top'], alpha=0.4, color='C0')
 
@@ -1247,8 +1462,7 @@ for i, state in enumerate(plot_states):
     # ax[row, col].set_xticks([plot_df.date.values[-n_forecast]], minor=True)
     ax[row, col].axvline(data_date, ls='-.', color='black', lw=1)
     # plot window start date
-    plot_window_start_date = min(pd.to_datetime(today) - timedelta(days=6*30), 
-                                 sim_start_date-timedelta(days=10))
+    plot_window_start_date = min(pd.to_datetime(today) - timedelta(days=6*30), sim_start_date-timedelta(days=10))
     
     # create a plot window over the last six months
     # ax[row, col].set_xlim((pd.to_datetime(today) - timedelta(days=6*30),
