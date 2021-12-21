@@ -22,9 +22,10 @@ In this markdown document we outline the requirements for both and provide the s
 ## Data
 1. In the covid forecasting directory (from github) create a data folder called `data`. 
 2. Create folder for the microdistancing surveys called `md`. This needs to contain `Barometer wave XX compliance.csv` files up to the current wave. 
-3. Download latest NNDSS data or linelist from Mediaflux. Put in `/data`.
-4. Put `vaccine_effect_timeseries_xxxx-xx-xx.csv` in `/data`. Rename this to have the same file name as the NNDSS data.
-5. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `/data`.
+3. Create folder for the mask wearing surveys called `face_coverings`. This needs to contain `face_covering_XX_.csv` files up to the current wave. 
+4. Download latest NNDSS data or linelist from Mediaflux. Put in `/data`.
+5. Put `vaccine_effect_timeseries_xxxx-xx-xx.csv` in `/data`. Rename this to have the same file date as the NNDSS data.
+6. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `/data`.
 
 ## What you need installed
 To run the full pipeline you will need `matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy pytables`. For older versions of Python, you can use `stan` instead of `pystan`. This can be triggered by setting `on_phoenix=True` in `params.py`.
@@ -37,7 +38,7 @@ The `on_phoenix` flag tells the model to use a slightly older version of Pystan 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ## Required arguments
 ```
-DATADATE='2021-12-14'   # Date of NNDSS data file
+DATADATE='2021-12-21'   # Date of NNDSS data file
 NSIMS=20000               # Total number of simulations to run should be > 5000
 APPLY_SEEDING='False'
 ```
