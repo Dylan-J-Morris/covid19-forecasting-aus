@@ -35,8 +35,6 @@ data {
     vector[N_sec_wave] respond_md_sec_wave[j_sec_wave];
     vector[N_third_wave] count_md_third_wave[j_third_wave];
     vector[N_third_wave] respond_md_third_wave[j_third_wave];
-    // vector[N_sec_wave] count_masks_sec_wave[j_sec_wave];
-    // vector[N_sec_wave] respond_masks_sec_wave[j_sec_wave];
     vector[N_third_wave] count_masks_third_wave[j_third_wave];
     vector[N_third_wave] respond_masks_third_wave[j_third_wave];
     int map_to_state_index_first[j_first_wave];
@@ -73,7 +71,6 @@ parameters {
     vector<lower=0,upper=1>[total_N_p_sec] brho_sec_wave;
     vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;
     real<lower=0> theta_masks;
-    // vector<lower=0,upper=1>[total_N_p_sec] prop_masks_sec_wave;
     vector<lower=0,upper=1>[total_N_p_third] prop_masks_third_wave;
     real<lower=0> additive_voc_effect_alpha;
     real<lower=0> additive_voc_effect_delta;
@@ -85,7 +82,7 @@ parameters {
     vector<lower=0,upper=1>[total_N_p_third_omicron_3_blocks] prop_omicron_to_delta_3_day_block;
 }
 transformed parameters {
-    // adjusted voc effects, we only sample the additive component to improve efficiency of stan 
+    // adjusted voc effects
     real<lower=0> voc_effect_alpha = 1 + additive_voc_effect_alpha;
     real<lower=0> voc_effect_delta = 1 + additive_voc_effect_delta;
     real<lower=0> voc_effect_omicron = 1 + additive_voc_effect_omicron;
@@ -98,7 +95,6 @@ transformed parameters {
     vector<lower=0>[total_N_p_sec] md_sec_wave;
     vector<lower=0>[total_N_p_third] md_third_wave;
     // mask wearing model
-    // vector<lower=0>[total_N_p_sec] masks_sec_wave;
     vector<lower=0>[total_N_p_third] masks_third_wave;
     // ordered vaccine effect with length equal to total number of days across each jurisdiction         
     vector[total_N_p_third] vacc_effect;       
@@ -139,11 +135,11 @@ transformed parameters {
                             pos_omicron_counter = 0;
                             pos_omicron2 += 1;
                         }
-                    }       
+                    }
                 }
             }
-        }  
-    }  
+        }
+    }
     // first wave model 
     for (i in 1:j_first_wave) {
         real TP_local;
@@ -172,11 +168,9 @@ transformed parameters {
         for (n in 1:N_sec_wave){
             if (include_in_sec_wave[i][n] == 1){        
                 md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
-                // masks_sec_wave[pos] = pow(1+theta_masks,-1*prop_masks_sec_wave[pos]);
-                // social_measures = (
-                //     (1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n]
-                // )*inv_logit(Mob_sec_wave[i][n,:]*(bet))*masks_sec_wave[pos];
-                social_measures = ((1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n])*inv_logit(Mob_sec_wave[i][n,:]*(bet));
+                social_measures = (
+                    (1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n]
+                    )*inv_logit(Mob_sec_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures; //mean estimate
                 mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*TP_local;
                 pos += 1;
@@ -210,14 +204,14 @@ transformed parameters {
                 md_third_wave[pos] = pow(1+theta_md,-1*prop_md_third_wave[pos]);                
                 masks_third_wave[pos] = pow(1+theta_masks,-1*prop_masks_third_wave[pos]);                
                 // applying the return to homogeneity in vaccination effect 
-                if (n < decay_start_date_third){
+                if (n <= decay_start_date_third){
                     decay_in_heterogeneity = eta[i];
                 } else{
                     decay_in_heterogeneity = eta[i]*exp(-r[i]*(n - decay_start_date_third));
                 }
                 // vaccine effect in the absence of Omicron 
                 vacc_effect_tmp = decay_in_heterogeneity + (1-decay_in_heterogeneity) * vacc_effect[pos];
-                if (n < omicron_start_day){
+                if (n <= omicron_start_day){
                     vacc_effect_tot = vacc_effect_tmp; 
                     voc_effect_tot = voc_effect_delta;
                 } else {
@@ -261,8 +255,7 @@ model {
     bet ~ normal(0, 1.0);
     theta_md ~ lognormal(0, 0.5);
     theta_masks ~ lognormal(0, 0.5);
-    // note gamma parametrisation is Gamma(alpha,beta) => mean = alpha/beta 
-    // parametersiing the following as voc_eff ~ 1 + gamma(a,b)
+    // parameterised as 1 + gamma
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
     additive_voc_effect_delta ~ gamma(1.5*1.5/0.05, 1.5/0.05);
     // assume that omicron is similar to delta

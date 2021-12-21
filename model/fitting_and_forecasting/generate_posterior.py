@@ -448,8 +448,6 @@ input_data = {
     'respond_md_sec_wave': sec_respond_by_state,
     'count_md_third_wave': third_count_by_state,
     'respond_md_third_wave': third_respond_by_state,
-    # 'count_masks_sec_wave': sec_mask_wearing_count_by_state,
-    # 'respond_masks_sec_wave': sec_mask_wearing_respond_by_state,
     'count_masks_third_wave': third_mask_wearing_count_by_state,
     'respond_masks_third_wave': third_mask_wearing_respond_by_state,
     'map_to_state_index_first': [state_index[state] for state in first_states],
@@ -1077,7 +1075,7 @@ plot_third_fit = True
 # extract the propn of omicron to delta
 total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
 prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta[" + str(j) + "]" for j in range(1, total_N_p_third_omicron+1)]]
-pd.DataFrame(prop_omicron_to_delta.to_csv('prop_omicron_to_delta.csv'))
+pd.DataFrame(prop_omicron_to_delta.to_csv('results/prop_omicron_to_delta' + data_date.strftime("%Y-%m-%d") + '.csv'))
 
 if df3X.shape[0] > 0:
     df['is_third_wave'] = 0
@@ -1105,6 +1103,29 @@ if df3X.shape[0] > 0:
     # remove plots from memory
     fig.clear()
     plt.close(fig)
+
+# total 
+total = np.array([sum(v >= pd.to_datetime(omicron_start_date)) for v in third_date_range.values()])
+total = np.append([0], np.cumsum(total))
+prop_omicron_to_delta_dict = {}
+for (i, k) in enumerate(third_date_range.keys()):
+    prop_omicron_to_delta_dict[k] = prop_omicron_to_delta.iloc[:, total[i]:total[i+1]]
+
+omicron_date_range = pd.date_range(omicron_start_date, third_end_date)
+
+fig, ax = plt.subplots(figsize=(15, 12), nrows=3, ncols=2, sharex=True, sharey=True)
+
+for (i, s) in enumerate(third_date_range.keys()):
+    ax[i//2,i%2].plot(omicron_date_range[-prop_omicron_to_delta_dict[s].shape[1]:], np.median(prop_omicron_to_delta_dict[s], axis=0))
+    ax[i//2,i%2].fill_between(omicron_date_range[-prop_omicron_to_delta_dict[s].shape[1]:], np.quantile(prop_omicron_to_delta_dict[s], 0.05, axis=0), np.quantile(prop_omicron_to_delta_dict[s], 0.95, axis=0), alpha=0.2)
+    ax[i//2,i%2].set_title(s)
+    ax[i//2,i%2].xaxis.set_major_locator(plt.MaxNLocator(3))
+
+ax[1,0].set_ylabel('Proportion of Omicron cases to Delta')
+
+fig.tight_layout()
+
+plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"omicron_proportion.png", dpi=144)
 
 ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 

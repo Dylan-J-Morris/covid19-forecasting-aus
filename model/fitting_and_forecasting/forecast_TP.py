@@ -1224,8 +1224,9 @@ for typ in forecast_type:
         TP_omicron = 2*md*sim_R*expit(logodds)*voc_multiplier_omicron*vacc_post_omicron
         # calculate the expected TP each day for delta and omicron using the posterior sample
         rows = (omicron_start_day + len(idx[state]))
-        E_TP_delta = np.mean(TP_delta[rows:, :])
-        E_TP_omicron = np.mean(TP_omicron[rows:, :])
+        # take the mean down the columns (i.e. over the whole forecast period)
+        E_TP_delta = np.mean(TP_delta[rows:, :], axis=0)
+        E_TP_omicron = np.mean(TP_omicron[rows:, :], axis=0)
         # expected generation interval (Gamma(2.75, 1))
         E_gen_int = 2.75
         # exponent term in exponential increase of cases 
