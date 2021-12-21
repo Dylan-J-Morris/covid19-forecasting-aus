@@ -1,24 +1,24 @@
 ##### TP forecasting parameters 
 # define scenarios for each state
 scenarios = {
-    'NSW': 'full_reversion',
+    'NSW': '',
     'QLD': '',
     'SA': '',
     'TAS': '',
-    'VIC': 'full_reversion',
+    'VIC': '',
     'WA': '',
-    'ACT': 'full_reversion',
+    'ACT': '',
     'NT': ''
 }
 
 # define scenario date for each state
 scenario_dates = {
-    'NSW': '2021-10-12',
+    'NSW': '',
     'QLD': '',
     'SA': '',
     'TAS': '',
-    'VIC': '2021-10-22',
+    'VIC': '',
     'WA': '',
-    'ACT': '2021-10-15',
+    'ACT': '',
     'NT': ''
 }

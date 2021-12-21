@@ -420,6 +420,7 @@ for i, state in enumerate(states):
             # Generate realisations that draw closer to baseline
             regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
             current = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
+            # current = current+p_force*trend_force  # Balance forces
         
         elif scenarios[state] != '':
             current = np.array(current)
@@ -508,6 +509,7 @@ for i, state in enumerate(states):
             # Generate realisations that draw closer to baseline
             regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
             current = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
+            # current = current+trend_force 
         
         elif scenarios[state] != '':
             current = np.array(current)
