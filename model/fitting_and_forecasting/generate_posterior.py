@@ -237,7 +237,7 @@ for state in third_states:
     df3X.loc[df3X.state == state, 'is_third_wave'] = df3X.loc[df3X.state == state].date.isin(third_date_range[state]).astype(int).values
     # condition on being in third wave AND omicron
     df3X.loc[df3X.state == state, 'is_omicron_wave'] = (
-        df3X.loc[df3X.state == state].date.isin(omicron_date_range) * df3X.loc[df3X.state == state].date.isin(third_date_range[state])
+        df3X.loc[df3X.state == state].date.isin(omicron_date_range) & df3X.loc[df3X.state == state].date.isin(third_date_range[state])
     ).astype(int).values
 
 data_by_state = {}
