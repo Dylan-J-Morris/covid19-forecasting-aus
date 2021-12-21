@@ -77,7 +77,7 @@ parameters {
     real<lower=0> additive_voc_effect_omicron;                             
     vector<lower=0,upper=1>[j_third_wave] eta;
     vector<lower=0>[j_third_wave] r;
-    positive_ordered[N_third_wave+2] vacc_effect_ordered[j_third_wave];
+    positive_ordered[N_third_wave+1] vacc_effect_ordered[j_third_wave];
     real<lower=0,upper=1> reduction_vacc_effect_omicron;
     vector<lower=0,upper=1>[total_N_p_third_omicron_3_blocks] prop_omicron_to_delta_3_day_block;
 }
@@ -233,7 +233,8 @@ transformed parameters {
                 }
                 social_measures = (
                     (1-policy_third_wave[n])+
-                    md_third_wave[pos]*masks_third_wave[pos]*policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
+                    md_third_wave[pos]*masks_third_wave[pos]*policy_third_wave[n]
+                    )*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_tot*vacc_effect_tot;
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*TP_local;
                 pos += 1;
@@ -330,19 +331,14 @@ model {
                     // the mean vaccination effect should be the data supplied
                     vacc_mu = vaccine_effect_data[i][n-1]; 
                     // for the first value we assume the mean of the data as the initial value
-                    vacc_effect_ordered[i][N_third_wave+2] ~ normal(vacc_mu, 0.001);    
+                    vacc_effect_ordered[i][N_third_wave+1] ~ normal(vacc_mu, 0.001);    
                     pos3 += 1;
                 }
                 // the mean vaccination effect should be the data supplied
                 vacc_mu = vaccine_effect_data[i][n];
                 // vaccine effect distributed around mean of the vaccine effect but 
                 // needs to be truncated above by the previous value (dealt with by the ordered vector type)
-                vacc_effect_ordered[i][N_third_wave+2-pos3] ~ normal(vacc_mu, vacc_sig);    
-                if (n < N_third_wave && include_in_third_wave[i][n+1] != 0){
-                    vacc_effect_ordered[i][N_third_wave+2-pos3] ~ normal(vacc_mu, vacc_sig);    
-                } else {
-                    vacc_effect_ordered[i][N_third_wave+2-(pos3+1)] ~ normal(vacc_mu, 0.001);    
-                }
+                vacc_effect_ordered[i][N_third_wave+1-pos3] ~ normal(vacc_mu, vacc_sig);    
                 // assuming delta is dominant early on and proportion of omicron is low in comparison
                 if (include_in_omicron_wave[i][n] == 1){
                     // only sample on the first day of the 3 day window (i.e. sample each block)
