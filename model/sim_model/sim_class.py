@@ -966,7 +966,7 @@ class Forecast:
         # self.min_cases_in_windows[:-1] = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[:-1]))
         self.min_cases_in_windows[-1] = np.maximum(0, np.floor(low_limit_nowcast*self.cases_in_windows[-1]))
         
-        self.max_cases = max(1000000, sum(df.local.values) + sum(df.imported.values))
+        self.max_cases = max(1500000, sum(df.local.values) + sum(df.imported.values))
 
     def import_cases_model(self, df):
         """
