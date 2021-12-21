@@ -118,7 +118,7 @@ mask_wearing_respond_base = pd.pivot_table(data=mask_wearing_always, index='date
 
 ######### Read in EpyReff results #########
 # df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_4.csv", parse_dates=['INFECTION_DATES'])
-df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_3.csv", parse_dates=['INFECTION_DATES'])
+df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_5.csv", parse_dates=['INFECTION_DATES'])
 df_Reff['date'] = df_Reff.INFECTION_DATES
 df_Reff['state'] = df_Reff.STATE
 
