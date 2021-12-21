@@ -448,6 +448,8 @@ input_data = {
     'respond_md_sec_wave': sec_respond_by_state,
     'count_md_third_wave': third_count_by_state,
     'respond_md_third_wave': third_respond_by_state,
+    # 'count_masks_sec_wave': sec_mask_wearing_count_by_state,
+    # 'respond_masks_sec_wave': sec_mask_wearing_respond_by_state,
     'count_masks_third_wave': third_mask_wearing_count_by_state,
     'respond_masks_third_wave': third_mask_wearing_respond_by_state,
     'map_to_state_index_first': [state_index[state] for state in first_states],
@@ -455,16 +457,13 @@ input_data = {
     'map_to_state_index_third': [state_index[state] for state in third_states],
     'total_N_p_sec': sum([sum(x) for x in include_in_sec_wave]).item(),
     'total_N_p_third': sum([sum(x) for x in include_in_third_wave]).item(),
-    # The include_in_..._wave variables are used for appropriate indexing inside of stan
     'include_in_first_wave': include_in_first_wave,
     'include_in_sec_wave': include_in_sec_wave,
     'include_in_third_wave': include_in_third_wave,
     'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
     'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
-    # days into third wave that we start return to homogoeneity in vaccination
     'decay_start_date_third': decay_start_date_third,
-    'vaccine_effect_data': vaccination_by_state_array,  # the vaccination data
-    # omicron stuff
+    'vaccine_effect_data': vaccination_by_state_array,
     'omicron_start_day': omicron_start_day,
     'include_in_omicron_wave': include_in_omicron_wave,
     'total_N_p_third_omicron': int(sum([sum(x) for x in include_in_omicron_wave]).item()),

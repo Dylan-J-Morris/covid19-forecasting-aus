@@ -586,7 +586,7 @@ for i, state in enumerate(states):
     vacc_diffs = np.diff(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_training_vaccination:])
     mu_diffs = np.mean(vacc_diffs)
     std_diffs = np.std(vacc_diffs)
-    vaccination_last_fit_date = vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].index.values[-1] + pd.Timedelta(days=1)
+    vaccination_last_fit_date = vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].index.values[-1]
     extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_last_fit_date)).days
 
     # Set all values to current value but this will be filled 
@@ -809,10 +809,16 @@ df_forecast_vaccination = df_forecast_vaccination.reset_index()
 df_forecast_vaccination_std = df_forecast_vaccination_std.reset_index()
 df_forecast_vaccination.date = pd.to_datetime(df_forecast_vaccination.date)
 df_forecast_vaccination_std.date = pd.to_datetime(df_forecast_vaccination_std.date)
+# set the index to be the date
+df_forecast_vaccination = df_forecast_vaccination.set_index('date')
 
-# now we read in the vaccine time series again...
-vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+
-                                    data_date.strftime('%Y-%m-%d')+'.csv', 
+# now we read in the correct vaccine time series again...
+# vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+
+#                                     data_date.strftime('%Y-%m-%d')+'.csv', 
+#                                     parse_dates=['date'])
+vaccination_by_state = pd.read_csv('results/adjusted_vaccine_ts'+ 
+                                    data_date.strftime('%Y-%m-%d')+
+                                    '.csv', 
                                     parse_dates=['date'])
 # there are a couple NA's early on in the time series but is likely due to slightly different start dates
 vaccination_by_state.fillna(1, inplace=True)
@@ -831,9 +837,16 @@ before_vacc_Reff_reduction.index = vaccination_by_state.index
 
 # merge the vaccine data and the 1's dataframes
 vacc_df = pd.concat([before_vacc_Reff_reduction.T, vaccination_by_state.T])
-
-# merge the dfs of the past and forecasted values on the date
-df_vaccination = pd.concat([vacc_df, df_forecast_vaccination.set_index('date')])
+# initialise a complete dataframe which will be the full VE timeseries plus the forecasted VE 
+df_vaccination = pd.DataFrame()
+# loop over states and get the offset compoonenets of the full VE 
+for state in states:
+    df_vaccination1 = vacc_df[state][~vacc_df[state].isna()]
+    df_vaccination2 = df_forecast_vaccination[state][~df_forecast_vaccination[state].isna()]
+    # merge the offsets and add to columns
+    df_vaccination_combined = pd.concat([df_vaccination1, df_vaccination2])
+    df_vaccination[state] = df_vaccination_combined
+    
 # save the forecasted vaccination line
 os.makedirs("results/forecasting/", exist_ok=True)
 df_vaccination.to_csv("results/forecasting/forecasted_vaccination.csv")
@@ -929,57 +942,6 @@ plt.tight_layout(rect=[0.05, 0.04, 1, 1])
 fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/mask_wearing_factor.png", 
             dpi=144)
 
-n_samples = 100
-df_R = df_R.sort_values('date')
-samples = df_samples.sample(n_samples)  # test on sample of 2
-# samples = df_samples
-forecast_type = ['R_L', 'R_L0']
-state_Rs = {
-    'state': [],
-    'date': [],
-    'type': [],
-    'median': [],
-    'lower': [],
-    'upper': [],
-    'bottom': [],
-    'top': [],
-    'mean': [],
-    'std': [],
-}
-ban = '2020-03-20'
-# VIC and NSW allow gatherings of up to 20 people, other jurisdictions allow for
-new_pol = '2020-06-01'
-
-expo_decay = True
-
-# start and end date for the third wave
-# Subtract 10 days to avoid right truncation
-third_end_date = data_date - pd.Timedelta(days=truncation_days)
-
-typ_state_R = {}
-mob_forecast_date = df_forecast.date.min()
-
-state_key = {
-    'ACT': '1',
-    'NSW': '2',
-    'QLD': '3',
-    'SA': '4',
-    'TAS': '5',
-    'VIC': '6',
-    'WA': '7',
-}
-
-total_N_p_third_omicron = 0
-for v in third_date_range.values():
-    tmp = sum(v >= pd.to_datetime(omicron_start_date))
-    # add a plus one for inclusion of end date (the else 0 is due to QLD having no Omicron potential)
-    total_N_p_third_omicron += tmp if tmp > 0 else 0
-
-# flags for advanced scenario modelling
-advanced_scenario_modelling = False
-save_for_SA = False
-# since this can be useful, predictor ordering is: 
-# ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
 n_samples = 100
 df_R = df_R.sort_values('date')
 samples = df_samples.sample(n_samples)  # test on sample of 2
