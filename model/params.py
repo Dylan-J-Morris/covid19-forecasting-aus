@@ -8,7 +8,7 @@ run_TP_adjustment = False
 use_TP_adjustment = False
 testing_inference = False if on_phoenix else True
 n_days_nowcast_TP_adjustment = 45
-num_TP_samples = 2000       # number of forecasted TP samples to save 
+num_TP_samples = 2500       # number of forecasted TP samples to save 
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
@@ -21,12 +21,12 @@ start_date = '2021-06-23'
 
 start_dates = {
     'NSW': start_date,
-    'QLD': start_date,
-    'SA': start_date,
-    'TAS': start_date,
-    'WA': start_date,
-    'ACT': start_date,
-    'NT': start_date,
+    'QLD': '2021-06-23',
+    'SA': '2021-06-23',
+    'TAS': '2021-06-23',
+    'WA': '2021-06-23',
+    'ACT': '2021-06-23',
+    'NT': '2021-06-23',
     'VIC': '2021-08-01',
 }
 
