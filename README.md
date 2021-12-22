@@ -39,7 +39,7 @@ Run these at the command line. Number of sims is used to name some of the files.
 ## Required arguments
 ```
 DATADATE='2021-12-21'   # Date of NNDSS data file
-NSIMS=20000               # Total number of simulations to run should be > 5000
+NSIMS=100000               # Total number of simulations to run should be > 5000
 APPLY_SEEDING='False'
 ```
 
