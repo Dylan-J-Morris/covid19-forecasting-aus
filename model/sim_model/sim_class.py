@@ -504,7 +504,7 @@ class Forecast:
                     # print("missing an outbreak")
                     self.daycount += 1
                     if (self.daycount >= reinitialising_window):
-                        n_resim +=1
+                        n_resim += 1
                         #print("Local outbreak in "+self.state+" not simulated on day %i" % day)
                         #cases to add
                         #treat current like empty list
@@ -657,8 +657,8 @@ class Forecast:
         # loop over windows and check for whether we have exceeded the cases in any window 
         # don't check the last window corresponding to nowcast
         if (self.sim_cases_in_window > self.max_cases_in_windows).any(): 
-            tmp = np.where(self.sim_cases_in_window > self.max_cases_in_windows)[0][0]
             if self.print_at_iterations:
+                tmp = np.where(self.sim_cases_in_window > self.max_cases_in_windows)[0][0]
                 self.error_message = "too many in window: " + str(tmp) + " cases: " + str(self.sim_cases_in_window[tmp]) + " max cases: " + str(self.max_cases_in_windows[tmp])
             return True 
         else: 
@@ -671,9 +671,9 @@ class Forecast:
         
         # loop over the windows and check to see whether we are below the windows
         if (self.sim_cases_in_window < self.min_cases_in_windows).any():
-            tmp = np.where(self.sim_cases_in_window < self.min_cases_in_windows)[0][0]
             if self.print_at_iterations:
-                self.error_message = "too many in window: " + str(tmp) + " cases: " + str(self.sim_cases_in_window[tmp]) + " max cases: " + str(self.max_cases_in_windows[tmp])
+                tmp = np.where(self.sim_cases_in_window < self.min_cases_in_windows)[0][0]
+                self.error_message = "too few in window: " + str(tmp) + " cases: " + str(self.sim_cases_in_window[tmp]) + " max cases: " + str(self.min_cases_in_windows[tmp])
             self.bad_sim = True 
         
     def increment_counters(self, detect_time, category):
@@ -961,12 +961,12 @@ class Forecast:
         for i in range(len(self.min_cases_in_windows)-1):
             # this is the same approach used for the max_cases_in_windows but ensures the minimum number of cases is 0 
             tmp = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[i]))
-            self.min_cases_in_windows[i] = tmp if tmp >= 10 else 0 
+            self.min_cases_in_windows[i] = tmp if tmp >= 50 else 0 
         
         # self.min_cases_in_windows[:-1] = np.maximum(0, np.floor(low_limit_backcast*self.cases_in_windows[:-1]))
         self.min_cases_in_windows[-1] = np.maximum(0, np.floor(low_limit_nowcast*self.cases_in_windows[-1]))
         
-        self.max_cases = max(1500000, sum(df.local.values) + sum(df.imported.values))
+        self.max_cases = max(1000000, sum(df.local.values) + sum(df.imported.values))
 
     def import_cases_model(self, df):
         """
