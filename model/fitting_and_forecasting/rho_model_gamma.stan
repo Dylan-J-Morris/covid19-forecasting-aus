@@ -343,11 +343,12 @@ model {
                 if (include_in_omicron_wave[i][n] == 1){
                     // only sample on the first day of the 3 day window (i.e. sample each block)
                     if (pos_omicron_counter == 0){
-                        if (map_to_state_index_third[i] == 2){
-                            prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2, 50);
-                        } else {
-                            prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2, 200);
-                        }
+                        // if (map_to_state_index_third[i] == 2){
+                        //     prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2, 50);
+                        // } else {
+                        //     prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2, 200);
+                        // }
+                        prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2, 50);
                         pos_omicron2 += 1;
                     }
                     // increment counter
