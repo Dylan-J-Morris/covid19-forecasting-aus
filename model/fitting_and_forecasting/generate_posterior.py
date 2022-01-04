@@ -24,7 +24,8 @@ from math import ceil
 
 matplotlib.use('Agg')
 from params import apply_vacc_to_R_L_hats, truncation_days, download_google_automatically, \
-    run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference, omicron_start_date
+    run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference, omicron_start_date, \
+    pop_sizes
 # depending on whether we are on phoenix or not changes the version of stan
 if on_phoenix:
     import pystan
@@ -104,6 +105,8 @@ mask_wearing_always.index.name = 'date'
 # fill back to earlier and between weeks.
 # Assume survey on day x applies for all days up to x - 6
 mask_wearing_always = mask_wearing_always.fillna(method='bfill')
+# assume values continue forward if survey hasn't completed
+mask_wearing_always = mask_wearing_always.fillna(method='ffill')
 mask_wearing_always = mask_wearing_always.stack(['state'])
 
 # Zero out before first survey 20th March
@@ -410,6 +413,12 @@ N_vaccine_data_third = [v.shape[0] for (k, v) in third_date_range.items()]
 apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int) 
 omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)).days    
     
+# get pop size array 
+pop_size_array = np.zeros(len(states_to_fit_all_waves))
+for (i, s) in enumerate(states_to_fit_all_waves): 
+    pop_size_array[i] = pop_sizes[s]
+
+    
 # input data block for stan model
 input_data = {
     'j_total': len(states_to_fit_all_waves),
@@ -467,7 +476,8 @@ input_data = {
     'total_N_p_third_omicron': int(sum([sum(x) for x in include_in_omicron_wave]).item()),
     'pos_starts_third_omicron': np.cumsum([sum(x) for x in include_in_omicron_wave]).astype(int),
     'total_N_p_third_omicron_3_blocks': int(sum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave])),
-    'pos_starts_third_omicron_3_blocks': np.cumsum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave]).astype(int)
+    'pos_starts_third_omicron_3_blocks': np.cumsum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave]).astype(int),
+    'pop_size_array': pop_size_array.astype(int)
 }
 
 # make results dir

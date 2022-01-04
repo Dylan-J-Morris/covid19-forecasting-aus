@@ -1238,7 +1238,7 @@ for typ in forecast_type:
         
         # loop over days in third wave and apply the appropriate form (i.e. decay or not)
         # note that in here we apply the entire sample to the vaccination data to create a days by samples array
-        if state in {'NSW'}:
+        if state in {'NSW', 'QLD'}:
             for ii in range(vacc_post.shape[0]):
                 if ii < heterogeneity_delay_start_day:
                     vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
@@ -1505,7 +1505,8 @@ df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'uppe
 df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
-# df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
+# save the file as a csv
+df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5', key='Reff')
 
 if run_TP_adjustment:

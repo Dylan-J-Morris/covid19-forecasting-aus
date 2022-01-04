@@ -55,6 +55,7 @@ data {
     int pos_starts_third_omicron[j_third_wave];
     int total_N_p_third_omicron_3_blocks;
     int pos_starts_third_omicron_3_blocks[j_third_wave];
+    int pop_size_array[j_total];
 }
 
 parameters {
@@ -80,6 +81,7 @@ parameters {
     positive_ordered[N_third_wave+1] vacc_effect_ordered[j_third_wave];
     real<lower=0,upper=1> reduction_vacc_effect_omicron;
     vector<lower=0,upper=1>[total_N_p_third_omicron_3_blocks] prop_omicron_to_delta_3_day_block;
+    vector<lower=0,upper=1>[j_total] susceptible_depletion_factor;
 }
 transformed parameters {
     // adjusted voc effects
@@ -148,7 +150,9 @@ transformed parameters {
             if (include_in_first_wave[i][n] == 1){
                 md[n,i] = pow(1+theta_md, -1*prop_md[n,i]);
                 social_measures = ((1-policy[n]) + md[n,i]*policy[n])*inv_logit(Mob[i][n,:]*(bet));
-                TP_local = 2*R_Li[map_to_state_index_first[i]]*social_measures;
+                TP_local = 2*R_Li[map_to_state_index_first[i]]*social_measures*(
+                    1-susceptible_depletion_factor[map_to_state_index_first[i]]
+                    *local[n,i]/pop_size_array[map_to_state_index_first[i]]);
                 mu_hat[n,i] = brho[n,i]*R_I + (1-brho[n,i])*TP_local; 
             }
         }
@@ -172,7 +176,9 @@ transformed parameters {
                     (1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n]
                     )*inv_logit(Mob_sec_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures; //mean estimate
-                mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*TP_local;
+                mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*TP_local*(
+                    1-susceptible_depletion_factor[map_to_state_index_sec[i]]
+                    *local_sec_wave[n,i]/pop_size_array[map_to_state_index_sec[i]]);
                 pos += 1;
             }
         }
@@ -218,8 +224,8 @@ transformed parameters {
                     // applying mixture model (expanded) to the vaccination effect
                     vacc_effect_tot = 1 + (
                         (prop_omicron_to_delta_3_day_block[pos_omicron2]
-                        -prop_omicron_to_delta_3_day_block[pos_omicron2]*reduction_vacc_effect_omicron-1) * 
-                        (1-vacc_effect_tmp));
+                        -prop_omicron_to_delta_3_day_block[pos_omicron2]*reduction_vacc_effect_omicron-1) 
+                        *(1-vacc_effect_tmp));
                     voc_effect_tot = (
                         voc_effect_omicron * prop_omicron_to_delta_3_day_block[pos_omicron2] 
                         + voc_effect_delta * (1-prop_omicron_to_delta_3_day_block[pos_omicron2]));
@@ -235,7 +241,9 @@ transformed parameters {
                     (1-policy_third_wave[n])+
                     md_third_wave[pos]*masks_third_wave[pos]*policy_third_wave[n]
                     )*inv_logit(Mob_third_wave[i][n,:]*(bet));
-                TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_tot*vacc_effect_tot;
+                TP_local = 2*R_Li[map_to_state_index_third[i]]*social_measures*voc_effect_tot*vacc_effect_tot*(
+                    1-susceptible_depletion_factor[map_to_state_index_third[i]]
+                    *local_third_wave[n,i]/pop_size_array[map_to_state_index_third[i]]);
                 mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I + (1-brho_third_wave[pos])*TP_local;
                 pos += 1;
             }
@@ -266,6 +274,8 @@ model {
     r ~ lognormal(log(0.16), 0.1);
     // reduction in vaccine effect due to omicron mean of 0.7
     reduction_vacc_effect_omicron ~ beta(75, 50);
+    // susceptible depletion
+    susceptible_depletion_factor ~ beta(1, 1);
     // hierarchical model for the baseline RL's
     R_L ~ gamma(1.7*1.7/0.005,1.7/0.005); //hyper-prior
     R_I ~ gamma(0.5*0.5/0.2,0.5/0.2);

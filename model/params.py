@@ -1,14 +1,14 @@
 ##### Key parameters
 use_linelist = True
 use_imputed_linelist = False
-on_phoenix = True   # flag for running on phoenix
+on_phoenix = False   # flag for running on phoenix
 run_inference = True    # whether the inference should be run
 run_inference_only = False
 run_TP_adjustment = False
 use_TP_adjustment = False
 testing_inference = False if on_phoenix else True
 n_days_nowcast_TP_adjustment = 45
-num_TP_samples = 2500       # number of forecasted TP samples to save 
+num_TP_samples = 2000       # number of forecasted TP samples to save 
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
@@ -130,4 +130,17 @@ alpha_i = {
     'WA': alpha_i_all,
     'ACT': alpha_i_all,
     'NT': alpha_i_all
+}
+
+# pulled from 
+# https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/latest-release
+pop_sizes = {
+    'NSW': 8189266,
+    'QLD': 5221170,
+    'SA': 1773243,
+    'TAS': 541479,
+    'VIC': 6649159,
+    'WA': 2681633,
+    'ACT': 432266,
+    'NT': 246338
 }

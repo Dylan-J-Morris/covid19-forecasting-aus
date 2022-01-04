@@ -1,35 +1,35 @@
 import sys
 sys.path.insert(0,'model')
-from params import start_date, num_forecast_days
+from params import start_date, num_forecast_days, start_dates
 import pandas as pd
 import numpy as np
 from datetime import timedelta, datetime
 from sys import argv
 
 states = ['NSW', 'QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
+# states = ['QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
+# states = ['SA']
 n_sims = int(argv[1])
 
 forecast_type = 'R_L'  # default None
 forecast_date = argv[2]  # format should be '%Y-%m-%d'
-end_date = pd.to_datetime(forecast_date, format="%Y-%m-%d") + \
-    pd.Timedelta(days=num_forecast_days)
+end_date = pd.to_datetime(forecast_date, format="%Y-%m-%d") + pd.Timedelta(days=num_forecast_days)
 days = (end_date - pd.to_datetime(start_date, format="%Y-%m-%d")).days
 
-end_date = pd.to_datetime(
-    start_date, format='%Y-%m-%d') + timedelta(days=days-1)
+end_date = pd.to_datetime(start_date, format='%Y-%m-%d') + timedelta(days=days-1)
 sims_dict = {
     'state': [],
     'onset date': [],
 }
-
 
 for n in range(n_sims):
     if n < 2000:
         sims_dict['sim'+str(n)] = []
 
 print("forecast up to: {}".format(end_date))
-date_col = [day.strftime('%Y-%m-%d')
-            for day in pd.date_range(forecast_date, end_date)]
+date_col = [day.strftime('%Y-%m-%d') for day in pd.date_range(forecast_date, end_date)]
+latest_sim_start_date = max(d for d in start_dates.values())
+date_col = [day.strftime('%Y-%m-%d') for day in pd.date_range(start_date, end_date)]
 
 for i, state in enumerate(states):
 
@@ -45,7 +45,8 @@ for i, state in enumerate(states):
             str(days)+".parquet", columns=date_col
         )
 
-    df_local = df_results.loc['total_inci_obs'].iloc[:, -num_forecast_days:]
+    # df_local = df_results.loc['total_inci_obs'].iloc[:, -num_forecast_days:]
+    df_local = df_results.loc['total_inci_obs'].iloc[:, -len(date_col):]
 
     sims_dict['onset date'].extend(date_col)
     sims_dict['state'].extend([state]*len(date_col))
