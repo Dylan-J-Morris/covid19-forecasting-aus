@@ -29,7 +29,6 @@ def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=N
             fig = plt.figure(constrained_layout=True)
             gs = fig.add_gridspec(3, 1)
             ax = fig.add_subplot(gs[:2, 0])
-
             ax2 = fig.add_subplot(gs[2, 0], sharex=ax)
     elif Reff is not None:
         ax2 = ax_arg[1]
@@ -41,16 +40,11 @@ def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=N
 
         for var in int_vars:
             df.columns = df.columns.astype('datetime64[ns]')
-            ax.fill_between(df.columns, df.loc[(var, 'lower')], df.loc[(
-                var, 'upper')], alpha=0.4, color='C0')
-            ax.fill_between(df.columns, df.loc[(var, 'bottom')], df.loc[(
-                var, 'top')], alpha=0.2, color='C0')
-            ax.fill_between(df.columns, df.loc[(var, 'lower10')], df.loc[(
-                var, 'upper10')], alpha=0.2, color='C0')
-            ax.fill_between(df.columns, df.loc[(var, 'lower15')], df.loc[(
-                var, 'upper15')], alpha=0.2, color='C0')
-            ax.fill_between(df.columns, df.loc[(var, 'lower20')], df.loc[(
-                var, 'upper20')], alpha=0.2, color='C0')
+            ax.fill_between(df.columns, df.loc[(var, 'lower')], df.loc[(var, 'upper')], alpha=0.4, color='C0')
+            ax.fill_between(df.columns, df.loc[(var, 'bottom')], df.loc[(var, 'top')], alpha=0.2, color='C0')
+            ax.fill_between(df.columns, df.loc[(var, 'lower10')], df.loc[(var, 'upper10')], alpha=0.2, color='C0')
+            ax.fill_between(df.columns, df.loc[(var, 'lower15')], df.loc[(var, 'upper15')], alpha=0.2, color='C0')
+            ax.fill_between(df.columns, df.loc[(var, 'lower20')], df.loc[(var, 'upper20')], alpha=0.2, color='C0')
             if plotpath:
                 print("Cannot plot path using summary files")
                 raise KeyError
@@ -58,8 +52,7 @@ def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=N
                 ax.plot(df.columns, df.loc[(var, 'median')], label=var)
 
             ax.set_xticks([df.columns.values[-1*forecast_days]], minor=True)
-            ax.xaxis.grid(which='minor', linestyle='--',
-                          alpha=0.6, color='black')
+            # ax.xaxis.grid(which='minor', linestyle='--', alpha=0.6, color='black')
 
     else:
         # using the raw simulation files
@@ -111,7 +104,7 @@ def plot_results(df, int_vars: list, ax_arg=None, total=False, log=False, Reff=N
         # ax2.set_xlabel("Date")
 
         ax2.set_xticks([df.columns.values[-1*forecast_days]], minor=True)
-        ax2.xaxis.grid(which='minor', linestyle='--', alpha=0.6, color='black')
+        # ax2.xaxis.grid(which='minor', linestyle='--', alpha=0.6, color='black')
 
         # ax2.set_ylim((0,3))
     else:
@@ -277,10 +270,15 @@ for i, state in enumerate(states):
         & (df_cases_state_time.date_inferred >= start_date)
         & (df_cases_state_time.date_inferred <= end_date)]
 
-    ax.bar(dfplot.date_inferred, dfplot.local,
-           label='Actual', color='grey', alpha=0.6)
+    ax.bar(dfplot.date_inferred, dfplot.local, label='Actual', color='grey', alpha=0.6)
     R_plot = [r % 2000 for r in good_sims[state]]
     ax, ax2 = plot_results(df_results.loc[state], ['total_inci_obs'], ax_arg=(ax, ax2), summary=True, Reff=Reff.loc[state, R_plot])
+    
+    # ax2.set_xlim(left=pd.to_datetime(), right=pd.to_datetime('2021-12-21')+pd.Timedelta(days=7)) 
+    # ax2.set_xlim(left=pd.to_datetime('2021-11-23'), right=pd.to_datetime('2021-12-21')+pd.Timedelta(days=7)) 
+    # ax.axvline(pd.to_datetime('2021-12-21'), ls='--', color='black', alpha=0.2, linewidth=2)
+    # ax2.axvline(pd.to_datetime('2021-12-21'), ls='--', color='black', alpha=0.2, linewidth=2)
+    ax.set_ylim(0, 600)
 
     ax.set_ylabel("Observed \n local cases")
     ax2.set_ylabel("TP")

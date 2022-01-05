@@ -414,11 +414,10 @@ apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date
 omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)).days    
     
 # get pop size array 
-pop_size_array = np.zeros(len(states_to_fit_all_waves))
-for (i, s) in enumerate(states_to_fit_all_waves): 
-    pop_size_array[i] = pop_sizes[s]
+pop_size_array = []
+for s in states_to_fit_all_waves: 
+    pop_size_array.append(pop_sizes[s])
 
-    
 # input data block for stan model
 input_data = {
     'j_total': len(states_to_fit_all_waves),
@@ -467,17 +466,17 @@ input_data = {
     'include_in_first_wave': include_in_first_wave,
     'include_in_sec_wave': include_in_sec_wave,
     'include_in_third_wave': include_in_third_wave,
-    'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]),
-    'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]),
+    'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]).astype(int).tolist(),
+    'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]).astype(int).tolist(),
     'decay_start_date_third': decay_start_date_third,
     'vaccine_effect_data': vaccination_by_state_array,
     'omicron_start_day': omicron_start_day,
     'include_in_omicron_wave': include_in_omicron_wave,
     'total_N_p_third_omicron': int(sum([sum(x) for x in include_in_omicron_wave]).item()),
-    'pos_starts_third_omicron': np.cumsum([sum(x) for x in include_in_omicron_wave]).astype(int),
-    'total_N_p_third_omicron_3_blocks': int(sum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave])),
-    'pos_starts_third_omicron_3_blocks': np.cumsum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave]).astype(int),
-    'pop_size_array': pop_size_array.astype(int)
+    'pos_starts_third_omicron': np.cumsum([sum(x) for x in include_in_omicron_wave]).astype(int).tolist(),
+    'total_N_p_third_omicron_3_blocks': int(sum([int(ceil(sum(x)/5)) for x in include_in_omicron_wave])),
+    'pos_starts_third_omicron_3_blocks': np.cumsum([int(ceil(sum(x)/5)) for x in include_in_omicron_wave]).astype(int),
+    'pop_size_array': pop_size_array
 }
 
 # make results dir
@@ -517,7 +516,8 @@ if run_inference or run_inference_only:
         samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                    'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave',
                                                    'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                                   'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta'])
+                                                   'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
+                                                   'susceptible_depletion_factor'])
 
         samples_mov_gamma.to_csv("results/samples_mov_gamma.csv")
         
@@ -540,7 +540,8 @@ if run_inference or run_inference_only:
         summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                 'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave', 
                                                 'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                                'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta'])
+                                                'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
+                                                'susceptible_depletion_factor'])
 
         match_list_names = summary_df.index.to_list()
 

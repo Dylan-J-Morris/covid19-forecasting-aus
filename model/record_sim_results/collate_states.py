@@ -7,6 +7,8 @@ from sys import argv
 import json
 
 states = ['NSW', 'QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
+# states = ['QLD', 'SA', 'TAS', 'VIC', 'WA', 'ACT', 'NT']
+# states = ['SA']
 # states = ['NSW', 'VIC']
 
 n_sims = int(argv[1])  # number of sims
@@ -32,6 +34,7 @@ dic_states = {
     'upper': [],
     'top': [],
 }
+
 dates = pd.date_range(start=start_date, periods=days)
 vars_l = ['symp_inci_obs', 'imports_inci_obs', 'asymp_inci_obs',
           'symp_inci', 'asymp_inci', 'imports_inci', 'total_inci', 'total_inci_obs']

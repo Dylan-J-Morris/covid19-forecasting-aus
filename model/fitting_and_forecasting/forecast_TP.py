@@ -1079,7 +1079,7 @@ for typ in forecast_type:
         vacc_post = np.zeros_like(vacc_ts)
     
         # take sample of reduction 
-        if state in {'VIC', 'NSW'}: 
+        if state in {'VIC', 'NSW', 'ACT', 'QLD', 'SA'}: 
             m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
         else:
             # assume proxy of ACT (low Omicron presence) 
@@ -1238,7 +1238,7 @@ for typ in forecast_type:
         
         # loop over days in third wave and apply the appropriate form (i.e. decay or not)
         # note that in here we apply the entire sample to the vaccination data to create a days by samples array
-        if state in {'NSW', 'QLD'}:
+        if state in {'NSW', 'QLD', 'SA', 'NSW', 'ACT'}:
             for ii in range(vacc_post.shape[0]):
                 if ii < heterogeneity_delay_start_day:
                     vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
