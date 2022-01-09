@@ -61,15 +61,18 @@ data {
 }
 
 transformed data {
+    
     // for now we just calculate the cumulative number of cases in the
     // third wave as pre third wave cases were negligible
     matrix[N_third_wave,j_third_wave] cumulative_local_third;
     for (i in 1:j_third_wave){
         cumulative_local_third[:,i] = cumulative_sum(local_third_wave[:,i]);
     }
+    
 }
 
 parameters {
+    
     vector[K] bet;
     real<lower=0> R_I;
     real<lower=0> R_L;
@@ -93,9 +96,11 @@ parameters {
     real<lower=0,upper=1> reduction_vacc_effect_omicron;
     vector<lower=0,upper=1>[total_N_p_third_omicron_3_blocks] prop_omicron_to_delta_3_day_block;
     real<lower=0,upper=1> susceptible_depletion_factor;    
+    
 }
 
 transformed parameters {
+    
     real<lower=0> voc_effect_alpha = 1 + additive_voc_effect_alpha;
     real<lower=0> voc_effect_delta = 1 + additive_voc_effect_delta;
     real<lower=0> voc_effect_omicron = 1 + additive_voc_effect_omicron;
@@ -112,6 +117,7 @@ transformed parameters {
     //ordered vaccine effect with length total number of days across each jurisdiction
     vector[total_N_p_third] vacc_effect;
     vector<lower=0,upper=1>[total_N_p_third_omicron] prop_omicron_to_delta;
+    
     //reverse the ordering of the raw vax effects in a local scope
     {
         int pos = 1;
@@ -142,7 +148,7 @@ transformed parameters {
                         //move through the full daily vector
                         pos_omicron1 += 1;
                         pos_omicron_counter += 1;
-                        if (pos_omicron_counter == 5){
+                        if (pos_omicron_counter == 3){
                             pos_omicron_counter = 0;
                             pos_omicron2 += 1;
                         }
@@ -182,8 +188,8 @@ transformed parameters {
             if (include_in_sec_wave[i][n] == 1){
                 md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
                 social_measures = (
-                    (1-policy_sec_wave[n]) + md_sec_wave[pos]*policy_sec_wave[n]
-                )*inv_logit(Mob_sec_wave[i][n,:]*(bet));
+                    (1-policy_sec_wave[n]) + 
+                    md_sec_wave[pos]*policy_sec_wave[n])*inv_logit(Mob_sec_wave[i][n,:]*(bet));
                 TP_local = 2*R_Li[map_to_state_index_sec[i]]*social_measures; 
                 mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*TP_local;
                 pos += 1;
@@ -240,7 +246,7 @@ transformed parameters {
                         + voc_effect_delta * (1-prop_omicron_to_delta_3_day_block[pos_omicron2]));
                     
                     pos_omicron_counter += 1;
-                    if (pos_omicron_counter == 5){
+                    if (pos_omicron_counter == 3){
                         pos_omicron2 += 1;
                         pos_omicron_counter = 0;
                     }
@@ -250,14 +256,16 @@ transformed parameters {
                     (1-policy_third_wave[n])
                     +md_third_wave[pos]
                     *masks_third_wave[pos]
-                    *policy_third_wave[n])*inv_logit(Mob_third_wave[i][n,:]*(bet));
+                    *policy_third_wave[n])
+                    *inv_logit(Mob_third_wave[i][n,:]*(bet));
                 
                 TP_local = R_Li[map_to_state_index_third[i]]*2*social_measures*voc_effect_tot*vacc_effect_tot;
                 
                 mu_hat_third_wave[pos] = (
                     brho_third_wave[pos]*R_I
                     + (1-brho_third_wave[pos])*TP_local)*(
-                        1-susceptible_depletion_factor*cumulative_local_third[n,i]/pop_size_array[map_to_state_index_third[i]]);
+                        1-susceptible_depletion_factor
+                        *cumulative_local_third[n,i]/pop_size_array[map_to_state_index_third[i]]);
                 
                 pos += 1;
             }
@@ -275,6 +283,14 @@ model {
     //fixed parameters for the vaccine effect priors
     real vacc_mu;
     real vacc_sig = 0.025;
+    
+    //drifting omicron proportion to 0.9
+    real drift_mean = 0.9;
+    real drift_factor = 0.1; 
+    real mean_omicron; 
+    real var_omicron = 0.001; 
+    real a_omicron;
+    real b_omicron;
 
     //priors
     //social mobility parameters
@@ -284,7 +300,6 @@ model {
 
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
     additive_voc_effect_delta ~ gamma(1.5*1.5/0.05, 1.5/0.05);
-    // assume that omicron is similar to delta
     additive_voc_effect_omicron ~ gamma(1.5*1.5/0.05, 1.5/0.05);
 
     //vaccination heterogeneity
@@ -373,21 +388,23 @@ model {
                 
                 //only sample on the first day of the 3 day window assuming different prior
                 if (include_in_omicron_wave[i][n] == 1){
-                    if (pos_omicron_counter == 0){        
+                    if (pos_omicron_counter == 0){    
                         if (n <= omicron_start_day+20){
                             prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2,50);
-                        } else if (n <= omicron_start_day+30){
-                            prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(2,10);
                         } else {
-                            prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(75,5);
+                            mean_omicron = (
+                                (1-drift_factor)*prop_omicron_to_delta_3_day_block[pos_omicron2-1] 
+                                +drift_factor*drift_mean);
+                            a_omicron = mean_omicron*(mean_omicron*(1-mean_omicron)/var_omicron - 1);
+                            b_omicron = (1-mean_omicron)*(mean_omicron*(1-mean_omicron)/var_omicron - 1);
+                            prop_omicron_to_delta_3_day_block[pos_omicron2] ~ beta(a_omicron,b_omicron);
                         }
                         pos_omicron2 += 1;
                     }
                     
                     pos_omicron_counter += 1;
                     
-                    // reset the counter
-                    if (pos_omicron_counter == 5){
+                    if (pos_omicron_counter == 3){
                         pos_omicron_counter = 0;
                     }
                 }
