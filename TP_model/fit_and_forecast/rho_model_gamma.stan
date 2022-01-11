@@ -134,7 +134,7 @@ transformed parameters {
     //ordered vaccine effect with length total number of days across each jurisdiction
     vector[total_N_p_third] vacc_effect;
     
-    //reverse the ordering of the raw vax effects in a local scope
+    //reverse the ordering of the raw vax effects in local scope
     {
         int pos = 1;
         int pos2;
@@ -283,10 +283,10 @@ model {
     real vacc_sig = 0.025;
     
     //drifting omicron proportion to 0.9
-    real drift_mean = 0.90;
+    real drift_mean = 0.95;
     real drift_factor = 0.15;    //faster drift? 
     real mean_omicron; 
-    real var_omicron = 0.001; 
+    real var_omicron = 0.00025; 
     real a_omicron;
     real b_omicron;
 
@@ -351,6 +351,7 @@ model {
                     Reff_sec_wave[n,i]*Reff_sec_wave[n,i]/(sigma2_sec_wave[n,i]), 
                     Reff_sec_wave[n,i]/sigma2_sec_wave[n,i]
                 );
+                
                 pos2+=1;
             }
         }
@@ -394,18 +395,27 @@ model {
                 vacc_mu = vaccine_effect_data[i][n];
                 vacc_effect_ordered[i][N_third_wave+1-pos3] ~ normal(vacc_mu, vacc_sig);
                 
-                //only sample on the first day of the 3 day window assuming different prior
                 if (include_in_omicron_wave[i][n] == 1){
                     if (n <= omicron_start_day+15 || pos_omicron_counter < 5 ){
+                        //sample differently pre December 1st or in the first 5 days
                         prop_omicron_to_delta[pos_omicron2] ~ beta(2,50);
                     } else {
+                        //mean is a mixture of the mean proportion for last few days and the drift to 0.95
                         mean_omicron = (
-                            (1-drift_factor)*prop_omicron_to_delta[pos_omicron2-1] 
+                            (1-drift_factor)*mean(prop_omicron_to_delta[(pos_omicron2-4):(pos_omicron2-1)])
                             + drift_factor*drift_mean
                         );
+                        
+                        //calculate shape and scale parameters
                         a_omicron = mean_omicron*(mean_omicron*(1-mean_omicron)/var_omicron - 1);
                         b_omicron = (1-mean_omicron)*(mean_omicron*(1-mean_omicron)/var_omicron - 1);
-                        prop_omicron_to_delta[pos_omicron2] ~ beta(a_omicron,b_omicron);
+                        
+                        if (a_omicron < 0 || b_omicron < 0){
+                            //if we are close to 1, assume a slightly different prior
+                            prop_omicron_to_delta[pos_omicron2] ~ beta(50, 1);
+                        } else {
+                            prop_omicron_to_delta[pos_omicron2] ~ beta(a_omicron, b_omicron);                            
+                        }
                     }
                     
                     pos_omicron_counter += 1;

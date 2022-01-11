@@ -488,7 +488,7 @@ if testing_inference:
     num_samples = 1000
 else:
     num_chains = 4
-    num_samples = 3000
+    num_samples = 2000
     
 # to run the inference set run_inference to True in params
 if run_inference or run_inference_only:
