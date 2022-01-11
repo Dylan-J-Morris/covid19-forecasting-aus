@@ -49,22 +49,10 @@ Scenario modelling in the context of this model relates to the assumptions we ap
 ## Quick start: Local
 This is a quick start to run the model locally. 
 ```
-python model/EpyReff/run_estimator.py $DATADATE
-python model/fitting_and_forecasting/generate_posterior.py $DATADATE
-python model/fitting_and_forecasting/forecast_TP.py $DATADATE
-states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
-for STATE in "${states[@]}"
-do
-    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE "False"
-done
-states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
-states=("NSW" "VIC")
-for STATE in "${states[@]}"
-do
-    python model/sim_model/run_state.py $NSIMS $DATADATE $STATE "True"
-done
-python model/record_sim_results/collate_states.py ${NSIMS} ${DATADATE}
-python model/record_sim_results/record_to_csv.py ${NSIMS} ${DATADATE}
+python TP_model/EpyReff/run_estimator.py $DATADATE
+python TP_model/fit_and_forecast/generate_posterior.py $DATADATE
+python TP_model/fit_and_forecast/forecast_TP.py $DATADATE
+julia -t NUM_THREADS run_forecasts_all_states.jl
 ```
 
 ## Quick start: HPC using slurm

@@ -4,8 +4,8 @@ from math import trunc
 import sys
 
 from pandas.core.tools.datetimes import to_datetime
-sys.path.insert(0, 'model')
-sys.path.insert(0, 'model/fitting_and_forecasting')
+sys.path.insert(0, 'TP_model')
+sys.path.insert(0, 'TP_model/fit_and_forecast')
 from Reff_constants import *
 from Reff_functions import *
 import glob

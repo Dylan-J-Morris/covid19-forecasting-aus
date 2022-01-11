@@ -6,8 +6,8 @@ from pandas.core.indexes.base import Index
 
 # these imports and usings need to be in the same order 
 sys.path.insert(0, '../')
-sys.path.insert(0, 'model')
-sys.path.insert(0, 'model/fitting_and_forecasting')
+sys.path.insert(0, 'TP_model')
+sys.path.insert(0, 'TP_model/fit_and_forecast')
 from Reff_functions import *
 from Reff_constants import *
 from params import num_forecast_days, alpha_start_date, delta_start_date, apply_voc_to_R_L_hats, \
