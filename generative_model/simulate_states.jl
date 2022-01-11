@@ -114,9 +114,9 @@ function simulate_all_states(file_date,nsims)
     merge_TP_files(file_date)
     
     # now we can plot everything
-    plot_all_forecasts(file_date, local_case_dict, confidence_level="both")
-    plot_all_forecasts(file_date, local_case_dict, confidence_level="50")
-    plot_all_forecasts(file_date, local_case_dict, confidence_level="95")
+    plot_all_forecasts(file_date,local_case_dict,confidence_level="both")
+    plot_all_forecasts(file_date,local_case_dict,confidence_level="50")
+    plot_all_forecasts(file_date,local_case_dict,confidence_level="95")
     
     return nothing
     
@@ -200,9 +200,9 @@ function simulate_single_state(file_date,state,nsims)
     merge_TP_files(file_date)
     
     # now we can plot everything
-    plot_all_forecasts(file_date, state, local_case_dict, confidence_level="both")
-    plot_all_forecasts(file_date, state, local_case_dict, confidence_level="50")
-    plot_all_forecasts(file_date, state, local_case_dict, confidence_level="95")
+    plot_all_forecasts(file_date,state,local_case_dict,confidence_level="both")
+    plot_all_forecasts(file_date,state,local_case_dict,confidence_level="50")
+    plot_all_forecasts(file_date,state,local_case_dict,confidence_level="95")
     
     return nothing 
     
