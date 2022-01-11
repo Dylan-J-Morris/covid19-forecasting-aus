@@ -6,7 +6,7 @@ run_inference = True    # whether the inference should be run
 run_inference_only = False
 run_TP_adjustment = False
 use_TP_adjustment = False
-testing_inference = False if on_phoenix else True
+testing_inference = False
 n_days_nowcast_TP_adjustment = 45
 num_TP_samples = 2000       # number of forecasted TP samples to save 
 
