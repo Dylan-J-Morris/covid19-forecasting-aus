@@ -39,8 +39,8 @@ Run these at the command line. Number of sims is used to name some of the files.
 ## Required arguments
 ```
 DATADATE='2022-01-04'   # Date of NNDSS data file
-NSIMS=200000               # Total number of simulations to run should be > 5000
-APPLY_SEEDING='False'
+NUM_THREADS=4               # Total number of simulations to run should be > 5000
+NSIMS=1000               # Total number of simulations to run should be > 5000
 ```
 
 ## Scenario modelling
@@ -52,7 +52,7 @@ This is a quick start to run the model locally.
 python TP_model/EpyReff/run_estimator.py $DATADATE
 python TP_model/fit_and_forecast/generate_posterior.py $DATADATE
 python TP_model/fit_and_forecast/forecast_TP.py $DATADATE
-julia -t NUM_THREADS run_forecasts_all_states.jl
+julia -t $NUM_THREADS generative_model/run_forecasts_all_states.jl $DATADATE $NSIMS
 ```
 
 ## Quick start: HPC using slurm

@@ -6,7 +6,7 @@ using Dates
 function read_in_TP(date, state)
     
     # read in the reff file
-    TP_file_name = "daily_Reff/data/soc_mob_R"*date*".csv"
+    TP_file_name = "results/soc_mob_R"*date*".csv"
     # drop the first column 
     df = CSV.read(TP_file_name, DataFrame, drop=[1])
     # extract the unique states

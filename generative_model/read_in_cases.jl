@@ -7,7 +7,7 @@ using Random
 function read_in_cases(date, rng; apply_inc = false)
 
 	# read in the reff file
-	case_file_name = "daily_Reff/data/interim_linelist_"*date*".csv"
+	case_file_name = "data/interim_linelist_"*date*".csv"
 	# drop the first column 
 	df = CSV.read(case_file_name, DataFrame)
     # indicator for the NA dates

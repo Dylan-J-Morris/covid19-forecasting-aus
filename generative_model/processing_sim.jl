@@ -49,7 +49,7 @@ function save_simulations(D,TP_local,state,file_date,onset_dates,rng)
     df_TP_local[!,"data date"] .= file_date
     
     # directory path, and check to see whether it's good
-    dir_name = joinpath(@__DIR__, "results", "UoA_forecast_output", file_date)
+    dir_name = joinpath("results", "UoA_forecast_output", file_date)
     if !ispath(dir_name)
         mkpath(dir_name)
     end
@@ -69,7 +69,7 @@ function merge_simulation_files(file_date)
     Merge the simulation files into a single file. 
     """
     # set the dir name and read in the state files for merging
-    dir_name = joinpath(@__DIR__, "results", "UoA_forecast_output", file_date)
+    dir_name = joinpath("results", "UoA_forecast_output", file_date)
     state_file_names = readdir(dir_name)
     # need to remove the non-output files
     states = []
@@ -106,7 +106,7 @@ function merge_TP_files(file_date)
     Merge the TP files in a similar format to the overall simulation file.
     """
     # set the dir name and read in the state files for merging
-    dir_name = joinpath(@__DIR__, "results", "UoA_forecast_output", file_date)
+    dir_name = joinpath("results", "UoA_forecast_output", file_date)
     state_file_names = readdir(dir_name)
     # need to remove the non-output files
     states = []

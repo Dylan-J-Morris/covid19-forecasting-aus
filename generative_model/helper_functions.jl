@@ -66,7 +66,7 @@ end
 
 function read_in_susceptible_depletion(file_date)
     
-    samples = CSV.read("daily_Reff/data/samples_mov_gamma.csv",DataFrame)
+    samples = CSV.read("results/samples_mov_gamma.csv",DataFrame)
     susceptible_depletion = samples.susceptible_depletion_factor
     
     return susceptible_depletion

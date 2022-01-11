@@ -19,11 +19,11 @@ function plot_all_forecasts(
     
     # read in the sim results and kept TP's
     sim_all_states = CSV.read(
-        "daily_Reff/results/UoA_forecast_output/2022-01-04/UoA_samples_"*file_date*".csv", 
+        "results/UoA_forecast_output/2022-01-04/UoA_samples_"*file_date*".csv", 
         DataFrame
     )
     TP_all_states = CSV.read(
-        "daily_Reff/results/UoA_forecast_output/2022-01-04/UoA_TP_"*file_date*".csv", 
+        "results/UoA_forecast_output/2022-01-04/UoA_TP_"*file_date*".csv", 
         DataFrame
     )
     
@@ -194,7 +194,7 @@ function plot_all_forecasts(
         
     end
 
-    dir_name = joinpath(@__DIR__, "figures", file_date)
+    dir_name = joinpath("figures", file_date)
     if !ispath(dir_name)
         mkpath(dir_name)
     end
@@ -217,11 +217,11 @@ function plot_single_forecast(
     
     # read in the sim results and kept TP's
     sim_all_states = CSV.read(
-        "daily_Reff/results/UoA_forecast_output/2022-01-04/UoA_samples_"*file_date*".csv", 
+        "results/UoA_forecast_output/2022-01-04/UoA_samples_"*file_date*".csv", 
         DataFrame
     )
     TP_all_states = CSV.read(
-        "daily_Reff/results/UoA_forecast_output/2022-01-04/UoA_TP_"*file_date*".csv", 
+        "results/UoA_forecast_output/2022-01-04/UoA_TP_"*file_date*".csv", 
         DataFrame
     )
     
@@ -372,7 +372,7 @@ function plot_single_forecast(
     xlims!(fig, subplot=tp, onset_dates_lims...)
     ylims!(fig, subplot=tp, 0, 1.25*maximum(df_TP_summary[!,"top"]))
 
-    dir_name = joinpath(@__DIR__, "figures", file_date)
+    dir_name = joinpath("figures", file_date)
     if !ispath(dir_name)
         mkpath(dir_name)
     end

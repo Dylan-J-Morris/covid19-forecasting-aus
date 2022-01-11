@@ -572,7 +572,6 @@ function simulate_branching_process(
     forecast_start_date, 
     date, 
     state,
-    rng, 
 )
     """
     Simulate branching process nsims times conditional on the cumulative observed cases, with 
