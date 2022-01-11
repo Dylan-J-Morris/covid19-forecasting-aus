@@ -14,7 +14,7 @@ from params import num_forecast_days, alpha_start_date, delta_start_date, apply_
     vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date, start_date, \
     run_TP_adjustment, n_days_nowcast_TP_adjustment, num_TP_samples
 from scenarios import scenarios, scenario_dates
-from sys import argv
+from sys import argv 
 from datetime import timedelta, datetime
 from scipy.special import expit
 from scipy.stats import truncnorm
@@ -1714,6 +1714,6 @@ if run_TP_adjustment:
     df_hdf = df_forecast_new.loc[df_forecast_new.type == 'R_L']
     df_hdf = df_hdf.append(df_forecast_new.loc[(df_forecast_new.type == 'R_I') & (df_forecast_new.date == '2020-03-01')])
     df_hdf = df_hdf.append(df_forecast_new.loc[(df_forecast_new.type == 'R_L0') & (df_forecast_new.date == '2020-03-01')])
-    df_forecast_new.to_csv('results/third_wave_fit/soc_mob_R_adjusted'+data_date.strftime('%Y-%m-%d')+'.csv')
+    df_forecast_new.to_csv('results/soc_mob_R_adjusted'+data_date.strftime('%Y-%m-%d')+'.csv')
     df_hdf.to_hdf('results/soc_mob_R_adjusted'+data_date.strftime('%Y-%m-%d')+'.h5', key='Reff')
 
