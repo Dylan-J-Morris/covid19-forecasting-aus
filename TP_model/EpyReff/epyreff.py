@@ -1,6 +1,6 @@
 import sys
 # I hate this too but it allows everything to use the same helper functions.
-sys.path.insert(0, 'model')
+sys.path.insert(0, 'TP_model')
 from helper_functions import read_in_NNDSS
 from scipy.stats import gamma
 import glob

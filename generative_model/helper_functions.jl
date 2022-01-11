@@ -1,32 +1,6 @@
 using Random
 using Distributions
 
-function sample_infection_time()
-    """
-    Sample infection times for num individuals based on the generation 
-    interval distribution, Gamma(shape_gen, scale_gen). 
-    """
-    
-    shape_gen = 2.75
-    scale_gen = 1.00
-    infection_time = ceil(Int, rand(Gamma(shape_gen, scale_gen)))
-    
-    return infection_time
-end
-
-function sample_onset_time()
-    """
-    Sample incubation times for num individuals based on incubation period 
-    distribution, Gamma(shape_inc, scale_inc). 
-    """
-    
-    shape_inc = 5.807  
-    scale_inc = 0.948   
-    onset_time = ceil(Int, rand(Gamma(shape_inc, scale_inc)))
-    
-    return onset_time
-end
-
 function sample_negative_binomial_limit(s, p; approx_limit = 500)
     """
     Samples from a NegBin(s, p) distribution. This uses a normal approximation 
@@ -65,8 +39,12 @@ function sample_binomial_limit(n, p; approx_limit = 500)
 end
 
 function read_in_susceptible_depletion(file_date)
+    """
+    Using the stan fit posterior_sample_YYYY-MM-DD.csv we extract the susceptible_depletion
+    posterior draws. 
+    """
     
-    samples = CSV.read("results/samples_mov_gamma.csv",DataFrame)
+    samples = CSV.read("results/posterior_sample_"*file_date*".csv",DataFrame)
     susceptible_depletion = samples.susceptible_depletion_factor
     
     return susceptible_depletion

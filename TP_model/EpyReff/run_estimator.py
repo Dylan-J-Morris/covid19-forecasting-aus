@@ -31,6 +31,7 @@ shift = 0
 date = argv[1]
 dt_date = pd.to_datetime(date, format="%Y-%m-%d")
 file_date = dt_date.strftime("%Y-%m-%d")
+
 try:
     plot_time = argv[2]
 except:
@@ -46,9 +47,14 @@ df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
 df_linel = tidy_cases_lambda(df_interim)
 
 # generate possible infection dates from the notification data
-df_inf = draw_inf_dates(df_linel, nreplicates=1000,
-                        shape_inc=shape_inc, scale_inc=scale_inc, offset_inc=offset_inc, 
-                        shape_rd=shape_rd, scale_rd=scale_rd, offset_rd=offset_rd)
+df_inf = draw_inf_dates(df_linel, 
+                        nreplicates=1000,
+                        shape_inc=shape_inc, 
+                        scale_inc=scale_inc, 
+                        offset_inc=offset_inc, 
+                        shape_rd=shape_rd, 
+                        scale_rd=scale_rd, 
+                        offset_rd=offset_rd)
 
 # reindex dataframe to include all dates,
 # return df with index (STATE, INFECTION_DATE, SOURCE), columns are samples
@@ -56,7 +62,9 @@ df_inc_zeros = index_by_infection_date(df_inf)
 
 # get all lambdas
 lambda_dict = lambda_all_states(df_inc_zeros,
-                                shape_gen=shape_gen, scale_gen=scale_gen, offset=offset,
+                                shape_gen=shape_gen, 
+                                scale_gen=scale_gen, 
+                                offset=offset,
                                 offset_gen=offset_gen,
                                 trunc_days=trunc_days)
 

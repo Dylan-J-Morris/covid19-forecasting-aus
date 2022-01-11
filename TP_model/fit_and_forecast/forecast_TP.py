@@ -70,7 +70,6 @@ vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date',
 # Convert to simple array for indexing
 vaccination_by_state_array = vaccination_by_state.to_numpy()
 
-
 # Get survey data
 surveys = pd.DataFrame()
 path = "data/md/Barometer wave*.csv"
@@ -157,6 +156,8 @@ df_google = df_google_all.loc[df_google_all.date <= data_date]
 # the date time values
 df_google.to_csv("results/test_google_data.csv")
 df_google = pd.read_csv("results/test_google_data.csv")
+# remove the temporary file
+os.remove("results/test_google_data.csv")
 
 # Simple interpolation for missing vlaues in Google data
 df_google = df_google.interpolate(method='linear', axis=0)
@@ -721,6 +722,7 @@ for i, state in enumerate(states):
     state_sims[state] = sims
 
 os.makedirs("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d"), exist_ok=True)
+
 for i, fig in enumerate(figs):
     fig.text(0.5, 0.02, 'Date', ha='center', va='center', fontsize=15)
 
@@ -896,6 +898,7 @@ fig.text(0.5, 0.04,
          fontsize=20)
 
 plt.tight_layout(rect=[0.05, 0.04, 1, 1])
+
 fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/md_factor.png", 
             dpi=144)
 
@@ -915,18 +918,22 @@ for i, state in enumerate(plot_states):
     col = i % 2
 
     ax[row, col].plot(df_masks[state].index, np.median(mask_wearing_factor, axis=1), label='Microdistancing')
-    ax[row, col].fill_between(df_masks[state].index, np.quantile(mask_wearing_factor, 0.25, axis=1), np.quantile(mask_wearing_factor, 0.75, axis=1),
+    ax[row, col].fill_between(df_masks[state].index, 
+                              np.quantile(mask_wearing_factor, 0.25, axis=1), 
+                              np.quantile(mask_wearing_factor, 0.75, axis=1),
                               label='Microdistancing',
                               alpha=0.4,
                               color='C0')
-    ax[row, col].fill_between(df_masks[state].index, np.quantile(mask_wearing_factor, 0.05, axis=1), np.quantile(mask_wearing_factor, 0.95, axis=1),
+    ax[row, col].fill_between(df_masks[state].index, 
+                              np.quantile(mask_wearing_factor, 0.05, axis=1), 
+                              np.quantile(mask_wearing_factor, 0.95, axis=1),
                               label='Microdistancing',
                               alpha=0.4,
                               color='C0')
     ax[row, col].set_title(state)
     ax[row, col].tick_params('x', rotation=45)
 
-    ax[row, col].set_xticks([df_masks[state].index.values[-n_forecast-extra_days_masks]], minor=True,)
+    ax[row, col].set_xticks([df_masks[state].index.values[-n_forecast-extra_days_masks]], minor=True)
     ax[row, col].xaxis.grid(which='minor', linestyle='-.',
                             color='grey', linewidth=1)
 
@@ -1489,9 +1496,11 @@ for i, state in enumerate(plot_states):
 fig.text(0.03, 0.5, 'Transmission potential', va='center', ha='center', rotation='vertical', fontsize=20)
 fig.text(0.525, 0.02, 'Date', va='center', ha='center', fontsize=20)
 plt.tight_layout(rect=[0.04, 0.04, 1, 1])
+
 os.makedirs("figs/mobility_forecasts/"+
             data_date.strftime("%Y-%m-%d"), 
             exist_ok=True)
+
 plt.savefig("figs/mobility_forecasts/"+
             data_date.strftime("%Y-%m-%d")+
             "/soc_mob_R_L_hats"+
@@ -1500,14 +1509,14 @@ plt.savefig("figs/mobility_forecasts/"+
             dpi=144)
 
 # now we save the posterior stuff
-df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top']+[i for i in range(num_TP_samples)]]
+df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top'] + [i for i in range(num_TP_samples)]]
 
-df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
-df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
-df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
+# df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
+# df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
+# df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
 # save the file as a csv
-df_Rhats.to_csv('results/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
-df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5', key='Reff')
+df_Rhats.to_csv('results/soc_mob_R' + data_date.strftime('%Y-%m-%d') + '.csv')
+# df_hdf.to_hdf('results/soc_mob_R' + data_date.strftime('%Y-%m-%d') + '.h5', key='Reff')
 
 if run_TP_adjustment:
     """

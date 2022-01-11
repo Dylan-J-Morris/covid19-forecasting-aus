@@ -372,7 +372,7 @@ function plot_single_forecast(
     xlims!(fig, subplot=tp, onset_dates_lims...)
     ylims!(fig, subplot=tp, 0, 1.25*maximum(df_TP_summary[!,"top"]))
 
-    dir_name = joinpath("figures", file_date)
+    dir_name = joinpath("figs", file_date)
     if !ispath(dir_name)
         mkpath(dir_name)
     end

@@ -479,7 +479,7 @@ input_data = {
 }
 
 # make results dir
-results_dir = "figs/soc_mob_posterior/"
+results_dir = "figs/stan_fit/" + data_date.strftime("%Y-%m-%d") + "/"
 os.makedirs(results_dir, exist_ok=True)
 
 ######### running inference #########
@@ -496,7 +496,7 @@ if run_inference or run_inference_only:
     # import the stan model as a string
     # with open('model/fitting_and_forecasting/rho_model_gamma.stan') as f:
     #     rho_model_gamma = f.read()
-    with open('model/fitting_and_forecasting/rho_model_gamma_single_prop.stan') as f:
+    with open('TP_model/fit_and_forecast/rho_model_gamma_single_prop.stan') as f:
         rho_model_gamma = f.read()
 
     # slightly different setup depending if we are running on phoenix or locally due to
@@ -520,7 +520,7 @@ if run_inference or run_inference_only:
                                                    'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
                                                    'susceptible_depletion_factor'])
 
-        samples_mov_gamma.to_csv("results/samples_mov_gamma.csv")
+        samples_mov_gamma.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
         
     else:
 
@@ -607,16 +607,16 @@ if run_inference or run_inference_only:
         df_fit_new = df_fit.rename(columns=name_updates)
 
         # we save the df to csv so we have it
-        df_fit_new.to_csv("results/samples_mov_gamma.csv")
+        df_fit_new.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
         # we read it right back in to fix formatting
-        samples_mov_gamma = pd.read_csv("results/samples_mov_gamma.csv")
+        samples_mov_gamma = pd.read_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
 
 # decide what to do next based on whether we want to plot
 if run_inference_only:
     sys.exit()
 elif not on_phoenix:
     # we read it right back in to fix formatting
-    samples_mov_gamma = pd.read_csv("results/samples_mov_gamma.csv")
+    samples_mov_gamma = pd.read_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
 
 ######### plotting the results #########
 ######### ratio of imported to local cases #########
@@ -1071,11 +1071,10 @@ for i, state in enumerate(states):
 
 ax[1, 0].set_ylabel('reduction in TP from vaccination')
 
-df_vacc_ts_adjusted.to_csv('results/adjusted_vaccine_ts'+data_date.strftime("%Y-%m-%d")+'.csv', index=False)
+df_vacc_ts_adjusted.to_csv('results/adjusted_vaccine_ts' + data_date.strftime("%Y-%m-%d") + '.csv', index=False)
 
 # plt.show()
-
-plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_TP.png", dpi=144)
+plt.savefig(results_dir + data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_TP.png", dpi=144)
 
 # remove plots from memory
 fig.clear()
@@ -1157,7 +1156,7 @@ var_to_csv = var_to_csv + ['r['+str(v)+']' for v in third_states_indices.values(
 var_to_csv = var_to_csv + ["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]
 var_to_csv = var_to_csv + ["prop_omicron_to_delta[" + str(j)  + "]" for j in range(1, total_N_p_third_omicron+1)]
 
-samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior'+data_date.strftime("%Y-%m-%d")+'.h5', key='samples') 
+samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior' + data_date.strftime("%Y-%m-%d") + '.h5', key='samples') 
 
 # store the number of days used for fitting
 # third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
