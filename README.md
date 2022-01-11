@@ -50,7 +50,7 @@ Scenario modelling in the context of this model relates to the assumptions we ap
 This is a quick start to run the model locally. 
 ```
 python model/EpyReff/run_estimator.py $DATADATE
-python model/fitting_and_forecasting/generate_posterior.py $DATADATE 
+python model/fitting_and_forecasting/generate_posterior.py $DATADATE
 python model/fitting_and_forecasting/forecast_TP.py $DATADATE
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 for STATE in "${states[@]}"

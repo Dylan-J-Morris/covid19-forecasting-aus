@@ -16,7 +16,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from arviz.utils import _var_names
 import matplotlib
 from numpy.random import sample
 from scipy.stats import truncnorm
@@ -495,7 +494,9 @@ else:
 if run_inference or run_inference_only:
 
     # import the stan model as a string
-    with open('model/fitting_and_forecasting/rho_model_gamma.stan') as f:
+    # with open('model/fitting_and_forecasting/rho_model_gamma.stan') as f:
+    #     rho_model_gamma = f.read()
+    with open('model/fitting_and_forecasting/rho_model_gamma_single_prop.stan') as f:
         rho_model_gamma = f.read()
 
     # slightly different setup depending if we are running on phoenix or locally due to
@@ -533,7 +534,7 @@ if run_inference or run_inference_only:
         with open(results_dir+filename, 'w') as f:
             print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
                                              'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                             'eta', 'r', 'reduction_vacc_effect_omicron']), file=f)
+                                             'eta', 'r', 'reduction_vacc_effect_omicron', 'susceptible_depletion_factor']), file=f)
 
         ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
         # create extended summary of parameters to index the samples by
@@ -541,7 +542,7 @@ if run_inference or run_inference_only:
                                                 'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave', 
                                                 'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
                                                 'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
-                                                'susceptible_depletion_factor'])
+                                                'susceptible_depletion_factor', 'susceptible_depletion_factor'])
 
         match_list_names = summary_df.index.to_list()
 
