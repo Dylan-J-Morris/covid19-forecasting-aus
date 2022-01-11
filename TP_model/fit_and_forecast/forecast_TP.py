@@ -1,6 +1,7 @@
 import glob
 import os
 import sys
+from numpy.random.mtrand import beta
 
 from pandas.core.indexes.base import Index
 
@@ -509,7 +510,7 @@ for i, state in enumerate(states):
             trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
             # Generate realisations that draw closer to baseline
             regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
-            current = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
+            current = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
             # current = current+trend_force 
         
         elif scenarios[state] != '':
@@ -1019,7 +1020,7 @@ for typ in forecast_type:
 
         # take right size of md to be N by N
         theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0], n_samples))
-        theta_masks = np.tile(samples['theta_md'].values, (df_state.shape[0], n_samples))
+        theta_masks = np.tile(samples['theta_masks'].values, (df_state.shape[0], n_samples))
         
         if expo_decay:
             md = ((1+theta_md).T**(-1*prop_sim)).T
@@ -1036,7 +1037,7 @@ for typ in forecast_type:
             vacc_tmp = sampled_vax_effects_all[vax_idx_ranges[state],:]
             # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
             eta = np.tile(samples['eta[' + str(third_states_indices[state]) + ']'], (df_state.shape[0], n_samples))        
-            r = np.tile(samples['eta[' + str(third_states_indices[state]) + ']'], (df_state.shape[0], n_samples))
+            r = np.tile(samples['r[' + str(third_states_indices[state]) + ']'], (df_state.shape[0], n_samples))
 
             # get before and after fitting and tile them
             vacc_ts_data_before = pd.concat(
@@ -1085,11 +1086,10 @@ for typ in forecast_type:
         reduction_vacc_effect_omicron = np.tile(samples['reduction_vacc_effect_omicron'].to_numpy(), (df_state.shape[0], n_samples))
         vacc_post = np.zeros_like(vacc_ts)
     
-        # take sample of reduction 
+        # proportion of omicron cases each day.
         if state in {'VIC', 'NSW', 'ACT', 'QLD', 'SA'}: 
             m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
         else:
-            # assume proxy of ACT (low Omicron presence) 
             m_tmp = prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
             
         # initialise array for holding the proportion attributable to Omicron 
@@ -1234,14 +1234,14 @@ for typ in forecast_type:
         # calculate the expected TP each day for delta and omicron using the posterior sample
         rows = (omicron_start_day + len(idx[state]))
         # take the mean down the columns (i.e. over the whole forecast period) for a given posterior draw
-        E_TP_delta = np.mean(TP_delta[rows:, :], axis=0)
-        E_TP_omicron = np.mean(TP_omicron[rows:, :], axis=0)
+        E_TP_delta = np.mean(TP_delta[rows:,:], axis=0)
+        E_TP_omicron = np.mean(TP_omicron[rows:,:], axis=0)
         # expected generation interval (Gamma(2.75, 1))
         E_gen_int = 2.75
         # exponent term in exponential increase of cases 
         E_exponent = (E_TP_omicron - E_TP_delta)/E_gen_int
         # number of days into omicron forecast
-        tt = 0    
+        tt = 0
         
         # loop over days in third wave and apply the appropriate form (i.e. decay or not)
         # note that in here we apply the entire sample to the vaccination data to create a days by samples array
@@ -1265,7 +1265,7 @@ for typ in forecast_type:
                 else: 
                     # first day of the forecasting period for omicron proportion 
                     if tt == 0:
-                        phi_0 = m[jj] / (1-m[jj])       # inverting proportion to get ratio at last time point
+                        phi_0 = m[jj] / (1-m[jj])       # inverting proportion to get ratio of omicron to delta 
                     
                     # number of days after the start of omicron 
                     jj = ii - omicron_start_day
@@ -1282,9 +1282,7 @@ for typ in forecast_type:
                     # calculate shape and scale 
                     a_m = m_t * ((m_t*(1-m_t)/sig_m) - 1)
                     b_m = (1-m_t) * ((m_t*(1-m_t)/sig_m) - 1)
-                    # now sample m's assuming mean of m_t
                     m_t_prime = np.random.beta(a_m, b_m)
-                    # transform to get the proportion of cases 
                     m[jj] = m_t_prime
                     # apply the vaccination model 
                     decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
@@ -1292,7 +1290,8 @@ for typ in forecast_type:
                     vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
                     # this is the simplified form of the mixture model of the vaccination effects 
                     vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
-        else:   # non NSW (Omicron states)
+                    
+        else:   # non fit states 
             for ii in range(vacc_post.shape[0]):
                 if ii < heterogeneity_delay_start_day:
                     vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
@@ -1332,15 +1331,6 @@ for typ in forecast_type:
                     vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
                     # this is the simplified form of the mixture model of the vaccination effects 
                     vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
-                
-            # for ii in range(vacc_post.shape[0]):
-            #     if ii < heterogeneity_delay_start_day:
-            #         vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
-            #     else:
-            #         # number of days after the heterogeneity should start to wane
-            #         heterogeneity_delay_days = ii - heterogeneity_delay_start_day
-            #         decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
-            #         vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
         
         # this sets all values of the vaccination data prior to the start date equal to 1 
         for ii in range(vacc_post.shape[0]):
@@ -1361,27 +1351,6 @@ for typ in forecast_type:
             else: 
                 jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
                 voc_multiplier[ii] = m[jj]*voc_multiplier_omicron[ii] + (1-m[jj])*voc_multiplier_delta[ii]
-        # if state in {'NSW'}:
-        #     # calculate the voc effects
-        #     for ii in range(voc_multiplier.shape[0]):
-        #         if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-        #             voc_multiplier[ii] = 1.0
-        #         elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-        #             voc_multiplier[ii] = voc_multiplier_alpha[ii]
-        #         elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
-        #             voc_multiplier[ii] = voc_multiplier_delta[ii]
-        #         else: 
-        #             jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
-        #             voc_multiplier[ii] = m[jj]*voc_multiplier_omicron[ii] + (1-m[jj])*voc_multiplier_delta[ii]
-        # else: 
-        #     # calculate the voc effects
-        #     for ii in range(voc_multiplier.shape[0]):
-        #         if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-        #             voc_multiplier[ii] = 1.0
-        #         elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-        #             voc_multiplier[ii] = voc_multiplier_alpha[ii]
-        #         else:
-        #             voc_multiplier[ii] = voc_multiplier_delta[ii]
 
         # calculate TP 
         R_L = 2 * md * mask_wearing_factor * sim_R * expit(logodds) * vacc_post * voc_multiplier
