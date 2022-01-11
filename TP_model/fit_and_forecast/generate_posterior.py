@@ -1158,8 +1158,4 @@ var_to_csv = var_to_csv + ["prop_omicron_to_delta[" + str(j)  + "]" for j in ran
 
 samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior' + data_date.strftime("%Y-%m-%d") + '.h5', key='samples') 
 
-# store the number of days used for fitting
-# third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
-# pd.DataFrame.from_dict(third_days).to_csv('results/EpyReff/day_counts.csv')
-
 
