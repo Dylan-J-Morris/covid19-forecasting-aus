@@ -494,9 +494,7 @@ else:
 if run_inference or run_inference_only:
 
     # import the stan model as a string
-    # with open('model/fitting_and_forecasting/rho_model_gamma.stan') as f:
-    #     rho_model_gamma = f.read()
-    with open('TP_model/fit_and_forecast/rho_model_gamma_single_prop.stan') as f:
+    with open('TP_model/fit_and_forecast/rho_model_gamma.stan') as f:
         rho_model_gamma = f.read()
 
     # slightly different setup depending if we are running on phoenix or locally due to
