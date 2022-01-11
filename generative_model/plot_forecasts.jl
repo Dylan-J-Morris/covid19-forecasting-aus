@@ -3,6 +3,8 @@ using CSV
 using DataFrames
 using Plots
 using Measures      # for better positioning of figures 
+
+# if you have python installed, you can use pyplot for better formatting
 pyplot()
 
 include("read_in_cases.jl")
@@ -194,7 +196,7 @@ function plot_all_forecasts(
         
     end
 
-    dir_name = joinpath("figures", file_date)
+    dir_name = joinpath("figs", file_date)
     if !ispath(dir_name)
         mkpath(dir_name)
     end

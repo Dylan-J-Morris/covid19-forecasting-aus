@@ -1,23 +1,32 @@
 # COVID-19 Forecasting for Australia
-University of Adelaide model used to forecast COVID-19 cases in Australia for the Australian Health Protection Principal Committee (AHPPC). This model uses a hierarchical bayesian approach to state level to inference of effective reproductions numbers over time using marco and micro social distancing data. These inferred temporal $R_{eff}$ values are then used in a branching process model to select valid $R_{eff}$ trajectories and produce a forecast distribution of cases over an arbitrary forecast period.
+University of Adelaide model used to forecast COVID-19 cases in Australia for the Australian Health Protection Principal Committee (AHPPC). This model uses a hierarchical bayesian approach to state level to inference of effective reproductions numbers over time using macroo and micro social distancing data. The model based estimate of $R_\text{eff}$ is referred to as Transmission Potential (TP) which are then used in a branching process model to select valid TP trajectories and produce a forecast distribution of cases over an arbitrary forecast period.
 
 ### Data needed
 In the `data` folder, ensure you have the latest:
 * Case data (NNDSS)
 * Up to date microdistancing survey files titled `Barometer wave XX compliance.csv` saved in the `data/md/` folder. All files up to the current wave need to be included.
+* Up to date mask wearing survey files titled `face_covering_XX_.csv` saved in the `data/face_coverings/` folder. All files up to the current wave need to be included.
 * [Google mobility indices](https://www.google.com/covid19/mobility/); use the Global CSV with the file named `Global_Mobility_Report.csv`. This is automatically downloaded when `download_google_automatically` in `params.py` is set to True.
 * Vaccination coverage data by state. This is required for forecasts using third wave data and onwards. This is a time series of the (multiplicative) reduction in $R_\text{eff}$ as a result of vaccination. **Note:** that this file will most often need the date to be adjusted due to a small offset. This adjustment is just renaming the file with the same date as per NNDSS/interim linelist. 
 
 These data will need to be updated every week. 
 
+### Outline of the model 
+The model can be broken down into two components 
+1. The TP model fitting and forecasting found in `TP_model`; and, 
+2. the branching process simulation found in `generative_model`.
+
+`TP_model` contains Python scripts for running EpyReff to get an estimate of the time-varying reproduction number. We fit the TP model to this inferred $R_\text{eff}$. We forecast mobility, micro-distancing, mask-wearing and vaccination forwards and combine the posterior draws with these forecasted estimates to obtain a forecast of the local (and import) TP. 
+
+`generative_model` features Julia scripts for running the branching process. Using Julia provides noticeable improvements for runtime compared to Python implementations (used previously for this project). 
+
 #### Internal options
-There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, options/assumptions have been made during the fitting in `model/fitting_and_forecasting/generate_posterior.py`. 
+There are some options used within the model that are not passed as parameters. For the TP model the majority of these are located in the `TP_model/params.py` file. Additionally, options/assumptions have been made during the fitting in `model/fitting_and_forecasting/generate_posterior.py`. 
+
+For the generative model, the assumptions are stored in `generative_model/assumptions.jl`. 
 # Running workflows
 ## What you need to know
 There are two ways to run the UoA Covid-19 forecasting model built into the codebase: 
-- locally
-- on a cluster (HPC) that uses slurm
-In this markdown document we outline the requirements for both and provide the straightforward approaches for scenario modelling (the main source of interest currently).
 
 ## Data
 1. In the covid forecasting directory (from github) create a data folder called `data`. 
@@ -28,7 +37,12 @@ In this markdown document we outline the requirements for both and provide the s
 6. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `/data`.
 
 ## What you need installed
-To run the full pipeline you will need `matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy pytables`. For older versions of Python, you can use `stan` instead of `pystan`. This can be triggered by setting `on_phoenix=True` in `params.py`.
+To run the TP model component of the code you will need `matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy pytables` installed in Python. For older versions of Python, you can use `stan` instead of `pystan`. This can be triggered by setting `on_phoenix=True` in `params.py`.
+
+For the generative model, you will need to have Julia installed. The packages used can all be installed by running:
+```
+julia generative_model/install_pkgs.jl
+```
 
 ## Model options
 There are some options used within the model that are not passed as parameters. These are all found in the `model/params.py` file. Additionally, options/assumptions have been made during the fitting in `model/fitting_and_forecasting/generate_posterior.py`. Before running either workflow, ensure the flags in the `model/params.py` file are set accordingly. Typically this will involve setting `on_phoenix=True` to either true (if using HPC) of `False` (if running locally), setting `run_inference=True`, `testing_inference=False` and `run_inference_only=False`. The latter two flags are used to save time by not plotting in the stan fitting part of `generate_posterior.py`. 
