@@ -1506,7 +1506,7 @@ df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
 df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
 # save the file as a csv
-df_Rhats.to_csv('results/third_wave_fit/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
+df_Rhats.to_csv('results/soc_mob_R' +data_date.strftime('%Y-%m-%d')+'.csv')
 df_hdf.to_hdf('results/soc_mob_R'+data_date.strftime('%Y-%m-%d')+'.h5', key='Reff')
 
 if run_TP_adjustment:
