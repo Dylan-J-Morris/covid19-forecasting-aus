@@ -295,7 +295,8 @@ model {
     bet ~ normal(0, 1.0);
     theta_md ~ lognormal(0, 0.5);
     theta_masks ~ lognormal(0, 0.5);
-
+    
+    //gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
     additive_voc_effect_delta ~ gamma(1.5*1.5/0.05, 1.5/0.05);
     additive_voc_effect_omicron ~ gamma(1.5*1.5/0.05, 1.5/0.05);
@@ -305,7 +306,7 @@ model {
     r ~ lognormal(log(0.16), 0.1);
 
     //reduction in vaccine effect due to omicron
-    reduction_vacc_effect_omicron ~ beta(75, 50);
+    reduction_vacc_effect_omicron ~ beta(30, 70);   //mean of 0.3
 
     //susceptible depletion
     susceptible_depletion_factor ~ beta(2, 2);
