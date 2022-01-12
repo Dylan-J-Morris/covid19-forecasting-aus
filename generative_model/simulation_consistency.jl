@@ -167,7 +167,6 @@ function inject_cases!(
     
     total_injected = missing_detections
     
-    # assumptions surrouding the probability of symptomatic, relative infectiousness γ and the ratio of Reff (α's) (CHECK THIS) 
     p_symp = sim_constants.p_symp
     p_detect_given_symp = sim_constants.p_detect_given_symp
     p_detect_given_asymp = sim_constants.p_detect_given_asymp

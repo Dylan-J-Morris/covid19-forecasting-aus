@@ -118,25 +118,25 @@ function initialise_population!(
             infection_time_counter = 1
             
             for _ in 1:D0.S
-                Z[infection_times[infection_time_counter]+35,individual_type_map.S,sim] += 1
+                Z[infection_times[infection_time_counter]+36,individual_type_map.S,sim] += 1
                 infection_time_counter += 1
                 D[1,individual_type_map.S,sim] += 1
             end
             
             for _ in 1:D0.A
-                Z[infection_times[infection_time_counter]+35,individual_type_map.A,sim] += 1
+                Z[infection_times[infection_time_counter]+36,individual_type_map.A,sim] += 1
                 infection_time_counter += 1
                 D[1,individual_type_map.A,sim] += 1
             end
             
             for _ in 1:num_symptomatic_undetected
-                Z[infection_times[infection_time_counter]+35,individual_type_map.S,sim] += 1
+                Z[infection_times[infection_time_counter]+36,individual_type_map.S,sim] += 1
                 infection_time_counter += 1
                 U[1,individual_type_map.S,sim] += 1
             end
             
             for _ in 1:num_asymptomatic_undetected
-                Z[infection_times[infection_time_counter]+35,individual_type_map.A,sim] += 1
+                Z[infection_times[infection_time_counter]+36,individual_type_map.A,sim] += 1
                 infection_time_counter += 1
                 U[1,individual_type_map.A,sim] += 1
             end
@@ -399,7 +399,7 @@ function assign_to_arrays_and_times!(
     for _ in 1:num_symptomatic_detected
         infection_time = day + sample_infection_time()
         if infection_time <= sim_features.T_end 
-            Z[infection_time+35,individual_type_map.S,sim] += 1
+            Z[infection_time+36,individual_type_map.S,sim] += 1
         end
         
         onset_time = infection_time + sample_onset_time()
@@ -414,7 +414,7 @@ function assign_to_arrays_and_times!(
     for _ in 1:num_asymptomatic_detected
         infection_time = day + sample_infection_time()
         if infection_time <= sim_features.T_end 
-            Z[infection_time+35,individual_type_map.A,sim] += 1
+            Z[infection_time+36,individual_type_map.A,sim] += 1
         end
         
         onset_time = infection_time + sample_onset_time()
@@ -430,7 +430,7 @@ function assign_to_arrays_and_times!(
     for _ in 1:num_symptomatic_undetected
         infection_time = day + sample_infection_time()
         if infection_time <= sim_features.T_end 
-            Z[infection_time+35,individual_type_map.S,sim] += 1
+            Z[infection_time+36,individual_type_map.S,sim] += 1
         end
         
         onset_time = infection_time + sample_onset_time()
@@ -445,7 +445,7 @@ function assign_to_arrays_and_times!(
     for _ in 1:num_asymptomatic_undetected
         infection_time = day + sample_infection_time()
         if infection_time <= sim_features.T_end 
-            Z[infection_time+35,individual_type_map.A,sim] += 1
+            Z[infection_time+36,individual_type_map.A,sim] += 1
         end
         
         onset_time = infection_time + sample_onset_time()
@@ -462,7 +462,7 @@ function assign_to_arrays_and_times!(
     for _ in 1:num_imports_detected
         infection_time = day
         if infection_time <= sim_features.T_end 
-            Z[infection_time+35,individual_type_map.I,sim] += 1
+            Z[infection_time+36,individual_type_map.I,sim] += 1
         end
         
         onset_time = infection_time + sample_onset_time()
@@ -526,9 +526,9 @@ function get_simulation_limits(
     end 
         
     # calculate minimum and maximum observed cases in each period 
-    min_cases = floor.(Int, [0.6*cases_in_each_window[1:end-1]; 0.9*cases_in_each_window[end]])
+    min_cases = floor.(Int, [0.3*cases_in_each_window[1:end-1]; 0.9*cases_in_each_window[end]])
     # min_cases = 0*cases_in_each_window
-    max_cases = ceil.(Int, [3*cases_in_each_window[1:end-1]; 5*cases_in_each_window[end]])
+    max_cases = ceil.(Int, [2.5*cases_in_each_window[1:end-1]; 4*cases_in_each_window[end]])
 
     # assume maximum of 250 cases if the observed is less than that
     for (i, val) in enumerate(max_cases)
