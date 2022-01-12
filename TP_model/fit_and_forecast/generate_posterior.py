@@ -37,7 +37,8 @@ data_date = pd.to_datetime(argv[1])  # Define data date
 print("Data date is {}".format(data_date.strftime('%d%b%Y')))
 fit_date = pd.to_datetime(data_date-timedelta(days=truncation_days))
 print("Last date in fitting {}".format(fit_date.strftime('%d%b%Y')))
-# note: 2020-09-09 won't work (for some reason)
+
+# * Note: 2020-09-09 won't work (for some reason)
 
 ######### Read in microdistancing (md) surveys #########
 surveys = pd.DataFrame()
@@ -187,7 +188,7 @@ third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA'])
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
 # choose dates for each state for third wave
-# NOTE: These need to be in date sorted order
+# * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only! 
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
@@ -488,7 +489,7 @@ if testing_inference:
     num_samples = 1000
 else:
     num_chains = 4
-    num_samples = 2000
+    num_samples = 1000
     
 # to run the inference set run_inference to True in params
 if run_inference or run_inference_only:
@@ -1043,7 +1044,7 @@ for i, state in enumerate(states):
     # create zero array to fill in with the full vaccine effect model
     vacc_eff = np.zeros_like(vacc_ts)
 
-    # note that in here we apply the entire sample to the vaccination data to create a days by samples array
+    # * Note that in here we apply the entire sample to the vaccination data to create a days by samples array
     for ii in range(vacc_eff.shape[0]):
         if ii < heterogeneity_delay_start_day:
             vacc_eff[ii] = eta + (1-eta)*vacc_ts.iloc[ii, :]
