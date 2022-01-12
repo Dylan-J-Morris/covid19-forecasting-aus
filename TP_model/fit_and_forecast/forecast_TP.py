@@ -269,12 +269,6 @@ for i, state in enumerate(states):
         R_diffs = np.diff(Rmed[-n_training:, :], axis=0)
         mu = np.mean(R_diffs, axis=0)
         cov = np.cov(R_diffs, rowvar=False)  # columns are vars, rows are obs
-        
-        # apply adjustment to TAS to reduce upper limit on R&R and workplaces. The trend
-        # looks too strong so this smooths over the difference in the preceeding 14 days. 
-        if state == 'TAS':
-            mu[0] *= 0.25
-            mu[4] *= 0.25
 
         # Forecast mobility forward sequentially by day.
         current = np.mean(Rmed[-5:, :], axis=0)  # Start from last valid days
@@ -292,16 +286,15 @@ for i, state in enumerate(states):
                 regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov)
 
                 new_forcast_points = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Find overall simulation step
-                current = new_forcast_points
-
                 # Apply minimum and maximum
                 new_forcast_points = np.maximum(minRmed, new_forcast_points)
                 new_forcast_points = np.minimum(maxRmed, new_forcast_points)
+                
+                current = new_forcast_points
             
             elif scenarios[state] != '':
                 # Make baseline cov for generating points
                 cov_baseline = np.cov(Rmed[-42:-28, :], rowvar=False)
-                # cov_baseline = np.cov(Rmed[-140:-100, :], rowvar=False)
                 mu_current = Rmed[-1, :]
                 mu_victoria = np.array([-55.35057887, -22.80891056, -46.59531636, -75.99942378, -44.71119293])
 
@@ -318,7 +311,7 @@ for i, state in enumerate(states):
                     # cov_baseline = np.cov(Rmed[-28:, :], rowvar=False)
                     new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
 
-                if scenarios[state] == "no_reversion_continuous_lockdown":
+                elif scenarios[state] == "no_reversion_continuous_lockdown":
                     # add the new scenario here
                     new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
 
@@ -357,10 +350,10 @@ for i, state in enumerate(states):
                         regression_to_baseline_force = np.random.multivariate_normal(adjusted_baseline_drift_mean, cov) # Generate a single forward realisation of baseline regression
                         new_forcast_points = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force # Find overall simulation step
                         new_forcast_points = current + regression_to_baseline_force # Find overall simulation step
-                        current = new_forcast_points
                         # Apply minimum and maximum
                         new_forcast_points = np.maximum(minRmed, new_forcast_points)
                         new_forcast_points = np.minimum(maxRmed, new_forcast_points)
+                        current = new_forcast_points
                         
                 elif scenarios[state] == "immediately_baseline":
                     # this scenario is used to return instantly to the baseline levels 
@@ -380,13 +373,31 @@ for i, state in enumerate(states):
                         new_forcast_points = np.random.multivariate_normal((mu_current + mu_baseline)/2, cov_baseline)
 
                 # Stage 4
-                if scenarios[state] == "stage4":
+                elif scenarios[state] == "stage4":
                     if i < scenario_change_point:
-                        new_forcast_points = np.random.multivariate_normal(
-                            mu_current, cov_baseline)
+                        new_forcast_points = np.random.multivariate_normal(mu_current, cov_baseline)
                     else:
-                        new_forcast_points = np.random.multivariate_normal(
-                            mu_victoria, cov_baseline)
+                        new_forcast_points = np.random.multivariate_normal(mu_victoria, cov_baseline)
+                
+                # post christmas with highest rate of incidence (2022 January)
+                elif scenarios[state] == "post_christmas":
+                    
+                    # Proportion of trend_force to regression_to_baseline_force
+                    p_force = (n_forecast-i)/(n_forecast)
+
+                    # Generate a single forward realisation of trend according to baseline covariance (much smaller 
+                    # compared to the training cov)
+                    trend_force = np.random.multivariate_normal(mu_current, cov_baseline)
+                    # Generate a single forward realisation of baseline regression
+                    # regression to baseline force much weaker compared with standard forecasting
+                    regression_to_baseline_force = np.random.multivariate_normal(0.01*(R_baseline_mean - mu_current), cov)
+                    new_forcast_points = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Find overall simulation step
+
+                    current = new_forcast_points
+                    # Apply minimum and maximum
+                    new_forcast_points = np.maximum(minRmed, new_forcast_points)
+                    new_forcast_points = np.minimum(maxRmed, new_forcast_points)
+                    
 
             # Set this day in this simulation to the forecast realisation
             sims[i, :, n] = new_forcast_points
@@ -421,7 +432,7 @@ for i, state in enumerate(states):
             trend_force = np.random.normal(mu_diffs, std_diffs, size=1000)
             # Generate realisations that draw closer to baseline
             regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
-            current = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
+            current = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
             # current = current+p_force*trend_force  # Balance forces
         
         elif scenarios[state] != '':
@@ -474,9 +485,18 @@ for i, state in enumerate(states):
                 else:
                     # Revert to values halfway between the before and after
                     current = np.random.normal((mu_current + mu_baseline)/2, std_baseline)
-
-            # # Stage 4
-            # Not yet implemented
+                    
+            elif scenarios[state] == "post_christmas": 
+                # Proportion of trend_force to regression_to_baseline_force
+                p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md)
+                
+                # take a mean of the differences over the last 2 weeks
+                mu_diffs = np.mean(np.diff(prop[state].values[-14:]))
+                # Generate step realisations in training trend direction
+                trend_force = np.random.normal(mu_diffs, std_baseline)
+                # Generate realisations that draw closer to baseline
+                regression_to_baseline_force = np.random.normal(0.01*(mu_overall - current), std_diffs)
+                current = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
 
         new_md_forecast.append(current)
 
@@ -563,9 +583,18 @@ for i, state in enumerate(states):
                 else:
                     # Revert to values halfway between the before and after
                     current = np.random.normal((mu_current + mu_baseline)/2, std_baseline)
-
-            # # Stage 4
-            # Not yet implemented
+                    
+            elif scenarios[state] == "post_christmas": 
+                # Proportion of trend_force to regression_to_baseline_force
+                p_force = (n_forecast+extra_days_md-i)/(n_forecast+extra_days_md)
+                
+                # take a mean of the differences over the last 2 weeks
+                mu_diffs = np.mean(np.diff(masks[state].values[-14:]))
+                # Generate step realisations in training trend direction
+                trend_force = np.random.normal(mu_diffs, std_baseline)
+                # Generate realisations that draw closer to baseline
+                regression_to_baseline_force = np.random.normal(0.01*(mu_overall - current), std_diffs)
+                current = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
 
         new_masks_forecast.append(current)
 
