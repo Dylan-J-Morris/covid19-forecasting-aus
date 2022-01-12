@@ -54,7 +54,14 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 # gamma draws take arguments (shape, scale)
 
-def draw_inf_dates(df_linelist, shape_inc=5.807, scale_inc=0.948, offset_inc=0, shape_rd=2, scale_rd=1, offset_rd=1, nreplicates=1):
+def draw_inf_dates(df_linelist, 
+                   shape_inc=5.807, 
+                   scale_inc=0.948, 
+                   offset_inc=0, 
+                   shape_rd=2, 
+                   scale_rd=1, 
+                   offset_rd=1, 
+                   nreplicates=1):
 
     # these aren't really notification dates, they are a combination of onset and confirmation dates 
     notification_dates = df_linelist['date_inferred']
@@ -222,17 +229,21 @@ def Reff_from_case(cases_by_infection, lamb, prior_a=1, prior_b=5, tau=7, sample
     cases_by_infection: A T by N array, for T days and N samples 
     lamb : A T by N array, for T days and N samples
     """
-    csum_incidence = np.cumsum(cases_by_infection, axis=0)
+    csum_incidence = np.cumsum(cases_by_infection)
     # remove first few incidences to align with size of lambda
     # Generation interval length 20
-    csum_incidence = csum_incidence[(trunc_days-1):, :]
-    csum_lambda = np.cumsum(lamb, axis=0)
-    roll_sum_incidence = csum_incidence[tau:, :] - csum_incidence[:-tau, :]
-    roll_sum_lambda = csum_lambda[tau:, :] - csum_lambda[:-tau, :]
+    csum_incidence = csum_incidence[(trunc_days-1):]
+    csum_lambda = np.cumsum(lamb)
+    roll_sum_incidence = csum_incidence[tau:] - csum_incidence[:-tau]
+    roll_sum_lambda = csum_lambda[tau:] - csum_lambda[:-tau]
     a = prior_a + roll_sum_incidence
     b = 1/(1/prior_b + roll_sum_lambda)
+    
     R = np.random.gamma(a, b)  # shape, scale
-
+    
+    # select first column 
+    
+    
     # Need to empty R when there is too few cases...
 
     return a, b, R
