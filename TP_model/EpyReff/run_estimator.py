@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from pandas._libs.tslibs.timedeltas import Timedelta
+from tqdm import tqdm
 import matplotlib
 print('Running EpyReff on NNDSS data')
 
@@ -48,56 +49,103 @@ df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
 # generate dataframe with id_vars date and state, variable SOURCE and number of cases
 df_linel = tidy_cases_lambda(df_interim)
 
-# generate possible infection dates from the notification data
-df_inf = draw_inf_dates(df_linel, 
-                        nreplicates=1,
-                        shape_inc=shape_inc, 
-                        scale_inc=scale_inc, 
-                        offset_inc=offset_inc, 
-                        shape_rd=shape_rd, 
-                        scale_rd=scale_rd, 
-                        offset_rd=offset_rd)
+# number of samples to draw 
+samples = 500
 
-# reindex dataframe to include all dates,
-# return df with index (STATE, INFECTION_DATE, SOURCE), columns are samples
-df_inc_zeros = index_by_infection_date(df_inf)
-
-# get all lambdas
-lambda_dict = lambda_all_states(df_inc_zeros,
-                                shape_gen=shape_gen, 
-                                scale_gen=scale_gen, 
-                                offset=offset,
-                                offset_gen=offset_gen,
-                                trunc_days=trunc_days)
-
-states = [*df_inc_zeros.index.get_level_values('STATE').unique()]
 R_summary_states = {}
-R_store = {}
 dates = {}
 df = pd.DataFrame()
 df_R_samples = pd.DataFrame()
+R_store = {}
+
+# NOTE: this is by far not optimal but since it's such a small part of the procedure 
+# we haven't modified the previous code too much outside of treating things as vectors.
+for rep in tqdm(range(samples)):
+    
+    # generate realisation of infection dates from notification dates 
+    df_inf = draw_inf_dates(df_linel, 
+                            nreplicates=1,
+                            shape_inc=shape_inc, 
+                            scale_inc=scale_inc, 
+                            offset_inc=offset_inc, 
+                            shape_rd=shape_rd, 
+                            scale_rd=scale_rd, 
+                            offset_rd=offset_rd)
+    
+    # reindex dataframe to include all dates,
+    # return df with index (STATE, INFECTION_DATE, SOURCE), columns are samples
+    df_inc_zeros = index_by_infection_date(df_inf)
+
+    # get all lambdas
+    lambda_dict = lambda_all_states(df_inc_zeros,
+                                    shape_gen=shape_gen, 
+                                    scale_gen=scale_gen, 
+                                    offset=offset,
+                                    offset_gen=offset_gen,
+                                    trunc_days=trunc_days)
+
+    states = [*df_inc_zeros.index.get_level_values('STATE').unique()]
+    
+    for state in states:
+        lambda_state = lambda_dict[state][:,0]
+        df_state_I = df_inc_zeros.xs((state, 'local'), level=('STATE', 'SOURCE'))
+            
+        cases_by_infection = df_state_I.n_cases.values
+        
+        # keep track of days indexed in the dataframe
+        first_date_index_new = df_state_I.index[0]
+        last_date_index_new = df_state_I.index[-1]
+        
+        # store sampled Reffs
+        if rep == 0:
+            # store the dates
+            dates[state] = df_state_I.index.values[trunc_days-1+tau:]
+            first_date_index_min = first_date_index_new
+            last_date_index_max = last_date_index_new
+        else:
+            first_date_index_old = min(first_date_index_min, first_date_index_new)
+        
+        # get Reproduciton numbers
+        a, b, R = Reff_from_case(cases_by_infection, 
+                                 lambda_state, 
+                                 prior_a=prior_a, 
+                                 prior_b=prior_b, 
+                                 tau=tau)
+        
+        if first_date_index_new > first_date_index_min: 
+            R = np.append([0]*(first_date_index_new-first_date_index_min).days, R)
+        elif first_date_index_new < first_date_index_min:
+            R = R[(first_date_index_min-first_date_index_new).days:]
+            
+        if last_date_index_new < last_date_index_max: 
+            R = np.append(R, [0]*(last_date_index_max-last_date_index_new).days)
+        elif last_date_index_new > last_date_index_max: 
+            R = R[:-(last_date_index_new-last_date_index_max).days]
+        
+        # store sampled Reffs
+        if rep == 0:
+            R_store[state] = R
+        else:
+            R_store[state] = np.vstack([R_store[state], R])
+            
+# to interface with the previous code we need to transpose R_store             
+for state in states: 
+    R_store[state] = R_store[state].T
+
+# now we loop over the states and calculate summaries
 for state in states:
-    lambda_state = lambda_dict[state]
     df_state_I = df_inc_zeros.xs((state, 'local'), level=('STATE', 'SOURCE'))
-    # get Reproduciton numbers
-    a, b, R = Reff_from_case(df_state_I.values, 
-                             lambda_state, 
-                             prior_a=prior_a, 
-                             prior_b=prior_b, 
-                             tau=tau)
     
-    # store the date
-    dates[state] = df_state_I.index.values[trunc_days-1+tau:]
-    
-    # store sampled Reffs
-    R_store[state] = R
+    # extract latest R
+    R = R_store[state]
+
     if use_TP_adjustment:
         # temporarily store important information
         temp = pd.DataFrame.from_dict(R_store[state])
         temp['INFECTION_DATES'] = dates[state]
         temp['STATE'] = state
         df_R_samples = df_R_samples.append(temp, ignore_index=True)
-    
+
     # summarise for plots and file printing
     R_summary_states[state] = generate_summary(R)
     temp = pd.DataFrame.from_dict(R_summary_states[state])
@@ -137,7 +185,7 @@ if plot_time:
 
     plt.savefig('figs/Time_distributions'+file_date +"tau_"+str(tau)+".png", dpi=400)
 
-
+# saving files 
 df.to_csv('results/EpyReff/Reff'+file_date+"tau_"+str(tau)+".csv", index=False)
 df_R_samples.to_csv('results/EpyReff/Reff_samples'+file_date+"tau_"+str(tau)+".csv", index=False)
 
