@@ -38,6 +38,8 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
     # Filter out territories
     if(remove_territories):
         df_linel = interim_data[(interim_data['STATE'] != 'NT')]
+    else: 
+        df_linel = interim_data
 
     # Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
     # i.e. create linelist data
@@ -329,7 +331,7 @@ def plot_all_states(R_summ_states, df_interim, dates,
     import matplotlib.pyplot as plt
     import os
     states = df_interim.STATE.unique().tolist()
-    states.remove('NT')
+    # states.remove('NT')
 
     date_filter = pd.date_range(start=start, end=end)
 

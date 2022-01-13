@@ -47,7 +47,7 @@ print(dt_date.strftime("%d%b%Y"))
 df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
 
 # generate dataframe with id_vars date and state, variable SOURCE and number of cases
-df_linel = tidy_cases_lambda(df_interim)
+df_linel = tidy_cases_lambda(df_interim, remove_territories=False)
 
 # number of samples to draw 
 samples = 500
