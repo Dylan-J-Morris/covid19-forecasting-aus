@@ -284,9 +284,9 @@ model {
     
     //drifting omicron proportion to 0.9
     real drift_mean = 0.95;
-    real drift_factor = 0.15;    //faster drift? 
+    real drift_factor = 0.2;    //faster drift? 
     real mean_omicron; 
-    real var_omicron = 0.00025; 
+    real var_omicron = 0.0005; 
     real a_omicron;
     real b_omicron;
 
@@ -306,7 +306,8 @@ model {
     r ~ lognormal(log(0.16), 0.1);
 
     //reduction in vaccine effect due to omicron
-    reduction_vacc_effect_omicron ~ beta(30, 70);   //mean of 0.3
+    // reduction_vacc_effect_omicron ~ beta(40, 60);   //mean of 0.4 - slightly lower than supplied VE ts 
+    reduction_vacc_effect_omicron ~ beta(50, 50);   //mean of 0.4 - slightly lower than supplied VE ts 
 
     //susceptible depletion
     susceptible_depletion_factor ~ beta(2, 2);
