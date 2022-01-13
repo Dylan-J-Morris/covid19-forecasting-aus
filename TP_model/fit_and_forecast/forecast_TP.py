@@ -39,8 +39,10 @@ start_date = '2020-03-01'
 # convert third start date to the correct format
 third_start_date = pd.to_datetime(third_start_date)
 third_end_date = data_date - timedelta(truncation_days)
+third_end_date_SA = data_date - timedelta(15)
 
-third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
+# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
 # choose dates for each state for third wave
 # NOTE: These need to be in date sorted order
 third_date_range = {
@@ -48,8 +50,8 @@ third_date_range = {
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
     'NT': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
-    'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-    'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    'SA': pd.date_range(start='2021-11-25', end=third_end_date_SA).values,
+    # 'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
 }
 
@@ -1024,11 +1026,12 @@ mob_forecast_date = df_forecast.date.min()
 state_key = {
     'ACT': '1',
     'NSW': '2',
-    'QLD': '3',
-    'SA': '4',
-    'TAS': '5',
-    'VIC': '6',
-    'WA': '7',
+    'NT': '3',
+    'QLD': '4',
+    'SA': '5',
+    'TAS': '6',
+    'VIC': '7',
+    'WA': '8',
 }
 
 total_N_p_third_omicron = 0
@@ -1131,9 +1134,9 @@ for typ in forecast_type:
         vacc_post = np.zeros_like(vacc_ts)
     
         # proportion of omicron cases each day.
-        if state in {'VIC', 'NSW', 'ACT', 'QLD', 'SA'}: 
+        if state in {'VIC', 'NSW', 'ACT', 'QLD', 'SA', 'NT'}: 
             m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
-        elif state in {'NT', 'TAS'}:
+        elif state in {'TAS'}:
             m_tmp = prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
         elif state in {'WA'}:
             m_tmp = 0*prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
@@ -1145,10 +1148,10 @@ for typ in forecast_type:
         voc_multiplier_omicron = np.tile(samples['voc_effect_omicron'].values, (df_state.shape[0], n_samples))
                 
         # sample the right R_L
-        if state == "NT":
-            sim_R = np.tile(samples.R_L.values, (df_state.shape[0], n_samples))
-        else:
-            sim_R = np.tile(samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0], n_samples))                
+        # if state == "NT":
+        #     sim_R = np.tile(samples.R_L.values, (df_state.shape[0], n_samples))
+        # else:
+        sim_R = np.tile(samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0], n_samples))                
 
         for n in range(n_samples):
             # add gaussian noise to predictors before forecast
@@ -1318,7 +1321,7 @@ for typ in forecast_type:
                         # get the most recent value of m_last and 0.97
                         m_last = np.minimum(0.97, m_last)
                         m_last = np.maximum(sig_m*2, m_last)
-                        if m_last > drift_mean: 
+                        if np.max(m_last) > drift_mean: 
                             drift_mean = m_last
                     else:
                         p_force = tt/len(idx[state])
