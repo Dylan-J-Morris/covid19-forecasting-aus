@@ -1274,7 +1274,7 @@ for typ in forecast_type:
         
         # loop over days in third wave and apply the appropriate form (i.e. decay or not)
         # note that in here we apply the entire sample to the vaccination data to create a days by samples array
-        if state in {'NSW', 'QLD', 'SA', 'NSW', 'ACT'}:
+        if state not in {'WA'}: 
             for ii in range(vacc_post.shape[0]):
                 if ii < heterogeneity_delay_start_day:
                     vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
@@ -1292,74 +1292,126 @@ for typ in forecast_type:
                     vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
                     vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
                 else: 
-                    # first day of the forecasting period for omicron proportion 
+                    
                     if tt == 0:
-                        phi_0 = m[jj] / (1-m[jj])       # inverting proportion to get ratio of omicron to delta 
+                        # get the most recent value of m_last and 0.97
+                        m_last = np.minimum(0.97, m[jj])
                     
                     # number of days after the start of omicron 
                     jj = ii - omicron_start_day
                     # number of days after the heterogeneity should start to wane
                     heterogeneity_delay_days = ii - heterogeneity_delay_start_day
-                    # for indexing days into omicron 
-                    tt += 1
-                    # exponential model of the ratio of omicron cases to delta (can be > 1)
-                    phi_t = phi_0 * np.exp(E_exponent*tt)
-                    # transform to proportion capping at maximum of 0.99 to facilitate the transformation 
-                    m_t = np.minimum(0.99, phi_t / (1 + phi_t))
-                    # variance on beta distribution centered at m_t
+                    # variance on beta distribution centered at m_last
                     sig_m = 0.00005
                     # calculate shape and scale 
-                    a_m = m_t * ((m_t*(1-m_t)/sig_m) - 1)
-                    b_m = (1-m_t) * ((m_t*(1-m_t)/sig_m) - 1)
-                    m_t_prime = np.random.beta(a_m, b_m)
-                    m[jj] = m_t_prime
+                    a_m = m_last * ((m_last*(1-m_last)/sig_m) - 1)
+                    b_m = (1-m_last) * ((m_last*(1-m_last)/sig_m) - 1)
+                    
+                    # sample a proportion with some noise about the recent value 
+                    m_last_prime = np.random.beta(a_m, b_m)
+                    m[jj] = m_last_prime
                     # apply the vaccination model 
                     decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
                     # this is just the vaccination model for delta
                     vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
                     # this is the simplified form of the mixture model of the vaccination effects 
                     vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
-                    
-        else:   # non fit states 
+        else: # if we are WA then we assume only Delta (12/1/2022)
             for ii in range(vacc_post.shape[0]):
                 if ii < heterogeneity_delay_start_day:
                     vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
-                elif ii < omicron_start_day:
+                else:
                     # number of days after the heterogeneity should start to wane
                     heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                     decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
                     vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
-                elif ii < omicron_start_day + len(idx[state]):
-                    # number of days after the heterogeneity should start to wane
-                    heterogeneity_delay_days = ii - heterogeneity_delay_start_day
-                    jj = ii - omicron_start_day
-                    m[jj] = np.tile(m_tmp[jj], n_samples)
-                    decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
-                    vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
-                    vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
-                else:
-                    # first day of the forecasting period for omicron proportion 
-                    if tt == 0:
-                        phi_0 = m[jj] / (1-m[jj])       # inverting proportion to get ratio at last time point
+        
+        # if state not in {'WA'}:
+        #     for ii in range(vacc_post.shape[0]):
+        #         if ii < heterogeneity_delay_start_day:
+        #             vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
+        #         elif ii < omicron_start_day:
+        #             # number of days after the heterogeneity should start to wane
+        #             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+        #             decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+        #             vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
+        #         elif ii < omicron_start_day + len(idx[state]):
+        #             # number of days after the heterogeneity should start to wane
+        #             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+        #             jj = ii - omicron_start_day
+        #             m[jj] = np.tile(m_tmp[jj], n_samples)
+        #             decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+        #             vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
+        #             vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
+        #         else: 
+        #             # first day of the forecasting period for omicron proportion 
+        #             if tt == 0:
+        #                 phi_0 = m[jj] / (1-m[jj])       # inverting proportion to get ratio of omicron to delta 
                     
-                    # number of days after the start of omicron 
-                    jj = ii - omicron_start_day
-                    # number of days after the heterogeneity should start to wane
-                    heterogeneity_delay_days = ii - heterogeneity_delay_start_day
-                    # for indexing days into omicron 
-                    tt += 1
-                    # exponential model of the ratio of omicron cases to delta (can be > 1)
-                    phi_t = phi_0
-                    # transform to proportion capping at maximum of 0.99 to facilitate the transformation 
-                    m_t = np.minimum(0.99, phi_t / (1 + phi_t))
-                    # transform to get the proportion of cases 
-                    m[jj] = m_t
-                    # apply the vaccination model 
-                    decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
-                    # this is just the vaccination model for delta
-                    vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
-                    # this is the simplified form of the mixture model of the vaccination effects 
-                    vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
+        #             # number of days after the start of omicron 
+        #             jj = ii - omicron_start_day
+        #             # number of days after the heterogeneity should start to wane
+        #             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+        #             # for indexing days into omicron 
+        #             tt += 1
+        #             # exponential model of the ratio of omicron cases to delta (can be > 1)
+        #             phi_t = phi_0 * np.exp(E_exponent*tt)
+        #             # transform to proportion capping at maximum of 0.99 to facilitate the transformation 
+        #             m_t = np.minimum(0.99, phi_t / (1 + phi_t))
+        #             # variance on beta distribution centered at m_t
+        #             sig_m = 0.00005
+        #             # calculate shape and scale 
+        #             a_m = m_t * ((m_t*(1-m_t)/sig_m) - 1)
+        #             b_m = (1-m_t) * ((m_t*(1-m_t)/sig_m) - 1)
+        #             m_t_prime = np.random.beta(a_m, b_m)
+        #             m[jj] = m_t_prime
+        #             # apply the vaccination model 
+        #             decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+        #             # this is just the vaccination model for delta
+        #             vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
+        #             # this is the simplified form of the mixture model of the vaccination effects 
+        #             vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
+                    
+        # else:   # non fit states 
+        #     for ii in range(vacc_post.shape[0]):
+        #         if ii < heterogeneity_delay_start_day:
+        #             vacc_post[ii] = eta[ii] + (1-eta[ii])*vacc_ts[ii, :]
+        #         elif ii < omicron_start_day:
+        #             # number of days after the heterogeneity should start to wane
+        #             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+        #             decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+        #             vacc_post[ii] = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
+        #         elif ii < omicron_start_day + len(idx[state]):
+        #             # number of days after the heterogeneity should start to wane
+        #             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+        #             jj = ii - omicron_start_day
+        #             m[jj] = np.tile(m_tmp[jj], n_samples)
+        #             decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+        #             vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
+        #             vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
+        #         else:
+        #             # first day of the forecasting period for omicron proportion 
+        #             if tt == 0:
+        #                 phi_0 = m[jj] / (1-m[jj])       # inverting proportion to get ratio at last time point
+                    
+        #             # number of days after the start of omicron 
+        #             jj = ii - omicron_start_day
+        #             # number of days after the heterogeneity should start to wane
+        #             heterogeneity_delay_days = ii - heterogeneity_delay_start_day
+        #             # for indexing days into omicron 
+        #             tt += 1
+        #             # exponential model of the ratio of omicron cases to delta (can be > 1)
+        #             phi_t = phi_0
+        #             # transform to proportion capping at maximum of 0.99 to facilitate the transformation 
+        #             m_t = np.minimum(0.99, phi_t / (1 + phi_t))
+        #             # transform to get the proportion of cases 
+        #             m[jj] = m_t
+        #             # apply the vaccination model 
+        #             decay_factor = np.exp(-r[ii]*heterogeneity_delay_days)
+        #             # this is just the vaccination model for delta
+        #             vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
+        #             # this is the simplified form of the mixture model of the vaccination effects 
+        #             vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
         
         # this sets all values of the vaccination data prior to the start date equal to 1 
         for ii in range(vacc_post.shape[0]):
@@ -1370,16 +1422,26 @@ for typ in forecast_type:
         voc_multiplier = np.zeros_like(voc_multiplier_delta)
         
         # calculate the voc effects
-        for ii in range(voc_multiplier.shape[0]):
-            if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-                voc_multiplier[ii] = 1.0
-            elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-                voc_multiplier[ii] = voc_multiplier_alpha[ii]
-            elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
-                voc_multiplier[ii] = voc_multiplier_delta[ii]
-            else: 
-                jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
-                voc_multiplier[ii] = m[jj]*voc_multiplier_omicron[ii] + (1-m[jj])*voc_multiplier_delta[ii]
+        if state not in {'WA'}:
+            for ii in range(voc_multiplier.shape[0]):
+                if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
+                    voc_multiplier[ii] = 1.0
+                elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                    voc_multiplier[ii] = voc_multiplier_alpha[ii]
+                elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
+                    voc_multiplier[ii] = voc_multiplier_delta[ii]
+                else: 
+                    jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
+                    voc_multiplier[ii] = m[jj]*voc_multiplier_omicron[ii] + (1-m[jj])*voc_multiplier_delta[ii]
+                    
+        else: 
+            for ii in range(voc_multiplier.shape[0]):
+                if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
+                    voc_multiplier[ii] = 1.0
+                elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                    voc_multiplier[ii] = voc_multiplier_alpha[ii]
+                elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
+                    voc_multiplier[ii] = voc_multiplier_delta[ii]
 
         # calculate TP 
         R_L = 2 * md * mask_wearing_factor * sim_R * expit(logodds) * vacc_post * voc_multiplier
