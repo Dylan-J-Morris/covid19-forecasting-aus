@@ -27,6 +27,8 @@ function check_sim!(
     U,
     D_total, 
     D_total_cumsum,
+    forecast_start_date,
+    omicron_dominant_date,
     case_counts, 
     sim,
     local_cases,
@@ -57,28 +59,38 @@ function check_sim!(
     bad_sim = false
     injected_cases = false 
     
+    days_delta = (Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)).value
+    
+    cases_pre_backcast = sum(@view D[1:days_delta,1:2,sim])
+    cases_backcast = sum(@view D[days_delta+1:T_observed,1:2,sim])
+    cases_nowcast = sum(@view D[21:T_observed,1:2,sim])
+    
+    case_counts[1] = cases_pre_backcast
+    case_counts[2] = cases_backcast
+    case_counts[3] = cases_nowcast
+    
     # take out the observed data by adding the observed compartments
     # then we take the cumulative sum as this lets us differnce the vector 
     # more easily
-    if day <= T_observed
-        for i in 1:day
-            D_total[i,sim] = D[i,1,sim] + D[i,2,sim]
-            # this is just an inplace, non-allocating cumulative sum
-            if i == 1
-                D_total_cumsum[i,sim] = D_total[i,sim]
-            else 
-                D_total_cumsum[i,sim] = D_total[i-1,sim] + D_total[i,sim]
-            end
-        end
+    # if day <= T_observed
+    #     for i in 1:day
+    #         D_total[i,sim] = D[i,1,sim] + D[i,2,sim]
+    #         # this is just an inplace, non-allocating cumulative sum
+    #         if i == 1
+    #             D_total_cumsum[i,sim] = D_total[i,sim]
+    #         else 
+    #             D_total_cumsum[i,sim] = D_total[i-1,sim] + D_total[i,sim]
+    #         end
+    #     end
         
-        count_cases_in_windows!(
-            case_counts, 
-            window_lengths, 
-            D_total, 
-            sim_constants::SimulationConstants, 
-            sim,
-        )
-    end
+    #     count_cases_in_windows!(
+    #         case_counts, 
+    #         window_lengths, 
+    #         D_total, 
+    #         sim_constants::SimulationConstants, 
+    #         sim,
+    #     )
+    # end
     
     # this is just the total cases over the forecast horizon 
     D_forecast = sum(@view D[T_observed+1:end,1:2,sim])
@@ -93,7 +105,7 @@ function check_sim!(
         for (i, (c,m)) in enumerate(zip(case_counts,max_cases))
             if c > m 
                 bad_sim = true 
-                print_status && println("too many cases", c, " ", m, " window: ", i)
+                print_status && println("too many cases", c, " ", m, " day: ", day)
                 break
             end
         end
@@ -102,7 +114,7 @@ function check_sim!(
             for (i, (c,m)) in enumerate(zip(case_counts,min_cases))
                 if c < m 
                     bad_sim = true 
-                    print_status && println("too few cases", c, " ", m, " window: ", i)
+                    print_status && println("too few cases", c, " ", m, " day: ", day)
                     break
                 end
             end
@@ -115,22 +127,21 @@ function check_sim!(
     if !bad_sim && reinitialise_allowed
         # calculate the number of detections missed over the 5 day period 
         actual_3_day_cases = sum(@view local_cases[day-2:day])
-        sim_3_day_cases = sum(@view D_total[day-2:day,sim])
+        sim_3_day_cases = sum(@view D[day-2:day,:,sim])
         sim_3_day_threshold = consistency_multiplier*max(1, sim_3_day_cases)
         # calculate total number of cases over week 
-        sim_week_cases = sum(@view D_total[day-6:day,sim])
+        sim_week_cases = sum(@view D[day-6:day,:,sim])
         missing_detections = 0
         
         if actual_3_day_cases > sim_3_day_threshold || (sim_week_cases == 0 && actual_3_day_cases > 0)
-            # println("actual: ", actual_3_day_cases, " 3day: ", sim_3_day_cases, " 3day thresh: ", sim_3_day_threshold, " week: ", sim_week_cases, " day added: ", day)
-            # instead of sampling exactly the number required, just sample a random amount 
+            print_status && println("actual: ", actual_3_day_cases, " 3day: ", sim_3_day_cases, " 3day thresh: ", sim_3_day_threshold, " week: ", sim_week_cases, " day added: ", day)
+             
             if sim_week_cases == 0
                 missing_detections = rand(1:actual_3_day_cases)
             else
                 missing_detections = rand(1:(actual_3_day_cases - sim_3_day_cases))
             end
-            # println("simulated: ", sum(D_total[day-2:day]))
-            # println("actual: ", sum(floor.(Int, consistency_multiplier*observed_cases[day-2:day])))
+            
             injected_cases = true 
             inject_cases!(
                 Z, 
@@ -174,11 +185,12 @@ function inject_cases!(
     # prob of being symptomatic given detection 
     p_detect = p_symp*p_detect_given_symp + (1-p_symp)*p_detect_given_asymp
     p_symp_given_detect = p_detect_given_symp*p_symp/p_detect 
-    # sample number symptomatic detected
+    # sample number detected 
     num_symptomatic_detected = sample_binomial_limit(missing_detections, p_symp_given_detect)
     num_asymptomatic_detected = missing_detections - num_symptomatic_detected
     # infer some undetected symptomatic
     num_symptomatic_undetected = sample_negative_binomial_limit(missing_detections, p_detect_given_symp)
+    
     # infer some undetected asumptomatic
     num_symptomatic_total = num_symptomatic_detected + num_symptomatic_undetected
     
@@ -196,6 +208,7 @@ function inject_cases!(
     )
     counter = 0
     onset_time = day
+    
     # infection time is then 1 generation interval earlier
     for _ in 1:num_symptomatic_detected
         total_injected += 1
@@ -205,7 +218,7 @@ function inject_cases!(
             onset_time = day-2
         end
         infection_time = onset_time - sample_onset_time()
-        Z[infection_time+35,individual_type_map.S,sim] += 1
+        Z[infection_time+36,individual_type_map.S,sim] += 1
         D[onset_time,individual_type_map.S,sim] += 1 
         counter += 1
     end
@@ -218,6 +231,7 @@ function inject_cases!(
     )
     counter = 0
     onset_time = day
+    
     # infection time is then 1 generation interval earlier
     for _ in 1:num_asymptomatic_detected
         total_injected += 1
@@ -227,7 +241,7 @@ function inject_cases!(
             onset_time = day-2
         end
         infection_time = onset_time - sample_onset_time()
-        Z[infection_time+35,individual_type_map.A,sim] += 1
+        Z[infection_time+36,individual_type_map.A,sim] += 1
         D[onset_time,individual_type_map.A,sim] += 1 
         counter += 1
     end
@@ -242,6 +256,7 @@ function inject_cases!(
     )
     counter = 0
     onset_time = day
+    
     for _ in 1:num_symptomatic_undetected
         total_injected += 1
         if counter >= num_symptomatic_each_day[2]
@@ -250,7 +265,7 @@ function inject_cases!(
             onset_time = day-2
         end
         infection_time = onset_time - sample_onset_time()
-        Z[infection_time+35,individual_type_map.S,sim] += 1
+        Z[infection_time+36,individual_type_map.S,sim] += 1
         U[onset_time,individual_type_map.S,sim] += 1 
         counter += 1
     end
@@ -263,6 +278,7 @@ function inject_cases!(
     )
     counter = 0
     onset_time = day
+    
     # now add in the inferred undetected cases 
     for _ in 1:num_asymptomatic_undetected
         total_injected += 1
@@ -272,7 +288,7 @@ function inject_cases!(
             onset_time = day-2
         end
         infection_time = onset_time - sample_onset_time()
-        Z[infection_time+35,individual_type_map.A,sim] += 1
+        Z[infection_time+36,individual_type_map.A,sim] += 1
         U[onset_time,individual_type_map.A,sim] += 1 
         counter += 1
     end
