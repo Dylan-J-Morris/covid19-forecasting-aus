@@ -1,4 +1,13 @@
+"""
+Control panel for the fitting and forecasting procedures. The key parameters
+are usually needed to be adjusted based on properties of the simulation (i.e. 
+what machine is used, number of samples etc). This contains the bulk of the 
+assumptions used in the fitting and should be referred to when checking the 
+assumptions. 
+"""
+
 ##### Key parameters
+
 use_linelist = True
 use_imputed_linelist = False
 on_phoenix = False   # flag for running on phoenix
@@ -10,7 +19,9 @@ testing_inference = False
 n_days_nowcast_TP_adjustment = 45
 num_TP_samples = 2000       # number of forecasted TP samples to save 
 # number of days to remove to stop the issues with the right-truncation
-truncation_days = 15
+truncation_days = 12
+# Number of days after data date to forecast (usually 35)
+num_forecast_days = 35
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
@@ -18,6 +29,7 @@ else:
     ncores = 4     # number of cores to use (this is relevant for the simulation)
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
+
 third_start_date = '2021-06-15'
 start_date = '2021-06-23'
 
@@ -32,29 +44,18 @@ start_dates = {
     'VIC': '2021-08-01',
 }
 
-# alpha_start_date = '2021-01-27'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
 alpha_start_date = '2020-12-01'  # Date from which to apply the VoC Reff increase from alpha (based on Reff model) 
 delta_start_date = '2021-05-01'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
 omicron_start_date = '2021-11-15'  # Date from which to apply the VoC Reff increase from deltas (based on Reff model)
 vaccination_start_date = '2021-02-21'
-# Number of days after data date to forecast (usually 35)
-num_forecast_days = 35
-# setting this to False lets us check that the soc_mob_R_L_hats look ok without the VoC and Vax effects 
-# applied. NEED to set to True in order to apply inferred VoC effect properly. This is predominantly for testing
-# with and without Vax and has not been removed in case of need to forecast without Vax effect
-apply_voc_to_R_L_hats = True
-apply_vacc_to_R_L_hats = True 
-# alternative application of voc and vaccination effect -- not removed yet in case we need them -- should be left at False
-use_vaccine_effect = False
-use_voc_effect = False
-# The ratio of true cases to simulation cases below which we insert cases into branching process
-case_insertion_threshold = 5
+
 # Will download Google data automatically on run. Set to False for repeated runs. False is the preferable 
 # setting.
 download_google_automatically = False
 assume_local_cases_if_unknown = True
 
 ##### Simulation parameters/transmission parameters
+
 # incubation period: taken from Lauer et al. 2020
 (shape_inc, scale_inc) = (5.807, 0.948)
 # omicron incubation period determined by sampling Delta incubation periods and subtracting 1 (then taking those with days > 0.05) 
@@ -120,7 +121,8 @@ qi_d = {
     'NT': 0.98
 }
 
-# alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe there are significant differences between hotel quarentine effectiveness between states.
+# alpha_i is impact of importations after April 15th. These have been set to 1 as we not long believe 
+# there are significant differences between hotel quarentine effectiveness between states.
 alpha_i_all = 1
 
 alpha_i = {
