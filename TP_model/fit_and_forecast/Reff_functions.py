@@ -161,12 +161,12 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
 
     else:
         # all states
-        fig, ax = plt.subplots(figsize=(15, 12), ncols=3, nrows=2, sharex=True, sharey=True)
+        fig, ax = plt.subplots(figsize=(15, 12), ncols=4, nrows=2, sharex=True, sharey=True)
 
         states = sorted(list(states_initials.keys()))
-        states.remove('Northern Territory')
         
         if not third_phase:
+            states.remove('Northern Territory')
             states.remove('Australian Capital Territory')
             
         # no R_eff modelled for these states, skip
@@ -450,25 +450,25 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             df_hat = pd.DataFrame(R_eff_hat.T)
 
             if states_initials[state] not in rho:
-                if i//3 == 1:
-                    ax[i//3, i % 3].tick_params(axis='x', rotation=90)
+                if i//4 == 1:
+                    ax[i//4, i % 4].tick_params(axis='x', rotation=90)
                 continue
             # plot actual R_eff
-            ax[i//3, i % 3].plot(df_state.date, df_state['mean'], label='$R_{eff}$', color='C1')
-            ax[i//3, i % 3].fill_between(df_state.date, df_state['bottom'], df_state['top'], color='C1', alpha=0.3)
-            ax[i//3, i % 3].fill_between(df_state.date, df_state['lower'], df_state['upper'], color='C1', alpha=0.3)
-            ax[i//3, i % 3].plot(df_state.date, df_hat.quantile(0.5, axis=0), label='$\hat{\mu}$', color='C0')
-            ax[i//3, i % 3].fill_between(df_state.date, df_hat.quantile(0.25, axis=0), df_hat.quantile(0.75, axis=0), color='C0', alpha=0.3)
-            ax[i//3, i % 3].fill_between(df_state.date, df_hat.quantile(0.05, axis=0), df_hat.quantile(0.95, axis=0), color='C0', alpha=0.3)
-            ax[i//3, i % 3].set_title(state)
+            ax[i//4, i % 4].plot(df_state.date, df_state['mean'], label='$R_{eff}$', color='C1')
+            ax[i//4, i % 4].fill_between(df_state.date, df_state['bottom'], df_state['top'], color='C1', alpha=0.3)
+            ax[i//4, i % 4].fill_between(df_state.date, df_state['lower'], df_state['upper'], color='C1', alpha=0.3)
+            ax[i//4, i % 4].plot(df_state.date, df_hat.quantile(0.5, axis=0), label='$\hat{\mu}$', color='C0')
+            ax[i//4, i % 4].fill_between(df_state.date, df_hat.quantile(0.25, axis=0), df_hat.quantile(0.75, axis=0), color='C0', alpha=0.3)
+            ax[i//4, i % 4].fill_between(df_state.date, df_hat.quantile(0.05, axis=0), df_hat.quantile(0.95, axis=0), color='C0', alpha=0.3)
+            ax[i//4, i % 4].set_title(state)
             # grid line at R_eff =1
-            ax[i//3, i % 3].set_yticks([1], minor=True,)
-            ax[i//3, i % 3].set_yticks([0, 2, 3], minor=False)
-            ax[i//3, i % 3].set_yticklabels([0, 2, 3], minor=False)
-            ax[i//3, i % 3].yaxis.grid(which='minor', linestyle='--', color='black', linewidth=2)
-            ax[i//3, i % 3].set_ylim((0, 4))
-            if i//3 == 1:
-                ax[i//3, i % 3].tick_params(axis='x', rotation=90)
+            ax[i//4, i % 4].set_yticks([1], minor=True,)
+            ax[i//4, i % 4].set_yticks([0, 2, 3], minor=False)
+            ax[i//4, i % 4].set_yticklabels([0, 2, 3], minor=False)
+            ax[i//4, i % 4].yaxis.grid(which='minor', linestyle='--', color='black', linewidth=2)
+            ax[i//4, i % 4].set_ylim((0, 4))
+            if i//4 == 1:
+                ax[i//4, i % 4].tick_params(axis='x', rotation=90)
 
     plt.legend()
     return ax

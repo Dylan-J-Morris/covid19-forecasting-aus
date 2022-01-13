@@ -40,15 +40,17 @@ start_date = '2020-03-01'
 third_start_date = pd.to_datetime(third_start_date)
 third_end_date = data_date - timedelta(truncation_days)
 
-third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
 # choose dates for each state for third wave
 # NOTE: These need to be in date sorted order
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
+    'NT': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
     'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-    'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
+    'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
 }
 
 # Get Google Data - Don't use the smoothed data? 
@@ -231,6 +233,11 @@ max_vac_effect = 0.9*min(
 # since this can be useful, predictor ordering is: 
 # ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
 # Loop through states and run forecasting.
+
+print("============")
+print("Forecasting macro, micro and vaccination")
+print("============")
+
 state_Rmed = {}
 state_sims = {}
 for i, state in enumerate(states):
@@ -890,6 +897,9 @@ theta_md = np.tile(df_samples['theta_md'].values, (df_md['NSW'].shape[0], 1))
 
 fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
 
+print("============")
+print("Plotting forecasted estimates")
+print("============")
 for i, state in enumerate(plot_states):
     # np.random.normal(df_md[state].values, df_md_std.values)
     prop_sim = df_md[state].values
@@ -1035,6 +1045,11 @@ save_for_SA = False
 # for typ in {'R_L'}:
 #     state_R = {}
 #     for state in {'NSW'}:
+
+print("============")
+print("Using posterior sample and forecasted estimates to calculate TP")
+print("============")
+
 for typ in forecast_type:
     state_R = {}
     for state in states:
@@ -1118,8 +1133,10 @@ for typ in forecast_type:
         # proportion of omicron cases each day.
         if state in {'VIC', 'NSW', 'ACT', 'QLD', 'SA'}: 
             m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
-        else:
+        elif state in {'NT', 'TAS'}:
             m_tmp = prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
+        elif state in {'WA'}:
+            m_tmp = 0*prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
             
         # initialise array for holding the proportion attributable to Omicron 
         m = np.zeros(shape=(df_state.shape[0] - omicron_start_day, n_samples*m_tmp.shape[1]))
@@ -1293,16 +1310,27 @@ for typ in forecast_type:
                     vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
                 else: 
                     
+                    # variance on beta distribution centered at m_last
                     if tt == 0:
+                        drift_mean = 0.9    
+                        sig_m = 0.0005
+                        m_last = m[jj]
                         # get the most recent value of m_last and 0.97
-                        m_last = np.minimum(0.97, m[jj])
+                        m_last = np.minimum(0.97, m_last)
+                        m_last = np.maximum(sig_m*2, m_last)
+                        if m_last > drift_mean: 
+                            drift_mean = m_last
+                    else:
+                        p_force = tt/len(idx[state])
+                        m_last = (1-p_force)*m_last + p_force*drift_mean
+                        m_last = np.minimum(0.97, m_last)
+                        m_last = np.maximum(sig_m*2, m_last)
                     
                     # number of days after the start of omicron 
                     jj = ii - omicron_start_day
                     # number of days after the heterogeneity should start to wane
                     heterogeneity_delay_days = ii - heterogeneity_delay_start_day
-                    # variance on beta distribution centered at m_last
-                    sig_m = 0.00005
+                    
                     # calculate shape and scale 
                     a_m = m_last * ((m_last*(1-m_last)/sig_m) - 1)
                     b_m = (1-m_last) * ((m_last*(1-m_last)/sig_m) - 1)
@@ -1316,6 +1344,7 @@ for typ in forecast_type:
                     vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
                     # this is the simplified form of the mixture model of the vaccination effects 
                     vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
+                    
         else: # if we are WA then we assume only Delta (12/1/2022)
             for ii in range(vacc_post.shape[0]):
                 if ii < heterogeneity_delay_start_day:
@@ -1440,7 +1469,7 @@ for typ in forecast_type:
                     voc_multiplier[ii] = 1.0
                 elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
                     voc_multiplier[ii] = voc_multiplier_alpha[ii]
-                elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
+                else:
                     voc_multiplier[ii] = voc_multiplier_delta[ii]
 
         # calculate TP 
@@ -1556,6 +1585,10 @@ for i, state in enumerate(plot_states):
 fig.text(0.03, 0.5, 'Transmission potential', va='center', ha='center', rotation='vertical', fontsize=20)
 fig.text(0.525, 0.02, 'Date', va='center', ha='center', fontsize=20)
 plt.tight_layout(rect=[0.04, 0.04, 1, 1])
+
+print("============")
+print("Saving results")
+print("============")
 
 os.makedirs("figs/mobility_forecasts/"+
             data_date.strftime("%Y-%m-%d"), 

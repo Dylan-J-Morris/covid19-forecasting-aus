@@ -150,7 +150,7 @@ df = df_google.merge(df_Reff[['date', 'state', 'mean', 'lower', 'upper', 'top', 
 ######### Create useable dataset #########
 # ACT and NT not in original estimates, need to extrapolated sorting keeps consistent with sort in data_by_state
 # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only! 
-states_to_fit_all_waves = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT'])
+states_to_fit_all_waves = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT', 'NT'])
 
 first_states = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS'])
 fit_post_March = True
@@ -177,12 +177,12 @@ sec_end_date = '2021-01-19'
 # choose dates for each state for sec wave
 sec_date_range = {
     'NSW': pd.date_range(start=sec_start_date, end='2021-01-19').values,
-    # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-28').values
+    # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-28').values,
 }
 
 # Third wave inputs
 # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD'])
-third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -192,9 +192,11 @@ third_end_date = data_date - pd.Timedelta(days=truncation_days)
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
+    'NT': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
     'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-    'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values
+    'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
 }
 
 fit_mask = df.state.isin(first_states)
@@ -776,7 +778,7 @@ ax.set_yticks([0, 2, 3], minor=False)
 ax.set_yticklabels([0, 2, 3], minor=False)
 ax.set_ylim((0, 3))
 # state labels in alphabetical
-ax.set_xticklabels(['R_I', 'R_L0 mean', 'R_L0 ACT', 'R_L0 NSW', 
+ax.set_xticklabels(['R_I', 'R_L0 mean', 'R_L0 ACT', 'R_L0 NSW', 'R_L0 NT',
                     'R_L0 QLD', 'R_L0 SA', 'R_L0 TAS', 'R_L0 VIC', 'R_L0 WA',
                     'R_L0 prior', 'R_I prior', 'R_L0 national'])
 ax.set_xlabel('')
@@ -789,7 +791,7 @@ plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+"R_priors.png", dpi=144)
 # Making a new figure that doesn't include the priors
 fig, ax = plt.subplots(figsize=(12, 9))
 
-small_plot_cols = ['R_Li['+str(i)+']' for i in range(1,8)] + ['R_I']
+small_plot_cols = ['R_Li['+str(i)+']' for i in range(1, 9)] + ['R_I']
 
 sns.violinplot(x='variable', y='value',
                data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -800,7 +802,7 @@ ax.set_yticks([0, 2, 3], minor=False)
 ax.set_yticklabels([0, 2, 3], minor=False)
 ax.set_ylim((0, 3))
 # state labels in alphabetical
-ax.set_xticklabels(['$R_L0$ ACT', '$R_L0$ NSW', '$R_L0$ QLD', '$R_L0$ SA',
+ax.set_xticklabels(['$R_L0$ ACT', '$R_L0$ NSW', '$R_L0$ NT', '$R_L0$ QLD', '$R_L0$ SA', 
                    '$R_L0$ TAS', '$R_L0$ VIC', '$R_L0$ WA', '$R_I$'])
 ax.tick_params('x', rotation=90)
 ax.set_xlabel('')
@@ -1123,7 +1125,7 @@ for (i, k) in enumerate(third_date_range.keys()):
 
 omicron_date_range = pd.date_range(omicron_start_date, third_end_date)
 
-fig, ax = plt.subplots(figsize=(15, 12), nrows=3, ncols=2, sharex=True, sharey=True)
+fig, ax = plt.subplots(figsize=(15, 12), nrows=4, ncols=2, sharex=True, sharey=True)
 
 for (i, s) in enumerate(third_date_range.keys()):
     ax[i//2,i%2].plot(omicron_date_range[-prop_omicron_to_delta_dict[s].shape[1]:], np.median(prop_omicron_to_delta_dict[s], axis=0))
