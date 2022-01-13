@@ -48,7 +48,8 @@ function set_simulation_constants()
     # assumptions surrouding the probability of symptomatic, 
     # relative infectiousness γ and the ratio of Reff (α's) 
     p_symp = 0.7
-    γ = 0.5
+    γ = 0.5     # relative infectiousness of asymptomatic
+    # solve the system α_s*ps + α_a(1-ps) = 1 with α_a = γ*α_s
     α_s = 1/(p_symp+γ*(1-p_symp))
     α_a = γ * α_s
     p_detect_given_symp = 0.95
