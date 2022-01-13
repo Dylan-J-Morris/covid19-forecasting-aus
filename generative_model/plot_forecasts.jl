@@ -21,11 +21,11 @@ function plot_all_forecasts(
     
     # read in the sim results and kept TP's
     sim_all_states = CSV.read(
-        "results/UoA_forecast_output/2022-01-04/UoA_samples_"*file_date*".csv", 
+        "results/UoA_forecast_output/"*file_date*"/UoA_samples_"*file_date*".csv", 
         DataFrame
     )
     TP_all_states = CSV.read(
-        "results/UoA_forecast_output/2022-01-04/UoA_TP_"*file_date*".csv", 
+        "results/UoA_forecast_output/"*file_date*"/UoA_TP_"*file_date*".csv", 
         DataFrame
     )
     
