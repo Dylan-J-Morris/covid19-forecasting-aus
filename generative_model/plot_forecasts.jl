@@ -12,6 +12,7 @@ include("processing_sim.jl")
 
 function plot_all_forecasts(
     file_date, 
+    states_to_plot,
     local_case_dict; 
     confidence_level="both"
 )
@@ -31,18 +32,6 @@ function plot_all_forecasts(
     
     # read in the case data 
     case_dates = collect(local_case_dict["date"])
-
-    # states to simulate 
-    states_to_plot = [
-        "NSW",
-        "QLD",
-        "SA",
-        "TAS",
-        "VIC",
-        "WA",
-        "ACT",
-        "NT",
-    ]
     
     # these indices are for the relevant plots per state 
     case_plot_inds = [1,2,5,6,9,10,13,14]
@@ -63,7 +52,7 @@ function plot_all_forecasts(
     # initialise the plot 
     fig = plot(
         legend=false, 
-        layout = l, 
+        layout=l, 
         dpi=200, 
         size=(750,1200), 
         link=:x, 
@@ -109,13 +98,24 @@ function plot_all_forecasts(
                 xaxis=nothing,
                 linecolor=1, 
                 linewidth=2, 
-                ribbon=(
-                    vec(df_D_summary[!,"median"]-df_D_summary[!,"lower"]), 
-                    vec(df_D_summary[!,"upper"] - df_D_summary[!,"median"])
-                ), 
+                # ribbon=(
+                #     vec(df_D_summary[!,"median"]-df_D_summary[!,"lower"]), 
+                #     vec(df_D_summary[!,"upper"] - df_D_summary[!,"median"])
+                # ), 
                 color=1, 
                 fillalpha=0.3,
             )
+            plot!(
+                fig, 
+                subplot=c,
+                onset_dates, 
+                [df_D_summary[!,"median"] df_D_summary[!,"median"]], 
+                fillrange=[df_D_summary[!,"lower"] df_D_summary[!,"upper"]],
+                fillalpha=0.3, 
+                c=1, 
+                label=false
+            )
+            
         end 
         
         if confidence_level == "95" || confidence_level == "both"
@@ -128,12 +128,23 @@ function plot_all_forecasts(
                 xaxis=nothing,
                 linecolor=1, 
                 linewidth=2, 
-                ribbon=(
-                    vec(df_D_summary[!,"median"]-df_D_summary[!,"bottom"]), 
-                    vec(df_D_summary[!,"top"] - df_D_summary[!,"median"])
-                ), 
+                # ribbon=(
+                #     vec(df_D_summary[!,"median"]-df_D_summary[!,"bottom"]), 
+                #     vec(df_D_summary[!,"top"] - df_D_summary[!,"median"])
+                # ), 
                 color=1, 
                 fillalpha=0.3,
+            )
+            
+            plot!(
+                fig, 
+                subplot=c,
+                onset_dates, 
+                [df_D_summary[!,"median"] df_D_summary[!,"median"]], 
+                fillrange=[df_D_summary[!,"bottom"] df_D_summary[!,"top"]],
+                fillalpha=0.3, 
+                c=1, 
+                label=false
             )
         end
         
@@ -156,12 +167,23 @@ function plot_all_forecasts(
                 df_TP_summary[!,"median"], 
                 linecolor=1, 
                 linewidth=2, 
-                ribbon=(
-                    vec(df_TP_summary[!,"median"]-df_TP_summary[!,"lower"]), 
-                    vec(df_TP_summary[!,"upper"] - df_TP_summary[!,"median"])
-                ), 
+                # ribbon=(
+                #     vec(df_TP_summary[!,"median"]-df_TP_summary[!,"lower"]), 
+                #     vec(df_TP_summary[!,"upper"] - df_TP_summary[!,"median"])
+                # ), 
                 color=1, 
                 fillalpha=0.3,
+            )
+            
+            plot!(
+                fig, 
+                subplot=tp,
+                onset_dates, 
+                [df_TP_summary[!,"median"] df_TP_summary[!,"median"]], 
+                fillrange=[df_TP_summary[!,"lower"] df_TP_summary[!,"upper"]],
+                fillalpha=0.3, 
+                c=1, 
+                label=false
             )
         end
         
@@ -180,6 +202,17 @@ function plot_all_forecasts(
                 color=1, 
                 fillalpha=0.3,
             )
+            
+            plot!(
+                fig, 
+                subplot=tp,
+                onset_dates, 
+                [df_TP_summary[!,"median"] df_TP_summary[!,"median"]], 
+                fillrange=[df_TP_summary[!,"bottom"] df_TP_summary[!,"top"]],
+                fillalpha=0.3, 
+                c=1, 
+                label=false
+            )
         end
         
         hline!(
@@ -187,7 +220,23 @@ function plot_all_forecasts(
             subplot=tp, 
             [1], 
             lc=:black, 
-            ls=:dash
+            ls=:dash,
+        )
+        
+        vline!(
+            fig, 
+            subplot=c,
+            [Dates.Date(file_date)], 
+            lc=:gray,
+            ls=:dash,
+        )
+        
+        vline!(
+            fig, 
+            subplot=tp,
+            [Dates.Date(file_date)], 
+            lc=:gray,
+            ls=:dash,
         )
 
         xlims!(fig, subplot=c, onset_dates_lims...)
