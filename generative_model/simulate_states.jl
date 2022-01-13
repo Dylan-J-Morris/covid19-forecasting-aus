@@ -12,7 +12,7 @@ include("generative_model.jl")
 include("processing_sim.jl")
 include("plot_forecasts.jl")
 
-function simulate_all_states(file_date,nsims)
+function simulate_all_states(file_date,states_to_run,nsims)
     """
     This runs the branching process for each of the states in states_to_run and then 
     merges and saves the files. 
@@ -21,18 +21,6 @@ function simulate_all_states(file_date,nsims)
     # set seed for consistent plots (NOTE: this is not useful when multithreading 
     # enabled as we use separate seeds but the simulation pool should handle that)
     rng = Random.Xoshiro(2022)
-    
-    # states to simulate 
-    states_to_run = [
-        "NSW",
-        "QLD",
-        "SA",
-        "TAS",
-        "VIC",
-        "WA",
-        "ACT",
-        "NT",
-    ]
 
     simulation_start_dates = Dict{String, String}(
         "NSW" => "2021-06-23",
