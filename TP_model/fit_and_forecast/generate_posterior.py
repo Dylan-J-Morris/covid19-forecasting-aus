@@ -22,7 +22,7 @@ from scipy.stats import truncnorm
 from math import ceil
 
 matplotlib.use('Agg')
-from params import apply_vacc_to_R_L_hats, truncation_days, download_google_automatically, \
+from params import truncation_days, download_google_automatically, \
     run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference, omicron_start_date, \
     pop_sizes
 # depending on whether we are on phoenix or not changes the version of stan

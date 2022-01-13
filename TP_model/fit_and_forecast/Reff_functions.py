@@ -10,7 +10,7 @@ plt.style.use('seaborn-poster')
 sys.path.insert(0, 'model')
 from helper_functions import read_in_NNDSS
 from Reff_constants import *
-from params import alpha_start_date, delta_start_date, omicron_start_date, vaccination_start_date, apply_voc_to_R_L_hats, apply_vacc_to_R_L_hats
+from params import alpha_start_date, delta_start_date, omicron_start_date, vaccination_start_date
 
 def read_in_posterior(date):
     """
@@ -19,7 +19,6 @@ def read_in_posterior(date):
     df = pd.read_hdf("results/soc_mob_posterior"+date+".h5", key='samples')
 
     return df
-
 
 def read_in_google(Aus_only=True, local=False, moving=False):
     """

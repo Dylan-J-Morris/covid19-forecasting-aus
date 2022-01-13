@@ -11,8 +11,8 @@ sys.path.insert(0, 'TP_model')
 sys.path.insert(0, 'TP_model/fit_and_forecast')
 from Reff_functions import *
 from Reff_constants import *
-from params import num_forecast_days, alpha_start_date, delta_start_date, apply_voc_to_R_L_hats, \
-    vaccination_start_date, apply_vacc_to_R_L_hats, truncation_days, third_start_date, start_date, \
+from params import num_forecast_days, alpha_start_date, delta_start_date, \
+    vaccination_start_date, truncation_days, third_start_date, start_date, \
     run_TP_adjustment, n_days_nowcast_TP_adjustment, num_TP_samples
 from scenarios import scenarios, scenario_dates
 from sys import argv 
