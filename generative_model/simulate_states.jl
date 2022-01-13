@@ -32,6 +32,9 @@ function simulate_all_states(file_date,states_to_run,nsims)
         "NT" => "2021-11-01",
         "VIC" => "2021-08-01",
     )
+    
+    # date we want to apply increase in cases due to Omicron 
+    omicron_dominant_date = "2021-12-10"
 
     # get the latest onset date
     latest_start_date = Dates.Date(maximum(v for v in values(simulation_start_dates)))
@@ -48,7 +51,7 @@ function simulate_all_states(file_date,states_to_run,nsims)
     )
         
     initial_conditions = Dict{String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}}(
-        "NSW" => (S = 5, A = 5, I = 0),
+        "NSW" => (S = 5, A = 8, I = 0),
         "QLD" => (S = 0, A = 0, I = 0),
         "SA" => (S = 0, A = 0, I = 0),
         "TAS" => (S = 0, A = 0, I = 0),
@@ -90,6 +93,7 @@ function simulate_all_states(file_date,states_to_run,nsims)
             cases_pre_forecast,
             forecast_start_date, 
             file_date, 
+            omicron_dominant_date, 
             state,
         )
         
@@ -102,9 +106,9 @@ function simulate_all_states(file_date,states_to_run,nsims)
     merge_TP_files(file_date)
     
     # now we can plot everything
-    plot_all_forecasts(file_date,local_case_dict,confidence_level="both")
-    plot_all_forecasts(file_date,local_case_dict,confidence_level="50")
-    plot_all_forecasts(file_date,local_case_dict,confidence_level="95")
+    plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="both")
+    plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="50")
+    plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="95")
     
     return nothing
     
