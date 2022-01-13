@@ -83,20 +83,20 @@ function initialise_population!(
         
         # infer some initial undetected symptomatic
         num_symptomatic_undetected = 0
-        # if D0.S == 0
-        #     num_symptomatic_undetected = sample_negative_binomial_limit(1, p_detect_given_symp)
-        # else
-        #     num_symptomatic_undetected = sample_negative_binomial_limit(D0.S, p_detect_given_symp)
-        # end
+        if D0.S == 0
+            num_symptomatic_undetected = sample_negative_binomial_limit(1, p_detect_given_symp)
+        else
+            num_symptomatic_undetected = sample_negative_binomial_limit(D0.S, p_detect_given_symp)
+        end
 
         # infer some initial undetected asymptomatic
         total_symptomatic = D0.S + num_symptomatic_undetected
         num_asymptomatic_undetected = 0
-        # if total_symptomatic == 0
-        #     num_asymptomatic_undetected = sample_negative_binomial_limit(1, p_symp)
-        # else
-        #     num_asymptomatic_undetected = sample_negative_binomial_limit(total_symptomatic, p_symp)
-        # end
+        if total_symptomatic == 0
+            num_asymptomatic_undetected = sample_negative_binomial_limit(1, p_symp)
+        else
+            num_asymptomatic_undetected = sample_negative_binomial_limit(total_symptomatic, p_symp)
+        end
         
         # total initial cases include the undetected
         total_initial_cases_sim = total_initial_cases + num_symptomatic_undetected + num_asymptomatic_undetected
@@ -246,11 +246,13 @@ function get_proportion_infected(day, cases_pre_forecast, D_sim, U_sim, N)
     Calculate the proportion of cases that have been infected up to current day.
     """
     total_cumulative_cases = cases_pre_forecast
+    
     for j in 1:3
         for i in 1:day
             total_cumulative_cases += D_sim[i,j] + U_sim[i,j]
         end
     end
+    
     proportion_infected = total_cumulative_cases / N
     
     return proportion_infected
@@ -291,7 +293,7 @@ function sample_offspring!(
     num_offspring = zero(Int)
     
     # pointer to the current day's infections 
-    Z_tmp = @view Z[t+35,:,sim]
+    Z_tmp = @view Z[t+36,:,sim]
     
     # if the total number of infected individuals at time t is 0, return immediately
     if sum(Z_tmp) > 0 
@@ -305,9 +307,9 @@ function sample_offspring!(
         # create views and use a function barrier to decrease allocations 
         D_sim = @views D[:,:,sim]
         U_sim = @views U[:,:,sim]
+        
+        # take max of 0 and TP to deal with cases of depletion factor > TP accouting for susceptible_depletion
         proportion_infected = get_proportion_infected(t, cases_pre_forecast, D_sim, U_sim, N)
-        # sample the number of offspring taking the TP at time of infection 
-        # take max of 0 and TP to deal with cases of depletion factor > TP 
         TP_local_parent = max(0, TP_local_sim[TP_ind] * (1 - susceptible_depletion_sim*proportion_infected))
         TP_import_parent = max(0, TP_import_sim[TP_ind] * (1 - susceptible_depletion_sim*proportion_infected))
         
@@ -494,6 +496,8 @@ end
 
 function get_simulation_limits(
     local_cases, 
+    forecast_start_date,
+    omicron_dominant_date,
     cases_pre_forecast, 
     TP_indices, 
     N, 
@@ -506,29 +510,38 @@ function get_simulation_limits(
     of 14 days.
     """
     
-    # take the cumulative sum of the local cases for easiness of 
-    # calculating the incidence over periods of time
-    cumulative_local_cases = cumsum(local_cases)
+    days_delta = (Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)).value
     
-    # extract the backcast and nowcast cases 
-    backcast_cases = cumulative_local_cases[1:end-14]
-    backcast_cases = backcast_cases[end:-20:1]
-    nowcast_cases = cumulative_local_cases[end-13:end]
-    nowcast_cases = nowcast_cases[end]
-    # vector of observed cases in each window
-    cumulative_cases_for_windows = [reverse!(backcast_cases); nowcast_cases]
-    cases_in_each_window = Int.(diff([0; cumulative_cases_for_windows]))
-    # fill vector of days each window holds 
-    window_lengths = ones(Int,length(cumulative_cases_for_windows))     # NOTE: not used yet 
+    cases_pre_backcast = sum(@view local_cases[1:days_delta])
+    cases_backcast = sum(@view local_cases[days_delta+1:T_observed])
+    cases_nowcast = sum(@view local_cases[21:T_observed])
+    
+    # # take the cumulative sum of the local cases for easiness of 
+    # # calculating the incidence over periods of time
+    # cumulative_local_cases = cumsum(local_cases)
+    
+    
+    # # extract the backcast and nowcast cases 
+    # backcast_cases = cumulative_local_cases[1:end-14]
+    # backcast_cases = backcast_cases[end:-20:1]
+    # nowcast_cases = cumulative_local_cases[end-13:end]
+    # nowcast_cases = nowcast_cases[end]
+    # # vector of observed cases in each window
+    # cumulative_cases_for_windows = [reverse!(backcast_cases); nowcast_cases]
+    # cases_in_each_window = Int.(diff([0; cumulative_cases_for_windows]))
+    # # fill vector of days each window holds 
+    # window_lengths = ones(Int,length(cumulative_cases_for_windows))     # NOTE: not used yet 
 
-    for (i, val) in enumerate(cumulative_cases_for_windows)
-        window_lengths[i] = findlast(cumulative_local_cases .== val)
-    end 
+    # for (i, val) in enumerate(cumulative_cases_for_windows)
+    #     window_lengths[i] = findlast(cumulative_local_cases .== val)
+    # end 
         
+    cases_in_each_window = [cases_pre_backcast, cases_backcast, cases_nowcast]
+    
     # calculate minimum and maximum observed cases in each period 
-    min_cases = floor.(Int, [0.3*cases_in_each_window[1:end-1]; 0.9*cases_in_each_window[end]])
+    min_cases = floor.(Int, [0.3*cases_pre_backcast, 0.7cases_backcast, 0.9*cases_nowcast])
     # min_cases = 0*cases_in_each_window
-    max_cases = ceil.(Int, [2.5*cases_in_each_window[1:end-1]; 4*cases_in_each_window[end]])
+    max_cases = ceil.(Int, [3*cases_pre_backcast, 4*cases_backcast, 5*cases_nowcast])
 
     # assume maximum of 250 cases if the observed is less than that
     for (i, val) in enumerate(max_cases)
@@ -554,6 +567,8 @@ function get_simulation_limits(
         T_end, 
     )
     
+    window_lengths = 0
+    
     return (
         sim_features,
         window_lengths,
@@ -571,6 +586,7 @@ function simulate_branching_process(
     cases_pre_forecast,
     forecast_start_date, 
     date, 
+    omicron_dominant_date,
     state,
 )
     """
@@ -598,6 +614,8 @@ function simulate_branching_process(
     # calculate the upper and lower limits for checking sims against data 
     (sim_features, window_lengths, min_cases, max_cases) = get_simulation_limits(
         local_cases, 
+        forecast_start_date,
+        omicron_dominant_date,
         cases_pre_forecast, 
         TP_indices, 
         N, 
@@ -643,7 +661,8 @@ function simulate_branching_process(
         # counts in each window 
         case_counts = zeros(Int, length(max_cases))
         # sample the TP/susceptible_depletion for this sim
-        TP_ind = sim % 2000 == 0 ? 2000 : sim % 2000
+        # TP_ind = sim % 2000 == 0 ? 2000 : sim % 2000
+        TP_ind = rand(1:2000)
         TP_local_sim = @view TP_local[:,TP_ind]
         TP_import_sim = @view TP_import[:,TP_ind]
         susceptible_depletion_sim = susceptible_depletion[TP_ind]
@@ -689,6 +708,8 @@ function simulate_branching_process(
                     U,
                     D_total, 
                     D_total_cumsum,
+                    forecast_start_date,
+                    omicron_dominant_date,
                     case_counts, 
                     sim,
                     local_cases, 
@@ -728,6 +749,8 @@ function simulate_branching_process(
                 U,
                 D_total, 
                 D_total_cumsum, 
+                forecast_start_date,
+                omicron_dominant_date,
                 case_counts, 
                 sim,
                 local_cases, 
