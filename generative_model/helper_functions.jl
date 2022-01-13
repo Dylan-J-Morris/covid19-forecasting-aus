@@ -1,7 +1,7 @@
 using Random
 using Distributions
 
-function sample_negative_binomial_limit(s, p; approx_limit = 500)
+function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     """
     Samples from a NegBin(s, p) distribution. This uses a normal approximation 
     when s is large (i.e. s > approx_limit) to get a 10x runtime improvement.
@@ -19,7 +19,7 @@ function sample_negative_binomial_limit(s, p; approx_limit = 500)
     return X 
 end
 
-function sample_binomial_limit(n, p; approx_limit = 500)
+function sample_binomial_limit(n, p; approx_limit = 1000)
     """
     Samples from a Bin(n, p) distribution. This uses a normal approximation 
     for np > approx_limit or n(1-p) > approx_limit to acheive a 10x runtime 
