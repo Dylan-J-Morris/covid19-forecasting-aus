@@ -9,6 +9,8 @@ use_TP_adjustment = False
 testing_inference = False
 n_days_nowcast_TP_adjustment = 45
 num_TP_samples = 2000       # number of forecasted TP samples to save 
+# number of days to remove to stop the issues with the right-truncation
+truncation_days = 15
 
 if on_phoenix:
     ncores = 12     # number of cores to use (this is relevant for the simulation)
@@ -51,29 +53,29 @@ case_insertion_threshold = 5
 # setting.
 download_google_automatically = False
 assume_local_cases_if_unknown = True
-# number of days to remove to stop the issues with the right-truncation
-truncation_days = 12
 
 ##### Simulation parameters/transmission parameters
 # incubation period: taken from Lauer et al. 2020
-shape_inc = 5.807  
-scale_inc = 0.948
+(shape_inc, scale_inc) = (5.807, 0.948)
+# omicron incubation period determined by sampling Delta incubation periods and subtracting 1 (then taking those with days > 0.05) 
+# and using MLE to fit a Gamma distribution
+(shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
 offset_inc = 0
+
 ## reporting delay distribution: empirically estimated from the case data using MLE
 # looked at duration between symptom onset and cofnirmation for cases where this was 
 # feasible and truncated this to be between 0 and 30 (plenty of retropsective cases with negatives etc)
-shape_rd = 1.28
-scale_rd = 2.31
-# shape_rd = 2
-# scale_rd = 1
+(shape_rd, scale_rd) = (1.28, 2.31)
 offset_rd = 0
+
 ## generation interval: 
 # generation inteval changed Oct 5 2021
-# shape_gen = 3.64/3.07
-# scale_gen = 3.07
-shape_gen = 2.75
-scale_gen = 1.00
+(shape_gen, scale_gen) = (2.75, 1.00)
+# omicron GI determined by sampling Delta GI and subtracting 1 (then taking those with days > 0.05) 
+# and using MLE to fit a Gamma distribution
+(shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
 offset_gen = 0
+
 # Heterogeneity parameter for a negative binomial offspring distribution
 # informed from:
 # Endo A; Centre for the Mathematical Modelling of
