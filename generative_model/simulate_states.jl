@@ -107,6 +107,7 @@ function simulate_all_states(file_date,states_to_run,nsims)
     
     # now we can plot everything
     plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="both")
+    plot_all_forecasts(file_date,states_to_run,local_case_dict,zoom=true,confidence_level="both")
     plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="50")
     plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="95")
     
