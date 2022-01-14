@@ -4,7 +4,7 @@ This file is used to run the
 
 include("simulate_states.jl")
 
-# parameters to pass to the main function 
+# command line parameters 
 const file_date = ARGS[1]
 const nsims = parse(Int, ARGS[2])
 
