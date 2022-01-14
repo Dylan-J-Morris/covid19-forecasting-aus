@@ -63,11 +63,13 @@ function check_sim!(
     
     cases_pre_backcast = sum(@view D[1:days_delta,1:2,sim])
     cases_backcast = sum(@view D[days_delta+1:T_observed,1:2,sim])
-    cases_nowcast = sum(@view D[21:T_observed,1:2,sim])
+    cases_pre_nowcast = sum(@view D[21:T_observed,1:2,sim])
+    cases_nowcast = sum(@view D[10:T_observed,1:2,sim])
     
     case_counts[1] = cases_pre_backcast
     case_counts[2] = cases_backcast
-    case_counts[3] = cases_nowcast
+    case_counts[3] = cases_pre_nowcast
+    case_counts[4] = cases_nowcast
     
     # take out the observed data by adding the observed compartments
     # then we take the cumulative sum as this lets us differnce the vector 
