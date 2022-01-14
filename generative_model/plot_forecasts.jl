@@ -14,6 +14,7 @@ function plot_all_forecasts(
     file_date, 
     states_to_plot,
     local_case_dict; 
+    zoom=false,
     confidence_level="both"
 )
     """
@@ -242,6 +243,9 @@ function plot_all_forecasts(
         xlims!(fig, subplot=c, onset_dates_lims...)
         xlims!(fig, subplot=tp, onset_dates_lims...)
         ylims!(fig, subplot=tp, 0, 1.25*maximum(df_TP_summary[!,"top"]))
+        if zoom 
+            ylims!(fig, subplot=c, 0, 1.1*maximum(local_cases))
+        end
         
     end
 
@@ -250,7 +254,12 @@ function plot_all_forecasts(
         mkpath(dir_name)
     end
     
-    savefig(fig, dir_name*"/UoA_forecast_"*file_date*"_"*confidence_level*"_intervals.pdf")
+    if zoom 
+        savefig(fig, dir_name*"/UoA_forecast_"*file_date*"_"*"zoomed_"*confidence_level*"_intervals.pdf")
+    else
+        savefig(fig, dir_name*"/UoA_forecast_"*file_date*"_"*confidence_level*"_intervals.pdf")
+    end
+        
 
     return nothing 
 
