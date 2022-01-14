@@ -63,6 +63,9 @@ def draw_inf_dates(df_linelist,
                    shape_rd=2, 
                    scale_rd=1, 
                    offset_rd=1, 
+                   shape_inc_omicron=5.807, 
+                   scale_inc_omicron=0.948, 
+                   omicron_dominance_date=None,
                    nreplicates=1):
 
     # these aren't really notification dates, they are a combination of onset and confirmation dates 
@@ -73,6 +76,8 @@ def draw_inf_dates(df_linelist,
 
     # Draw from incubation distribution
     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
+    inc_period_omicron = offset_inc + np.random.gamma(shape_inc_omicron, scale_inc_omicron, size=(nsamples*nreplicates))
+    
     
     if use_linelist:
         # apply the delay at the point of applying the incubation 
@@ -83,8 +88,10 @@ def draw_inf_dates(df_linelist,
         is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
         rd_period = (offset_rd + np.random.gamma(shape_rd, scale_rd, size=(nsamples*nreplicates))) * is_confirmation_date_rep
 
+        is_omicron = (notification_dates >= pd.to_datetime(omicron_dominance_date)).to_numpy()
+        
         # infection date is id_nd_diff days before notification date. This is also a long vector.
-        id_nd_diff = inc_period + rd_period
+        id_nd_diff = (1-is_omicron)*inc_period + is_omicron*inc_period_omicron + rd_period
         
     else: 
         id_nd_diff = inc_period
@@ -178,7 +185,9 @@ def index_by_infection_date(infections_wide):
     return(df_inc_zeros)
 
 
-def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07, offset_gen=0,
+def generate_lambda(infections, infection_dates, omicron_dominance_date=None,
+                    shape_gen=3.64/3.07, scale_gen=3.07, offset_gen=0,
+                    shape_gen_omicron=3.64/3.07, scale_gen_omicron=3.07,
                     trunc_days=21, shift=0, offset=1):
     """
     Given array of infection_dates (N_dates by N_samples), where values are possible
@@ -199,9 +208,27 @@ def generate_lambda(infection_dates, shape_gen=3.64/3.07, scale_gen=3.07, offset
     # offset
     ws[offset:] = disc_gamma[:trunc_days-offset]
     ws[:offset] = 0
-    lambda_t = np.zeros(shape=(infection_dates.shape[0]-trunc_days+1, infection_dates.shape[1]))
-    for n in range(infection_dates.shape[1]):
-        lambda_t[:, n] = np.convolve(infection_dates[:, n], ws, mode='valid')
+    
+    # now get a separate generation time for omicron 
+    # double check parameterisation of scipy
+    gamma_vals = offset_gen + gamma.pdf(xmids, a=shape_gen_omicron, scale=scale_gen_omicron)
+    # renormalise the pdf
+    disc_gamma = gamma_vals/sum(gamma_vals)
+
+    ws_omicron = disc_gamma[:trunc_days]
+    # offset
+    ws_omicron[offset:] = disc_gamma[:trunc_days-offset]
+    ws_omicron[:offset] = 0
+    
+    lambda_t = np.zeros(shape=(infections.shape[0]-trunc_days+1, infections.shape[1]))
+    
+    infections_before_delta_dominance = sum(infection_dates < pd.to_datetime(omicron_dominance_date))
+    
+    for n in range(infections.shape[1]):
+        if n < infections_before_delta_dominance: 
+            lambda_t[:, n] = np.convolve(infections[:, n], ws, mode='valid')
+        else:
+            lambda_t[:, n] = np.convolve(infections[:, n], ws_omicron, mode='valid')
         
     return lambda_t
 
@@ -216,6 +243,7 @@ def lambda_all_states(df_infection, trunc_days=21, **kwargs):
     for state in statelist:
         df_total_infections = df_infection.groupby(['STATE', 'INFECTION_DATE']).agg(sum)
         lambda_dict[state] = generate_lambda(df_total_infections.loc[state].values, 
+                                             df_total_infections.loc[state].index,
                                              trunc_days=trunc_days,
                                              **kwargs)
 

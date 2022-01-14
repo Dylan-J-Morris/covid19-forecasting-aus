@@ -32,6 +32,7 @@ else:
 
 third_start_date = '2021-06-15'
 start_date = '2021-06-23'
+omicron_dominance_date = '2021-12-15'
 
 start_dates = {
     'NSW': start_date,

@@ -10,7 +10,8 @@ sys.path.insert(0, 'TP_model/EpyReff')
 # this is not used in the estimation routine, it just lets the plot know what we ignore
 from params import truncation_days, third_start_date, start_date, use_TP_adjustment, \
     scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, \
-    offset_rd, offset_inc, offset_gen
+    scale_gen_omicron, shape_gen_omicron, scale_inc_omicron, shape_inc_omicron, \
+    offset_rd, offset_inc, offset_gen, omicron_dominance_date
 from epyreff import *
 import os
 import numpy as np
@@ -70,7 +71,10 @@ for rep in tqdm(range(samples)):
                             offset_inc=offset_inc, 
                             shape_rd=shape_rd, 
                             scale_rd=scale_rd, 
-                            offset_rd=offset_rd)
+                            offset_rd=offset_rd, 
+                            shape_inc_omicron=shape_inc_omicron, 
+                            scale_inc_omicron=scale_inc_omicron, 
+                            omicron_dominance_date=omicron_dominance_date)
     
     # reindex dataframe to include all dates,
     # return df with index (STATE, INFECTION_DATE, SOURCE), columns are samples
@@ -80,6 +84,9 @@ for rep in tqdm(range(samples)):
     lambda_dict = lambda_all_states(df_inc_zeros,
                                     shape_gen=shape_gen, 
                                     scale_gen=scale_gen, 
+                                    shape_gen_omicron=shape_gen_omicron, 
+                                    scale_gen_omicron=scale_gen_omicron, 
+                                    omicron_dominance_date=omicron_dominance_date,
                                     offset=offset,
                                     offset_gen=offset_gen,
                                     trunc_days=trunc_days)
