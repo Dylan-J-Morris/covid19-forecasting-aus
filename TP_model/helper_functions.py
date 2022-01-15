@@ -16,7 +16,7 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
     from datetime import timedelta
     import glob
     from params import use_linelist, assume_local_cases_if_unknown
-    from params import scale_gen, shape_gen, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc
+    from params import scale_inc_omicron, shape_inc_omicron, scale_inc, shape_inc, scale_rd, shape_rd, offset_rd, offset_inc, omicron_dominance_date
 
     if not use_linelist:
         # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
@@ -129,6 +129,10 @@ def read_in_NNDSS(date_string, apply_delay_at_read=False, apply_inc_at_read=Fals
             # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
             n_infs = df['date_inferred'].shape[0]
             inc = np.random.gamma(shape=shape_inc, scale=scale_inc, size=n_infs)
+            inc_omicron = np.random.gamma(shape=shape_inc_omicron, scale=scale_inc_omicron, size=n_infs)
+            is_omicron_dominant = (df['date_inferred'] >= pd.to_datetime(omicron_dominance_date)).to_numpy()
+            inc = (1-is_omicron_dominant)*inc + is_omicron_dominant*inc_omicron
+            
             # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior 
             # doesnt work properly
             inc = np.ceil(inc) * timedelta(days=1)
