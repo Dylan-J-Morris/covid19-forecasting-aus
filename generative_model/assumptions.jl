@@ -1,28 +1,36 @@
 using Distributions
 using Random
 
-function sample_infection_time()
+function sample_infection_time(;omicron=false)
     """
     Sample infection times for num individuals based on the generation 
     interval distribution, Gamma(shape_gen, scale_gen). 
     """
+
+    (shape_gen, scale_gen) = (2.75, 1.00)
+    (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
     
-    shape_gen = 2.75
-    scale_gen = 1.00
-    infection_time = ceil(Int, rand(Gamma(shape_gen, scale_gen)))
+    shape = (1-omicron)*shape_gen + omicron*shape_gen_omicron
+    scale = (1-omicron)*scale_gen + omicron*scale_gen_omicron
+    
+    infection_time = ceil(Int, rand(Gamma(shape, scale)))
     
     return infection_time
 end
 
-function sample_onset_time()
+function sample_onset_time(;omicron=false)
     """
     Sample incubation times for num individuals based on incubation period 
     distribution, Gamma(shape_inc, scale_inc). 
     """
     
-    shape_inc = 5.807  
-    scale_inc = 0.948   
-    onset_time = ceil(Int, rand(Gamma(shape_inc, scale_inc)))
+    (shape_inc, scale_inc) = (5.807, 0.948)
+    (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
+    
+    shape = (1-omicron)*shape_inc + omicron*shape_inc_omicron
+    scale = (1-omicron)*scale_inc + omicron*scale_inc_omicron
+    
+    onset_time = ceil(Int, rand(Gamma(shape, scale)))
     
     return onset_time
 end
@@ -50,7 +58,7 @@ function set_simulation_constants()
     p_symp = 0.7
     γ = 0.5     # relative infectiousness of asymptomatic
     # solve the system α_s*ps + α_a(1-ps) = 1 with α_a = γ*α_s
-    α_s = 1/(p_symp+γ*(1-p_symp))
+    α_s = 1/(p_symp + γ*(1-p_symp))
     α_a = γ * α_s
     p_detect_given_symp = 0.95
     p_detect_given_asymp = 0.1

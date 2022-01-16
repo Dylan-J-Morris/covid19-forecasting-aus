@@ -34,7 +34,7 @@ function simulate_all_states(file_date,states_to_run,nsims)
     )
     
     # date we want to apply increase in cases due to Omicron 
-    omicron_dominant_date = "2021-12-10"
+    omicron_dominant_date = Dates.Date("2021-12-10")
 
     # get the latest onset date
     latest_start_date = Dates.Date(maximum(v for v in values(simulation_start_dates)))

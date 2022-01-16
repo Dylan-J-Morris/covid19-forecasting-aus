@@ -22,11 +22,7 @@ function count_cases_in_windows!(
 end
 
 function check_sim!(
-    Z, 
-    D, 
-    U,
-    D_total, 
-    D_total_cumsum,
+    sim_realisation::SimulationRealisation,
     forecast_start_date,
     omicron_dominant_date,
     case_counts, 
@@ -48,6 +44,10 @@ function check_sim!(
     """
     
     print_status = false
+    
+    Z = sim_realisation.Z
+    D = sim_realisation.D
+    U = sim_realisation.U
     
     # days forecast observed for 
     T_observed = sim_features.T_observed
@@ -146,9 +146,7 @@ function check_sim!(
             
             injected_cases = true 
             inject_cases!(
-                Z, 
-                D, 
-                U,
+                sim_realisation,
                 missing_detections, 
                 day, 
                 sim, 
@@ -163,9 +161,7 @@ function check_sim!(
 end
 
 function inject_cases!(
-    Z, 
-    D, 
-    U,
+    sim_realisation,
     missing_detections, 
     day, 
     sim,
@@ -177,6 +173,10 @@ function inject_cases!(
     A model for injecting cases into the simulation following long periods of low 
     incidence. 
     """
+    
+    Z = sim_realisation.Z
+    D = sim_realisation.D
+    U = sim_realisation.U
     
     total_injected = missing_detections
     
@@ -219,7 +219,7 @@ function inject_cases!(
         elseif counter >= num_symptomatic_each_day[3]
             onset_time = day-2
         end
-        infection_time = onset_time - sample_onset_time()
+        infection_time = onset_time - sample_onset_time(omicron = onset_time >= sim_features.omicron_dominant_day)
         Z[infection_time+36,individual_type_map.S,sim] += 1
         D[onset_time,individual_type_map.S,sim] += 1 
         counter += 1
@@ -242,7 +242,7 @@ function inject_cases!(
         elseif counter >= num_asymptomatic_each_day[3]
             onset_time = day-2
         end
-        infection_time = onset_time - sample_onset_time()
+        infection_time = onset_time - sample_onset_time(omicron = onset_time >= sim_features.omicron_dominant_day)
         Z[infection_time+36,individual_type_map.A,sim] += 1
         D[onset_time,individual_type_map.A,sim] += 1 
         counter += 1
@@ -266,7 +266,7 @@ function inject_cases!(
         elseif counter >= num_symptomatic_each_day[3]
             onset_time = day-2
         end
-        infection_time = onset_time - sample_onset_time()
+        infection_time = onset_time - sample_onset_time(omicron = onset_time >= sim_features.omicron_dominant_day)
         Z[infection_time+36,individual_type_map.S,sim] += 1
         U[onset_time,individual_type_map.S,sim] += 1 
         counter += 1
@@ -289,7 +289,7 @@ function inject_cases!(
         elseif counter >= num_asymptomatic_each_day[3]
             onset_time = day-2
         end
-        infection_time = onset_time - sample_onset_time()
+        infection_time = onset_time - sample_onset_time(omicron = onset_time >= sim_features.omicron_dominant_day)
         Z[infection_time+36,individual_type_map.A,sim] += 1
         U[onset_time,individual_type_map.A,sim] += 1 
         counter += 1

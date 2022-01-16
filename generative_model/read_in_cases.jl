@@ -4,7 +4,7 @@ using Dates
 using Distributions
 using Random
 
-function read_in_cases(date, rng; apply_inc = false)
+function read_in_cases(date, rng; apply_inc = false, omicron_dominant_date = nothing)
 
 	# read in the reff file
 	case_file_name = "data/interim_linelist_"*date*".csv"
@@ -28,12 +28,24 @@ function read_in_cases(date, rng; apply_inc = false)
 	# fill the array with the most informative date 
 	complete_dates[.!is_confirmation] = Date.(convert(Vector, df.date_onset[.!is_confirmation]))
 	complete_dates[is_confirmation] = confirm_dates[is_confirmation]
-
+	
 	# if want to apply delay, subtract an incubation period per individual 
 	if apply_inc
 		shape_inc = 5.807  # taken from Lauer et al. 2020 #1.62/0.418
 		scale_inc = 0.948  # 0.418
 		inc = rand(rng, Gamma(shape_inc, scale_inc), length(complete_dates))
+		
+		# now apply different incubation period for Omicron 
+		apply_omicron = !isnothing(omicron_dominant_date) ? true : false
+		if apply_omicron
+			is_omicron = complete_dates .>= Dates.Date(omicron_dominant_date)
+			shape_inc_omicron = 3.33
+			scale_inc_omicron = 1.34
+			inc_omicron = rand(rng, Gamma(shape_inc_omicron, scale_inc_omicron), length(complete_dates))
+			# add the incubation for omicron dates in 
+			inc = (1-is_omicron)*inc + is_omicron*inc_omicron
+		end
+		
 		complete_dates = complete_dates - round.(inc) * Day(1)
 	end
 

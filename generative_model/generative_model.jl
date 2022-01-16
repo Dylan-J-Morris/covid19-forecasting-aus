@@ -52,16 +52,14 @@ function initialise_state_arrays(sim_duration, observation_period, nsims)
     Z = zeros(Int, sim_duration+35, 3, nsims)
     D = zeros(Int, sim_duration, 3, nsims)
     U = zeros(Int, sim_duration, 3, nsims)
-    D_total = zeros(Int, observation_period, nsims)
-    D_total_cumsum = zeros(Int, observation_period, nsims)
     
-    return (Z, D, U, D_total, D_total_cumsum)
+    sim_realisation = SimulationRealisation(Z, D, U)
+    
+    return sim_realisation
 end
 
 function initialise_population!(
-    Z,
-    D, 
-    U,
+    sim_realisation::SimulationRealisation,
     start_day,
     D0, 
     sim_features::SimulationFeatures, 
@@ -71,6 +69,10 @@ function initialise_population!(
     """
     Fill the infection array for each simulation.
     """
+    Z = sim_realisation.Z
+    D = sim_realisation.D
+    U = sim_realisation.U
+    
     # extract prob of being symptomatic and prob of symptoms given detection
     p_symp = sim_constants.p_symp
     p_detect_given_symp = sim_constants.p_detect_given_symp
@@ -147,9 +149,7 @@ function initialise_population!(
 end
 
 function import_cases_model!(
-	Z, 
-    D, 
-    U, 
+	sim_realisation::SimulationRealisation, 
     import_cases, 
 	forecast_start_date, 
 	sim_constants::SimulationConstants,
@@ -172,6 +172,10 @@ function import_cases_model!(
 	assume a fixed period of 1 day for estimating the posterior. 
 	"""
 	
+    Z = sim_realisation.Z
+    D = sim_realisation.D
+    U = sim_realisation.U
+    
     # get the number of observation days 
     T_observed = sim_features.T_observed
     # duration of forecast
@@ -223,9 +227,7 @@ function import_cases_model!(
 			if D_I[i] + U_I[i] > 0
 				# add sampled imports to observation arrays
                 assign_to_arrays_and_times!(
-                    Z, 
-                    D, 
-                    U,
+                    sim_realisation,
                     t, 
                     sim, 
                     sim_features, 
@@ -259,9 +261,7 @@ function get_proportion_infected(day, cases_pre_forecast, D_sim, U_sim, N)
 end
 
 function sample_offspring!(
-    Z, 
-    D, 
-    U,
+    sim_realisation::SimulationRealisation, 
     t,  
     TP_local_sim, 
     TP_import_sim, 
@@ -276,6 +276,10 @@ function sample_offspring!(
     Sample offspring for all adults at time t. This uses the fact that the sum of N NB(s, p) is 
     NB(N*s, p) and hence we can sample ALL offspring for a particular type of adults. 
     """
+    Z = sim_realisation.Z
+    D = sim_realisation.D
+    U = sim_realisation.U
+    
     # get the α's
     α_s = sim_constants.α_s
     α_a = sim_constants.α_a
@@ -352,9 +356,7 @@ function sample_offspring!(
             
             # add the onsets to observation arrays
             assign_to_arrays_and_times!(
-                Z, 
-                D, 
-                U,
+                sim_realisation,
                 t, 
                 sim, 
                 sim_features,
@@ -375,9 +377,7 @@ function sample_offspring!(
 end
 
 function assign_to_arrays_and_times!(
-    Z, 
-    D, 
-    U, 
+    sim_realisation,
     day, 
     sim, 
     sim_features::SimulationFeatures,
@@ -397,14 +397,18 @@ function assign_to_arrays_and_times!(
     
     # TODO: refactor this using multiple dispatch. 
     
+    Z = sim_realisation.Z
+    D = sim_realisation.D
+    U = sim_realisation.U
+    
     # sampling detected cases 
     for _ in 1:num_symptomatic_detected
-        infection_time = day + sample_infection_time()
+        infection_time = day + sample_infection_time(omicron = day >= sim_features.omicron_dominant_day)
         if infection_time <= sim_features.T_end 
             Z[infection_time+36,individual_type_map.S,sim] += 1
         end
         
-        onset_time = infection_time + sample_onset_time()
+        onset_time = infection_time + sample_onset_time(omicron = infection_time >= sim_features.omicron_dominant_day)
         if onset_time < 1 
             D[1,individual_type_map.S,sim] += 1
         elseif onset_time <= sim_features.T_end
@@ -414,12 +418,12 @@ function assign_to_arrays_and_times!(
     end
     
     for _ in 1:num_asymptomatic_detected
-        infection_time = day + sample_infection_time()
+        infection_time = day + sample_infection_time(omicron = day >= sim_features.omicron_dominant_day)
         if infection_time <= sim_features.T_end 
             Z[infection_time+36,individual_type_map.A,sim] += 1
         end
         
-        onset_time = infection_time + sample_onset_time()
+        onset_time = infection_time + sample_onset_time(omicron = infection_time >= sim_features.omicron_dominant_day)
         if onset_time < 1 
             D[1,individual_type_map.A,sim] += 1
         elseif onset_time <= sim_features.T_end
@@ -430,12 +434,12 @@ function assign_to_arrays_and_times!(
     
     # sampling undetected cases 
     for _ in 1:num_symptomatic_undetected
-        infection_time = day + sample_infection_time()
+        infection_time = day + sample_infection_time(omicron = day >= sim_features.omicron_dominant_day)
         if infection_time <= sim_features.T_end 
             Z[infection_time+36,individual_type_map.S,sim] += 1
         end
         
-        onset_time = infection_time + sample_onset_time()
+        onset_time = infection_time + sample_onset_time(omicron = infection_time >= sim_features.omicron_dominant_day)
         if onset_time < 1 
             U[1,individual_type_map.S,sim] += 1
         elseif onset_time <= sim_features.T_end
@@ -445,12 +449,12 @@ function assign_to_arrays_and_times!(
     end
     
     for _ in 1:num_asymptomatic_undetected
-        infection_time = day + sample_infection_time()
+        infection_time = day + sample_infection_time(omicron = day >= sim_features.omicron_dominant_day)
         if infection_time <= sim_features.T_end 
             Z[infection_time+36,individual_type_map.A,sim] += 1
         end
         
-        onset_time = infection_time + sample_onset_time()
+        onset_time = infection_time + sample_onset_time(omicron = infection_time >= sim_features.omicron_dominant_day)
         if onset_time < 1 
             U[1,individual_type_map.A,sim] += 1
         elseif onset_time <= sim_features.T_end
@@ -467,7 +471,7 @@ function assign_to_arrays_and_times!(
             Z[infection_time+36,individual_type_map.I,sim] += 1
         end
         
-        onset_time = infection_time + sample_onset_time()
+        onset_time = infection_time + sample_onset_time(omicron = infection_time >= sim_features.omicron_dominant_day)
         if onset_time < 1 
             D[1,individual_type_map.I,sim] += 1
         elseif onset_time <= sim_features.T_end
@@ -482,7 +486,7 @@ function assign_to_arrays_and_times!(
             Z[infection_time+35,individual_type_map.I,sim] += 1
         end
         
-        onset_time = infection_time + sample_onset_time()
+        onset_time = infection_time + sample_onset_time(omicron = infection_time >= sim_features.omicron_dominant_day)
         if onset_time < 1 
             U[1,individual_type_map.I,sim] += 1
         elseif onset_time <= sim_features.T_end
@@ -560,12 +564,17 @@ function get_simulation_limits(
     # the maximum allowable cases over the forecast period is the population size
     max_forecast_cases = N
     
+    # get the day we want to start using omicron GI and incubation period (+1) as 0 corresponds
+    # to the first element of the arrays 
+    omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value + 1
+    
     sim_features = SimulationFeatures(
         max_forecast_cases, 
         cases_pre_forecast, 
         N,
         T_observed, 
         T_end, 
+        omicron_dominant_day, 
     )
     
     window_lengths = 0
@@ -628,16 +637,14 @@ function simulate_branching_process(
     day_range = -35:T_end
         
     # initialise state arrays (T_end + 1 as we include 0 day)
-    (Z, D, U, D_total, D_total_cumsum) = initialise_state_arrays(T_end+1, T_observed+1, nsims)
+    sim_realisation = initialise_state_arrays(T_end+1, T_observed+1, nsims)
     
     # vector to hold the first day of infections for each simulation. 
     start_day = zeros(Int, nsims)
     
     # generate initial infected population 
     initialise_population!(
-        Z, 
-        D, 
-        U, 
+        sim_realisation,
         start_day, 
         D0, 
         sim_features, 
@@ -646,9 +653,7 @@ function simulate_branching_process(
     )
     
     import_cases_model!(
-        Z, 
-        D, 
-        U,
+        sim_realisation,
         import_cases, 
         forecast_start_date, 
         sim_constants,
@@ -682,9 +687,7 @@ function simulate_branching_process(
             
             # simulate offspring of parents 
             sample_offspring!(
-                Z, 
-                D, 
-                U,
+                sim_realisation,
                 day, 
                 TP_local_sim, 
                 TP_import_sim, 
@@ -704,11 +707,7 @@ function simulate_branching_process(
                     day - last_injection >= 3
                     
                 (bad_sim, injected_cases) = check_sim!(
-                    Z, 
-                    D, 
-                    U,
-                    D_total, 
-                    D_total_cumsum,
+                    sim_realisation,
                     forecast_start_date,
                     omicron_dominant_date,
                     case_counts, 
@@ -745,11 +744,7 @@ function simulate_branching_process(
         if !bad_sim
             reinitialise_allowed = false
             (bad_sim, injected_cases) = check_sim!(
-                Z, 
-                D, 
-                U,
-                D_total, 
-                D_total_cumsum, 
+                sim_realisation, 
                 forecast_start_date,
                 omicron_dominant_date,
                 case_counts, 
@@ -781,8 +776,8 @@ function simulate_branching_process(
     
     # keep only good sim results and truncate the TP to the same period as per D and U
     TP_local_good_truncated = TP_local[(end-T_end):end, good_TPs]
-    D_good = D[:,:,good_sims]
-    U_good = U[:,:,good_sims]
+    D_good = sim_realisation.D[:,:,good_sims]
+    U_good = sim_realisation.U[:,:,good_sims]
     
     return (D_good, U_good, TP_local_good_truncated)
 end

@@ -11,6 +11,18 @@ struct SimulationFeatures{T}
     N::T
     T_observed::T
     T_end::T
+    omicron_dominant_day::T
+end
+
+struct SimulationRealisation{T1, T2}
+    """
+    A type for holding the realisations of the simulations. This is a cleaner way of 
+    holding the information for the three different matrices used. Z is for infections 
+    D is for observed cases and U is for undetected cases. 
+    """
+    Z::T1
+    D::T2
+    U::T2
 end
 
 struct SimulationConstants{T}
