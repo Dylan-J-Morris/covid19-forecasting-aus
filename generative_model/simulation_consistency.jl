@@ -5,7 +5,7 @@ function count_cases_in_windows!(
     case_counts,  
     window_lengths, 
     D_total, 
-    simulation_constants::SimulationConstants, 
+    simulation_constants::Constants, 
     sim
 )
     """
@@ -22,7 +22,7 @@ function count_cases_in_windows!(
 end
 
 function check_sim!(
-    sim_realisation::SimulationRealisation,
+    sim_realisation::Realisations,
     forecast_start_date,
     omicron_dominant_date,
     case_counts, 
@@ -32,8 +32,8 @@ function check_sim!(
     min_cases, 
     max_cases, 
     reinitialise_allowed, 
-    sim_features::SimulationFeatures,
-    sim_constants::SimulationConstants, 
+    sim_features::Features,
+    sim_constants::Constants, 
     individual_type_map::IndividualTypeMap;
     day = 0,
 )
@@ -165,8 +165,8 @@ function inject_cases!(
     missing_detections, 
     day, 
     sim,
-    sim_constants::SimulationConstants,
-    sim_features::SimulationFeatures,
+    sim_constants::Constants,
+    sim_features::Features,
     individual_type_map::IndividualTypeMap,
 )
     """
@@ -182,11 +182,8 @@ function inject_cases!(
     
     p_symp = sim_constants.p_symp
     p_detect_given_symp = sim_constants.p_detect_given_symp
-    p_detect_given_asymp = sim_constants.p_detect_given_asymp
+    p_symp_given_detect = sim_constants.p_symp_given_detect
     
-    # prob of being symptomatic given detection 
-    p_detect = p_symp*p_detect_given_symp + (1-p_symp)*p_detect_given_asymp
-    p_symp_given_detect = p_detect_given_symp*p_symp/p_detect 
     # sample number detected 
     num_symptomatic_detected = sample_binomial_limit(missing_detections, p_symp_given_detect)
     num_asymptomatic_detected = missing_detections - num_symptomatic_detected

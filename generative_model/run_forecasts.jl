@@ -22,4 +22,4 @@ const states_to_run = [
 #     "NSW",
 # ]
 # run main 
-simulate_all_states(file_date,states_to_run,nsims)
+simulate_all_states(file_date, states_to_run, nsims)

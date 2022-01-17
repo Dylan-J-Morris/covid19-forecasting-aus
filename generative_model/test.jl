@@ -11,12 +11,6 @@ const nsims = parse(Int, ARGS[2])
 # states to simulate 
 const states_to_run = [
     "NSW",
-    "QLD",
-    "TAS",
-    "VIC",
-    "WA",
-    "ACT",
-    "NT",
 ]
 
 # run main 

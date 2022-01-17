@@ -36,7 +36,7 @@ function sample_onset_time(;omicron=false)
 end
 
 
-function set_simulation_constants()
+function set_simulation_constants(state)
     """
     Contains the assumptions for simulation parameters. This includes all the dynamical constants: 
         - k = heterogeneity parameter
@@ -55,13 +55,41 @@ function set_simulation_constants()
     k = 0.15
     # assumptions surrouding the probability of symptomatic, 
     # relative infectiousness γ and the ratio of Reff (α's) 
-    p_symp = 0.7
+    p_symp = 0.4
+    
+    p_detect_given_symp_dict = Dict{String, Float64}(
+        "NSW" => 0.7,
+        "QLD" => 0.7,
+        "SA" => 0.7,
+        "TAS" => 0.7,
+        "WA" => 0.7,
+        "ACT" => 0.7,
+        "NT" => 0.7,
+        "VIC" => 0.7,
+    )
+    
+    p_detect_given_asymp_dict = Dict{String, Float64}(
+        "NSW" => 0.467,
+        "QLD" => 0.467,
+        "SA" => 0.467,
+        "TAS" => 0.467,
+        "WA" => 0.467,
+        "ACT" => 0.467,
+        "NT" => 0.467,
+        "VIC" => 0.467,
+    )
+    
     γ = 0.5     # relative infectiousness of asymptomatic
     # solve the system α_s*ps + α_a(1-ps) = 1 with α_a = γ*α_s
+    p_detect_given_symp = p_detect_given_symp_dict[state]
+    p_detect_given_asymp = p_detect_given_asymp_dict[state]
+    # prob of detection
+    p_detect = p_symp*p_detect_given_symp + (1-p_symp)*p_detect_given_asymp
+    # prob symptomatic given detect
+    p_symp_given_detect = p_detect_given_symp*p_symp/p_detect 
+    
     α_s = 1/(p_symp + γ*(1-p_symp))
     α_a = γ * α_s
-    p_detect_given_symp = 0.95
-    p_detect_given_asymp = 0.1
     consistency_multiplier = 5.0
 
     # prob of detecting an international import 
@@ -72,11 +100,13 @@ function set_simulation_constants()
     # ema smoothing factor 
     ϕ = 0.1
 
-    simulation_constants = SimulationConstants(
+    simulation_constants = Constants(
         k,
         p_symp,
         p_detect_given_symp,
         p_detect_given_asymp,
+        p_detect, 
+        p_symp_given_detect,
         γ,
         α_s,
         α_a,

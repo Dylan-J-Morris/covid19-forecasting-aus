@@ -4,7 +4,12 @@ using Dates
 using Distributions
 using Random
 
-function read_in_cases(date, rng; apply_inc = false, omicron_dominant_date = nothing)
+function read_in_cases(
+	date, 
+	rng; 
+	apply_inc = false, 
+	omicron_dominant_date = nothing
+)
 
 	# read in the reff file
 	case_file_name = "data/interim_linelist_"*date*".csv"

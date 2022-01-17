@@ -1,4 +1,4 @@
-struct SimulationFeatures{T}
+struct Features{T}
     """
     A type for holding all the fixed quantities during a simulation. This involves 
     simulation constants for detection probabiliites, constraints for consistency 
@@ -14,7 +14,7 @@ struct SimulationFeatures{T}
     omicron_dominant_day::T
 end
 
-struct SimulationRealisation{T1, T2}
+struct Realisations{T1, T2}
     """
     A type for holding the realisations of the simulations. This is a cleaner way of 
     holding the information for the three different matrices used. Z is for infections 
@@ -25,7 +25,7 @@ struct SimulationRealisation{T1, T2}
     U::T2
 end
 
-struct SimulationConstants{T}
+struct Constants{T}
     """
     A type for the dynamical / simulation constants 
     """
@@ -33,6 +33,8 @@ struct SimulationConstants{T}
     p_symp::T
     p_detect_given_symp::T
     p_detect_given_asymp::T
+    p_detect::T
+    p_symp_given_detect::T
     γ::T
     α_s::T
     α_a::T

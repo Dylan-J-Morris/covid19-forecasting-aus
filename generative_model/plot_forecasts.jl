@@ -98,13 +98,9 @@ function plot_all_forecasts(
                 df_D_summary[!,"median"], 
                 xaxis=nothing,
                 linecolor=1, 
-                linewidth=2, 
-                # ribbon=(
-                #     vec(df_D_summary[!,"median"]-df_D_summary[!,"lower"]), 
-                #     vec(df_D_summary[!,"upper"] - df_D_summary[!,"median"])
-                # ), 
+                linewidth=1, 
                 color=1, 
-                fillalpha=0.3,
+                fillalpha=0.2,
             )
             plot!(
                 fig, 
@@ -112,7 +108,7 @@ function plot_all_forecasts(
                 onset_dates, 
                 [df_D_summary[!,"median"] df_D_summary[!,"median"]], 
                 fillrange=[df_D_summary[!,"lower"] df_D_summary[!,"upper"]],
-                fillalpha=0.3, 
+                fillalpha=0.2, 
                 c=1, 
                 label=false
             )
@@ -128,13 +124,9 @@ function plot_all_forecasts(
                 df_D_summary[!,"median"], 
                 xaxis=nothing,
                 linecolor=1, 
-                linewidth=2, 
-                # ribbon=(
-                #     vec(df_D_summary[!,"median"]-df_D_summary[!,"bottom"]), 
-                #     vec(df_D_summary[!,"top"] - df_D_summary[!,"median"])
-                # ), 
+                linewidth=1, 
                 color=1, 
-                fillalpha=0.3,
+                fillalpha=0.2,
             )
             
             plot!(
@@ -143,7 +135,7 @@ function plot_all_forecasts(
                 onset_dates, 
                 [df_D_summary[!,"median"] df_D_summary[!,"median"]], 
                 fillrange=[df_D_summary[!,"bottom"] df_D_summary[!,"top"]],
-                fillalpha=0.3, 
+                fillalpha=0.2, 
                 c=1, 
                 label=false
             )
@@ -167,13 +159,9 @@ function plot_all_forecasts(
                 onset_dates, 
                 df_TP_summary[!,"median"], 
                 linecolor=1, 
-                linewidth=2, 
-                # ribbon=(
-                #     vec(df_TP_summary[!,"median"]-df_TP_summary[!,"lower"]), 
-                #     vec(df_TP_summary[!,"upper"] - df_TP_summary[!,"median"])
-                # ), 
+                linewidth=1, 
                 color=1, 
-                fillalpha=0.3,
+                fillalpha=0.2,
             )
             
             plot!(
@@ -182,7 +170,7 @@ function plot_all_forecasts(
                 onset_dates, 
                 [df_TP_summary[!,"median"] df_TP_summary[!,"median"]], 
                 fillrange=[df_TP_summary[!,"lower"] df_TP_summary[!,"upper"]],
-                fillalpha=0.3, 
+                fillalpha=0.2, 
                 c=1, 
                 label=false
             )
@@ -195,13 +183,9 @@ function plot_all_forecasts(
                 onset_dates, 
                 df_TP_summary[!,"median"], 
                 linecolor=1, 
-                linewidth=2, 
-                ribbon=(
-                    vec(df_TP_summary[!,"median"]-df_TP_summary[!,"bottom"]), 
-                    vec(df_TP_summary[!,"top"] - df_TP_summary[!,"median"])
-                ), 
+                linewidth=1, 
                 color=1, 
-                fillalpha=0.3,
+                fillalpha=0.2,
             )
             
             plot!(
@@ -210,7 +194,7 @@ function plot_all_forecasts(
                 onset_dates, 
                 [df_TP_summary[!,"median"] df_TP_summary[!,"median"]], 
                 fillrange=[df_TP_summary[!,"bottom"] df_TP_summary[!,"top"]],
-                fillalpha=0.3, 
+                fillalpha=0.2, 
                 c=1, 
                 label=false
             )
@@ -249,7 +233,7 @@ function plot_all_forecasts(
         
     end
 
-    dir_name = joinpath("figs", file_date)
+    dir_name = joinpath("figs", "case_forecasts", file_date)
     if !ispath(dir_name)
         mkpath(dir_name)
     end
@@ -262,7 +246,6 @@ function plot_all_forecasts(
         
 
     return nothing 
-
 end
 
 function plot_single_forecast(

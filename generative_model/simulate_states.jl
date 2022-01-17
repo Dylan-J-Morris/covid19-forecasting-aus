@@ -12,7 +12,7 @@ include("generative_model.jl")
 include("processing_sim.jl")
 include("plot_forecasts.jl")
 
-function simulate_all_states(file_date,states_to_run,nsims)
+function simulate_all_states(file_date, states_to_run, nsims)
     """
     This runs the branching process for each of the states in states_to_run and then 
     merges and saves the files. 
@@ -104,15 +104,23 @@ function simulate_all_states(file_date,states_to_run,nsims)
     # merge all the simulation and TP files for states into single CSV
     merge_simulation_files(file_date)    
     merge_TP_files(file_date)
-    
-    # now we can plot everything
-    plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="both")
-    plot_all_forecasts(file_date,states_to_run,local_case_dict,zoom=true,confidence_level="both")
-    plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="50")
-    plot_all_forecasts(file_date,states_to_run,local_case_dict,confidence_level="95")
+    plot_all_forecast_intervals(file_date, states_to_run, local_case_dict)
     
     return nothing
     
+end
+
+function plot_all_forecast_intervals(file_date, states, local_case_dict)
+    """
+    Simple wrapper function to plot the forecasts with various zoom and confidence levels. 
+    """
+    
+    plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="both")
+    plot_all_forecasts(file_date, states_to_run, local_case_dict, zoom=true, confidence_level="both")
+    plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="50")
+    plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="95")
+
+    return nothing    
 end
 
 function simulate_single_state(file_date,state,nsims)

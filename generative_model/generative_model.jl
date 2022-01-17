@@ -53,21 +53,22 @@ function initialise_state_arrays(sim_duration, observation_period, nsims)
     D = zeros(Int, sim_duration, 3, nsims)
     U = zeros(Int, sim_duration, 3, nsims)
     
-    sim_realisation = SimulationRealisation(Z, D, U)
+    sim_realisation = Realisations(Z, D, U)
     
     return sim_realisation
 end
 
 function initialise_population!(
-    sim_realisation::SimulationRealisation,
+    sim_realisation::Realisations,
     start_day,
     D0, 
-    sim_features::SimulationFeatures, 
-    sim_constants::SimulationConstants,
+    sim_features::Features, 
+    sim_constants::Constants,
     individual_type_map::IndividualTypeMap,
 )
     """
-    Fill the infection array for each simulation.
+    Fill the infection array for each simulation, inititialising the states of
+    all the simulations. 
     """
     Z = sim_realisation.Z
     D = sim_realisation.D
@@ -149,11 +150,11 @@ function initialise_population!(
 end
 
 function import_cases_model!(
-	sim_realisation::SimulationRealisation, 
+	sim_realisation::Realisations, 
     import_cases, 
 	forecast_start_date, 
-	sim_constants::SimulationConstants,
-    sim_features::SimulationFeatures, 
+	sim_constants::Constants,
+    sim_features::Features, 
     individual_type_map::IndividualTypeMap,
 )
 	"""
@@ -261,15 +262,15 @@ function get_proportion_infected(day, cases_pre_forecast, D_sim, U_sim, N)
 end
 
 function sample_offspring!(
-    sim_realisation::SimulationRealisation, 
+    sim_realisation::Realisations, 
     t,  
     TP_local_sim, 
     TP_import_sim, 
     TP_indices, 
     susceptible_depletion_sim,
     sim, 
-    sim_constants::SimulationConstants, 
-    sim_features::SimulationFeatures,
+    sim_constants::Constants, 
+    sim_features::Features,
     individual_type_map::IndividualTypeMap,
 )
     """
@@ -380,7 +381,7 @@ function assign_to_arrays_and_times!(
     sim_realisation,
     day, 
     sim, 
-    sim_features::SimulationFeatures,
+    sim_features::Features,
     individual_type_map::IndividualTypeMap;
     num_symptomatic_detected=0,
     num_symptomatic_undetected=0,
@@ -544,7 +545,7 @@ function get_simulation_limits(
     cases_in_each_window = [cases_pre_backcast, cases_backcast, cases_pre_nowcast, cases_nowcast]
     
     # calculate minimum and maximum observed cases in each period 
-    min_cases = floor.(Int, [0.3*cases_pre_backcast, 0.7*cases_backcast, 0.9*cases_pre_nowcast, 0.9*cases_nowcast])
+    min_cases = floor.(Int, [0.3*cases_pre_backcast, 0.7*cases_backcast, 0.8*cases_pre_nowcast, 0.8*cases_nowcast])
     # min_cases = 0*cases_in_each_window
     max_cases = ceil.(Int, [2.5*cases_pre_backcast, 3.5*cases_backcast, 5*cases_pre_nowcast, 7*cases_nowcast])
 
@@ -568,8 +569,8 @@ function get_simulation_limits(
     # to the first element of the arrays 
     omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value + 1
     
-    sim_features = SimulationFeatures(
-        max_forecast_cases, 
+    sim_features = Features(
+        max_forecast_cases,
         cases_pre_forecast, 
         N,
         T_observed, 
@@ -620,7 +621,7 @@ function simulate_branching_process(
     good_TPs = zeros(Bool, size(TP_local, 2))
     
     # get simulation constants 
-    (sim_constants, individual_type_map) = set_simulation_constants()
+    (sim_constants, individual_type_map) = set_simulation_constants(state)
     # calculate the upper and lower limits for checking sims against data 
     (sim_features, window_lengths, min_cases, max_cases) = get_simulation_limits(
         local_cases, 
