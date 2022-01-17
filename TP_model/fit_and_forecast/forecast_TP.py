@@ -50,7 +50,7 @@ third_date_range = {
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
     'NT': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
-    'SA': pd.date_range(start='2021-11-25', end=third_end_date_SA).values,
+    'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
     # 'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
 }
