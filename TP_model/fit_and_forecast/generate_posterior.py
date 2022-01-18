@@ -546,7 +546,7 @@ if run_inference or run_inference_only:
                                                 'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave', 
                                                 'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
                                                 'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
-                                                'susceptible_depletion_factor', 'susceptible_depletion_factor'])
+                                                'susceptible_depletion_factor'])
 
         match_list_names = summary_df.index.to_list()
 
@@ -1150,7 +1150,7 @@ var_to_csv = [
     'R_I', 'R_L', 'sig', 'theta_md', 
     'theta_masks', 'voc_effect_alpha', 
     'voc_effect_delta', 'voc_effect_omicron', 
-    'reduction_vacc_effect_omicron'
+    'reduction_vacc_effect_omicron', 'susceptible_depletion_factor'
 ]
 var_to_csv = var_to_csv + predictors + [
     'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
