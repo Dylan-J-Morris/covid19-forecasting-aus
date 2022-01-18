@@ -669,8 +669,7 @@ function simulate_branching_process(
         # counts in each window 
         case_counts = zeros(Int, length(max_cases))
         # sample the TP/susceptible_depletion for this sim
-        # TP_ind = sim % 2000 == 0 ? 2000 : sim % 2000
-        TP_ind = rand(1:2000)
+        TP_ind = sim % 2000 == 0 ? 2000 : sim % 2000
         TP_local_sim = @view TP_local[:,TP_ind]
         TP_import_sim = @view TP_import[:,TP_ind]
         susceptible_depletion_sim = susceptible_depletion[TP_ind]
