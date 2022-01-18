@@ -1316,17 +1316,19 @@ for typ in forecast_type:
                     
                     # variance on beta distribution centered at m_last
                     if tt == 0:
-                        drift_mean = 0.9    
+                        drift_mean = 0.90
                         sig_m = 0.0005
                         m_last = m[jj]
-                        # get the most recent value of m_last and 0.97
+                        # this is the number of days we have left to forecast the omicron proportion for
+                        days_left_of_forecast = m.shape[0] - jj
+                        # get the most recent value of m_last and 0.97 (to stop it getting too close to 1)
                         m_last = np.minimum(0.97, m_last)
                         m_last = np.maximum(sig_m*2, m_last)
-                        # now we want to take the maximum value as the largest seen or the drift mean
-                        drift_mean = np.maximum(drift_mean, m_last)
                     else:
-                        p_force = jj/len(idx[state])
+                        # assume force towards drift_mean becomes dominant towards the end of the forecast window
+                        p_force = tt/days_left_of_forecast
                         m_last = (1-p_force)*m_last + p_force*drift_mean
+                        # get the most recent value of m_last and 0.97 (to stop it getting too close to 1)
                         m_last = np.minimum(0.97, m_last)
                         m_last = np.maximum(sig_m*2, m_last)
                     
@@ -1348,6 +1350,9 @@ for typ in forecast_type:
                     vacc_tmp = eta[ii]*decay_factor + (1-eta[ii]*decay_factor)*vacc_ts[ii, :]
                     # this is the simplified form of the mixture model of the vaccination effects 
                     vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
+                    
+                    # increment days into omicron forecast 
+                    tt += 1
                     
         else: # if we are WA then we assume only Delta (12/1/2022)
             for ii in range(vacc_post.shape[0]):
@@ -1392,6 +1397,7 @@ for typ in forecast_type:
         # calculate TP 
         R_L = 2 * md * mask_wearing_factor * sim_R * expit(logodds) * vacc_post * voc_multiplier
 
+        # calculate summary stats
         R_L_med = np.median(R_L, axis=1)
         R_L_lower = np.percentile(R_L, 25, axis=1)
         R_L_upper = np.percentile(R_L, 75, axis=1)
