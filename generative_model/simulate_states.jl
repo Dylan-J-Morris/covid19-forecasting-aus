@@ -6,6 +6,7 @@ using Plots
 using TimerOutputs
 using BenchmarkTools
 using Revise
+using PDFmerger
 
 include("read_in_cases.jl")
 include("generative_model.jl")
@@ -105,6 +106,21 @@ function simulate_all_states(file_date, states_to_run, nsims)
     merge_simulation_files(file_date)    
     merge_TP_files(file_date)
     plot_all_forecast_intervals(file_date, states_to_run, local_case_dict)
+    
+    file_name_tmp = "UoA_forecast_"
+    dir_name = "figs/case_forecasts/"
+    
+    pdf_filenames = [
+        dir_name*file_name_tmp*file_date*"_zoomed_both_intervals.pdf",
+        dir_name*file_name_tmp*file_date*"_both_intervals.pdf",
+        dir_name*file_name_tmp*file_date*"_50_intervals.pdf",
+    ]
+    # merge the pdfs and delete the files
+    merge_pdfs(
+        pdf_filenames, 
+        "UoA_forecast_"*file_date*".pdf", 
+        cleanup=true,
+    )
     
     return nothing
     

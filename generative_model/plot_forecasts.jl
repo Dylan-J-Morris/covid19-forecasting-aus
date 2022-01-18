@@ -4,6 +4,7 @@ using DataFrames
 using Plots
 using Measures      # for better positioning of figures 
 
+
 # if you have python installed, you can use pyplot for better formatting
 pyplot()
 
@@ -244,7 +245,6 @@ function plot_all_forecasts(
         savefig(fig, dir_name*"/UoA_forecast_"*file_date*"_"*confidence_level*"_intervals.pdf")
     end
         
-
     return nothing 
 end
 
