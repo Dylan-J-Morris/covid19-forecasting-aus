@@ -52,3 +52,14 @@ struct IndividualTypeMap{T}
     A::T
     I::T
 end
+
+struct Forecast{T1,T2,T3,T4,T5}
+    """
+    This type wraps all the information relating to the forecast in a single accessible 
+    object. This drastically simplifies the layout of the code at no performance hit. 
+    """
+    sim_features::Features{T1}
+    sim_realisations::Realisations{T2,T3}
+    sim_constants::Constants{T4}
+    individual_type_map::IndividualTypeMap{T5}
+end

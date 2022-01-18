@@ -4,16 +4,18 @@ using Distributions
 function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     """
     Samples from a NegBin(s, p) distribution. This uses a normal approximation 
-    when s is large (i.e. s > approx_limit) to get a 10x runtime improvement.
+    when mu is large (i.e. s > approx_limit) to get a 10x runtime improvement.
     """
     X = zero(Int)
     
-    if s <= approx_limit
+    # mean of NegBin(s, p) => this will boil down to N*TP
+    μ = s/p - s
+    
+    if μ <= approx_limit
         X = rand(NegativeBinomial(s, p))
     else
-        mu = s/p - s
-        sig = sqrt(s*(1-p)/p^2)
-        X = round(Int, rand(Normal(mu, sig)))
+        σ = sqrt(s*(1-p)/p^2)
+        X = ceil(Int, rand(Normal(μ,   σ)))
     end
     
     return X 
@@ -30,9 +32,9 @@ function sample_binomial_limit(n, p; approx_limit = 1000)
     if n*p <= approx_limit || n*(1-p) <= approx_limit
         X = rand(Binomial(n, p))
     else
-        mu = n*p
-        sig = sqrt(n*p*(1-p))
-        X = round(Int, rand(Normal(mu, sig)))
+        μ = n*p
+        σ = sqrt(n*p*(1-p))
+        X = ceil(Int, rand(Normal(μ, σ)))
     end
     
     return X 
