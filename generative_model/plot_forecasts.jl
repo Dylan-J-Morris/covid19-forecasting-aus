@@ -58,8 +58,8 @@ function plot_all_forecasts(
         size=(750,1200), 
         link=:x, 
         framestyle=:box, 
-        margin=2mm,
-        rightmargin=3mm,
+        margin=3mm,
+        rightmargin=4mm,
     )
     
     for (i,state) in enumerate(states_to_plot)
