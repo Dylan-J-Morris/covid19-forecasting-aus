@@ -15,7 +15,7 @@ function sample_negative_binomial_limit(s, p; approx_limit = 1000)
         X = rand(NegativeBinomial(s, p))
     else
         σ = sqrt(s*(1-p)/p^2)
-        X = ceil(Int, rand(Normal(μ,   σ)))
+        X = ceil(Int, rand(Normal(μ, σ)))
     end
     
     return X 

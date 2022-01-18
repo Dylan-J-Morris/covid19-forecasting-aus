@@ -68,29 +68,6 @@ function check_sim!(
     case_counts[3] = cases_pre_nowcast
     case_counts[4] = cases_nowcast
     
-    # take out the observed data by adding the observed compartments
-    # then we take the cumulative sum as this lets us differnce the vector 
-    # more easily
-    # if day <= T_observed
-    #     for i in 1:day
-    #         D_total[i,sim] = D[i,1,sim] + D[i,2,sim]
-    #         # this is just an inplace, non-allocating cumulative sum
-    #         if i == 1
-    #             D_total_cumsum[i,sim] = D_total[i,sim]
-    #         else 
-    #             D_total_cumsum[i,sim] = D_total[i-1,sim] + D_total[i,sim]
-    #         end
-    #     end
-        
-    #     count_cases_in_windows!(
-    #         case_counts, 
-    #         window_lengths, 
-    #         D_total, 
-    #         sim_constants::SimulationConstants, 
-    #         sim,
-    #     )
-    # end
-    
     # this is just the total cases over the forecast horizon 
     D_forecast = sum(@view D[T_observed+1:end,1:2,sim])
     

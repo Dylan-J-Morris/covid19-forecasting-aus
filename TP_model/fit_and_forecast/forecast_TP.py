@@ -1604,8 +1604,13 @@ plt.savefig("figs/mobility_forecasts/"+
             ".png", 
             dpi=144)
 
-# now we save the posterior stuff
-df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top'] + [i for i in range(num_TP_samples)]]
+# now randomly sample (without replacement) from the proposed TP paths for saving 
+# noting that R_L.shape[1] is the number of sampled RL's 
+TPs_to_keep = np.sort(np.random.choice(R_L.shape[1], size=num_TP_samples, replace=False))
+
+# now we save the sampled TP paths
+df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top'] 
+                    + [TPs_to_keep[i] for i in range(num_TP_samples)]]
 
 # df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
 # df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
