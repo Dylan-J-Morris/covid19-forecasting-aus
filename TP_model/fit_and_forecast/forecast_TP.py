@@ -892,7 +892,7 @@ for state in states:
     
 # save the forecasted vaccination line
 os.makedirs("results/forecasting/", exist_ok=True)
-df_vaccination.to_csv("results/forecasting/forecasted_vaccination.csv")
+df_vaccination.to_csv("results/forecasting/forecasted_vaccination_" + data_date.strftime("%Y-%m-%d") + ".csv")
 
 expo_decay = True
 theta_md = np.tile(df_samples['theta_md'].values, (df_md['NSW'].shape[0], 1))
@@ -1068,6 +1068,7 @@ for typ in forecast_type:
         # take right size of md to be N by N
         theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0], n_samples))
         theta_masks = np.tile(samples['theta_masks'].values, (df_state.shape[0], n_samples))
+        susceptible_depletion_factor = np.tile(samples['susceptible_depletion_factor'].values, (df_state.shape[0], n_samples))
         
         if expo_decay:
             md = ((1+theta_md).T**(-1*prop_sim)).T
@@ -1607,6 +1608,13 @@ plt.savefig("figs/mobility_forecasts/"+
 # now randomly sample (without replacement) from the proposed TP paths for saving 
 # noting that R_L.shape[1] is the number of sampled RL's 
 TPs_to_keep = np.sort(np.random.choice(R_L.shape[1], size=num_TP_samples, replace=False))
+
+# convert the appropriate sampled susceptible depletion factors to a csv and save them for simulation
+pd.DataFrame(
+    susceptible_depletion_factor[0,TPs_to_keep]).to_csv(
+        './results/forecasting/sampled_susceptible_depletion_' 
+        + data_date.strftime("%Y-%m-%d") + '.csv'
+    )
 
 # now we save the sampled TP paths
 df_Rhats = df_Rhats[['state', 'date', 'type', 'median', 'bottom', 'lower', 'upper', 'top'] 
