@@ -1,5 +1,7 @@
 using Random
 using Distributions
+using CSV 
+using DataFrames
 
 function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     """
@@ -42,12 +44,18 @@ end
 
 function read_in_susceptible_depletion(file_date)
     """
-    Using the stan fit posterior_sample_YYYY-MM-DD.csv we extract the susceptible_depletion
+    Read in the posterior drawn susceptible_depletion factors. This will be sorted/sampled 
+    in the same order as the posterior predictive TP's to ensure we use the appropriate
     posterior draws. 
     """
     
-    samples = CSV.read("results/posterior_sample_"*file_date*".csv",DataFrame)
-    susceptible_depletion = samples.susceptible_depletion_factor
+    susceptible_depletion = Vector(
+        CSV.read(
+            "results/forecasting/sampled_susceptible_depletion_"*file_date*".csv", 
+            DataFrame, 
+            drop=[1],
+        )[:,1]
+    )
     
     return susceptible_depletion
 end
