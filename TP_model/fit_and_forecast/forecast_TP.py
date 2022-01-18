@@ -1053,15 +1053,6 @@ print("============")
 print("Using posterior sample and forecasted estimates to calculate TP")
 print("============")
 
-# this is just used to grab the static parameters from the sample before merging samples with forecasted estimates
-df_state = df_R.loc[df_R.state == "NSW"]
-theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0], n_samples))
-theta_masks = np.tile(samples['theta_masks'].values, (df_state.shape[0], n_samples))
-susceptible_depletion_factor = np.tile(samples['susceptible_depletion_factor'].values, (df_state.shape[0], n_samples))
-voc_multiplier_alpha = np.tile(samples['voc_effect_alpha'].values, (df_state.shape[0], n_samples))
-voc_multiplier_delta = np.tile(samples['voc_effect_delta'].values, (df_state.shape[0], n_samples))
-voc_multiplier_omicron = np.tile(samples['voc_effect_omicron'].values, (df_state.shape[0], n_samples))
-
 for typ in forecast_type:
     state_R = {}
     for state in states:
@@ -1073,6 +1064,11 @@ for typ in forecast_type:
         masks_prop_sim = df_masks[state].values
         # grab vaccination data 
         vacc_ts_data = df_vaccination[state]
+
+        # take right size of md to be N by N
+        theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0], n_samples))
+        theta_masks = np.tile(samples['theta_masks'].values, (df_state.shape[0], n_samples))
+        susceptible_depletion_factor = np.tile(samples['susceptible_depletion_factor'].values, (df_state.shape[0], n_samples))
         
         if expo_decay:
             md = ((1+theta_md).T**(-1*prop_sim)).T
@@ -1148,6 +1144,9 @@ for typ in forecast_type:
             
         # initialise array for holding the proportion attributable to Omicron 
         m = np.zeros(shape=(df_state.shape[0] - omicron_start_day, n_samples*m_tmp.shape[1]))
+        # calculate the voc effects 
+        voc_multiplier_delta = np.tile(samples['voc_effect_delta'].values, (df_state.shape[0], n_samples))
+        voc_multiplier_omicron = np.tile(samples['voc_effect_omicron'].values, (df_state.shape[0], n_samples))
                 
         # sample the right R_L
         # if state == "NT":
@@ -1251,6 +1250,12 @@ for typ in forecast_type:
                 # concatenate to previous
                 logodds = np.concatenate((logodds, logodds_sample), axis=1)
 
+        # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now)
+        # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
+        voc_multiplier_alpha = np.tile(samples['voc_effect_alpha'].values, (df_state.shape[0], n_samples))
+        voc_multiplier_delta = np.tile(samples['voc_effect_delta'].values, (df_state.shape[0], n_samples))
+        voc_multiplier_omicron = np.tile(samples['voc_effect_omicron'].values, (df_state.shape[0], n_samples))
+
         # store vaccine contributions for each strain
         vacc_post_delta = np.zeros_like(vacc_post)
         vacc_post_omicron = np.zeros_like(vacc_post)
@@ -1317,10 +1322,10 @@ for typ in forecast_type:
                         # get the most recent value of m_last and 0.97
                         m_last = np.minimum(0.97, m_last)
                         m_last = np.maximum(sig_m*2, m_last)
-                        if np.max(m_last) > drift_mean: 
-                            drift_mean = m_last
+                        # now we want to take the maximum value as the largest seen or the drift mean
+                        drift_mean = np.maximum(drift_mean, m_last)
                     else:
-                        p_force = tt/len(idx[state])
+                        p_force = jj/len(idx[state])
                         m_last = (1-p_force)*m_last + p_force*drift_mean
                         m_last = np.minimum(0.97, m_last)
                         m_last = np.maximum(sig_m*2, m_last)
