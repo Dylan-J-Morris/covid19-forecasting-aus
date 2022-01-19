@@ -151,6 +151,7 @@ df = df_google.merge(df_Reff[['date', 'state', 'mean', 'lower', 'upper', 'top', 
 # ACT and NT not in original estimates, need to extrapolated sorting keeps consistent with sort in data_by_state
 # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only! 
 states_to_fit_all_waves = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT', 'NT'])
+# states_to_fit_all_waves = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT'])
 
 first_states = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS'])
 fit_post_March = True
@@ -182,23 +183,23 @@ sec_date_range = {
 
 # Third wave inputs
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
+# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
-# to handle SA data issues 
-third_end_date_SA = data_date - pd.Timedelta(days=15)
+# to handle particular state issues 
+third_end_date_diff = data_date - pd.Timedelta(days=18)
 
 # choose dates for each state for third wave
 # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only! 
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
-    'NT': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    'NT': pd.date_range(start='2021-12-01', end=third_end_date_diff).values,
     'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
     'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-    'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    'TAS': pd.date_range(start='2021-12-15', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
 }
 
