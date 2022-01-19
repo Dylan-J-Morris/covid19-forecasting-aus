@@ -136,8 +136,8 @@ def get_data_for_posterior(data_date):
     ######### Read in NNDSS/linelist data #########
     # If this errors it may be missing a leading zero on the date.
     df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'), 
-                            apply_delay_at_read=True, 
-                            apply_inc_at_read=True)
+                             apply_delay_at_read=True, 
+                             apply_inc_at_read=True)
 
     df_Reff = df_Reff.merge(df_state, how='left', left_on=['state', 'date'], right_on=['STATE', 'date_inferred'])  # how = left to use Reff days, NNDSS missing dates
     df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.rolling(7, 1).mean())  # minimum number of 1
@@ -190,8 +190,8 @@ def get_data_for_posterior(data_date):
     }
 
     # Third wave inputs
-    third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS'])
+    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
+    third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
     # Subtract the truncation days to avoid right truncation as we consider infection dates 
     # and not symptom onset dates 
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -207,7 +207,7 @@ def get_data_for_posterior(data_date):
         'NT': pd.date_range(start='2021-12-01', end=third_end_date_diff).values,
         'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
         'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-        'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+        # 'TAS': pd.date_range(start='2021-12-15', end=third_end_date).values,
         'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
     }
 
