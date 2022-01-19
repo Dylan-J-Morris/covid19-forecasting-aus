@@ -361,6 +361,8 @@ def plot_all_states(R_summ_states, df_interim, dates,
     states = df_interim.STATE.unique().tolist()
     # states.remove('NT')
 
+    date_min = pd.to_datetime(end) - timedelta(days=3*30)
+
     date_filter = pd.date_range(start=start, end=end)
 
     # prepare NNDSS cases where here we are plotting the inferred onset data
@@ -390,7 +392,8 @@ def plot_all_states(R_summ_states, df_interim, dates,
         # plot formatting
         ax[row, col].set_title(state)
         ax[row, col].set_ylim((0, 4))
-        ax[row, col].set_xlim((pd.to_datetime(start), pd.to_datetime(end)))
+        # ax[row, col].set_xlim((pd.to_datetime(start), pd.to_datetime(end)))
+        ax[row, col].set_xlim((date_min, pd.to_datetime(end)))
 
         # plot cases behind
         ax2 = ax[row, col].twinx()

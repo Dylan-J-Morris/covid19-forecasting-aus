@@ -39,19 +39,19 @@ start_date = '2020-03-01'
 # convert third start date to the correct format
 third_start_date = pd.to_datetime(third_start_date)
 third_end_date = data_date - timedelta(truncation_days)
-third_end_date_SA = data_date - timedelta(15)
+third_end_date_diff = data_date - timedelta(18)
 
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
 # choose dates for each state for third wave
 # NOTE: These need to be in date sorted order
 third_date_range = {
     'ACT': pd.date_range(start='2021-08-15', end=third_end_date).values,
     'NSW': pd.date_range(start='2021-06-23', end=third_end_date).values,
-    'NT': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    'NT': pd.date_range(start='2021-12-01', end=third_end_date_diff).values,
     'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
     'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-    'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    # 'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
 }
 
@@ -292,7 +292,7 @@ for i, state in enumerate(states):
                 trend_force = np.random.multivariate_normal(mu, cov)
                 # Generate a single forward realisation of baseline regression
                 # regression to baseline force stronger in standard forecasting
-                regression_to_baseline_force = np.random.multivariate_normal(0.05*(R_baseline_mean - current), cov)
+                regression_to_baseline_force = np.random.multivariate_normal(0.01*(R_baseline_mean - current), cov)
 
                 new_forcast_points = current+p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Find overall simulation step
                 # Apply minimum and maximum
@@ -333,19 +333,20 @@ for i, state in enumerate(states):
                     else:
                         # baseline is within lockdown period so take a new baseline of 0's and trend towards this
                         R_baseline_0 = np.zeros_like(R_baseline_mean)
+                        R_baseline_0 = mu_baseline
                         # set adjusted baselines by eyeline for now, need to get this automated 
-                        R_baseline_0[1] = 10    # baseline of +10% for Grocery based on other jurisdictions 
+                        # R_baseline_0[1] = 10    # baseline of +10% for Grocery based on other jurisdictions 
                         
-                        # apply specific baselines to the jurisdictions progressing towards normal restrictions
-                        if state == 'NSW': 
-                            R_baseline_0[3] = -25   # baseline of -25% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
-                        elif state == 'ACT': 
-                            R_baseline_0[1] = 20    # baseline of +20% for Grocery based on other jurisdictions 
-                            R_baseline_0[3] = -25   # baseline of -25% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
-                        elif state == 'VIC': 
-                            R_baseline_0[0] = -15   # baseline of -15% for R&R based on 2021-April to 2021-July (pre-third-wave lockdowns) 
-                            R_baseline_0[3] = -30   # baseline of -30% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns) 
-                            R_baseline_0[4] = -15   # baseline of -15% for workplaces based on 2021-April to 2021-July (pre-third-wave lockdowns) 
+                        # # apply specific baselines to the jurisdictions progressing towards normal restrictions
+                        # if state == 'NSW': 
+                        #     R_baseline_0[3] = -25   # baseline of -25% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
+                        # elif state == 'ACT': 
+                        #     R_baseline_0[1] = 20    # baseline of +20% for Grocery based on other jurisdictions 
+                        #     R_baseline_0[3] = -25   # baseline of -25% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns)
+                        # elif state == 'VIC': 
+                        #     R_baseline_0[0] = -15   # baseline of -15% for R&R based on 2021-April to 2021-July (pre-third-wave lockdowns) 
+                        #     R_baseline_0[3] = -30   # baseline of -30% for Transit based on 2021-April to 2021-July (pre-third-wave lockdowns) 
+                        #     R_baseline_0[4] = -15   # baseline of -15% for workplaces based on 2021-April to 2021-July (pre-third-wave lockdowns) 
                         
                         # the force we trend towards the baseline above with
                         p_force = (n_forecast-i)/(n_forecast)
@@ -358,7 +359,7 @@ for i, state in enumerate(states):
                         # adjusted_baseline_drift_mean[3] = tmp
                         regression_to_baseline_force = np.random.multivariate_normal(adjusted_baseline_drift_mean, cov) # Generate a single forward realisation of baseline regression
                         new_forcast_points = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force # Find overall simulation step
-                        new_forcast_points = current + regression_to_baseline_force # Find overall simulation step
+                        # new_forcast_points = current + regression_to_baseline_force # Find overall simulation step
                         # Apply minimum and maximum
                         new_forcast_points = np.maximum(minRmed, new_forcast_points)
                         new_forcast_points = np.minimum(maxRmed, new_forcast_points)
@@ -1128,7 +1129,10 @@ for typ in forecast_type:
             
         for k in states:
             if k not in third_date_range.keys():
-                idx[k] = range(days_into_omicron[kk], days_into_omicron[kk])
+                if k == "WA":
+                    idx[k] = range(days_into_omicron[kk], days_into_omicron[kk])
+                else:
+                    idx[k] = range(days_into_omicron[0], days_into_omicron[1])
 
         # tile the reduction in vaccination effect for omicron (i.e. VE is (1+r)*VE)
         reduction_vacc_effect_omicron = np.tile(samples['reduction_vacc_effect_omicron'].to_numpy(), (df_state.shape[0], n_samples))

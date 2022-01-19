@@ -800,8 +800,8 @@ def plot_and_save_posterior_samples(data_date):
     }
 
     # Third wave inputs
-    third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS'])
+    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
+    third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
     # Subtract the truncation days to avoid right truncation as we consider infection dates 
     # and not symptom onset dates 
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -817,7 +817,7 @@ def plot_and_save_posterior_samples(data_date):
         'NT': pd.date_range(start='2021-12-01', end=third_end_date_diff).values,
         'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
         'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-        'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+        # 'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
         'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
     }
 
@@ -1396,45 +1396,6 @@ def plot_and_save_posterior_samples(data_date):
             vacc_ts.set_index(vacc_ts_data.index, inplace=True)
             # need to name columns samples for consistent indexing
             vacc_ts.columns = range(0, eta.shape[0])
-
-        # need to sample from the prior for the missing data
-        # for idx in vacc_ts.index:
-        #     # upper cut depends on what point of the sampling we are at
-        #     if idx == pd.to_datetime(vaccination_start_date)+timedelta(1):
-        #         upper_cut = 1.0
-        #     else: 
-        #         upper_cut = vacc_ts.loc[idx-timedelta(days=1)]
-                
-        #     if idx < third_date_range[state][0]:  
-        #         # lower cut needs to at least be above what we have already sampled 
-        #         lower_cut = vacc_ts.loc[third_date_range[state][0]]
-        #     elif idx > third_date_range[state][-1]:
-        #         # lower cut needs to at least be above what we have already sampled 
-        #         lower_cut = 0.0
-
-        #     if (idx < third_date_range[state][0]) or (idx > third_date_range[state][-1]):
-        #         # variance for the truncated normal
-        #         vacc_sig = 0.025
-        #         # map to appropriate interval for truncated standard normal dist 
-        #         a, b = (lower_cut - vacc_ts.loc[idx]) / vacc_sig, (upper_cut - vacc_ts.loc[idx]) / vacc_sig
-                
-        #         # sample from the prior 
-        #         vacc_ts.loc[idx].iloc[np.where(a < b)] = truncnorm.rvs(
-        #             a[np.where(a < b)[0]], 
-        #             b[np.where(a < b)[0]], 
-        #             loc=vacc_ts.loc[idx].iloc[np.where(a < b)], 
-        #             scale=vacc_sig)
-        #         # occassionally the interval gets too narrow and to deal with this we revert that estimate to be a point mass 
-        #         # at the previous value
-        #         if (a >= b).any():
-        #             if (idx < third_date_range[state][0]):
-        #                 # adjust slightly differently if it's the first date in the simulation.
-        #                 if (idx > pd.to_datetime(vaccination_start_date)+timedelta(days=1)): 
-        #                     vacc_ts.loc[idx].iloc[np.where(a >= b)] = vacc_ts.loc[idx-timedelta(days=1)].iloc[np.where(a >= b)[0]]
-        #                 else:
-        #                     vacc_ts.loc[idx].iloc[np.where(a >= b)] = 1
-        #             elif (idx > third_date_range[state][-1]):
-        #                 vacc_ts.loc[idx].iloc[np.where(a >= b)] = vacc_ts.loc[idx-timedelta(days=1)].iloc[np.where(a >= b)[0]]
                         
         dates = vacc_ts.index
         vals = vacc_ts.median(axis=1).values
