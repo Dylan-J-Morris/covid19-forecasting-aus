@@ -52,8 +52,7 @@ function plot_all_forecasts(
     ]
     
     # initialise the plot 
-    fig = plot(
-        legend=false, 
+    fig = plot( 
         layout=l, 
         dpi=200, 
         size=(750,1200), 
@@ -102,6 +101,7 @@ function plot_all_forecasts(
                 linewidth=1, 
                 color=1, 
                 fillalpha=0.2,
+                label=false,
             )
             plot!(
                 fig, 
@@ -109,9 +109,9 @@ function plot_all_forecasts(
                 onset_dates, 
                 [df_D_summary[!,"median"] df_D_summary[!,"median"]], 
                 fillrange=[df_D_summary[!,"lower"] df_D_summary[!,"upper"]],
-                fillalpha=0.2, 
+                fillalpha=0.4, 
                 c=1, 
-                label=false
+                label=["50%" nothing]
             )
             
         end 
@@ -128,6 +128,7 @@ function plot_all_forecasts(
                 linewidth=1, 
                 color=1, 
                 fillalpha=0.2,
+                label=false,
             )
             
             plot!(
@@ -138,7 +139,7 @@ function plot_all_forecasts(
                 fillrange=[df_D_summary[!,"bottom"] df_D_summary[!,"top"]],
                 fillalpha=0.2, 
                 c=1, 
-                label=false
+                label=["95%" nothing]
             )
         end
         
@@ -151,6 +152,7 @@ function plot_all_forecasts(
             fc="gray", 
             fillalpha=0.4, 
             linealpha=0.4,
+            label=false,
         )
         
         if confidence_level == "50" || confidence_level == "both"
@@ -163,6 +165,7 @@ function plot_all_forecasts(
                 linewidth=1, 
                 color=1, 
                 fillalpha=0.2,
+                label=false,
             )
             
             plot!(
@@ -171,7 +174,7 @@ function plot_all_forecasts(
                 onset_dates, 
                 [df_TP_summary[!,"median"] df_TP_summary[!,"median"]], 
                 fillrange=[df_TP_summary[!,"lower"] df_TP_summary[!,"upper"]],
-                fillalpha=0.2, 
+                fillalpha=0.4, 
                 c=1, 
                 label=false
             )
@@ -187,6 +190,7 @@ function plot_all_forecasts(
                 linewidth=1, 
                 color=1, 
                 fillalpha=0.2,
+                label=false,
             )
             
             plot!(
@@ -207,6 +211,7 @@ function plot_all_forecasts(
             [1], 
             lc=:black, 
             ls=:dash,
+            label=false,
         )
         
         vline!(
@@ -215,6 +220,7 @@ function plot_all_forecasts(
             [Dates.Date(file_date)], 
             lc=:gray,
             ls=:dash,
+            label=false,
         )
         
         vline!(
@@ -223,6 +229,7 @@ function plot_all_forecasts(
             [Dates.Date(file_date)], 
             lc=:gray,
             ls=:dash,
+            label=false,
         )
 
         xlims!(fig, subplot=c, onset_dates_lims...)

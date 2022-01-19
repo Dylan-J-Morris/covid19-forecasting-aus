@@ -107,21 +107,6 @@ function simulate_all_states(file_date, states_to_run, nsims)
     merge_TP_files(file_date)
     plot_all_forecast_intervals(file_date, states_to_run, local_case_dict)
     
-    file_name_tmp = "UoA_forecast_"
-    dir_name = "figs/case_forecasts/"
-    
-    pdf_filenames = [
-        dir_name*file_name_tmp*file_date*"_zoomed_both_intervals.pdf",
-        dir_name*file_name_tmp*file_date*"_both_intervals.pdf",
-        dir_name*file_name_tmp*file_date*"_50_intervals.pdf",
-    ]
-    # merge the pdfs and delete the files
-    merge_pdfs(
-        pdf_filenames, 
-        "UoA_forecast_"*file_date*".pdf", 
-        cleanup=true,
-    )
-    
     return nothing
     
 end
@@ -135,6 +120,20 @@ function plot_all_forecast_intervals(file_date, states, local_case_dict)
     plot_all_forecasts(file_date, states_to_run, local_case_dict, zoom=true, confidence_level="both")
     plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="50")
     plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="95")
+    
+    file_name_tmp = "UoA_forecast_"
+    dir_name = "figs/case_forecasts/"*file_date*"/"
+
+    pdf_filenames = [
+        dir_name*file_name_tmp*file_date*"_zoomed_both_intervals.pdf",
+        dir_name*file_name_tmp*file_date*"_both_intervals.pdf",
+    ]
+    # merge the pdfs and delete the files
+    merge_pdfs(
+        pdf_filenames, 
+        dir_name*file_name_tmp*file_date*".pdf", 
+        cleanup=true,
+    )
 
     return nothing    
 end

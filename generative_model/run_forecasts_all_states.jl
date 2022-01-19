@@ -12,12 +12,17 @@ const nsims = parse(Int, ARGS[2])
 const states_to_run = [
     "NSW",
     "QLD",
-    "TAS",
+    "SA",
     "VIC",
     "WA",
     "ACT",
     "NT",
+    "TAS",
 ]
 
 # run main 
 simulate_all_states(file_date, states_to_run, nsims)
+
+file_date = "2022-01-18"
+
+
