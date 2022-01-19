@@ -16,7 +16,7 @@ const states_to_run = [
     "VIC",
     "WA",
     "ACT",
-    "NT",
+    # "NT",
     "TAS",
 ]
 
