@@ -25,8 +25,10 @@ function read_in_cases(
 	scale_rd = 2.31
 	# sample from delay distribtuion
 	rd = rand(rng, Gamma(shape_rd, scale_rd), length(confirm_dates))
-	# adjust confirmation dates 
 	confirm_dates = confirm_dates - round.(rd) * Day(1)
+	# adjust confirmation dates to get to onset 
+	# rd = ceil(Int, mean(Gamma(shape_rd, scale_rd)))
+	# confirm_dates = confirm_dates .- rd * Day(1)
 
 	# initialise array for complete_onset_dates
 	complete_dates = deepcopy(confirm_dates)
