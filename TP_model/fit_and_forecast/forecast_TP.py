@@ -1142,7 +1142,7 @@ for typ in forecast_type:
         if state in {'VIC', 'NSW', 'ACT', 'QLD', 'SA', 'NT'}: 
             m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
         elif state in {'TAS'}:
-            m_tmp = prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
+            m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
         elif state in {'WA'}:
             m_tmp = 0*prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
             
