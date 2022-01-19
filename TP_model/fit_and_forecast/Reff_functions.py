@@ -253,21 +253,14 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
                     sampled_vax_effects_all = samples_sim[["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]].T
                     vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[states_initials[state]],:]
-                    # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-                    if states_initials[state] in third_states:
-                        eta = samples_sim['eta[' + str(third_states_indices[states_initials[state]]) + ']']
-                        r = samples_sim['eta[' + str(third_states_indices[states_initials[state]]) + ']']
-                    else:
-                        eta = samples_sim['eta[1]']
-                        r = samples_sim['r[1]']
                         
                     # get before and after fitting and tile them
                     vacc_ts_data_before = pd.concat(
-                        [vacc_ts_data.loc[vacc_ts_data.index < third_date_range[states_initials[state]][0]]] * eta.shape[0], 
+                        [vacc_ts_data.loc[vacc_ts_data.index < third_date_range[states_initials[state]][0]]] * samples_sim.theta_md.values.shape[0], 
                         axis=1
                     )
                     vacc_ts_data_after = pd.concat(
-                        [vacc_ts_data.loc[vacc_ts_data.index > third_date_range[states_initials[state]][-1]]] * eta.shape[0], 
+                        [vacc_ts_data.loc[vacc_ts_data.index > third_date_range[states_initials[state]][-1]]] * samples_sim.theta_md.values.shape[0], 
                         axis=1
                     )
                     # rename columns for easy merging
@@ -322,20 +315,12 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     
                     # note that in here we apply the entire sample to the vaccination data to create a days by samples array
                     for ii in range(vacc_post.shape[0]):
-                        if ii < heterogeneity_delay_start_day:
-                            vacc_post[ii] = eta + (1-eta)*vacc_ts.iloc[ii, :]
-                        elif ii < omicron_start_day:
-                            # number of days after the heterogeneity should start to wane
-                            heterogeneity_delay_days = ii - heterogeneity_delay_start_day
-                            decay_factor = np.exp(-r*heterogeneity_delay_days)
-                            vacc_post[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]
+                        if ii < omicron_start_day:
+                            vacc_post[ii] = vacc_ts.iloc[ii, :]
                         else:
-                            # number of days after the heterogeneity should start to wane
-                            heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                             jj = ii - omicron_start_day
-                            decay_factor = np.exp(-r*heterogeneity_delay_days)
                             # calculate the raw vax effect
-                            vacc_tmp = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]
+                            vacc_tmp = vacc_ts.iloc[ii, :]
                             # calculate the full vaccination effect
                             vacc_post[ii] = 1+(m[jj] - m[jj]*reduction_vacc_effect_omicron - 1) * (1-vacc_tmp)
 

@@ -190,8 +190,8 @@ def get_data_for_posterior(data_date):
     }
 
     # Third wave inputs
-    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-    third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
+    third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
+    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
     # Subtract the truncation days to avoid right truncation as we consider infection dates 
     # and not symptom onset dates 
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -207,7 +207,7 @@ def get_data_for_posterior(data_date):
         'NT': pd.date_range(start='2021-12-01', end=third_end_date_diff).values,
         'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
         'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-        # 'TAS': pd.date_range(start='2021-12-15', end=third_end_date).values,
+        'TAS': pd.date_range(start='2021-12-20', end=third_end_date).values,
         'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
     }
 
@@ -412,16 +412,8 @@ def get_data_for_posterior(data_date):
     # Convert to simple array only useful to pass to stan (index 1 onwards)
     vaccination_by_state_array = vaccination_by_state.iloc[:, 1:].to_numpy()
 
-    # calculate how many days the end of august is after the third start date
-    decay_start_date_third = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
-
     # Make state by state arrays
     state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
-
-    third_wave_dates = pd.date_range(start=third_start_date, end=third_end_date)
-
-    # number of days in the third wave
-    N_vaccine_data_third = [v.shape[0] for (k, v) in third_date_range.items()]
 
     # dates to apply alpha in the second wave (this won't allow for VIC to be added as the date_ranges are different)
     apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int) 
@@ -482,7 +474,6 @@ def get_data_for_posterior(data_date):
         'include_in_third_wave': include_in_third_wave,
         'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]).astype(int).tolist(),
         'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]).astype(int).tolist(),
-        'decay_start_date_third': decay_start_date_third,
         'vaccine_effect_data': vaccination_by_state_array,
         'omicron_start_day': omicron_start_day,
         'include_in_omicron_wave': include_in_omicron_wave,
@@ -545,12 +536,12 @@ def run_stan(data_date):
             with open(results_dir+filename, 'w') as f:
                 print(fit.stansummary(pars=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
                                             'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron', 
-                                            'eta', 'r', 'reduction_vacc_effect_omicron']), file=f)
+                                            'reduction_vacc_effect_omicron']), file=f)
 
             samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                     'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave',
                                                     'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                                    'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
+                                                    'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
                                                     'susceptible_depletion_factor'])
 
             samples_mov_gamma.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
@@ -567,14 +558,14 @@ def run_stan(data_date):
             with open(results_dir+filename, 'w') as f:
                 print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
                                                 'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                                'eta', 'r', 'reduction_vacc_effect_omicron', 'susceptible_depletion_factor']), file=f)
+                                                'reduction_vacc_effect_omicron', 'susceptible_depletion_factor']), file=f)
 
             ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
             # create extended summary of parameters to index the samples by
             summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
                                                     'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave', 
                                                     'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                                    'eta', 'r', 'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
+                                                    'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
                                                     'susceptible_depletion_factor'])
 
             match_list_names = summary_df.index.to_list()
@@ -800,8 +791,8 @@ def plot_and_save_posterior_samples(data_date):
     }
 
     # Third wave inputs
-    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-    third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
+    third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
+    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
     # Subtract the truncation days to avoid right truncation as we consider infection dates 
     # and not symptom onset dates 
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -817,7 +808,7 @@ def plot_and_save_posterior_samples(data_date):
         'NT': pd.date_range(start='2021-12-01', end=third_end_date_diff).values,
         'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
         'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-        # 'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+        'TAS': pd.date_range(start='2021-12-20', end=third_end_date).values,
         'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
     }
 
@@ -1353,17 +1344,15 @@ def plot_and_save_posterior_samples(data_date):
 
         # apply different vaccine form depending on if NSW
         if state in third_states:
-            eta = samples_mov_gamma['eta[' + str(third_states_indices[state]) + ']']
-            r = samples_mov_gamma['r[' + str(third_states_indices[state]) + ']']
             # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
             vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[state],:]
             # get before and after fitting and tile them
             vacc_ts_data_before = pd.concat(
-                [vacc_ts_data.loc[vacc_ts_data.index < third_date_range[state][0]]] * eta.shape[0], 
+                [vacc_ts_data.loc[vacc_ts_data.index < third_date_range[state][0]]] * samples_mov_gamma.shape[0], 
                 axis=1
             )
             vacc_ts_data_after = pd.concat(
-                [vacc_ts_data.loc[vacc_ts_data.index > third_date_range[state][-1]]] * eta.shape[0], 
+                [vacc_ts_data.loc[vacc_ts_data.index > third_date_range[state][-1]]] * samples_mov_gamma.shape[0], 
                 axis=1
             )
             # rename columns for easy merging
@@ -1384,18 +1373,15 @@ def plot_and_save_posterior_samples(data_date):
             # vacc_ts.set_index(vacc_ts_data.index[:vacc_ts.shape[0]], inplace=True)
             
         else:
-            # if not in the third phase, use the lowest reasonable estimates from ACT (basically the prior)
-            eta = samples_mov_gamma['eta[1]']
-            r = samples_mov_gamma['r[1]']
             # just tile the data
             vacc_ts = pd.concat(
-                [vacc_ts_data] * eta.shape[0], 
+                [vacc_ts_data] * samples_mov_gamma.shape[0], 
                 axis=1
             )
             # reset the index to be the dates for easier information handling
             vacc_ts.set_index(vacc_ts_data.index, inplace=True)
             # need to name columns samples for consistent indexing
-            vacc_ts.columns = range(0, eta.shape[0])
+            vacc_ts.columns = range(0, samples_mov_gamma.shape[0])
                         
         dates = vacc_ts.index
         vals = vacc_ts.median(axis=1).values
@@ -1407,13 +1393,7 @@ def plot_and_save_posterior_samples(data_date):
 
         # * Note that in here we apply the entire sample to the vaccination data to create a days by samples array
         for ii in range(vacc_eff.shape[0]):
-            if ii < heterogeneity_delay_start_day:
-                vacc_eff[ii] = eta + (1-eta)*vacc_ts.iloc[ii, :]
-            else:
-                # number of days after the heterogeneity should start to wane
-                heterogeneity_delay_days = ii - heterogeneity_delay_start_day
-                decay_factor = np.exp(-r*heterogeneity_delay_days)
-                vacc_eff[ii] = eta*decay_factor + (1-eta*decay_factor)*vacc_ts.iloc[ii, :]
+            vacc_eff[ii] = vacc_ts.iloc[ii, :]
 
         row = i % 4
         col = i // 4
@@ -1511,8 +1491,6 @@ def plot_and_save_posterior_samples(data_date):
     var_to_csv = var_to_csv + predictors + [
         'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
     ]
-    var_to_csv = var_to_csv + ['eta['+str(v)+']' for v in third_states_indices.values()]
-    var_to_csv = var_to_csv + ['r['+str(v)+']' for v in third_states_indices.values()]
     var_to_csv = var_to_csv + ["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]
     var_to_csv = var_to_csv + ["prop_omicron_to_delta[" + str(j)  + "]" for j in range(1, total_N_p_third_omicron+1)]
 
