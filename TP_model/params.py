@@ -19,7 +19,7 @@ testing_inference = False
 n_days_nowcast_TP_adjustment = 45
 num_TP_samples = 2000       # number of forecasted TP samples to save 
 # number of days to remove to stop the issues with the right-truncation
-truncation_days = 16
+truncation_days = 14
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35
 
