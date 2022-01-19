@@ -181,8 +181,8 @@ sec_date_range = {
 }
 
 # Third wave inputs
-# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
+# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
 # Subtract the truncation days to avoid right truncation as we consider infection dates 
 # and not symptom onset dates 
 third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -198,7 +198,7 @@ third_date_range = {
     'NT': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
     'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-    # 'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
 }
 

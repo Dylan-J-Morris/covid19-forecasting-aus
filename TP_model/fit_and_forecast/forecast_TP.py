@@ -41,8 +41,8 @@ third_start_date = pd.to_datetime(third_start_date)
 third_end_date = data_date - timedelta(truncation_days)
 third_end_date_SA = data_date - timedelta(15)
 
-# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
+third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
+# third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
 # choose dates for each state for third wave
 # NOTE: These need to be in date sorted order
 third_date_range = {
@@ -51,7 +51,7 @@ third_date_range = {
     'NT': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'QLD': pd.date_range(start='2021-07-30', end=third_end_date).values,
     'SA': pd.date_range(start='2021-11-25', end=third_end_date).values,
-    # 'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
+    'TAS': pd.date_range(start='2021-12-01', end=third_end_date).values,
     'VIC': pd.date_range(start='2021-08-01', end=third_end_date).values,
 }
 
@@ -1324,7 +1324,7 @@ for typ in forecast_type:
                         m_last = np.minimum(0.97, m_last)
                         m_last = np.maximum(sig_m*2, m_last)
                         # assume (naievely) that we end up at 0.9 or the highest seen values for a particular realisation
-                        drift_mean = np.maximum(drift_mean, m_last)
+                        drift_mean = np.maximum(0.9, m_last)
                     else:
                         # assume force towards drift_mean becomes dominant towards the end of the forecast window
                         p_force = tt/days_left_of_forecast
