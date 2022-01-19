@@ -1316,14 +1316,15 @@ for typ in forecast_type:
                     
                     # variance on beta distribution centered at m_last
                     if tt == 0:
-                        drift_mean = 0.90
                         sig_m = 0.0005
                         m_last = m[jj]
                         # this is the number of days we have left to forecast the omicron proportion for
                         days_left_of_forecast = m.shape[0] - jj
-                        # get the most recent value of m_last and 0.97 (to stop it getting too close to 1)
+                        # get the most recent value of m_last and 0.97 (to stop it getting too close to 1 or 0)
                         m_last = np.minimum(0.97, m_last)
                         m_last = np.maximum(sig_m*2, m_last)
+                        # assume (naievely) that we end up at 0.9 or the highest seen values for a particular realisation
+                        drift_mean = np.maximum(drift_mean, m_last)
                     else:
                         # assume force towards drift_mean becomes dominant towards the end of the forecast window
                         p_force = tt/days_left_of_forecast
