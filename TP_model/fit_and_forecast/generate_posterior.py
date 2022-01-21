@@ -1490,7 +1490,7 @@ def plot_and_save_posterior_samples(data_date):
         'reduction_vacc_effect_omicron', 'susceptible_depletion_factor'
     ]
     var_to_csv = var_to_csv + predictors + [
-        'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
+        'R_Li.'+str(i+1) for i in range(len(states_to_fit_all_waves))
     ]
     var_to_csv = var_to_csv + ["vacc_effect." + str(j+1) for j in range(third_days_tot)]
     var_to_csv = var_to_csv + ["prop_omicron_to_delta." + str(j+1) for j in range(total_N_p_third_omicron)]
