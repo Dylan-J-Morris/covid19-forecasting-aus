@@ -22,10 +22,7 @@ truncation_days = 14
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35
 
-if on_phoenix:
-    ncores = 12     # number of cores to use (this is relevant for the simulation)
-else: 
-    ncores = 4     # number of cores to use (this is relevant for the simulation)
+ncores = 4     # number of cores to use (this is relevant for the simulation)
 
 ##### Usually unchanged parameters, contains some dates and number of forecast
 

@@ -26,7 +26,7 @@ import stan
 matplotlib.use('Agg')
 
 from params import truncation_days, download_google_automatically, \
-    run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference, omicron_start_date, \
+    run_inference_only, third_start_date, testing_inference, run_inference, omicron_start_date, \
     pop_sizes
 
 def get_data_for_posterior(data_date):
@@ -1401,8 +1401,8 @@ def main(data_date):
     Runs the stan model in parts to cut down on memory. 
     """
     
-    # get_data_for_posterior(data_date=data_date)
-    # run_stan(data_date=data_date)
+    get_data_for_posterior(data_date=data_date)
+    run_stan(data_date=data_date)
     plot_and_save_posterior_samples(data_date=data_date)
     
     return None 
