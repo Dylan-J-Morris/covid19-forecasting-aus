@@ -1082,7 +1082,7 @@ for typ in forecast_type:
             vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
             third_days_tot = sum(v for v in third_days.values())
             # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-            sampled_vax_effects_all = np.tile(samples[["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]], (n_samples, 1)).T
+            sampled_vax_effects_all = np.tile(samples[["vacc_effect." + str(j+1) for j in range(third_days_tot)]], (n_samples, 1)).T
             vacc_tmp = sampled_vax_effects_all[vax_idx_ranges[state],:]
             # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
 
@@ -1115,7 +1115,7 @@ for typ in forecast_type:
         omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(start_date)).days
         days_into_omicron = np.cumsum(np.append([0], [(v >= pd.to_datetime(omicron_start_date)).sum() for v in third_date_range.values()]))
 
-        prop_omicron_to_delta = samples[["prop_omicron_to_delta[" + str(j) + "]" for j in range(1, total_N_p_third_omicron+1)]]
+        prop_omicron_to_delta = samples[["prop_omicron_to_delta." + str(j+1) for j in range(total_N_p_third_omicron)]]
         idx = {}
         kk = 0
         for k in third_date_range.keys():
@@ -1151,7 +1151,7 @@ for typ in forecast_type:
         # if state == "NT":
         #     sim_R = np.tile(samples.R_L.values, (df_state.shape[0], n_samples))
         # else:
-        sim_R = np.tile(samples['R_Li['+state_key[state]+']'].values, (df_state.shape[0], n_samples))                
+        sim_R = np.tile(samples['R_Li.'+state_key[state]].values, (df_state.shape[0], n_samples))                
 
         for n in range(n_samples):
             # add gaussian noise to predictors before forecast

@@ -21,18 +21,13 @@ from numpy.random import sample
 from scipy.stats import truncnorm
 from math import ceil
 import pickle
+import stan
 
 matplotlib.use('Agg')
 
 from params import truncation_days, download_google_automatically, \
     run_inference_only, third_start_date, on_phoenix, testing_inference, run_inference, omicron_start_date, \
     pop_sizes
-
-# depending on whether we are on phoenix or not changes the version of stan
-if on_phoenix:
-    import pystan
-else:
-    import stan
 
 def get_data_for_posterior(data_date):
     """
@@ -509,12 +504,8 @@ def run_stan(data_date):
     os.makedirs(results_dir, exist_ok=True)
 
     ######### running inference #########
-    if testing_inference:
-        num_chains = 2
-        num_samples = 1000
-    else:
-        num_chains = 4
-        num_samples = 500
+    num_chains = 4
+    num_samples = 1000
         
     # to run the inference set run_inference to True in params
     if run_inference or run_inference_only:
@@ -523,116 +514,20 @@ def run_stan(data_date):
         with open('TP_model/fit_and_forecast/rho_model_gamma.stan') as f:
             rho_model_gamma = f.read()
 
-        # slightly different setup depending if we are running on phoenix or locally due to
-        # different versions of pystan
-        if on_phoenix:
-            sm_pol_gamma = pystan.StanModel(model_code=rho_model_gamma, 
-                                            model_name='gamma_pol_state')
-            fit = sm_pol_gamma.sampling(data=input_data, 
-                                        iter=num_samples, 
-                                        chains=num_chains)
+        # compile the stan model
+        posterior = stan.build(rho_model_gamma, data=input_data)
+        fit = posterior.sample(num_chains=num_chains, num_samples=num_samples)
 
-            filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
-            with open(results_dir+filename, 'w') as f:
-                print(fit.stansummary(pars=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
-                                            'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron', 
-                                            'reduction_vacc_effect_omicron']), file=f)
+        ######### Saving Output #########
 
-            samples_mov_gamma = fit.to_dataframe(pars=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-                                                    'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave',
-                                                    'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                                    'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
-                                                    'susceptible_depletion_factor'])
+        filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
+        with open(results_dir+filename, 'w') as f:
+            print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
+                                            'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
+                                            'reduction_vacc_effect_omicron', 'susceptible_depletion_factor']), file=f)
 
-            samples_mov_gamma.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
-            
-        else:
-
-            # compile the stan model
-            posterior = stan.build(rho_model_gamma, data=input_data)
-            fit = posterior.sample(num_chains=num_chains, num_samples=num_samples)
-
-            ######### Saving Output #########
-
-            filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
-            with open(results_dir+filename, 'w') as f:
-                print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
-                                                'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                                'reduction_vacc_effect_omicron', 'susceptible_depletion_factor']), file=f)
-
-            ######### now a hacky fix to put the data in the same format as before -- might break stuff in the future #########
-            # create extended summary of parameters to index the samples by
-            summary_df = az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'sig', 
-                                                    'brho', 'theta_md', 'theta_masks', 'brho_sec_wave', 'brho_third_wave', 
-                                                    'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                                    'vacc_effect', 'reduction_vacc_effect_omicron', 'prop_omicron_to_delta', 
-                                                    'susceptible_depletion_factor'])
-
-            match_list_names = summary_df.index.to_list()
-
-            # extract the names of the constrained parameters which are the ones we actually sample
-            names = fit.constrained_param_names
-            df_fit = fit.to_frame()
-
-            # for name in names:
-            #     dot_pos = name.find('.')
-            #     if dot_pos != -1:
-            #         var_name = name[:dot_pos]
-            #         num_name = name[(dot_pos+1):]
-            #         dot_pos2 = num_name.find('.')
-            #         if dot_pos2 != -1:
-            #             num_name1 = int(num_name[:dot_pos2]) - 1
-            #             num_name2 = int(num_name[(dot_pos2+1):]) - 1
-            #             updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
-            #         else:
-            #             num_name = int(num_name) - 1
-            #             updated_name = var_name + '[' + str(num_name) + ']'
-
-            #     else:
-            #         updated_name = name
-
-            #     df_fit = df_fit.rename(columns={name: updated_name})
-
-            # # produces dataframe with variables matching those needed
-            # df_fit = df_fit.loc[:, match_list_names]
-
-            # names = df_fit.columns
-
-            # updated_names = []
-
-            # # now we need to rename one more time because the naming convention is so dumb
-            # for name in names:
-            #     bracket1_pos = name.find('[')
-            #     bracket2_pos = name.find(']')
-            #     if bracket1_pos != -1:
-            #         var_name = name[:bracket1_pos]
-            #         # now we check whether the thing we are indexing is a matrix and if so we want to increase
-            #         # the labels by 1. this is just because python's indexing starts at 0 but the labelling used
-            #         # is 1, 2, ...
-            #         comma_pos = name.find(',')
-            #         if comma_pos != -1:
-            #             num_name1 = int(name[(bracket1_pos+1):comma_pos]) + 1
-            #             num_name2 = int(name[(comma_pos+1):(bracket2_pos)]) + 1
-            #             updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
-            #         else:
-            #             num_name = int(name[(bracket1_pos+1):bracket2_pos]) + 1
-            #             updated_name = var_name + '[' + str(num_name) + ']'
-            #     else:
-            #         updated_name = name
-
-            #     updated_names.append(updated_name)
-
-            # names = names.to_list()
-            # name_updates = {}
-
-            # for i in range(np.size(names)):
-            #     name_updates.update({names[i]: updated_names[i]})
-
-            # df_fit_new = df_fit.rename(columns=name_updates)
-
-            # # we save the df to csv so we have it
-            # df_fit_new.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
-            df_fit.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
+        df_fit = fit.to_frame()
+        df_fit.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
     
     return None 
             
