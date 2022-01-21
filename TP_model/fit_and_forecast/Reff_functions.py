@@ -92,7 +92,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
         fig, ax = plt.subplots(figsize=(12, 9))
         df_state = df
         post_values = samples[[
-            'beta['+str(i)+']' for i in range(len(value_vars))]].sample(df_state.shape[0]).values.T
+            'beta['+str(i+1)+']' for i in range(len(value_vars))]].sample(df_state.shape[0]).values.T
         if split:
             # split model with parameters pre and post policy
 
@@ -104,7 +104,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             logodds = X1 @ post_values
 
             if md is None:
-                post_alphas = samples[['alpha['+str(i)+']' 
+                post_alphas = samples[['alpha['+str(i+1)+']' 
                                        for i in range(len(value_vars))]].sample(df_state.shape[0]).values.T
                 logodds = np.append(logodds, X2 @ (post_values + post_alphas), axis=0)
             else:
@@ -183,7 +183,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                 masks_prop_sim = masks_prop[states_initials[state]].values[:df_state.shape[0]]
                 
             samples_sim = samples.sample(1000)
-            post_values = samples_sim[['bet['+str(i)+']' for i in range(len(value_vars))]].values.T
+            post_values = samples_sim[['bet.'+str(i+1) for i in range(len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
             
             if split:
@@ -197,7 +197,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                 logodds = X1 @ post_values
 
                 if md_arg is None:
-                    post_alphas = samples_sim[['alpha['+str(i)+']' for i in range(len(value_vars))]].values.T
+                    post_alphas = samples_sim[['alpha['+str(i+1)+']' for i in range(len(value_vars))]].values.T
                     logodds = np.append(logodds, X2 @ (post_values + post_alphas), axis=0)
                     md = 1
                 elif md_arg == 'power':
@@ -252,7 +252,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
                     third_days_tot = sum(v for v in third_days.values())
                     # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-                    sampled_vax_effects_all = samples_sim[["vacc_effect[" + str(j)  + "]" for j in range(third_days_tot)]].T
+                    sampled_vax_effects_all = samples_sim[["vacc_effect." + str(j+1) for j in range(third_days_tot)]].T
                     vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[states_initials[state]],:]
                         
                     # get before and after fitting and tile them
@@ -363,19 +363,19 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     if rho == 'data':
                         rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))
                     else:
-                        states_to_fitd = {s: i for i, s in enumerate(rho)}
+                        states_to_fitd = {s: i+1 for i, s in enumerate(rho)}
                         if states_initials[state] in states_to_fitd.keys():
                             # transpose as columns are days, need rows to be days
                             if second_phase:
                                 # use brho_v
 
-                                rho_data = samples_sim[['brho_sec_wave['+str(j)+']' for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_sec_wave.sum())]].values.T
+                                rho_data = samples_sim[['brho_sec_wave.'+str(j+1) for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_sec_wave.sum())]].values.T
 
                                 pos = pos + df.loc[df.state == states_initials[state]].is_sec_wave.sum()
                             elif third_phase:
                                 # use brho_v
 
-                                rho_data = samples_sim[['brho_third_wave['+str(j)+']' 
+                                rho_data = samples_sim[['brho_third_wave.'+str(j+1) 
                                                         for j in range(pos, pos+df.loc[df.state == states_initials[state]].is_third_wave.sum())]].values.T
 
                                 voc_multiplier_alpha = samples_sim[['voc_effect_alpha']].values.T
@@ -402,7 +402,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
 
                             else:
                                 # first phase
-                                rho_data = samples_sim[['brho['+str(j)+',' + str(states_to_fitd[states_initials[state]])+']' for j in range(df_state.shape[0])]].values.T
+                                rho_data = samples_sim[['brho.'+str(j+1)+'.' + str(states_to_fitd[states_initials[state]]) for j in range(df_state.shape[0])]].values.T
                         else:
                             print("Using data as inference not done on {}".format(state))
                             rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))

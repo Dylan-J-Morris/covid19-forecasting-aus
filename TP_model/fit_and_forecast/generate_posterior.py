@@ -1022,12 +1022,12 @@ def plot_and_save_posterior_samples(data_date):
     states = sorted(['NSW', 'QLD', 'VIC', 'TAS', 'SA', 'WA', 'ACT', 'NT'])
     fig, ax = plt.subplots(figsize=(24, 9), ncols=len(states), sharey=True)
 
-    states_to_fitd = {state: i for i, state in enumerate(first_states)}
+    states_to_fitd = {state: i+1 for i, state in enumerate(first_states)}
 
     for i, state in enumerate(states):
         if state in first_states:
             dates = df_Reff.loc[(df_Reff.date >= start_date) & (df_Reff.state == state) & (df_Reff.date <= end_date)].date
-            rho_samples = samples_mov_gamma[['brho['+str(j)+','+str(states_to_fitd[state])+']' 
+            rho_samples = samples_mov_gamma[['brho.'+str(j+1)+'.'+str(states_to_fitd[state]) 
                                             for j in range(dfX.loc[dfX.state == first_states[0]].shape[0])]]
             ax[i].plot(dates, rho_samples.median(), label='fit', color='C0')
             ax[i].fill_between(dates, rho_samples.quantile(0.25), rho_samples.quantile(0.75), color='C0', alpha=0.4)
@@ -1069,7 +1069,7 @@ def plot_and_save_posterior_samples(data_date):
         for i, state in enumerate(sec_states):
             # Google mobility only up to a certain date, so take only up to that value
             dates = df2X.loc[(df2X.state == state) & (df2X.is_sec_wave == 1)].date.values
-            rho_samples = samples_mov_gamma[['brho_sec_wave['+str(j)+']'
+            rho_samples = samples_mov_gamma[['brho_sec_wave.'+str(j+1)
                                             for j in range(pos, pos+df2X.loc[df2X.state == state].is_sec_wave.sum())]]
             pos = pos + df2X.loc[df2X.state == state].is_sec_wave.sum()
 
@@ -1112,7 +1112,7 @@ def plot_and_save_posterior_samples(data_date):
         for i, state in enumerate(third_states):
             # Google mobility only up to a certain date, so take only up to that value
             dates = df3X.loc[(df3X.state == state) & (df3X.is_third_wave == 1)].date.values
-            rho_samples = samples_mov_gamma[['brho_third_wave['+str(j)+']'
+            rho_samples = samples_mov_gamma[['brho_third_wave.'+str(j+1)
                                             for j in range(pos, pos+df3X.loc[df3X.state == state].is_third_wave.sum())]]
             pos = pos + df3X.loc[df3X.state == state].is_third_wave.sum()
             
@@ -1181,7 +1181,7 @@ def plot_and_save_posterior_samples(data_date):
     # Making a new figure that doesn't include the priors
     fig, ax = plt.subplots(figsize=(12, 9))
 
-    small_plot_cols = ['R_Li['+str(i)+']' for i in range(1, 9)] + ['R_I']
+    small_plot_cols = ['R_Li.'+str(i) for i in range(1, 9)] + ['R_I']
 
     sns.violinplot(x='variable', y='value',
                 data=pd.melt(samples_mov_gamma[small_plot_cols]),
@@ -1227,7 +1227,7 @@ def plot_and_save_posterior_samples(data_date):
     plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "voc_effect_posteriors.png", dpi=288)
 
     ######### plotting mobility coefficients #########
-    posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(0, len(predictors))]]
+    posterior = samples_mov_gamma[['bet.'+str(i+1) for i in range(len(predictors))]]
 
     split = True
     md = 'power'  # samples_mov_gamma.md.values
@@ -1253,7 +1253,7 @@ def plot_and_save_posterior_samples(data_date):
     plt.savefig(results_dir+data_date.strftime("%Y-%m-%d")+'mobility_posteriors.png', dpi=288)
 
     ######### generating and plotting TP plots #########
-    RL_by_state = {state: samples_mov_gamma['R_Li['+str(i)+']'].values for state, i in state_index.items()}
+    RL_by_state = {state: samples_mov_gamma['R_Li.'+str(i+1)].values for state, i in state_index.items()}
     ax3 = predict_plot(samples_mov_gamma, df.loc[(df.date >= start_date) & 
                                                 (df.date <= end_date)], 
                     gamma=True, moving=True, split=split, grocery=True, ban=ban,
@@ -1327,7 +1327,7 @@ def plot_and_save_posterior_samples(data_date):
     third_days_cumulative = np.append([0], np.cumsum([v for v in third_days.values()]))
     vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
     third_days_tot = sum(v for v in third_days.values())
-    sampled_vax_effects_all = samples_mov_gamma[["vacc_effect[" + str(j)  + "]" for j in range(0, third_days_tot)]].T
+    sampled_vax_effects_all = samples_mov_gamma[["vacc_effect." + str(j+1) for j in range(0, third_days_tot)]].T
 
     fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
     # temporary state vector
@@ -1426,7 +1426,7 @@ def plot_and_save_posterior_samples(data_date):
 
     # extract the propn of omicron to delta
     total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
-    prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta[" + str(j) + "]" for j in range(0, total_N_p_third_omicron)]]
+    prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta." + str(j+1) for j in range(0, total_N_p_third_omicron)]]
     pd.DataFrame(prop_omicron_to_delta.to_csv('results/prop_omicron_to_delta' + data_date.strftime("%Y-%m-%d") + '.csv'))
 
     if df3X.shape[0] > 0:
@@ -1482,7 +1482,7 @@ def plot_and_save_posterior_samples(data_date):
     ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 
     var_to_csv = predictors
-    samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(0, len(predictors))]]
+    samples_mov_gamma[predictors] = samples_mov_gamma[['bet.'+str(i+1) for i in range(len(predictors))]]
     var_to_csv = [
         'R_I', 'R_L', 'sig', 'theta_md', 
         'theta_masks', 'voc_effect_alpha', 
@@ -1490,10 +1490,10 @@ def plot_and_save_posterior_samples(data_date):
         'reduction_vacc_effect_omicron', 'susceptible_depletion_factor'
     ]
     var_to_csv = var_to_csv + predictors + [
-        'R_Li['+str(i)+']' for i in range(len(states_to_fit_all_waves))
+        'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
     ]
-    var_to_csv = var_to_csv + ["vacc_effect[" + str(j)  + "]" for j in range(0, third_days_tot)]
-    var_to_csv = var_to_csv + ["prop_omicron_to_delta[" + str(j)  + "]" for j in range(0, total_N_p_third_omicron)]
+    var_to_csv = var_to_csv + ["vacc_effect." + str(j+1) for j in range(third_days_tot)]
+    var_to_csv = var_to_csv + ["prop_omicron_to_delta." + str(j+1) for j in range(total_N_p_third_omicron)]
 
     # save the posterior
     samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior' + data_date.strftime("%Y-%m-%d") + '.h5', key='samples') 
@@ -1506,9 +1506,9 @@ def main(data_date):
     Runs the stan model in parts to cut down on memory. 
     """
     
-    get_data_for_posterior(data_date=data_date)
-    run_stan(data_date=data_date)
-    # plot_and_save_posterior_samples(data_date=data_date)
+    # get_data_for_posterior(data_date=data_date)
+    # run_stan(data_date=data_date)
+    plot_and_save_posterior_samples(data_date=data_date)
     
     return None 
     
