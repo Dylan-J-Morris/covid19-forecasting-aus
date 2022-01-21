@@ -30,6 +30,7 @@ def read_cases_lambda(case_file_date):
         
     return(df_interim)
 
+
 def tidy_cases_lambda(interim_data, remove_territories=True):
     
     # Remove non-existent notification dates
@@ -54,7 +55,6 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
     
     return df_linel
 
-# gamma draws take arguments (shape, scale)
 
 def draw_inf_dates(df_linelist, 
                    shape_inc=5.807, 
@@ -77,7 +77,6 @@ def draw_inf_dates(df_linelist,
     # Draw from incubation distribution
     inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=(nsamples*nreplicates))
     inc_period_omicron = offset_inc + np.random.gamma(shape_inc_omicron, scale_inc_omicron, size=(nsamples*nreplicates))
-    
     
     if use_linelist:
         # apply the delay at the point of applying the incubation 

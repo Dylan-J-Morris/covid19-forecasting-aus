@@ -517,9 +517,10 @@ function get_simulation_limits(
     days_delta = (Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)).value
     
     cases_pre_backcast = sum(@view local_cases[1:days_delta])
-    cases_backcast = sum(@view local_cases[days_delta+1:T_observed])
-    cases_pre_nowcast = sum(@view local_cases[21:T_observed])
-    cases_nowcast = sum(@view local_cases[10:T_observed])
+    cases_backcast = sum(@view local_cases[days_delta+1:T_observed-7])
+    cases_60 = sum(@view local_cases[60:T_observed-7])
+    cases_nowcast = sum(@view local_cases[14:T_observed-7])
+    # cases_nowcast = sum(@view local_cases[7:T_observed])
     
     # # take the cumulative sum of the local cases for easiness of 
     # # calculating the incidence over periods of time
@@ -541,12 +542,12 @@ function get_simulation_limits(
     #     window_lengths[i] = findlast(cumulative_local_cases .== val)
     # end 
         
-    cases_in_each_window = [cases_pre_backcast, cases_backcast, cases_pre_nowcast, cases_nowcast]
+    # cases_in_each_window = [cases_pre_backcast, cases_backcast, cases_pre_nowcast, cases_nowcast]
     
     # calculate minimum and maximum observed cases in each period 
-    min_cases = floor.(Int, [0.3*cases_pre_backcast, 0.5*cases_backcast, 0.5*cases_pre_nowcast, 0.6*cases_nowcast])
+    min_cases = floor.(Int, [0.3*cases_pre_backcast, 0.3*cases_backcast, 0.4*cases_60, 0.5*cases_nowcast])
     # min_cases = 0*cases_in_each_window
-    max_cases = ceil.(Int, [2.5*cases_pre_backcast, 2.5*cases_backcast, 3.0*cases_pre_nowcast, 4.0*cases_nowcast])
+    max_cases = ceil.(Int, [2.5*cases_pre_backcast, 2.0*cases_backcast, 2.0*cases_60, 5.0*cases_nowcast])
 
     # assume maximum of 250 cases if the observed is less than that
     for (i, val) in enumerate(max_cases)

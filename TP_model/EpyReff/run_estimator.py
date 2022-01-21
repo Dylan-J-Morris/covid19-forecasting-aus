@@ -204,6 +204,7 @@ file_date_updated = file_date_updated.strftime("%Y-%m-%d")
 df_NNDSS = read_in_NNDSS(dt_date.strftime("%d%b%Y"), apply_delay_at_read=True)
 df_interim = df_NNDSS[['date_inferred', 'STATE', 'imported', 'local']]
 
+# plot the observed cases each day and overlay the effective reproduction number.
 fig, ax = plot_all_states(R_summary_states, 
                           df_interim, 
                           dates,

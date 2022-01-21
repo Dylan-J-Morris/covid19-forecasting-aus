@@ -59,17 +59,17 @@ function check_sim!(
     days_delta = (Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)).value
     
     cases_pre_backcast = sum(@view D[1:days_delta,1:2,sim])
-    cases_backcast = sum(@view D[days_delta+1:T_observed,1:2,sim])
-    cases_pre_nowcast = sum(@view D[21:T_observed,1:2,sim])
-    cases_nowcast = sum(@view D[10:T_observed,1:2,sim])
+    cases_backcast = sum(@view D[days_delta+1:T_observed-7,1:2,sim])
+    cases_60 = sum(@view D[60:T_observed-7,1:2,sim])
+    cases_nowcast = sum(@view D[14:T_observed-7,1:2,sim])
     
     case_counts[1] = cases_pre_backcast
     case_counts[2] = cases_backcast
-    case_counts[3] = cases_pre_nowcast
-    case_counts[4] = cases_nowcast
+    case_counts[3] = cases_60
+    case_counts[end] = cases_nowcast
     
     # this is just the total cases over the forecast horizon 
-    D_forecast = sum(@view D[T_observed+1:end,1:2,sim])
+    D_forecast = sum(@view D[T_observed-7+1:end,1:2,sim])
     
     # if we've exceeded the max cases over a given period
     if D_forecast > max_forecast_cases

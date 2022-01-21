@@ -36,7 +36,11 @@ function save_simulations(D,TP_local,state,file_date,onset_dates,rng)
         # if we are under the required number of sims, sample randomly from the good sims 
         for j in i:1999
             # sample a random column 
-            ind = rand(rng, 1:(i-1))
+            if i == 1
+                ind = 1
+            else
+                ind = rand(rng, 1:(i-1))
+            end
             d = D_observed[:,ind]
             tp = TP_local[:,ind]
             df_observed[!,"sim"*string(j)] = d[(end-length(onset_dates)+1):end]

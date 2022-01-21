@@ -121,12 +121,13 @@ function plot_all_forecast_intervals(file_date, states, local_case_dict)
     plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="50")
     plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="95")
     
-    file_name_tmp = "UoA_forecast_"
     dir_name = "figs/case_forecasts/"*file_date*"/"
+    file_name_tmp = "UoA_forecast_"
 
     pdf_filenames = [
         dir_name*file_name_tmp*file_date*"_zoomed_both_intervals.pdf",
         dir_name*file_name_tmp*file_date*"_both_intervals.pdf",
+        dir_name*file_name_tmp*file_date*"_50_intervals.pdf",
     ]
     # merge the pdfs and delete the files
     merge_pdfs(

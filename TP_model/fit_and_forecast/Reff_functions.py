@@ -92,7 +92,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
         fig, ax = plt.subplots(figsize=(12, 9))
         df_state = df
         post_values = samples[[
-            'beta['+str(i)+']' for i in range(1, 1+len(value_vars))]].sample(df_state.shape[0]).values.T
+            'beta['+str(i)+']' for i in range(len(value_vars))]].sample(df_state.shape[0]).values.T
         if split:
             # split model with parameters pre and post policy
 
@@ -105,7 +105,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
 
             if md is None:
                 post_alphas = samples[['alpha['+str(i)+']' 
-                                       for i in range(1, 1+len(value_vars))]].sample(df_state.shape[0]).values.T
+                                       for i in range(len(value_vars))]].sample(df_state.shape[0]).values.T
                 logodds = np.append(logodds, X2 @ (post_values + post_alphas), axis=0)
             else:
                 # take right size of md
@@ -170,7 +170,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
             
         # no R_eff modelled for these states, skip
         # counter for brho_v
-        pos = 1
+        pos = 0
         for i, state in enumerate(states):
 
             df_state = df.loc[df.sub_region_1 == state]
@@ -183,7 +183,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                 masks_prop_sim = masks_prop[states_initials[state]].values[:df_state.shape[0]]
                 
             samples_sim = samples.sample(1000)
-            post_values = samples_sim[['bet['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
+            post_values = samples_sim[['bet['+str(i)+']' for i in range(len(value_vars))]].values.T
             prop_sim = prop[states_initials[state]].values[:df_state.shape[0]]
             
             if split:
@@ -197,7 +197,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                 logodds = X1 @ post_values
 
                 if md_arg is None:
-                    post_alphas = samples_sim[['alpha['+str(i)+']' for i in range(1, 1+len(value_vars))]].values.T
+                    post_alphas = samples_sim[['alpha['+str(i)+']' for i in range(len(value_vars))]].values.T
                     logodds = np.append(logodds, X2 @ (post_values + post_alphas), axis=0)
                     md = 1
                 elif md_arg == 'power':
@@ -214,6 +214,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                         masks = ((1+theta_masks).T**(-1 * masks_prop_sim)).T
                         # set preban mask values to 1
                         masks[:logodds.shape[0]] = 1
+
                     # make logodds by appending post ban values
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
                 elif md_arg == 'logistic':
@@ -251,7 +252,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
                     third_days_tot = sum(v for v in third_days.values())
                     # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-                    sampled_vax_effects_all = samples_sim[["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]].T
+                    sampled_vax_effects_all = samples_sim[["vacc_effect[" + str(j)  + "]" for j in range(third_days_tot)]].T
                     vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[states_initials[state]],:]
                         
                     # get before and after fitting and tile them
@@ -320,9 +321,10 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                         else:
                             jj = ii - omicron_start_day
                             # calculate the raw vax effect
-                            vacc_tmp = vacc_ts.iloc[ii, :]
+                            vacc_delta = vacc_ts.iloc[ii, :]
+                            vacc_omicron = 1 - reduction_vacc_effect_omicron*(1-vacc_delta)
                             # calculate the full vaccination effect
-                            vacc_post[ii] = 1+(m[jj] - m[jj]*reduction_vacc_effect_omicron - 1) * (1-vacc_tmp)
+                            vacc_post[ii] = m[jj]*vacc_omicron + (1-m[jj])*vacc_delta
 
                     for ii in range(vacc_post.shape[0]):
                         if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:
@@ -361,7 +363,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
                     if rho == 'data':
                         rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))
                     else:
-                        states_to_fitd = {s: i+1 for i, s in enumerate(rho)}
+                        states_to_fitd = {s: i for i, s in enumerate(rho)}
                         if states_initials[state] in states_to_fitd.keys():
                             # transpose as columns are days, need rows to be days
                             if second_phase:
@@ -400,7 +402,7 @@ def predict_plot(samples, df, third_date_range=None, split=True, gamma=False, mo
 
                             else:
                                 # first phase
-                                rho_data = samples_sim[['brho['+str(j+1)+',' + str(states_to_fitd[states_initials[state]])+']' for j in range(df_state.shape[0])]].values.T
+                                rho_data = samples_sim[['brho['+str(j)+',' + str(states_to_fitd[states_initials[state]])+']' for j in range(df_state.shape[0])]].values.T
                         else:
                             print("Using data as inference not done on {}".format(state))
                             rho_data = np.tile(df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0]))

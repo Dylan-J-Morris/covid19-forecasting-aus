@@ -514,7 +514,7 @@ def run_stan(data_date):
         num_samples = 1000
     else:
         num_chains = 4
-        num_samples = 1500
+        num_samples = 500
         
     # to run the inference set run_inference to True in params
     if run_inference or run_inference_only:
@@ -574,64 +574,65 @@ def run_stan(data_date):
             names = fit.constrained_param_names
             df_fit = fit.to_frame()
 
-            for name in names:
-                dot_pos = name.find('.')
-                if dot_pos != -1:
-                    var_name = name[:dot_pos]
-                    num_name = name[(dot_pos+1):]
-                    dot_pos2 = num_name.find('.')
-                    if dot_pos2 != -1:
-                        num_name1 = int(num_name[:dot_pos2]) - 1
-                        num_name2 = int(num_name[(dot_pos2+1):]) - 1
-                        updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
-                    else:
-                        num_name = int(num_name) - 1
-                        updated_name = var_name + '[' + str(num_name) + ']'
+            # for name in names:
+            #     dot_pos = name.find('.')
+            #     if dot_pos != -1:
+            #         var_name = name[:dot_pos]
+            #         num_name = name[(dot_pos+1):]
+            #         dot_pos2 = num_name.find('.')
+            #         if dot_pos2 != -1:
+            #             num_name1 = int(num_name[:dot_pos2]) - 1
+            #             num_name2 = int(num_name[(dot_pos2+1):]) - 1
+            #             updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
+            #         else:
+            #             num_name = int(num_name) - 1
+            #             updated_name = var_name + '[' + str(num_name) + ']'
 
-                else:
-                    updated_name = name
+            #     else:
+            #         updated_name = name
 
-                df_fit = df_fit.rename(columns={name: updated_name})
+            #     df_fit = df_fit.rename(columns={name: updated_name})
 
-            # produces dataframe with variables matching those needed
-            df_fit = df_fit.loc[:, match_list_names]
+            # # produces dataframe with variables matching those needed
+            # df_fit = df_fit.loc[:, match_list_names]
 
-            names = df_fit.columns
+            # names = df_fit.columns
 
-            updated_names = []
+            # updated_names = []
 
-            # now we need to rename one more time because the naming convention is so dumb
-            for name in names:
-                bracket1_pos = name.find('[')
-                bracket2_pos = name.find(']')
-                if bracket1_pos != -1:
-                    var_name = name[:bracket1_pos]
-                    # now we check whether the thing we are indexing is a matrix and if so we want to increase
-                    # the labels by 1. this is just because python's indexing starts at 0 but the labelling used
-                    # is 1, 2, ...
-                    comma_pos = name.find(',')
-                    if comma_pos != -1:
-                        num_name1 = int(name[(bracket1_pos+1):comma_pos]) + 1
-                        num_name2 = int(name[(comma_pos+1):(bracket2_pos)]) + 1
-                        updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
-                    else:
-                        num_name = int(name[(bracket1_pos+1):bracket2_pos]) + 1
-                        updated_name = var_name + '[' + str(num_name) + ']'
-                else:
-                    updated_name = name
+            # # now we need to rename one more time because the naming convention is so dumb
+            # for name in names:
+            #     bracket1_pos = name.find('[')
+            #     bracket2_pos = name.find(']')
+            #     if bracket1_pos != -1:
+            #         var_name = name[:bracket1_pos]
+            #         # now we check whether the thing we are indexing is a matrix and if so we want to increase
+            #         # the labels by 1. this is just because python's indexing starts at 0 but the labelling used
+            #         # is 1, 2, ...
+            #         comma_pos = name.find(',')
+            #         if comma_pos != -1:
+            #             num_name1 = int(name[(bracket1_pos+1):comma_pos]) + 1
+            #             num_name2 = int(name[(comma_pos+1):(bracket2_pos)]) + 1
+            #             updated_name = var_name + '[' + str(num_name1) + ',' + str(num_name2) + ']'
+            #         else:
+            #             num_name = int(name[(bracket1_pos+1):bracket2_pos]) + 1
+            #             updated_name = var_name + '[' + str(num_name) + ']'
+            #     else:
+            #         updated_name = name
 
-                updated_names.append(updated_name)
+            #     updated_names.append(updated_name)
 
-            names = names.to_list()
-            name_updates = {}
+            # names = names.to_list()
+            # name_updates = {}
 
-            for i in range(np.size(names)):
-                name_updates.update({names[i]: updated_names[i]})
+            # for i in range(np.size(names)):
+            #     name_updates.update({names[i]: updated_names[i]})
 
-            df_fit_new = df_fit.rename(columns=name_updates)
+            # df_fit_new = df_fit.rename(columns=name_updates)
 
-            # we save the df to csv so we have it
-            df_fit_new.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
+            # # we save the df to csv so we have it
+            # df_fit_new.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
+            df_fit.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
     
     return None 
             
@@ -1006,7 +1007,7 @@ def plot_and_save_posterior_samples(data_date):
         vaccination_by_state_array_initial[idx] = vaccination_by_state.loc[s][state_third_start]
 
     # Make state by state arrays
-    state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
+    state_index = {state: i for i, state in enumerate(states_to_fit_all_waves)}
         
     # get pop size array 
     pop_size_array = []
@@ -1021,12 +1022,12 @@ def plot_and_save_posterior_samples(data_date):
     states = sorted(['NSW', 'QLD', 'VIC', 'TAS', 'SA', 'WA', 'ACT', 'NT'])
     fig, ax = plt.subplots(figsize=(24, 9), ncols=len(states), sharey=True)
 
-    states_to_fitd = {state: i+1 for i, state in enumerate(first_states)}
+    states_to_fitd = {state: i for i, state in enumerate(first_states)}
 
     for i, state in enumerate(states):
         if state in first_states:
             dates = df_Reff.loc[(df_Reff.date >= start_date) & (df_Reff.state == state) & (df_Reff.date <= end_date)].date
-            rho_samples = samples_mov_gamma[['brho['+str(j+1)+','+str(states_to_fitd[state])+']' 
+            rho_samples = samples_mov_gamma[['brho['+str(j)+','+str(states_to_fitd[state])+']' 
                                             for j in range(dfX.loc[dfX.state == first_states[0]].shape[0])]]
             ax[i].plot(dates, rho_samples.median(), label='fit', color='C0')
             ax[i].fill_between(dates, rho_samples.quantile(0.25), rho_samples.quantile(0.75), color='C0', alpha=0.4)
@@ -1064,7 +1065,7 @@ def plot_and_save_posterior_samples(data_date):
     if df2X.shape[0] > 0:
         fig, ax = plt.subplots(figsize=(24, 9), ncols=len(sec_states), sharey=True, squeeze=False)
         states_to_fitd = {state: i+1 for i, state in enumerate(sec_states)}
-        pos = 1
+        pos = 0
         for i, state in enumerate(sec_states):
             # Google mobility only up to a certain date, so take only up to that value
             dates = df2X.loc[(df2X.state == state) & (df2X.is_sec_wave == 1)].date.values
@@ -1107,7 +1108,7 @@ def plot_and_save_posterior_samples(data_date):
     if df3X.shape[0] > 0:
         fig, ax = plt.subplots(figsize=(24, 9), ncols=len(third_states), sharey=True, squeeze=False)
         states_to_fitd = {state: i+1 for i, state in enumerate(third_states)}
-        pos = 1
+        pos = 0
         for i, state in enumerate(third_states):
             # Google mobility only up to a certain date, so take only up to that value
             dates = df3X.loc[(df3X.state == state) & (df3X.is_third_wave == 1)].date.values
@@ -1226,7 +1227,7 @@ def plot_and_save_posterior_samples(data_date):
     plt.savefig(results_dir+data_date.strftime("%Y-%m-%d") + "voc_effect_posteriors.png", dpi=288)
 
     ######### plotting mobility coefficients #########
-    posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
+    posterior = samples_mov_gamma[['bet['+str(i)+']' for i in range(0, len(predictors))]]
 
     split = True
     md = 'power'  # samples_mov_gamma.md.values
@@ -1326,7 +1327,7 @@ def plot_and_save_posterior_samples(data_date):
     third_days_cumulative = np.append([0], np.cumsum([v for v in third_days.values()]))
     vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
     third_days_tot = sum(v for v in third_days.values())
-    sampled_vax_effects_all = samples_mov_gamma[["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]].T
+    sampled_vax_effects_all = samples_mov_gamma[["vacc_effect[" + str(j)  + "]" for j in range(0, third_days_tot)]].T
 
     fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
     # temporary state vector
@@ -1425,7 +1426,7 @@ def plot_and_save_posterior_samples(data_date):
 
     # extract the propn of omicron to delta
     total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
-    prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta[" + str(j) + "]" for j in range(1, total_N_p_third_omicron+1)]]
+    prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta[" + str(j) + "]" for j in range(0, total_N_p_third_omicron)]]
     pd.DataFrame(prop_omicron_to_delta.to_csv('results/prop_omicron_to_delta' + data_date.strftime("%Y-%m-%d") + '.csv'))
 
     if df3X.shape[0] > 0:
@@ -1481,7 +1482,7 @@ def plot_and_save_posterior_samples(data_date):
     ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
 
     var_to_csv = predictors
-    samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(1, 1+len(predictors))]]
+    samples_mov_gamma[predictors] = samples_mov_gamma[['bet['+str(i)+']' for i in range(0, len(predictors))]]
     var_to_csv = [
         'R_I', 'R_L', 'sig', 'theta_md', 
         'theta_masks', 'voc_effect_alpha', 
@@ -1489,10 +1490,10 @@ def plot_and_save_posterior_samples(data_date):
         'reduction_vacc_effect_omicron', 'susceptible_depletion_factor'
     ]
     var_to_csv = var_to_csv + predictors + [
-        'R_Li['+str(i+1)+']' for i in range(len(states_to_fit_all_waves))
+        'R_Li['+str(i)+']' for i in range(len(states_to_fit_all_waves))
     ]
-    var_to_csv = var_to_csv + ["vacc_effect[" + str(j)  + "]" for j in range(1, third_days_tot+1)]
-    var_to_csv = var_to_csv + ["prop_omicron_to_delta[" + str(j)  + "]" for j in range(1, total_N_p_third_omicron+1)]
+    var_to_csv = var_to_csv + ["vacc_effect[" + str(j)  + "]" for j in range(0, third_days_tot)]
+    var_to_csv = var_to_csv + ["prop_omicron_to_delta[" + str(j)  + "]" for j in range(0, total_N_p_third_omicron)]
 
     # save the posterior
     samples_mov_gamma[var_to_csv].to_hdf('results/soc_mob_posterior' + data_date.strftime("%Y-%m-%d") + '.h5', key='samples') 
@@ -1507,7 +1508,7 @@ def main(data_date):
     
     get_data_for_posterior(data_date=data_date)
     run_stan(data_date=data_date)
-    plot_and_save_posterior_samples(data_date=data_date)
+    # plot_and_save_posterior_samples(data_date=data_date)
     
     return None 
     
