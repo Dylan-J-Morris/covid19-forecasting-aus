@@ -474,8 +474,6 @@ def get_data_for_posterior(data_date):
         'include_in_omicron_wave': include_in_omicron_wave,
         'total_N_p_third_omicron': int(sum([sum(x) for x in include_in_omicron_wave]).item()),
         'pos_starts_third_omicron': np.cumsum([sum(x) for x in include_in_omicron_wave]).astype(int).tolist(),
-        'total_N_p_third_omicron_3_blocks': int(sum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave])),
-        'pos_starts_third_omicron_3_blocks': np.cumsum([int(ceil(sum(x)/3)) for x in include_in_omicron_wave]).astype(int),
         'pop_size_array': pop_size_array,
     }
     
