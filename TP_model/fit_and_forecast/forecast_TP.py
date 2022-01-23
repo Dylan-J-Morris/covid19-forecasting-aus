@@ -1136,8 +1136,6 @@ for typ in forecast_type:
         # proportion of omicron cases each day.
         if state in {'VIC', 'NSW', 'ACT', 'QLD', 'SA', 'NT', 'TAS'}: 
             m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
-        # elif state in {'TAS'}:
-            # m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
         elif state in {'WA'}:
             m_tmp = 0*prop_omicron_to_delta.iloc[:, idx['ACT']].to_numpy().T
             
@@ -1459,10 +1457,17 @@ for i, state in enumerate(plot_states):
     col = i % 2
 
     plot_df = df_Rhats.loc[(df_Rhats.state == state) & (df_Rhats.type == 'R_L')]
-
-    ax[row, col].plot(plot_df.date, plot_df['median'])
-    ax[row, col].fill_between(plot_df.date, plot_df['lower'], plot_df['upper'], alpha=0.4, color='C0')
-    ax[row, col].fill_between(plot_df.date, plot_df['bottom'], plot_df['top'], alpha=0.4, color='C0')
+    # split the TP into pre data date and after
+    plot_df_backcast = plot_df.loc[plot_df['date'] <= data_date]
+    plot_df_forecast = plot_df.loc[plot_df['date'] > data_date]
+    # plot the backcast TP 
+    ax[row, col].plot(plot_df_backcast.date, plot_df_backcast['median'], color='C0')
+    ax[row, col].fill_between(plot_df_backcast.date, plot_df_backcast['lower'], plot_df_backcast['upper'], alpha=0.4, color='C0')
+    ax[row, col].fill_between(plot_df_backcast.date, plot_df_backcast['bottom'], plot_df_backcast['top'], alpha=0.4, color='C0')
+    # plot the forecast TP 
+    ax[row, col].plot(plot_df_forecast.date, plot_df_forecast['median'], color='C1')
+    ax[row, col].fill_between(plot_df_forecast.date, plot_df_forecast['lower'], plot_df_forecast['upper'], alpha=0.4, color='C1')
+    ax[row, col].fill_between(plot_df_forecast.date, plot_df_forecast['bottom'], plot_df_forecast['top'], alpha=0.4, color='C1')
 
     ax[row, col].tick_params('x', rotation=90)
     ax[row, col].set_title(state)
@@ -1478,8 +1483,6 @@ for i, state in enumerate(plot_states):
     plot_window_start_date = min(pd.to_datetime(today) - timedelta(days=6*30), sim_start_date-timedelta(days=10))
     
     # create a plot window over the last six months
-    # ax[row, col].set_xlim((pd.to_datetime(today) - timedelta(days=6*30),
-    #                       pd.to_datetime(today) + timedelta(days=num_forecast_days)))
     ax[row, col].set_xlim(plot_window_start_date,
                           pd.to_datetime(today) + timedelta(days=num_forecast_days))
     # plot the start date
