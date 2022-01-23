@@ -2,6 +2,8 @@ using Random
 using Distributions
 using CSV 
 using DataFrames
+using Pipe
+using Dates 
 
 function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     """
@@ -25,6 +27,7 @@ function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     return X 
 end
 
+
 function sample_binomial_limit(n, p; approx_limit = 1000)
     """
     Samples from a Bin(n, p) distribution. This uses a normal approximation 
@@ -44,6 +47,182 @@ function sample_binomial_limit(n, p; approx_limit = 1000)
     return X 
 end
 
+
+function read_in_cases(
+	date, 
+	rng; 
+	apply_inc = false, 
+	omicron_dominant_date = nothing
+)
+
+	# read in the reff file
+	case_file_name = "data/interim_linelist_"*date*".csv"
+	# drop the first column 
+	df = CSV.read(case_file_name, DataFrame)
+	# indicator for the NA dates
+	is_confirmation = df.date_onset .== "NA"
+	# get the confirmation dates 
+	confirm_dates = convert(Vector, df.date_confirmation)
+	confirm_dates = Date.(confirm_dates)
+	# shift them appropriately
+	shape_rd = 1.28
+	scale_rd = 2.31
+	# sample from delay distribtuion
+	rd = rand(rng, Gamma(shape_rd, scale_rd), length(confirm_dates))
+	confirm_dates = confirm_dates - round.(rd) * Day(1)
+	# adjust confirmation dates to get to onset 
+	# rd = ceil(Int, mean(Gamma(shape_rd, scale_rd)))
+	# confirm_dates = confirm_dates .- rd * Day(1)
+
+	# initialise array for complete_onset_dates
+	complete_dates = deepcopy(confirm_dates)
+	# fill the array with the most informative date 
+	complete_dates[.!is_confirmation] = Date.(convert(Vector, df.date_onset[.!is_confirmation]))
+	complete_dates[is_confirmation] = confirm_dates[is_confirmation]
+	
+	# if want to apply delay, subtract an incubation period per individual 
+	if apply_inc
+		shape_inc = 5.807  # taken from Lauer et al. 2020 #1.62/0.418
+		scale_inc = 0.948  # 0.418
+		inc = rand(rng, Gamma(shape_inc, scale_inc), length(complete_dates))
+		
+		# now apply different incubation period for Omicron 
+		apply_omicron = !isnothing(omicron_dominant_date) ? true : false
+		if apply_omicron
+			is_omicron = complete_dates .>= Dates.Date(omicron_dominant_date)
+			shape_inc_omicron = 3.33
+			scale_inc_omicron = 1.34
+			inc_omicron = rand(rng, Gamma(shape_inc_omicron, scale_inc_omicron), length(complete_dates))
+			# add the incubation for omicron dates in 
+			inc = (1-is_omicron)*inc + is_omicron*inc_omicron
+		end
+		
+		complete_dates = complete_dates - round.(inc) * Day(1)
+	end
+
+	# other useful fields
+	state = df.state
+	import_status = convert.(Int, df.import_status .== "imported")
+
+	# construct the full timeseries of counts
+	dates_since_start = range(
+		Date("2020-03-01"), 
+		maximum(complete_dates),
+		step = Day(1)
+	)
+
+	complete_dates_local = complete_dates[import_status .== 0]
+	complete_dates_import = complete_dates[import_status .== 1]
+	state_local = state[import_status .== 0]
+	state_import = state[import_status .== 1]
+
+	# vectors to hold the number of cases each day
+	local_cases = zeros(Int, length(dates_since_start))
+	import_cases = zeros(Int, length(dates_since_start))
+
+	# construct df to hold all the linelists	
+	new_df = DataFrame(
+		"date" => dates_since_start
+	)
+
+	# construct df to hold all the linelists	
+	local_case_dict = Dict()
+	import_case_dict = Dict()
+	local_case_dict["date"] = dates_since_start
+	import_case_dict["date"] = dates_since_start
+
+	# loop over states and then sum the number of cases on that day
+	for s in unique(state)
+		# filter by state	
+		complete_dates_local_tmp = complete_dates_local[state_local .== s]
+		complete_dates_import_tmp = complete_dates_import[state_import .== s]
+		# get cases on each day 
+		local_cases = sum.(@views complete_dates_local_tmp .== dss for dss in dates_since_start)
+		import_cases = sum.(@views complete_dates_import_tmp .== dss for dss in dates_since_start)
+		# append to the df with a deepcopy to avoid a 0 d
+		local_case_dict[s] = deepcopy(local_cases)
+		import_case_dict[s] = deepcopy(import_cases)
+		# reset the case vectors
+		local_cases .= 0
+		import_cases .= 0
+	end
+
+    return (local_case_dict, import_case_dict)
+    
+end
+
+
+function read_in_TP(date, state)
+    
+    # read in the reff file
+    TP_file_name = "results/soc_mob_R"*date*".csv"
+    # drop the first column 
+    df = CSV.read(TP_file_name, DataFrame, drop=[1])
+    # extract the unique states
+    unique_states = unique(df[!,"state"])
+
+    TP_dict_local = Dict{String, Array}()
+    # get the dates 
+    TP_dict_local["date"] = @pipe df |>
+        filter(:state => ==(state), _) |> 
+        filter(:type => ==("R_L"), _) |> 
+        select(_, :date) |> 
+        Matrix(_)[:]
+    # create a vector of the indices
+    TP_dict_local["t_indices"] = collect(1:length(TP_dict_local["date"]))
+    
+    TP_dict_import = Dict{String, Array}() 
+    # get the dates 
+    TP_dict_import["date"] = @pipe df |>
+        filter(:state => ==(state), _) |> 
+        filter(:type => ==("R_L"), _) |> 
+        select(_, :date) |> 
+        Matrix(_)[:]
+    # create a vector of the indices
+    TP_dict_import["t_indices"] = collect(1:length(TP_dict_import["date"]))
+
+    for state in unique_states 
+        # filter by state and RL and keep only TP trajectories 
+        df_state_matrix = @pipe df |>
+            filter(:state => ==(state), _) |> 
+            filter(:type => ==("R_L"), _) |>
+            select(_, Not(1:8)) |>
+            Matrix(_)
+        TP_dict_local[state] = df_state_matrix
+        # filter by state and RL and keep only TP trajectories 
+        df_state_matrix = @pipe df |>
+            filter(:state => ==(state), _) |> 
+            filter(:type => ==("R_I"), _) |>
+            select(_, Not(1:8)) |>
+            Matrix(_)
+        TP_dict_import[state] = df_state_matrix
+    end
+    
+    return (TP_dict_local, TP_dict_import)
+    
+end
+
+
+function create_state_TP_matrices(forecast_start_date, date, state)
+    """
+    Read in the TP for a given state from csv with filedate, date. Adjust the indices 
+    according to the forecast_start_date and then create matrices of local and import TP's. 
+    The indices vector is used to allow for pre-forecast window infection dates. 
+    """
+    
+    # read in the TP 
+    (TP_dict_local, TP_dict_import) = read_in_TP(date, state)
+    # adjust the indices so that the forecast start date is t = 0
+    TP_indices = convert.(Int, Dates.value.(TP_dict_local["date"] - forecast_start_date))
+    # make a matrix for a given state 
+    TP_local = TP_dict_local[state]
+    TP_import = TP_dict_import[state]
+    
+    return (TP_indices, TP_local, TP_import)
+    
+end
+
+
 function read_in_susceptible_depletion(file_date)
     """
     Read in the posterior drawn susceptible_depletion factors. This will be sorted/sampled 
@@ -60,4 +239,6 @@ function read_in_susceptible_depletion(file_date)
     )
     
     return susceptible_depletion
+    
 end
+
