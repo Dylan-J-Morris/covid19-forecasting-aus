@@ -52,7 +52,8 @@ function set_simulation_constants(state)
     """
 
     # overdispersion parameter 
-    k = 0.15
+    k_delta = 0.15
+    k_omicron = 0.6
     # assumptions surrouding the probability of symptomatic, 
     # relative infectiousness γ and the ratio of Reff (α's) 
     p_symp = 0.4
@@ -80,7 +81,9 @@ function set_simulation_constants(state)
     )
     
     γ = 0.5     # relative infectiousness of asymptomatic
-    # solve the system α_s*ps + α_a(1-ps) = 1 with α_a = γ*α_s
+    # solve the system: 
+    # α_s*ps + α_a(1-ps) = 1 
+    # α_a = γ*α_s
     p_detect_given_symp = p_detect_given_symp_dict[state]
     p_detect_given_asymp = p_detect_given_asymp_dict[state]
     # prob of detection
@@ -101,7 +104,8 @@ function set_simulation_constants(state)
     ϕ = 0.1
 
     simulation_constants = Constants(
-        k,
+        k_delta,
+        k_omicron,
         p_symp,
         p_detect_given_symp,
         p_detect_given_asymp,

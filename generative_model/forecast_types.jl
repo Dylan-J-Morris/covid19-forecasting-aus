@@ -29,7 +29,8 @@ struct Constants{T}
     """
     A type for the dynamical / simulation constants 
     """
-    k::T
+    k_delta::T
+    k_omicron::T
     p_symp::T
     p_detect_given_symp::T
     p_detect_given_asymp::T
