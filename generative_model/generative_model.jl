@@ -31,7 +31,7 @@ using Random
 using Statistics 
 using LinearAlgebra
 using ProgressBars
-using DataStructures
+using StaticArrays
 
 include("read_in_TP.jl")
 include("helper_functions.jl")
@@ -108,7 +108,7 @@ function initialise_population!(
         
         if total_initial_cases_sim > 0  
             
-            infection_times = zeros(Int, total_initial_cases_sim)
+            infection_times = MVector{total_initial_cases_sim}(zeros(Int, total_initial_cases_sim))
             
             # sample negative infection times as these individuals are assumed to occur 
             # before the simulation 
@@ -187,7 +187,7 @@ function import_cases_model!(
 	# the number of days the simulation is run for 
 	forecast_days_plus_padding = -10:T_end-5
 	# posterior a, b for sampling number of imports on day t 
-	a_post = zeros(Float64, length(forecast_days_plus_padding))
+	a_post = MVector{length(forecast_days_plus_padding)}(zeros(Float64, length(forecast_days_plus_padding)))
 	
 	# the current ema is taken 11 days before the forecast start date
 	current_ema = zero(Float64)
@@ -209,9 +209,9 @@ function import_cases_model!(
     b_post = forecast.sim_constants.prior_beta + 1
 	
     # preallocate daily import vectors 
-    D_I = zeros(Int, length(a_post))
-    U_I = zeros(Int, length(a_post))
-    unobserved_I = zeros(Int, length(a_post))
+    D_I = MVector{length(a_post)}(zeros(Int, length(a_post)))
+    U_I = MVector{length(a_post)}(zeros(Int, length(a_post)))
+    unobserved_I = MVector{length(a_post)}(zeros(Int, length(a_post)))
      
 	for sim in 1:size(D, 3)
     
@@ -288,7 +288,9 @@ function sample_offspring!(
     p_symp = forecast.sim_constants.p_symp
     p_detect_given_symp = forecast.sim_constants.p_detect_given_symp
     p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp
-    k = forecast.sim_constants.k
+    # determine overdispersion parameter based on whether Omicron is dominant or not 
+    k = forecast.sim_constants.k_delta * (t < forecast.sim_features.omicron_dominant_day) + 
+        forecast.sim_constants.k_omicron * (t >= forecast.sim_features.omicron_dominant_day)
     
     # extract fixed simulation values
     cases_pre_forecast = forecast.sim_features.cases_pre_forecast
@@ -521,28 +523,6 @@ function get_simulation_limits(
     cases_60 = sum(@view local_cases[60:T_observed-7])
     cases_nowcast = sum(@view local_cases[14:T_observed-7])
     # cases_nowcast = sum(@view local_cases[7:T_observed])
-    
-    # # take the cumulative sum of the local cases for easiness of 
-    # # calculating the incidence over periods of time
-    # cumulative_local_cases = cumsum(local_cases)
-    
-    
-    # # extract the backcast and nowcast cases 
-    # backcast_cases = cumulative_local_cases[1:end-14]
-    # backcast_cases = backcast_cases[end:-20:1]
-    # nowcast_cases = cumulative_local_cases[end-13:end]
-    # nowcast_cases = nowcast_cases[end]
-    # # vector of observed cases in each window
-    # cumulative_cases_for_windows = [reverse!(backcast_cases); nowcast_cases]
-    # cases_in_each_window = Int.(diff([0; cumulative_cases_for_windows]))
-    # # fill vector of days each window holds 
-    # window_lengths = ones(Int,length(cumulative_cases_for_windows))     # NOTE: not used yet 
-
-    # for (i, val) in enumerate(cumulative_cases_for_windows)
-    #     window_lengths[i] = findlast(cumulative_local_cases .== val)
-    # end 
-        
-    # cases_in_each_window = [cases_pre_backcast, cases_backcast, cases_pre_nowcast, cases_nowcast]
     
     # calculate minimum and maximum observed cases in each period 
     min_cases = floor.(Int, [0.3*cases_pre_backcast, 0.3*cases_backcast, 0.4*cases_60, 0.5*cases_nowcast])
