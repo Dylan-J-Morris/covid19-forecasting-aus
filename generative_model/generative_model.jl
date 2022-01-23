@@ -33,7 +33,6 @@ using LinearAlgebra
 using ProgressBars
 using StaticArrays
 
-include("read_in_TP.jl")
 include("helper_functions.jl")
 include("forecast_types.jl")
 include("simulation_consistency.jl")
@@ -60,7 +59,9 @@ function initialise_state_arrays(
     sim_realisations = Realisations(Z, D, U)
     
     return sim_realisations
+    
 end
+
 
 function initialise_population!(
     forecast::Forecast, 
@@ -149,7 +150,9 @@ function initialise_population!(
     end
     
     return nothing
+    
 end
+
 
 function import_cases_model!(
 	forecast::Forecast,
@@ -241,6 +244,7 @@ function import_cases_model!(
 	
 end
 
+
 function get_proportion_infected(
     day, 
     cases_pre_forecast, 
@@ -262,7 +266,9 @@ function get_proportion_infected(
     proportion_infected = total_cumulative_cases / N
     
     return proportion_infected
+    
 end
+
 
 function sample_offspring!(
     forecast::Forecast, 
@@ -375,7 +381,9 @@ function sample_offspring!(
     end
 
     return nothing 
+    
 end
+
 
 function assign_to_arrays_and_times!(
     forecast::Forecast, 
@@ -498,75 +506,9 @@ function assign_to_arrays_and_times!(
     end
     
     return nothing
+    
 end
 
-function get_simulation_limits(
-    local_cases, 
-    forecast_start_date,
-    omicron_dominant_date,
-    cases_pre_forecast, 
-    TP_indices, 
-    N, 
-    T_observed, 
-    T_end
-)
-    """
-    Using the observed cases, determine the limits of cases over the backcast and 
-    nowcast. This assumes consistency over windows of fixed length and a nowcast period 
-    of 14 days.
-    """
-    
-    days_delta = (Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)).value
-    
-    cases_pre_backcast = sum(@view local_cases[1:days_delta])
-    cases_backcast = sum(@view local_cases[days_delta+1:T_observed-7])
-    cases_60 = sum(@view local_cases[60:T_observed-7])
-    cases_nowcast = sum(@view local_cases[14:T_observed-7])
-    # cases_nowcast = sum(@view local_cases[7:T_observed])
-    
-    # calculate minimum and maximum observed cases in each period 
-    min_cases = floor.(Int, [0.3*cases_pre_backcast, 0.3*cases_backcast, 0.4*cases_60, 0.5*cases_nowcast])
-    # min_cases = 0*cases_in_each_window
-    max_cases = ceil.(Int, [2.5*cases_pre_backcast, 2.0*cases_backcast, 2.0*cases_60, 5.0*cases_nowcast])
-
-    # assume maximum of 250 cases if the observed is less than that
-    for (i, val) in enumerate(max_cases)
-        if val < 100
-            max_cases[i] = 100
-        end
-    end
-
-    for (i, val) in enumerate(min_cases)
-        if val < 50
-            min_cases[i] = 0
-        end
-    end
-    
-    # the maximum allowable cases over the forecast period is the population size
-    max_forecast_cases = N
-    
-    # get the day we want to start using omicron GI and incubation period (+1) as 0 corresponds
-    # to the first element of the arrays 
-    omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value + 1
-    
-    sim_features = Features(
-        max_forecast_cases,
-        cases_pre_forecast, 
-        N,
-        T_observed, 
-        T_end, 
-        omicron_dominant_day, 
-    )
-    
-    window_lengths = 0
-    
-    return (
-        sim_features,
-        window_lengths,
-        min_cases, 
-        max_cases,
-    )
-end
 
 function simulate_branching_process(
     D0, 
@@ -753,4 +695,5 @@ function simulate_branching_process(
     U_good = forecast.sim_realisations.U[:,:,good_sims]
     
     return (D_good, U_good, TP_local_good_truncated)
+    
 end
