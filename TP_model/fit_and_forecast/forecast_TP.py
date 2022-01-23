@@ -745,8 +745,6 @@ for i, state in enumerate(states):
 
             # plot the start date of the data and indicators of the data we are actually fitting to (in grey)
             axs[rownum, colnum].axvline(data_date, ls='-.', color='black', lw=1)
-            axs[rownum, colnum].axvline(third_start_date, ls='--', color='green', lw=1)
-            axs[rownum, colnum].axvline(data_date - timedelta(days=truncation_days), ls='--', color='red', lw=1)
 
             if j < len(predictors):
                 axs[rownum, colnum].set_ylabel(predictors[j].replace('_', ' ')[:-5], fontsize=7)
