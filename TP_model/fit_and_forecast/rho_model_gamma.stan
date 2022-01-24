@@ -173,16 +173,13 @@ transformed parameters {
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
         int pos;
-        int pos_omicron_counter;
         int pos_omicron2;
         real TP_local;
         real social_measures;
         // parameters for the vaccination effects
-        real decay_in_heterogeneity;
-        real voc_vacc_product; 
+        real voc_term; 
+        real vacc_term; 
         real vacc_effect_omicron;
-        
-        pos_omicron_counter = 0;
         
         if (i == 1){
             pos = 1;
@@ -198,11 +195,14 @@ transformed parameters {
                 masks_third_wave[pos] = pow(1+theta_masks, -1*prop_masks_third_wave[pos]);
 
                 if (n <= omicron_start_day){
-                    voc_vacc_product = vacc_effect[pos]*voc_effect_delta;
+                    voc_term = voc_effect_delta;
+                    vacc_term = vacc_effect[pos];
                 } else {
                     vacc_effect_omicron = 1 - reduction_vacc_effect_omicron*(1-vacc_effect[pos]);
-                    voc_vacc_product = prop_omicron_to_delta[pos_omicron2]*voc_effect_omicron*vacc_effect_omicron 
-                        + (1-prop_omicron_to_delta[pos_omicron2])*voc_effect_delta*vacc_effect[pos];
+                    voc_term = prop_omicron_to_delta[pos_omicron2]*voc_effect_omicron 
+                        + (1-prop_omicron_to_delta[pos_omicron2])*voc_effect_delta;
+                    vacc_term = prop_omicron_to_delta[pos_omicron2]*vacc_effect_omicron 
+                        + (1-prop_omicron_to_delta[pos_omicron2])*vacc_effect[pos];
                     pos_omicron2 += 1;
                 }
                 
@@ -213,7 +213,7 @@ transformed parameters {
                     *policy_third_wave[n])
                     *inv_logit(Mob_third_wave[i][n,:]*(bet));
 
-                TP_local = R_Li[map_to_state_index_third[i]]*2*social_measures*voc_vacc_product;
+                TP_local = R_Li[map_to_state_index_third[i]]*2*social_measures*voc_term*vacc_term;
                 
                 mu_hat_third_wave[pos] = (
                     (brho_third_wave[pos]*R_I+(1-brho_third_wave[pos])*TP_local)*(
