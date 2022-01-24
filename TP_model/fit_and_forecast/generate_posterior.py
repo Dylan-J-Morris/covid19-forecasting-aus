@@ -1407,5 +1407,8 @@ def main(data_date):
     
 
 if __name__ == "__main__":
+    """
+    If we are running the script here (which is always) then this ensures things run appropriately.
+    """
     data_date = argv[1]
     main(data_date)
