@@ -397,7 +397,7 @@ model {
                     b_omicron[pos_omicron_idxs] = 50;
                 } else {
                     drift_factor = pos_omicron_counter / days_third_left;
-                    // // mean is a mixture of the mean proportion for last few days and the drift to 0.95
+                    // mean is a mixture of the mean proportion for last few days and the drift to 0.95
                     mean_omicron = (1-drift_factor)*mean(prop_omicron_to_delta[(pos_omicron_idxs-3):(pos_omicron_idxs-1)]) 
                         + drift_factor*drift_mean_omicron;
                     
