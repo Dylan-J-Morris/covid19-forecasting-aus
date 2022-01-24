@@ -26,8 +26,8 @@ import stan
 matplotlib.use('Agg')
 
 from params import truncation_days, download_google_automatically, \
-    run_inference_only, third_start_date, testing_inference, run_inference, omicron_start_date, \
-    pop_sizes
+    run_inference_only, third_start_date, omicron_dominance_date, run_inference, \
+    omicron_start_date, pop_sizes
 
 def get_data_for_posterior(data_date):
     """
@@ -413,6 +413,7 @@ def get_data_for_posterior(data_date):
     # dates to apply alpha in the second wave (this won't allow for VIC to be added as the date_ranges are different)
     apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int) 
     omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)).days    
+    omicron_constant_level_day = (pd.to_datetime('2022-01-01') - pd.to_datetime(third_start_date)).days
         
     # get pop size array 
     pop_size_array = []
@@ -471,6 +472,7 @@ def get_data_for_posterior(data_date):
         'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]).astype(int).tolist(),
         'vaccine_effect_data': vaccination_by_state_array,
         'omicron_start_day': omicron_start_day,
+        'omicron_constant_level_day': omicron_constant_level_day,
         'include_in_omicron_wave': include_in_omicron_wave,
         'total_N_p_third_omicron': int(sum([sum(x) for x in include_in_omicron_wave]).item()),
         'pos_starts_third_omicron': np.cumsum([sum(x) for x in include_in_omicron_wave]).astype(int).tolist(),
