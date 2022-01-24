@@ -391,7 +391,7 @@ model {
         
         for (n in 1:N_third_wave){
             if ((include_in_third_wave[i][n] == 1) && (include_in_omicron_wave[i][n] == 1)){
-                if (n <= omicron_start_day+15 || pos_omicron_counter <= 3){
+                if (n <= omicron_start_day+15){
                     // sample differently pre December 1st or in the first 5 days
                     a_omicron[pos_omicron_idxs] = 2;
                     b_omicron[pos_omicron_idxs] = 50;
