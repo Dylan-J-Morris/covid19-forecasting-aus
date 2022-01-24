@@ -16,9 +16,9 @@ function get_simulation_limits(
     nowcast. This assumes consistency over windows of fixed length and a nowcast period 
     of 14 days.
     """
-    
+    # this is the number of days into the forecast simulation that dominant begins 
     days_delta = (Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)).value
-    
+    # calculate the cases over the various windows
     cases_pre_backcast = sum(@view local_cases[1:days_delta])
     cases_backcast = sum(@view local_cases[days_delta+1:T_observed-7])
     cases_60 = sum(@view local_cases[60:T_observed-7])
