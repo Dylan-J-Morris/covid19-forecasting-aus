@@ -26,8 +26,48 @@ import stan
 matplotlib.use('Agg')
 
 from params import truncation_days, download_google_automatically, \
-    run_inference_only, third_start_date, omicron_dominance_date, run_inference, \
+    run_inference_only, third_start_date, run_inference, \
     omicron_start_date, pop_sizes
+
+def process_vax_data_array(data_date, third_states, third_end_date, effect="effect_delta"):
+    """
+    Processes the vaccination data to an array for either the Omicron or Delta strain. 
+    """
+    # Load in vaccination data by state and date
+    vaccination_by_state = pd.read_csv(
+        'data/vaccine_effect_timeseries_with_omicron_'+data_date.strftime('%Y-%m-%d')+'.csv', 
+        parse_dates=['date']
+    )
+    # there are a couple NA's early on in the time series but is likely due to slightly different start dates
+    vaccination_by_state.fillna(1, inplace=True)
+    vaccination_by_state = vaccination_by_state[['state', 'date', effect]]
+
+    # display the latest available date in the NSW data (will be the same date between states)
+    print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
+
+    # Get only the dates we need + 1 (this serves as the initial value)
+    vaccination_by_state = vaccination_by_state[
+        (vaccination_by_state.date >= pd.to_datetime(third_start_date) - timedelta(days=1)) & 
+        (vaccination_by_state.date <= third_end_date)
+    ]  
+    vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
+    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values=effect)  # Convert to matrix form
+
+    # If we are missing recent vaccination data, fill it in with the most recent available data.
+    latest_vacc_data = vaccination_by_state.columns[-1]
+    if latest_vacc_data < pd.to_datetime(third_end_date):
+        vaccination_by_state = pd.concat(
+            [vaccination_by_state] +
+            [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
+            for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
+            axis=1
+        )
+        
+    # Convert to simple array only useful to pass to stan (index 1 onwards)
+    vaccination_by_state_array = vaccination_by_state.iloc[:, 1:].to_numpy()
+    
+    return vaccination_by_state_array
+
 
 def get_data_for_posterior(data_date):
     """
@@ -365,47 +405,19 @@ def get_data_for_posterior(data_date):
     policy = dfX.loc[dfX.state == first_states[0],'post_policy']     # this is the post ban policy
     policy_sec_wave = [1]*df2X.loc[df2X.state == sec_states[0]].shape[0]
     policy_third_wave = [1]*df3X.loc[df3X.state == third_states[0]].shape[0]
-
-    ######### loading and cleaning vaccine data #########
-
-    # Load in vaccination data by state and date
-    vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
-        parse_dates=['date']
+        
+    delta_vaccination_by_state_array = process_vax_data_array(
+        data_date=data_date,
+        third_states=third_states,
+        third_end_date=third_end_date, 
+        effect='effect_delta'
     )
-    # there are a couple NA's early on in the time series but is likely due to slightly different start dates
-    vaccination_by_state.fillna(1, inplace=True)
-    vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
-
-    # display the latest available date in the NSW data (will be the same date between states)
-    print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
-
-    # Get only the dates we need + 1 (this serves as the initial value)
-    vaccination_by_state = vaccination_by_state[
-        (vaccination_by_state.date >= pd.to_datetime(third_start_date) - timedelta(days=1)) & 
-        (vaccination_by_state.date <= third_end_date)
-    ]  
-    vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
-    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
-
-    # If we are missing recent vaccination data, fill it in with the most recent available data.
-    latest_vacc_data = vaccination_by_state.columns[-1]
-    if latest_vacc_data < pd.to_datetime(third_end_date):
-        vaccination_by_state = pd.concat(
-            [vaccination_by_state] +
-            [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
-            for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
-            axis=1
-        )
-        
-    # now get the intial vax effect on day -1 of the fitting 
-    vaccination_by_state_array_initial = np.zeros(len(third_states))
-    for (idx, s) in enumerate(third_states):
-        state_third_start = pd.to_datetime(third_date_range[s][0]) - timedelta(days=1)
-        vaccination_by_state_array_initial[idx] = vaccination_by_state.loc[s][state_third_start]
-        
-    # Convert to simple array only useful to pass to stan (index 1 onwards)
-    vaccination_by_state_array = vaccination_by_state.iloc[:, 1:].to_numpy()
+    omicron_vaccination_by_state_array = process_vax_data_array(
+        data_date=data_date,                                                        
+        third_states=third_states, 
+        third_end_date=third_end_date, 
+        effect='effect_omicron'
+    )
 
     # Make state by state arrays
     state_index = {state: i+1 for i, state in enumerate(states_to_fit_all_waves)}
@@ -470,7 +482,8 @@ def get_data_for_posterior(data_date):
         'include_in_third_wave': include_in_third_wave,
         'pos_starts_sec': np.cumsum([sum(x) for x in include_in_sec_wave]).astype(int).tolist(),
         'pos_starts_third': np.cumsum([sum(x) for x in include_in_third_wave]).astype(int).tolist(),
-        'vaccine_effect_data': vaccination_by_state_array,
+        've_delta_data': delta_vaccination_by_state_array,
+        've_omicron_data': omicron_vaccination_by_state_array,
         'omicron_start_day': omicron_start_day,
         'omicron_constant_level_day': omicron_constant_level_day,
         'include_in_omicron_wave': include_in_omicron_wave,
