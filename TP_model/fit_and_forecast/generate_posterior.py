@@ -405,7 +405,8 @@ def get_data_for_posterior(data_date):
     policy = dfX.loc[dfX.state == first_states[0],'post_policy']     # this is the post ban policy
     policy_sec_wave = [1]*df2X.loc[df2X.state == sec_states[0]].shape[0]
     policy_third_wave = [1]*df3X.loc[df3X.state == third_states[0]].shape[0]
-        
+     
+    # read in the vaccination data    
     delta_vaccination_by_state_array = process_vax_data_array(
         data_date=data_date,
         third_states=third_states,
@@ -542,8 +543,8 @@ def run_stan(data_date):
         df_fit = fit.to_frame()
         df_fit.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
     
-    return None 
-            
+    return None             
+
             
 def plot_and_save_posterior_samples(data_date):
     """
@@ -876,44 +877,6 @@ def plot_and_save_posterior_samples(data_date):
         include_in_third_wave.append(df3X.loc[df3X.state == state, 'is_third_wave'].values) 
         include_in_omicron_wave.append(df3X.loc[df3X.state == state, 'is_omicron_wave'].values) 
 
-    ######### loading and cleaning vaccine data #########
-
-    # Load in vaccination data by state and date
-    vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
-        parse_dates=['date']
-    )
-    # there are a couple NA's early on in the time series but is likely due to slightly different start dates
-    vaccination_by_state.fillna(1, inplace=True)
-    vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
-
-    # display the latest available date in the NSW data (will be the same date between states)
-    print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
-
-    # Get only the dates we need + 1 (this serves as the initial value)
-    vaccination_by_state = vaccination_by_state[
-        (vaccination_by_state.date >= pd.to_datetime(third_start_date) - timedelta(days=1)) & 
-        (vaccination_by_state.date <= third_end_date)
-    ]  
-    vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
-    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
-
-    # If we are missing recent vaccination data, fill it in with the most recent available data.
-    latest_vacc_data = vaccination_by_state.columns[-1]
-    if latest_vacc_data < pd.to_datetime(third_end_date):
-        vaccination_by_state = pd.concat(
-            [vaccination_by_state] +
-            [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
-            for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
-            axis=1
-        )
-        
-    # now get the intial vax effect on day -1 of the fitting 
-    vaccination_by_state_array_initial = np.zeros(len(third_states))
-    for (idx, s) in enumerate(third_states):
-        state_third_start = pd.to_datetime(third_date_range[s][0]) - timedelta(days=1)
-        vaccination_by_state_array_initial[idx] = vaccination_by_state.loc[s][state_third_start]
-
     # Make state by state arrays
     state_index = {state: i for i, state in enumerate(states_to_fit_all_waves)}
         
@@ -1164,7 +1127,7 @@ def plot_and_save_posterior_samples(data_date):
     RL_by_state = {state: samples_mov_gamma['R_Li.'+str(i+1)].values for state, i in state_index.items()}
     ax3 = predict_plot(samples_mov_gamma, df.loc[(df.date >= start_date) & 
                                                 (df.date <= end_date)], 
-                    gamma=True, moving=True, split=split, grocery=True, ban=ban,
+                    moving=True, split=split, grocery=True, ban=ban,
                     R=RL_by_state, var=True, md_arg=md,
                     rho=first_states, R_I=samples_mov_gamma.R_I.values,
                     prop=survey_X.loc[start_date:end_date]) 
@@ -1182,7 +1145,7 @@ def plot_and_save_posterior_samples(data_date):
         # plot only if there is second phase data - have to have second_phase=True
         ax4 = predict_plot(samples_mov_gamma, df.loc[(df.date >= sec_start_date) & 
                                                     (df.date <= sec_end_date)], 
-                        gamma=True, moving=True, split=split, grocery=True, ban=ban,
+                        moving=True, split=split, grocery=True, ban=ban,
                         R=RL_by_state, var=True, md_arg=md,
                         rho=sec_states, second_phase=True,
                         R_I=samples_mov_gamma.R_I.values, prop=survey_X.loc[sec_start_date:sec_end_date])  
@@ -1198,141 +1161,87 @@ def plot_and_save_posterior_samples(data_date):
 
     # Load in vaccination data by state and date
     vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
+        'data/vaccine_effect_timeseries_with_omicron_'+data_date.strftime('%Y-%m-%d')+'.csv', 
         parse_dates=['date']
     )
     # there are a couple NA's early on in the time series but is likely due to slightly different start dates
     vaccination_by_state.fillna(1, inplace=True)
-    vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
+    vaccination_by_state_delta = vaccination_by_state[['state', 'date', 'effect_delta']]
+    vaccination_by_state_omicron = vaccination_by_state[['state', 'date', 'effect_omicron']]
 
     # display the latest available date in the NSW data (will be the same date between states)
     print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
 
-    vaccination_by_state = vaccination_by_state  # Get only the dates we need.
-    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
+    vaccination_by_state_delta = vaccination_by_state_delta.pivot(index='state', columns='date', values='effect_delta')  # Convert to matrix form
+    vaccination_by_state_omicron = vaccination_by_state_omicron.pivot(index='state', columns='date', values='effect_omicron')  # Convert to matrix form
 
     # If we are missing recent vaccination data, fill it in with the most recent available data.
-    latest_vacc_data = vaccination_by_state.columns[-1]
+    latest_vacc_data = vaccination_by_state_omicron.columns[-1]
     if latest_vacc_data < pd.to_datetime(third_end_date):
-        vaccination_by_state = pd.concat(
-            [vaccination_by_state] +
-            [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
+        vaccination_by_state_delta = pd.concat(
+            [vaccination_by_state_delta] +
+            [pd.Series(vaccination_by_state_delta[latest_vacc_data], name=day) 
+            for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
+            axis=1
+        )
+        vaccination_by_state_omicron = pd.concat(
+            [vaccination_by_state_omicron] +
+            [pd.Series(vaccination_by_state_omicron[latest_vacc_data], name=day) 
             for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
             axis=1
         )
 
-    ######### plotting the inferred vaccine effect trajectory #########
     # get the dates for vaccination
-    dates = vaccination_by_state.columns
-
-    # find days after the third start date began that we want to apply the effect — currently this is fixed from the
-    # 20th of Aug and is not a problem with ACT as this is just a plot of the posterior vaccine effect
-    heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(vaccination_start_date)).days
-
-    third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
+    dates = vaccination_by_state_delta.columns
 
     third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
     third_days_cumulative = np.append([0], np.cumsum([v for v in third_days.values()]))
-    vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
+    delta_ve_idx_ranges = {
+        k: range(third_days_cumulative[i], third_days_cumulative[i+1]) 
+        for (i, k) in enumerate(third_days.keys())}
     third_days_tot = sum(v for v in third_days.values())
-    sampled_vax_effects_all = samples_mov_gamma[["vacc_effect." + str(j+1) for j in range(0, third_days_tot)]].T
+    
+    # construct a range of dates for omicron which starts at the maximum of the start date for that state or the Omicron start date
+    third_omicron_date_range = {
+        k: pd.date_range(start=max(v[0], pd.to_datetime(omicron_start_date)+timedelta(1)), end=third_end_date).values
+        for (k, v) in third_date_range.items()}
+    third_omicron_days = {k: v.shape[0] for (k, v) in third_omicron_date_range.items()}
+    third_omicron_days_cumulative = np.append([0], np.cumsum([v for v in third_omicron_days.values()]))
+    omicron_ve_idx_ranges = {
+        k: range(third_omicron_days_cumulative[i], third_omicron_days_cumulative[i+1]) 
+        for (i, k) in enumerate(third_omicron_days.keys())}
+    third_omicron_days_tot = sum(v for v in third_omicron_days.values())
+    
+    # extrac the samples 
+    delta_ve_samples = samples_mov_gamma[["ve_delta." + str(j+1) for j in range(third_days_tot)]].T
+    omicron_ve_samples = samples_mov_gamma[["ve_omicron." + str(j+1) for j in range(third_omicron_days_tot)]].T
+    
+    # now we plot and save the adjusted ve time series to be read in by the forecasting 
+    plot_adjusted_ve(
+        data_date, 
+        samples_mov_gamma,
+        states, 
+        vaccination_by_state_delta,
+        third_states, 
+        third_date_range, 
+        delta_ve_samples, 
+        delta_ve_idx_ranges, 
+        results_dir, 
+        "delta")
+    
+    plot_adjusted_ve(
+        data_date, 
+        samples_mov_gamma,
+        states, 
+        vaccination_by_state_omicron,
+        third_states, 
+        third_omicron_date_range, 
+        omicron_ve_samples, 
+        omicron_ve_idx_ranges, 
+        results_dir, 
+        "omicron")
 
-    fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
-    # temporary state vector
-    # states_tmp = ['ACT']
-    # matplotlib.use('MacOSX')
-
-    # make a dataframe for the adjusted vacc_ts
-    df_vacc_ts_adjusted = pd.DataFrame()
-
-    # for i, state in enumerate(third_states):
-    for i, state in enumerate(states):
-    # for i, state in enumerate(states_tmp):
-        # grab states vaccination data 
-        vacc_ts_data = vaccination_by_state.loc[state]
-
-        # apply different vaccine form depending on if NSW
-        if state in third_states:
-            # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-            vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[state],:]
-            # get before and after fitting and tile them
-            vacc_ts_data_before = pd.concat(
-                [vacc_ts_data.loc[vacc_ts_data.index < third_date_range[state][0]]] * samples_mov_gamma.shape[0], 
-                axis=1
-            )
-            vacc_ts_data_after = pd.concat(
-                [vacc_ts_data.loc[vacc_ts_data.index > third_date_range[state][-1]]] * samples_mov_gamma.shape[0], 
-                axis=1
-            )
-            # rename columns for easy merging
-            vacc_ts_data_before.columns = vacc_tmp.columns
-            vacc_ts_data_after.columns = vacc_tmp.columns
-            # merge in order
-            # vacc_ts = pd.concat(
-            #     [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after], axis=0, ignore_index=True         
-            # )
-            vacc_ts = pd.concat(
-                [vacc_ts_data_before, vacc_tmp], axis=0, ignore_index=True         
-            )
-            vacc_ts.set_index(vacc_ts_data.index[:vacc_ts.shape[0]], inplace=True)
-            # vacc_ts = pd.concat(
-            #     [vacc_ts_data_before, vacc_tmp], axis=0, ignore_index=True         
-            # )
-            # reset the index to be the dates for easier information handling
-            # vacc_ts.set_index(vacc_ts_data.index[:vacc_ts.shape[0]], inplace=True)
-            
-        else:
-            # just tile the data
-            vacc_ts = pd.concat(
-                [vacc_ts_data] * samples_mov_gamma.shape[0], 
-                axis=1
-            )
-            # reset the index to be the dates for easier information handling
-            vacc_ts.set_index(vacc_ts_data.index, inplace=True)
-            # need to name columns samples for consistent indexing
-            vacc_ts.columns = range(0, samples_mov_gamma.shape[0])
-                        
-        dates = vacc_ts.index
-        vals = vacc_ts.median(axis=1).values
-        state_vec = np.repeat([state], vals.shape[0])
-        df_vacc_ts_adjusted = pd.concat([df_vacc_ts_adjusted, pd.DataFrame({'state': state_vec, 'date': dates, 'effect': vals})])
-                        
-        # create zero array to fill in with the full vaccine effect model
-        vacc_eff = np.zeros_like(vacc_ts)
-
-        # * Note that in here we apply the entire sample to the vaccination data to create a days by samples array
-        for ii in range(vacc_eff.shape[0]):
-            vacc_eff[ii] = vacc_ts.iloc[ii, :]
-
-        row = i % 4
-        col = i // 4
-
-        ax[row, col].plot(dates, vaccination_by_state.loc[state][:dates.shape[0]].values, label='data', color='C1')
-        ax[row, col].plot(dates, np.median(vacc_eff, axis=1), label='fit', color='C0')
-        ax[row, col].fill_between(dates, 
-                                np.quantile(vacc_eff, 0.25, axis=1), 
-                                np.quantile(vacc_eff, 0.75, axis=1), color='C0', alpha=0.4)
-        ax[row, col].fill_between(dates, 
-                                np.quantile(vacc_eff, 0.05, axis=1), 
-                                np.quantile(vacc_eff, 0.95, axis=1), color='C0', alpha=0.4)
-        ax[row, col].set_title(state)
-        ax[row, col].tick_params(axis='x', rotation=90)
-
-    ax[1, 0].set_ylabel('reduction in TP from vaccination')
-
-    df_vacc_ts_adjusted.to_csv('results/adjusted_vaccine_ts' + data_date.strftime("%Y-%m-%d") + '.csv', index=False)
-
-    # plt.show()
-    plt.savefig(results_dir + data_date.strftime("%Y-%m-%d") + "vaccine_reduction_in_TP.png", dpi=144)
-
-    # remove plots from memory
-    fig.clear()
-    plt.close(fig)
-
-    # flag for plotting the third wave fit
-    plot_third_fit = True
-
-    # extract the propn of omicron to delta
+    # extract the prop of omicron to delta and save 
     total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
     prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta." + str(j+1) for j in range(0, total_N_p_third_omicron)]]
     pd.DataFrame(prop_omicron_to_delta.to_csv('results/prop_omicron_to_delta' + data_date.strftime("%Y-%m-%d") + '.csv'))
@@ -1346,12 +1255,12 @@ def plot_and_save_posterior_samples(data_date):
         ax4 = predict_plot(
             samples_mov_gamma, 
             df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
-            third_date_range=third_date_range, 
-            gamma=True, moving=True, split=split, grocery=True, ban=ban,
+            third_date_range=third_date_range, third_omicron_date_range=third_omicron_date_range, 
+            moving=True, split=split, grocery=True, ban=ban,
             R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
             R_I=samples_mov_gamma.R_I.values,
             prop=survey_X.loc[third_start_date:third_end_date], masks_prop=mask_wearing_X[third_start_date:third_end_date], 
-            vaccination=vaccination_by_state, third_states=third_states, prop_omicron_to_delta=prop_omicron_to_delta)  # by states....
+            third_states=third_states, prop_omicron_to_delta=prop_omicron_to_delta)  # by states....
         
         for ax in ax4:
             for a in ax:
@@ -1400,7 +1309,8 @@ def plot_and_save_posterior_samples(data_date):
     var_to_csv = var_to_csv + predictors + [
         'R_Li.'+str(i+1) for i in range(len(states_to_fit_all_waves))
     ]
-    var_to_csv = var_to_csv + ["vacc_effect." + str(j+1) for j in range(third_days_tot)]
+    var_to_csv = var_to_csv + ["ve_delta." + str(j+1) for j in range(third_days_tot)]
+    var_to_csv = var_to_csv + ["ve_omicron." + str(j+1) for j in range(third_omicron_days_tot)]
     var_to_csv = var_to_csv + ["prop_omicron_to_delta." + str(j+1) for j in range(total_N_p_third_omicron)]
 
     # save the posterior
@@ -1414,8 +1324,8 @@ def main(data_date):
     Runs the stan model in parts to cut down on memory. 
     """
     
-    get_data_for_posterior(data_date=data_date)
-    run_stan(data_date=data_date)
+    # get_data_for_posterior(data_date=data_date)
+    # run_stan(data_date=data_date)
     plot_and_save_posterior_samples(data_date=data_date)
     
     return None 
