@@ -57,8 +57,9 @@ data {
     // this is used to index starting points in include_in_XX_wave 
     int pos_starts_sec[j_sec_wave];
     int pos_starts_third[j_third_wave];
-    // vax data
-    vector[N_third_wave] vaccine_effect_data[j_third_wave];
+    // vax data for each strain
+    vector[N_third_wave] ve_delta_data[j_third_wave];
+    vector[N_third_wave] ve_omicron_data[j_third_wave];     // Omicron VE only fit to over the correct range
     // data for handling omicron 
     int omicron_start_day;
     int omicron_constant_level_day;
@@ -104,7 +105,8 @@ parameters {
     real<lower=0> additive_voc_effect_delta;
     real<lower=0> additive_voc_effect_omicron;
     // vaccine model parameters 
-    vector<lower=0,upper=1>[total_N_p_third] vacc_effect;
+    vector<lower=0,upper=1>[total_N_p_third] ve_delta;
+    vector<lower=0,upper=1>[total_N_p_third_omicron] ve_omicron;
     real<lower=0,upper=1> reduction_vacc_effect_omicron;
     vector<lower=0,upper=1>[total_N_p_third_omicron] prop_omicron_to_delta;
     real<lower=0,upper=1> susceptible_depletion_factor;    
@@ -180,7 +182,6 @@ transformed parameters {
         // parameters for the vaccination effects
         real voc_term; 
         real vacc_term; 
-        real vacc_effect_omicron;
         
         if (i == 1){
             pos = 1;
@@ -197,13 +198,12 @@ transformed parameters {
 
                 if (n <= omicron_start_day){
                     voc_term = voc_effect_delta;
-                    vacc_term = vacc_effect[pos];
+                    vacc_term = ve_delta[pos];
                 } else {
-                    vacc_effect_omicron = 1 - reduction_vacc_effect_omicron*(1-vacc_effect[pos]);
                     voc_term = prop_omicron_to_delta[pos_omicron2]*voc_effect_omicron 
                         + (1-prop_omicron_to_delta[pos_omicron2])*voc_effect_delta;
-                    vacc_term = prop_omicron_to_delta[pos_omicron2]*vacc_effect_omicron 
-                        + (1-prop_omicron_to_delta[pos_omicron2])*vacc_effect[pos];
+                    vacc_term = prop_omicron_to_delta[pos_omicron2]*ve_omicron[pos_omicron2] 
+                        + (1-prop_omicron_to_delta[pos_omicron2])*ve_delta[pos];
                     pos_omicron2 += 1;
                 }
                 
@@ -237,18 +237,20 @@ model {
     int pos_omicron2;
     int pos_omicron2_start;
     int pos_omicron2_end;
+    real n_star;    // keeps track of the day where the first condition for omicron met
 
     // fixed parameters for the vaccine effect priors
     real mean_vax;
-    real var_vax = 0.00005;
+    real var_vax = 0.0005;
     array[N_third_wave] real a_vax;
     array[N_third_wave] real b_vax;
     
     // drifting omicron proportion to 0.9
     real long_term_mean_omicron = 0.85;
     real drift_factor;
+    real pos_drift_counter;
     real mean_omicron; 
-    real var_omicron = 0.00005; 
+    real var_omicron = 0.005; 
     array[N_third_wave] real a_omicron;
     array[N_third_wave] real b_omicron;
     
@@ -268,7 +270,7 @@ model {
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
     additive_voc_effect_delta ~ gamma(1.5*1.5/0.05, 1.5/0.05);
-    additive_voc_effect_omicron ~ gamma(1.5*1.5/0.05, 1.5/0.05);
+    additive_voc_effect_omicron ~ gamma(1.5*1.5/0.025, 1.5/0.025);
 
     // reduction in vaccine effect due to omicron
     reduction_vacc_effect_omicron ~ beta(40, 60);   // mean of 0.4 - slightly lower than supplied VE ts 
@@ -284,10 +286,19 @@ model {
 
     // first wave model
     for (i in 1:j_first_wave) { 
-        prop_md[:,i] ~ beta(1+count_md[i][:], 1+respond_md[i][:]-count_md[i][:]);
-        brho[:,i] ~ beta(0.5+imported[:,i], 0.5+local[:,i]);
+        prop_md[:,i] ~ beta(
+            1+count_md[i][:], 
+            1+respond_md[i][:]-count_md[i][:]
+        );
+        brho[:,i] ~ beta(
+            0.5+imported[:,i], 
+            0.5+local[:,i]
+        );
         // likelihood
-        mu_hat[:,i] ~ gamma(square(Reff[:,i]) ./ (sigma2[:,i]), Reff[:,i] ./ sigma2[:,i]);
+        mu_hat[:,i] ~ gamma(
+            square(Reff[:,i]) ./ (sigma2[:,i]), 
+            Reff[:,i] ./ sigma2[:,i]
+        );
     }
 
     // second wave model
@@ -328,8 +339,10 @@ model {
     // third wave model
     for (i in 1:j_third_wave){
         pos_omicron_counter = 0;
+        pos_drift_counter = 0;
         pos_idxs = 1;
         pos_omicron_idxs = 1;
+        n_star = 0;
         
         if (i == 1){
             pos2_start = 1;
@@ -364,10 +377,10 @@ model {
             0.5+local_third_wave[idxs_third[1:pos_idxs-1],i]
         );
         
-        // calculate the shape and scale for each n 
+        // inferring VE for Delta 
         for (n in 1:pos_idxs-1){
             // vaccine effect has mean the supplied estimate
-            mean_vax = vaccine_effect_data[i][idxs_third[n]];
+            mean_vax = ve_delta_data[i][idxs_third[n]];
             if (mean_vax*(1-mean_vax) > var_vax) {
                 a_vax[n] = mean_vax*(mean_vax*(1-mean_vax)/var_vax - 1);
                 b_vax[n] = (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax - 1);
@@ -384,20 +397,57 @@ model {
         }
         
         // sample the vaccination effect 
-        vacc_effect[pos2_start:pos2_end] ~ beta(
+        ve_delta[pos2_start:pos2_end] ~ beta(
             a_vax[1:pos_idxs-1], 
             b_vax[1:pos_idxs-1]
         );
         
+        // inferring VE for Omicron
+        for (n in 1:N_third_wave){ 
+            if (include_in_omicron_wave[i][n] == 1){
+                idxs_third_omicron[pos_omicron_idxs] = n;
+                pos_omicron_idxs += 1;  
+            }
+        }
+        // calculate the shape and scale for each n 
+        for (n in 1:pos_omicron_idxs-1){
+            // vaccine effect has mean the supplied estimate
+            mean_vax = ve_omicron_data[i][idxs_third_omicron[n]];
+            if (mean_vax*(1-mean_vax) > var_vax) {
+                a_vax[n] = mean_vax*(mean_vax*(1-mean_vax)/var_vax - 1);
+                b_vax[n] = (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax - 1);
+            } else if (mean_vax > 0.98) {
+                a_vax[n] = 50;
+                b_vax[n] = 2;
+            } else if (mean_vax < 0.02) {
+                a_vax[n] = 2; 
+                b_vax[n] = 50;
+            } else {
+                a_vax[n] = 1; 
+                b_vax[n] = 1;
+            }
+        }
+        
+        // sample the vaccination effect 
+        ve_omicron[pos_omicron2_start:pos_omicron2_end] ~ beta(
+            a_vax[1:pos_omicron_idxs-1], 
+            b_vax[1:pos_omicron_idxs-1]
+        );
+        
+        // reset pos_omicron_idxs 
+        pos_omicron_idxs = 1;
+        
         for (n in 1:N_third_wave){
-            if ((include_in_third_wave[i][n] == 1) && (include_in_omicron_wave[i][n] == 1)){
+            if (include_in_omicron_wave[i][n] == 1){
                 if (n <= omicron_start_day+15 || pos_omicron_counter <= 3){
                     // sample differently pre December 1st or in the first 5 days
                     a_omicron[pos_omicron_idxs] = 2;
                     b_omicron[pos_omicron_idxs] = 50;
-                } else if (pos_omicron_counter < N_third_wave - omicron_constant_level_day) {
+                    n_star = n; 
+                } else if (n <= omicron_constant_level_day) {
+                    pos_drift_counter += 1.0;
                     // the drift 
-                    drift_factor = pos_omicron_counter / ((N_third_wave - omicron_constant_level_day)*1.0);
+                    drift_factor = pos_drift_counter / ((omicron_constant_level_day - n_star)*1.0);
                     // mean is a mixture of the mean proportion for last few days and the drift to 0.95
                     mean_omicron = (1-drift_factor)*mean(prop_omicron_to_delta[(pos_omicron_idxs-3):(pos_omicron_idxs-1)]) 
                         + drift_factor*long_term_mean_omicron;

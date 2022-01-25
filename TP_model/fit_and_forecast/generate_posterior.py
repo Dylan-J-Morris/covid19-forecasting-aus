@@ -72,7 +72,7 @@ def process_vax_data_array(data_date, third_states, third_end_date, effect="effe
 def get_data_for_posterior(data_date):
     """
     Read in the various datastreams and combine the samples into a dictionary that we then 
-    dump to a json file. 
+    dump to a pickle file. 
     """
 
     print('Performing inference on state level Reff')
@@ -281,7 +281,7 @@ def get_data_for_posterior(data_date):
     for state in sec_states:
         df2X.loc[df2X.state == state, 'is_sec_wave'] = df2X.loc[df2X.state == state].date.isin(sec_date_range[state]).astype(int).values
 
-    # used to index what dates are also featured in omicron 
+    # used to index what dates are featured in omicron AND third wave
     omicron_date_range = pd.date_range(start=omicron_start_date, end=third_end_date)
 
     df3X['is_third_wave'] = 0
@@ -1203,7 +1203,7 @@ def plot_and_save_posterior_samples(data_date):
     
     # construct a range of dates for omicron which starts at the maximum of the start date for that state or the Omicron start date
     third_omicron_date_range = {
-        k: pd.date_range(start=max(v[0], pd.to_datetime(omicron_start_date)+timedelta(1)), end=third_end_date).values
+        k: pd.date_range(start=max(v[0], pd.to_datetime(omicron_start_date)), end=v[-1]).values
         for (k, v) in third_date_range.items()}
     third_omicron_days = {k: v.shape[0] for (k, v) in third_omicron_date_range.items()}
     third_omicron_days_cumulative = np.append([0], np.cumsum([v for v in third_omicron_days.values()]))
