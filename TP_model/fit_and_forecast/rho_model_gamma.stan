@@ -66,7 +66,7 @@ data {
     vector[N_third_wave] include_in_omicron_wave[j_third_wave];
     int total_N_p_third_omicron;
     int pos_starts_third_omicron[j_third_wave];
-    int pop_size_array[j_total];    
+    int pop_size_array[j_total];
     
 }
 
@@ -107,7 +107,6 @@ parameters {
     // vaccine model parameters 
     vector<lower=0,upper=1>[total_N_p_third] ve_delta;
     vector<lower=0,upper=1>[total_N_p_third_omicron] ve_omicron;
-    real<lower=0,upper=1> reduction_vacc_effect_omicron;
     vector<lower=0,upper=1>[total_N_p_third_omicron] prop_omicron_to_delta;
     real<lower=0,upper=1> susceptible_depletion_factor;    
     
@@ -179,9 +178,10 @@ transformed parameters {
         int pos_omicron2;
         real TP_local;
         real social_measures;
-        // parameters for the vaccination effects
         real voc_term; 
         real vacc_term; 
+        real susceptible_depletion_term;
+        real proportion_infected; 
         
         if (i == 1){
             pos = 1;
@@ -212,14 +212,18 @@ transformed parameters {
                     +md_third_wave[pos]
                     *masks_third_wave[pos]
                     *policy_third_wave[n])
-                    *inv_logit(Mob_third_wave[i][n,:]*(bet));
-
-                TP_local = R_Li[map_to_state_index_third[i]]*2*social_measures*voc_term*vacc_term;
+                    *2*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 
-                mu_hat_third_wave[pos] = (
-                    (brho_third_wave[pos]*R_I+(1-brho_third_wave[pos])*TP_local)*(
-                    1-susceptible_depletion_factor*cumulative_local_third[n,i]/pop_size_array[map_to_state_index_third[i]])
-                );
+                proportion_infected = (cumulative_local_third[n,i]*1.0)/(pop_size_array[map_to_state_index_third[i]]*1.0);
+                susceptible_depletion_term = 1-susceptible_depletion_factor*proportion_infected;
+                
+                TP_local = R_Li[map_to_state_index_third[i]]
+                    *social_measures
+                    *voc_term
+                    *vacc_term
+                    *susceptible_depletion_term;
+                
+                mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I+(1-brho_third_wave[pos])*TP_local;
                     
                 pos += 1;
             }
@@ -241,7 +245,7 @@ model {
 
     // fixed parameters for the vaccine effect priors
     real mean_vax;
-    real var_vax = 0.0005;
+    real var_vax = 0.0025;
     array[N_third_wave] real a_vax;
     array[N_third_wave] real b_vax;
     
@@ -250,7 +254,7 @@ model {
     real drift_factor;
     real pos_drift_counter;
     real mean_omicron; 
-    real var_omicron = 0.005; 
+    real var_omicron = 0.0025; 
     array[N_third_wave] real a_omicron;
     array[N_third_wave] real b_omicron;
     
@@ -271,9 +275,6 @@ model {
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
     additive_voc_effect_delta ~ gamma(1.5*1.5/0.05, 1.5/0.05);
     additive_voc_effect_omicron ~ gamma(1.5*1.5/0.025, 1.5/0.025);
-
-    // reduction in vaccine effect due to omicron
-    reduction_vacc_effect_omicron ~ beta(40, 60);   // mean of 0.4 - slightly lower than supplied VE ts 
 
     // susceptible depletion
     susceptible_depletion_factor ~ beta(2, 2);

@@ -29,18 +29,19 @@ from params import truncation_days, download_google_automatically, \
     run_inference_only, third_start_date, run_inference, \
     omicron_start_date, pop_sizes
 
-def process_vax_data_array(data_date, third_states, third_end_date, effect="effect_delta"):
+def process_vax_data_array(data_date, third_states, third_end_date, variant="Delta"):
     """
     Processes the vaccination data to an array for either the Omicron or Delta strain. 
     """
     # Load in vaccination data by state and date
     vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_with_omicron_'+data_date.strftime('%Y-%m-%d')+'.csv', 
+        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
         parse_dates=['date']
     )
     # there are a couple NA's early on in the time series but is likely due to slightly different start dates
     vaccination_by_state.fillna(1, inplace=True)
-    vaccination_by_state = vaccination_by_state[['state', 'date', effect]]
+    vaccination_by_state = vaccination_by_state.loc[vaccination_by_state['variant'] == variant]
+    vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
 
     # display the latest available date in the NSW data (will be the same date between states)
     print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
@@ -51,7 +52,7 @@ def process_vax_data_array(data_date, third_states, third_end_date, effect="effe
         (vaccination_by_state.date <= third_end_date)
     ]  
     vaccination_by_state = vaccination_by_state[vaccination_by_state['state'].isin(third_states)]  # Isolate fitting states
-    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values=effect)  # Convert to matrix form
+    vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
     # If we are missing recent vaccination data, fill it in with the most recent available data.
     latest_vacc_data = vaccination_by_state.columns[-1]
@@ -411,13 +412,13 @@ def get_data_for_posterior(data_date):
         data_date=data_date,
         third_states=third_states,
         third_end_date=third_end_date, 
-        effect='effect_delta'
+        variant='Delta'
     )
     omicron_vaccination_by_state_array = process_vax_data_array(
         data_date=data_date,                                                        
         third_states=third_states, 
         third_end_date=third_end_date, 
-        effect='effect_omicron'
+        variant='Omicron'
     )
 
     # Make state by state arrays
@@ -1161,19 +1162,19 @@ def plot_and_save_posterior_samples(data_date):
 
     # Load in vaccination data by state and date
     vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries_with_omicron_'+data_date.strftime('%Y-%m-%d')+'.csv', 
+        'data/vaccine_effect_timeseries'+data_date.strftime('%Y-%m-%d')+'.csv', 
         parse_dates=['date']
     )
     # there are a couple NA's early on in the time series but is likely due to slightly different start dates
     vaccination_by_state.fillna(1, inplace=True)
-    vaccination_by_state_delta = vaccination_by_state[['state', 'date', 'effect_delta']]
-    vaccination_by_state_omicron = vaccination_by_state[['state', 'date', 'effect_omicron']]
+    vaccination_by_state_delta = vaccination_by_state.loc[vaccination_by_state['variant'] == 'Delta'][['state', 'date', 'effect']]
+    vaccination_by_state_omicron = vaccination_by_state.loc[vaccination_by_state['variant'] == 'Omicron'][['state', 'date', 'effect']]
 
     # display the latest available date in the NSW data (will be the same date between states)
     print("Latest date in vaccine data is {}".format(vaccination_by_state[vaccination_by_state.state == 'NSW'].date.values[-1]))
 
-    vaccination_by_state_delta = vaccination_by_state_delta.pivot(index='state', columns='date', values='effect_delta')  # Convert to matrix form
-    vaccination_by_state_omicron = vaccination_by_state_omicron.pivot(index='state', columns='date', values='effect_omicron')  # Convert to matrix form
+    vaccination_by_state_delta = vaccination_by_state_delta.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
+    vaccination_by_state_omicron = vaccination_by_state_omicron.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 
     # If we are missing recent vaccination data, fill it in with the most recent available data.
     latest_vacc_data = vaccination_by_state_omicron.columns[-1]
@@ -1324,8 +1325,8 @@ def main(data_date):
     Runs the stan model in parts to cut down on memory. 
     """
     
-    # get_data_for_posterior(data_date=data_date)
-    # run_stan(data_date=data_date)
+    get_data_for_posterior(data_date=data_date)
+    run_stan(data_date=data_date)
     plot_and_save_posterior_samples(data_date=data_date)
     
     return None 
