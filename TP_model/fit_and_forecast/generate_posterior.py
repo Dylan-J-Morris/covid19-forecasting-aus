@@ -538,7 +538,7 @@ def run_stan(data_date):
         with open(results_dir+filename, 'w') as f:
             print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
                                             'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                            'reduction_vacc_effect_omicron', 'susceptible_depletion_factor']), file=f)
+                                            'susceptible_depletion_factor']), file=f)
 
         df_fit = fit.to_frame()
         df_fit.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
@@ -1304,7 +1304,7 @@ def plot_and_save_posterior_samples(data_date):
         'R_I', 'R_L', 'sig', 'theta_md', 
         'theta_masks', 'voc_effect_alpha', 
         'voc_effect_delta', 'voc_effect_omicron', 
-        'reduction_vacc_effect_omicron', 'susceptible_depletion_factor'
+        'susceptible_depletion_factor'
     ]
     var_to_csv = var_to_csv + predictors + [
         'R_Li.'+str(i+1) for i in range(len(states_to_fit_all_waves))

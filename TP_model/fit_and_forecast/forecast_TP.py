@@ -58,6 +58,7 @@ third_date_range = {
 # Get Google Data - Don't use the smoothed data? 
 df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 
+third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
 # Load in vaccination data by state and date which should have the same date as the NNDSS/linelist data
 # use the Curtin VE
 # vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+ 
@@ -65,15 +66,23 @@ df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 #                                     '.csv', 
 #                                     parse_dates=['date'])
 # use the inferred VE 
-vaccination_by_state = pd.read_csv('results/adjusted_vaccine_ts'+ 
+vaccination_by_state_delta = pd.read_csv('results/adjusted_vaccine_ts_delta'+ 
                                     data_date.strftime('%Y-%m-%d')+
                                     '.csv', 
                                     parse_dates=['date'])
-vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
-third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
-vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
+vaccination_by_state_delta = vaccination_by_state_delta[['state', 'date', 'effect']]
+vaccination_by_state_delta = vaccination_by_state_delta.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 # Convert to simple array for indexing
-vaccination_by_state_array = vaccination_by_state.to_numpy()
+vaccination_by_state_delta_array = vaccination_by_state_delta.to_numpy()
+
+vaccination_by_state_omicron = pd.read_csv('results/adjusted_vaccine_ts_omicron'+ 
+                                    data_date.strftime('%Y-%m-%d')+
+                                    '.csv', 
+                                    parse_dates=['date'])
+vaccination_by_state_omicron = vaccination_by_state_omicron[['state', 'date', 'effect']]
+vaccination_by_state_omicron = vaccination_by_state_omicron.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
+# Convert to simple array for indexing
+vaccination_by_state_omicron_array = vaccination_by_state_omicron.to_numpy()
 
 # Get survey data
 surveys = pd.DataFrame()
@@ -215,6 +224,11 @@ fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
 axes.append(ax_states)
 figs.append(fig)
 
+var = 'Reduction in Reff due to vaccination'
+fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
+axes.append(ax_states)
+figs.append(fig)
+
 # Forecasting Params
 mob_samples = 100
 n_training = 14  # Period to examine trend
@@ -228,9 +242,8 @@ n_training_vaccination = 30  # period to create trend for vaccination
 # )
 # this is for when we use the inferred estimate
 max_vac_effect = 0.9*min(
-    vaccination_by_state.loc[s, ~vaccination_by_state.loc[s].isna()].values[-1] for s in states
+    vaccination_by_state_delta.loc[s, ~vaccination_by_state_delta.loc[s].isna()].values[-1] for s in states
 )
-
 
 # since this can be useful, predictor ordering is: 
 # ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
@@ -624,17 +637,17 @@ for i, state in enumerate(states):
     # current = [vaccination_by_state.loc[state].values[-1]] * mob_samples
     # current_tmp = [vaccination_by_state.loc[state].values[-1]] * mob_samples
     
-    # forecasting using the inferred VE 
-    mu_overall = np.mean(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_baseline:])
-    vacc_diffs = np.diff(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-n_training_vaccination:])
+    # forecasting using the inferred VE Delta
+    mu_overall = np.mean(vaccination_by_state_delta.loc[state, ~vaccination_by_state_delta.loc[state].isna()][-n_baseline:])
+    vacc_diffs = np.diff(vaccination_by_state_delta.loc[state, ~vaccination_by_state_delta.loc[state].isna()][-n_training_vaccination:])
     mu_diffs = np.mean(vacc_diffs)
     std_diffs = np.std(vacc_diffs)
-    vaccination_last_fit_date = vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].index.values[-1]
+    vaccination_last_fit_date = vaccination_by_state_delta.loc[state, ~vaccination_by_state_delta.loc[state].isna()].index.values[-1]
     extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_last_fit_date)).days
 
     # Set all values to current value but this will be filled 
-    current = [vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-1]] * mob_samples
-    current_tmp = [vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()][-1]] * mob_samples
+    current = [vaccination_by_state_delta.loc[state, ~vaccination_by_state_delta.loc[state].isna()][-1]] * mob_samples
+    current_tmp = [vaccination_by_state_delta.loc[state, ~vaccination_by_state_delta.loc[state].isna()][-1]] * mob_samples
     new_vacc_forecast = []
     # Forecast mobility forward sequentially by day.
     total_forecasting_days = n_forecast + extra_days_vacc
@@ -650,9 +663,39 @@ for i, state in enumerate(states):
         current = np.minimum(current, current + p_force*trend_force)
         new_vacc_forecast.append(current.tolist())
 
-    vacc_sims = np.vstack(new_vacc_forecast)  # Put forecast days together
-    vacc_sims = np.minimum(1, vacc_sims)
-    vacc_sims = np.maximum(max_vac_effect, vacc_sims)      # apply a maximum effect of 0.35 based off current observations from Nick
+    vacc_sims_delta = np.vstack(new_vacc_forecast)  # Put forecast days together
+    vacc_sims_delta = np.minimum(1, vacc_sims_delta)
+    vacc_sims_delta = np.maximum(max_vac_effect, vacc_sims_delta)
+    
+    # forecasting using the inferred VE Omicron
+    mu_overall = np.mean(vaccination_by_state_omicron.loc[state, ~vaccination_by_state_omicron.loc[state].isna()][-n_baseline:])
+    vacc_diffs = np.diff(vaccination_by_state_omicron.loc[state, ~vaccination_by_state_omicron.loc[state].isna()][-n_training_vaccination:])
+    mu_diffs = np.mean(vacc_diffs)
+    std_diffs = np.std(vacc_diffs)
+    vaccination_last_fit_date = vaccination_by_state_omicron.loc[state, ~vaccination_by_state_omicron.loc[state].isna()].index.values[-1]
+    extra_days_vacc = (pd.to_datetime(df_google.date.values[-1]) - pd.to_datetime(vaccination_last_fit_date)).days
+
+    # Set all values to current value but this will be filled 
+    current = [vaccination_by_state_omicron.loc[state, ~vaccination_by_state_omicron.loc[state].isna()][-1]] * mob_samples
+    current_tmp = [vaccination_by_state_omicron.loc[state, ~vaccination_by_state_omicron.loc[state].isna()][-1]] * mob_samples
+    new_vacc_forecast = []
+    # Forecast mobility forward sequentially by day.
+    total_forecasting_days = n_forecast + extra_days_vacc
+    
+    # convert current to numpy array so we can take advantage of logical indexing
+    current = np.array(current)
+    for i in range(total_forecasting_days):
+        p_force = (total_forecasting_days-i)/(total_forecasting_days)
+        # trend force is consistent for vaccination 
+        trend_force = np.random.normal(mu_diffs, std_diffs, size=mob_samples)
+        # take the minimum of the previuos vax effect or the forecasted estimate 
+        # mixture model (to get slowdown) of p_force*trend_force + (1-p_force)*0 (i.e. flatline)
+        current = np.minimum(current, current + p_force*trend_force)
+        new_vacc_forecast.append(current.tolist())
+
+    vacc_sims_omicron = np.vstack(new_vacc_forecast)  # Put forecast days together
+    vacc_sims_omicron = np.minimum(1, vacc_sims_omicron)
+    vacc_sims_omicron = np.maximum(max_vac_effect, vacc_sims_omicron)
 
     # get dates
     # if using the Curtin VE 
@@ -661,7 +704,7 @@ for i, state in enumerate(states):
     # if using the inferred VE 
     dd_vacc = [pd.to_datetime(vaccination_last_fit_date) + timedelta(days=x) for x in range(1, n_forecast+extra_days_vacc+1)]
 
-    for j, var in enumerate(predictors+['md_prop']+['masks_prop']+['vaccination']):
+    for j, var in enumerate(predictors+['md_prop']+['masks_prop']+['vaccination_delta']+['vaccination_omicron']):
         # Record data
         axs = axes[j]
         if (state == 'AUS') and (var == 'md_prop'):
@@ -681,12 +724,19 @@ for i, state in enumerate(states):
             outdata['mean'].extend(np.mean(masks_sims, axis=1))
             outdata['std'].extend(np.std(masks_sims, axis=1))
 
-        elif var == 'vaccination':
+        elif var == 'vaccination_delta':
             outdata['type'].extend([var]*len(dd_vacc))
             outdata['state'].extend([state]*len(dd_vacc))
             outdata['date'].extend([d.strftime('%Y-%m-%d') for d in dd_vacc])
-            outdata['mean'].extend(np.mean(vacc_sims, axis=1))
-            outdata['std'].extend(np.std(vacc_sims, axis=1))
+            outdata['mean'].extend(np.mean(vacc_sims_delta, axis=1))
+            outdata['std'].extend(np.std(vacc_sims_delta, axis=1))
+            
+        elif var == 'vaccination_omicron':
+            outdata['type'].extend([var]*len(dd_vacc))
+            outdata['state'].extend([state]*len(dd_vacc))
+            outdata['date'].extend([d.strftime('%Y-%m-%d') for d in dd_vacc])
+            outdata['mean'].extend(np.mean(vacc_sims_omicron, axis=1))
+            outdata['std'].extend(np.std(vacc_sims_omicron, axis=1))
 
         else:
             outdata['type'].extend([var]*len(dd))
@@ -713,13 +763,21 @@ for i, state in enumerate(states):
                                                  np.quantile(masks_sims, 0.25, axis=1),
                                                  np.quantile(masks_sims, 0.75, axis=1), color='k', alpha=0.1)
 
-            elif var == 'vaccination':
+            elif var == 'vaccination_delta':
                 # vaccination plot
-                axs[rownum, colnum].plot(vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].index, 
-                                         vaccination_by_state.loc[state, ~vaccination_by_state.loc[state].isna()].values, lw=1)
-                axs[rownum, colnum].plot(dd_vacc, np.median(vacc_sims, axis=1), color='C1', lw=1)
-                axs[rownum, colnum].fill_between(dd_vacc, np.quantile(vacc_sims, 0.25, axis=1),
-                                                 np.quantile(vacc_sims, 0.75, axis=1), color='C1', alpha=0.1)
+                axs[rownum, colnum].plot(vaccination_by_state_delta.loc[state, ~vaccination_by_state_delta.loc[state].isna()].index, 
+                                         vaccination_by_state_delta.loc[state, ~vaccination_by_state_delta.loc[state].isna()].values, lw=1)
+                axs[rownum, colnum].plot(dd_vacc, np.median(vacc_sims_delta, axis=1), color='C1', lw=1)
+                axs[rownum, colnum].fill_between(dd_vacc, np.quantile(vacc_sims_delta, 0.25, axis=1),
+                                                 np.quantile(vacc_sims_delta, 0.75, axis=1), color='C1', alpha=0.1)
+                
+            elif var == 'vaccination_omicron':
+                # vaccination plot
+                axs[rownum, colnum].plot(vaccination_by_state_omicron.loc[state, ~vaccination_by_state_omicron.loc[state].isna()].index, 
+                                         vaccination_by_state_omicron.loc[state, ~vaccination_by_state_omicron.loc[state].isna()].values, lw=1)
+                axs[rownum, colnum].plot(dd_vacc, np.median(vacc_sims_omicron, axis=1), color='C1', lw=1)
+                axs[rownum, colnum].fill_between(dd_vacc, np.quantile(vacc_sims_omicron, 0.25, axis=1),
+                                                 np.quantile(vacc_sims_omicron, 0.75, axis=1), color='C1', alpha=0.1)
 
             else:
                 # all other predictors
@@ -752,7 +810,7 @@ for i, state in enumerate(states):
                 axs[rownum, colnum].set_ylabel('Proportion of respondents\n micro-distancing', fontsize=7)
             elif var == 'masks_prop':
                 axs[rownum, colnum].set_ylabel('Proportion of respondents\n wearing masks', fontsize=7)
-            elif var == 'vaccination':
+            elif var == 'vaccination_delta' or var == 'vaccination_omicron':
                 axs[rownum, colnum].set_ylabel('Reduction in TP \n from vaccination', fontsize=7)
                 
     # historically we want to store the higher variance mobilities
@@ -779,58 +837,58 @@ for i, fig in enumerate(figs):
         fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/mask_wearing.png", 
                     dpi=400)
 
-    else:       # finally this plots the vaccination forecasts
+    elif i == len(predictors)+2:       # finally this plots the delta VE forecasts
         fig.tight_layout()
-        fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/vaccination.png", 
+        fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/delta_vaccination.png", 
+                    dpi=400)
+    else: # finally this plots the omicron VE forecasts
+        fig.tight_layout()
+        fig.savefig("figs/mobility_forecasts/"+data_date.strftime("%Y-%m-%d")+"/omicron_vaccination.png", 
                     dpi=400)
 
 df_out = pd.DataFrame.from_dict(outdata)
 
 df_md = df_out.loc[df_out.type == 'md_prop']
 df_masks = df_out.loc[df_out.type == 'masks_prop']
-df_vaccination = df_out.loc[df_out.type == 'vaccination']
+df_vaccination_delta = df_out.loc[df_out.type == 'vaccination_delta']
+df_vaccination_omicron = df_out.loc[df_out.type == 'vaccination_omicron']
 
-df_out = df_out.loc[df_out.type != 'vaccination']
+df_out = df_out.loc[df_out.type != 'vaccination_delta']
+df_out = df_out.loc[df_out.type != 'vaccination_omicron']
 df_out = df_out.loc[df_out.type != 'md_prop']
 df_out = df_out.loc[df_out.type != 'masks_prop']
 
 df_forecast = pd.pivot_table(df_out, columns=['type'], index=['date', 'state'], values=['mean'])
 df_std = pd.pivot_table(df_out, columns=['type'], index=['date', 'state'], values=['std'])
-
 df_forecast_md = pd.pivot_table(df_md, columns=['state'], index=['date'], values=['mean'])
 df_forecast_md_std = pd.pivot_table(df_md, columns=['state'], index=['date'], values=['std'])
 df_forecast_masks = pd.pivot_table(df_masks, columns=['state'], index=['date'], values=['mean'])
 df_forecast_masks_std = pd.pivot_table(df_masks, columns=['state'], index=['date'], values=['std'])
-
 # align with google order in columns
 df_forecast = df_forecast.reindex([('mean', val) for val in predictors], axis=1)
 df_std = df_std.reindex([('std', val) for val in predictors], axis=1)
 df_forecast.columns = predictors  # remove the tuple name of columns
 df_std.columns = predictors
-
-df_forecast_md = df_forecast_md.reindex([('mean', state) for state in states], axis=1)
-df_forecast_md_std = df_forecast_md_std.reindex([('std', state) for state in states], axis=1)
-df_forecast_masks = df_forecast_masks.reindex([('mean', state) for state in states], axis=1)
-df_forecast_masks_std = df_forecast_masks_std.reindex([('std', state) for state in states], axis=1)
-
-df_forecast_md.columns = states
-df_forecast_md_std.columns = states
-df_forecast_masks.columns = states
-df_forecast_masks_std.columns = states
-
 df_forecast = df_forecast.reset_index()
 df_std = df_std.reset_index()
-
-df_forecast_md = df_forecast_md.reset_index()
-df_forecast_md_std = df_forecast_md_std.reset_index()
-df_forecast_masks = df_forecast_masks.reset_index()
-df_forecast_masks_std = df_forecast_masks_std.reset_index()
-
 df_forecast.date = pd.to_datetime(df_forecast.date)
 df_std.date = pd.to_datetime(df_std.date)
 
+df_forecast_md = df_forecast_md.reindex([('mean', state) for state in states], axis=1)
+df_forecast_md_std = df_forecast_md_std.reindex([('std', state) for state in states], axis=1)
+df_forecast_md.columns = states
+df_forecast_md_std.columns = states
+df_forecast_md = df_forecast_md.reset_index()
+df_forecast_md_std = df_forecast_md_std.reset_index()
 df_forecast_md.date = pd.to_datetime(df_forecast_md.date)
 df_forecast_md_std.date = pd.to_datetime(df_forecast_md_std.date)
+
+df_forecast_masks = df_forecast_masks.reindex([('mean', state) for state in states], axis=1)
+df_forecast_masks_std = df_forecast_masks_std.reindex([('std', state) for state in states], axis=1)
+df_forecast_masks.columns = states
+df_forecast_masks_std.columns = states
+df_forecast_masks = df_forecast_masks.reset_index()
+df_forecast_masks_std = df_forecast_masks_std.reset_index()
 df_forecast_masks.date = pd.to_datetime(df_forecast_masks.date)
 df_forecast_masks_std.date = pd.to_datetime(df_forecast_masks_std.date)
 
@@ -841,24 +899,38 @@ df_R['policy'] = (df_R.date >= '2020-03-20').astype('int8')
 df_md = pd.concat([prop, df_forecast_md.set_index('date')])
 df_masks = pd.concat([masks, df_forecast_masks.set_index('date')])
 
-df_forecast_vaccination = pd.pivot_table(df_vaccination, columns=['state'], index=['date'], values=['mean'])
-df_forecast_vaccination_std = pd.pivot_table(df_vaccination, columns=['state'], index=['date'], values=['std'])
-df_forecast_vaccination = df_forecast_vaccination.reindex([('mean', state) for state in states], axis=1)
-df_forecast_vaccination_std = df_forecast_vaccination_std.reindex([('std', state) for state in states], axis=1)
-df_forecast_vaccination.columns = states
-df_forecast_vaccination_std.columns = states
-df_forecast_vaccination = df_forecast_vaccination.reset_index()
-df_forecast_vaccination_std = df_forecast_vaccination_std.reset_index()
-df_forecast_vaccination.date = pd.to_datetime(df_forecast_vaccination.date)
-df_forecast_vaccination_std.date = pd.to_datetime(df_forecast_vaccination_std.date)
+df_forecast_vaccination_delta = pd.pivot_table(df_vaccination_delta, columns=['state'], index=['date'], values=['mean'])
+df_forecast_vaccination_delta_std = pd.pivot_table(df_vaccination_delta, columns=['state'], index=['date'], values=['std'])
+df_forecast_vaccination_delta = df_forecast_vaccination_delta.reindex([('mean', state) for state in states], axis=1)
+df_forecast_vaccination_delta_std = df_forecast_vaccination_delta_std.reindex([('std', state) for state in states], axis=1)
+df_forecast_vaccination_delta.columns = states
+df_forecast_vaccination_delta_std.columns = states
+df_forecast_vaccination_delta = df_forecast_vaccination_delta.reset_index()
+df_forecast_vaccination_delta_std = df_forecast_vaccination_delta_std.reset_index()
+df_forecast_vaccination_delta.date = pd.to_datetime(df_forecast_vaccination_delta.date)
+df_forecast_vaccination_delta_std.date = pd.to_datetime(df_forecast_vaccination_delta_std.date)
 # set the index to be the date
-df_forecast_vaccination = df_forecast_vaccination.set_index('date')
+df_forecast_vaccination_delta = df_forecast_vaccination_delta.set_index('date')
+
+
+df_forecast_vaccination_omicron = pd.pivot_table(df_vaccination_omicron, columns=['state'], index=['date'], values=['mean'])
+df_forecast_vaccination_omicron_std = pd.pivot_table(df_vaccination_delta, columns=['state'], index=['date'], values=['std'])
+df_forecast_vaccination_omicron = df_forecast_vaccination_omicron.reindex([('mean', state) for state in states], axis=1)
+df_forecast_vaccination_omicron_std = df_forecast_vaccination_omicron_std.reindex([('std', state) for state in states], axis=1)
+df_forecast_vaccination_omicron.columns = states
+df_forecast_vaccination_omicron_std.columns = states
+df_forecast_vaccination_omicron = df_forecast_vaccination_omicron.reset_index()
+df_forecast_vaccination_omicron_std = df_forecast_vaccination_omicron_std.reset_index()
+df_forecast_vaccination_omicron.date = pd.to_datetime(df_forecast_vaccination_omicron.date)
+df_forecast_vaccination_omicron_std.date = pd.to_datetime(df_forecast_vaccination_omicron_std.date)
+# set the index to be the date
+df_forecast_vaccination_omicron = df_forecast_vaccination_omicron.set_index('date')
 
 # now we read in the correct vaccine time series again...
 # vaccination_by_state = pd.read_csv('data/vaccine_effect_timeseries_'+
 #                                     data_date.strftime('%Y-%m-%d')+'.csv', 
 #                                     parse_dates=['date'])
-vaccination_by_state = pd.read_csv('results/adjusted_vaccine_ts'+ 
+vaccination_by_state = pd.read_csv('results/adjusted_vaccine_ts_delta'+ 
                                     data_date.strftime('%Y-%m-%d')+
                                     '.csv', 
                                     parse_dates=['date'])
@@ -880,18 +952,53 @@ before_vacc_Reff_reduction.index = vaccination_by_state.index
 # merge the vaccine data and the 1's dataframes
 vacc_df = pd.concat([before_vacc_Reff_reduction.T, vaccination_by_state.T])
 # initialise a complete dataframe which will be the full VE timeseries plus the forecasted VE 
-df_vaccination = pd.DataFrame()
+df_ve_delta = pd.DataFrame()
 # loop over states and get the offset compoonenets of the full VE 
 for state in states:
     df_vaccination1 = vacc_df[state][~vacc_df[state].isna()]
-    df_vaccination2 = df_forecast_vaccination[state][~df_forecast_vaccination[state].isna()]
+    df_vaccination2 = df_forecast_vaccination_delta[state][~df_forecast_vaccination_delta[state].isna()]
     # merge the offsets and add to columns
     df_vaccination_combined = pd.concat([df_vaccination1, df_vaccination2])
-    df_vaccination[state] = df_vaccination_combined
+    df_ve_delta[state] = df_vaccination_combined
     
 # save the forecasted vaccination line
 os.makedirs("results/forecasting/", exist_ok=True)
-df_vaccination.to_csv("results/forecasting/forecasted_vaccination_" + data_date.strftime("%Y-%m-%d") + ".csv")
+df_ve_delta.to_csv("results/forecasting/forecasted_vaccination_delta" + data_date.strftime("%Y-%m-%d") + ".csv")
+
+vaccination_by_state = pd.read_csv('results/adjusted_vaccine_ts_omicron'+ 
+                                    data_date.strftime('%Y-%m-%d')+
+                                    '.csv', 
+                                    parse_dates=['date'])
+# there are a couple NA's early on in the time series but is likely due to slightly different start dates
+vaccination_by_state.fillna(1, inplace=True)
+vaccination_by_state = vaccination_by_state[['state', 'date', 'effect']]
+vaccination_by_state = vaccination_by_state.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
+
+# the above part only deals with data after the vaccination program begins -- we also need to account
+# for a fixed effect of 1.0 before that
+start_date = '2020-03-01'
+before_vacc_dates = pd.date_range(start_date, vaccination_by_state.columns[0] - timedelta(days=1), freq='d')
+
+# this is just a df of ones with all the missing dates as indices (8 comes from 8 jurisdictions)
+before_vacc_Reff_reduction = pd.DataFrame(np.ones((8, len(before_vacc_dates))))
+before_vacc_Reff_reduction.columns = before_vacc_dates
+before_vacc_Reff_reduction.index = vaccination_by_state.index
+
+# merge the vaccine data and the 1's dataframes
+vacc_df = pd.concat([before_vacc_Reff_reduction.T, vaccination_by_state.T])
+# initialise a complete dataframe which will be the full VE timeseries plus the forecasted VE 
+df_ve_omicron = pd.DataFrame()
+# loop over states and get the offset compoonenets of the full VE 
+for state in states:
+    df_vaccination1 = vacc_df[state][~vacc_df[state].isna()]
+    df_vaccination2 = df_forecast_vaccination_omicron[state][~df_forecast_vaccination_omicron[state].isna()]
+    # merge the offsets and add to columns
+    df_vaccination_combined = pd.concat([df_vaccination1, df_vaccination2])
+    df_ve_omicron[state] = df_vaccination_combined
+    
+# save the forecasted vaccination line
+os.makedirs("results/forecasting/", exist_ok=True)
+df_ve_omicron.to_csv("results/forecasting/forecasted_vaccination_omicron" + data_date.strftime("%Y-%m-%d") + ".csv")
 
 expo_decay = True
 theta_md = np.tile(df_samples['theta_md'].values, (df_md['NSW'].shape[0], 1))
@@ -1062,7 +1169,8 @@ for typ in forecast_type:
         prop_sim = df_md[state].values
         masks_prop_sim = df_masks[state].values
         # grab vaccination data 
-        vacc_ts_data = df_vaccination[state]
+        vacc_ts_delta = df_ve_delta[state]
+        vacc_ts_omicron = df_ve_omicron[state]
 
         # take right size of md to be N by N
         theta_md = np.tile(samples['theta_md'].values, (df_state.shape[0], n_samples))
@@ -1080,33 +1188,65 @@ for typ in forecast_type:
             vax_idx_ranges = {k: range(third_days_cumulative[i], third_days_cumulative[i+1]) for (i, k) in enumerate(third_days.keys())}
             third_days_tot = sum(v for v in third_days.values())
             # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-            sampled_vax_effects_all = np.tile(samples[["vacc_effect." + str(j+1) for j in range(third_days_tot)]], (n_samples, 1)).T
+            sampled_vax_effects_all = np.tile(samples[["ve_delta." + str(j+1) for j in range(third_days_tot)]], (n_samples, 1)).T
             vacc_tmp = sampled_vax_effects_all[vax_idx_ranges[state],:]
             # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-
+            
             # get before and after fitting and tile them
             vacc_ts_data_before = pd.concat(
-                [vacc_ts_data.loc[vacc_ts_data.index < third_date_range[state][0]]] * n_samples**2, 
+                [vacc_ts_delta.loc[vacc_ts_delta.index < third_date_range[state][0]]] * n_samples**2, 
                 axis=1
             ).to_numpy()
             vacc_ts_data_after = pd.concat(
-                [vacc_ts_data.loc[vacc_ts_data.index > third_date_range[state][-1]]] * n_samples**2, 
+                [vacc_ts_delta.loc[vacc_ts_delta.index > third_date_range[state][-1]]] * n_samples**2, 
                 axis=1
             ).to_numpy()
             # merge in order
-            vacc_ts = np.vstack(
+            vacc_ts_delta = np.vstack(
                 [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after]  
             )
         else:
             # just tile the data
-            vacc_ts = pd.concat(
-                [vacc_ts_data] * n_samples**2,
+            vacc_ts_delta = pd.concat(
+                [vacc_ts_delta] * n_samples**2,
                 axis=1
             ).to_numpy()
-
-        # From conversations with James and Nic we think the heterogeneity / assortativity was more prominent before late 
-        # August (hence the fixed date) 
-        heterogeneity_delay_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(start_date)).days
+            
+        if state in third_states:
+            # construct a range of dates for omicron which starts at the maximum of the start date for that state or the Omicron start date
+            third_omicron_date_range = {
+                k: pd.date_range(start=max(v[0], pd.to_datetime(omicron_start_date)), end=v[-1]).values
+                for (k, v) in third_date_range.items()}
+            third_omicron_days = {k: v.shape[0] for (k, v) in third_omicron_date_range.items()}
+            third_omicron_days_cumulative = np.append([0], np.cumsum([v for v in third_omicron_days.values()]))
+            omicron_ve_idx_ranges = {
+                k: range(third_omicron_days_cumulative[i], third_omicron_days_cumulative[i+1]) 
+                for (i, k) in enumerate(third_omicron_days.keys())}
+            third_omicron_days_tot = sum(v for v in third_omicron_days.values())
+            # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
+            sampled_vax_effects_all = np.tile(samples[["ve_omicron." + str(j+1) for j in range(third_omicron_days_tot)]], (n_samples, 1)).T
+            vacc_tmp = sampled_vax_effects_all[omicron_ve_idx_ranges[state],:]
+            # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
+            
+            # get before and after fitting and tile them
+            vacc_ts_data_before = pd.concat(
+                [vacc_ts_omicron.loc[vacc_ts_omicron.index < third_date_range[state][0]]] * n_samples**2, 
+                axis=1
+            ).to_numpy()
+            vacc_ts_data_after = pd.concat(
+                [vacc_ts_omicron.loc[vacc_ts_omicron.index > third_date_range[state][-1]]] * n_samples**2, 
+                axis=1
+            ).to_numpy()
+            # merge in order
+            vacc_ts_omicron = np.vstack(
+                [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after]  
+            )
+        else:
+            # just tile the data
+            vacc_ts_omicron = pd.concat(
+                [vacc_ts_omicron] * n_samples**2,
+                axis=1
+            ).to_numpy()
     
         # setup some variables for handling the omicron starts
         third_states_indices = {state: index+1 for (index, state) in enumerate(third_states)}
@@ -1128,8 +1268,7 @@ for typ in forecast_type:
                     idx[k] = range(days_into_omicron[0], days_into_omicron[1])
 
         # tile the reduction in vaccination effect for omicron (i.e. VE is (1+r)*VE)
-        reduction_vacc_effect_omicron = np.tile(samples['reduction_vacc_effect_omicron'].to_numpy(), (df_state.shape[0], n_samples))
-        vacc_post = np.zeros_like(vacc_ts)
+        vacc_post = np.zeros_like(vacc_ts_delta)
     
         # proportion of omicron cases each day.
         if state in {'VIC', 'NSW', 'ACT', 'QLD', 'SA', 'NT', 'TAS'}: 
@@ -1144,9 +1283,6 @@ for typ in forecast_type:
         voc_multiplier_omicron = np.tile(samples['voc_effect_omicron'].values, (df_state.shape[0], n_samples))
                 
         # sample the right R_L
-        # if state == "NT":
-        #     sim_R = np.tile(samples.R_L.values, (df_state.shape[0], n_samples))
-        # else:
         sim_R = np.tile(samples['R_Li.'+state_key[state]].values, (df_state.shape[0], n_samples))                
 
         for n in range(n_samples):
@@ -1250,33 +1386,7 @@ for typ in forecast_type:
         voc_multiplier_alpha = np.tile(samples['voc_effect_alpha'].values, (df_state.shape[0], n_samples))
         voc_multiplier_delta = np.tile(samples['voc_effect_delta'].values, (df_state.shape[0], n_samples))
         voc_multiplier_omicron = np.tile(samples['voc_effect_omicron'].values, (df_state.shape[0], n_samples))
-
-        # store vaccine contributions for each strain
-        vacc_post_delta = np.zeros_like(vacc_post)
-        vacc_post_omicron = np.zeros_like(vacc_post)
-        
-        # calculate the delta and omicron only vax effects 
-        for ii in range(vacc_post.shape[0]):
-            if ii < omicron_start_day:
-                vacc_post_delta[ii] = vacc_ts[ii, :]
-            else:
-                vacc_post_delta[ii] = vacc_ts[ii, :]
                 
-                omicron_reduction = reduction_vacc_effect_omicron[ii]*(1-vacc_ts[ii, :])
-                vacc_post_omicron[ii] = 1-omicron_reduction
-                
-        # calculate the TP for delta and omicron 
-        TP_delta = 2*md*sim_R*expit(logodds)*voc_multiplier_delta*vacc_post_delta
-        TP_omicron = 2*md*sim_R*expit(logodds)*voc_multiplier_omicron*vacc_post_omicron
-        # calculate the expected TP each day for delta and omicron using the posterior sample
-        rows = (omicron_start_day + len(idx[state]))
-        # take the mean down the columns (i.e. over the whole forecast period) for a given posterior draw
-        E_TP_delta = np.mean(TP_delta[rows:,:], axis=0)
-        E_TP_omicron = np.mean(TP_omicron[rows:,:], axis=0)
-        # expected generation interval (Gamma(2.75, 1))
-        E_gen_int = 2.75
-        # exponent term in exponential increase of cases 
-        E_exponent = (E_TP_omicron - E_TP_delta)/E_gen_int
         # number of days into omicron forecast
         tt = 0
         
@@ -1285,13 +1395,13 @@ for typ in forecast_type:
         if state not in {'WA'}: 
             for ii in range(vacc_post.shape[0]):
                 if ii < omicron_start_day:
-                    vacc_post[ii] = vacc_ts[ii, :]
+                    vacc_post[ii] = vacc_ts_delta[ii, :]
                 elif ii < omicron_start_day + len(idx[state]):
                     jj = ii - omicron_start_day
                     m[jj] = np.tile(m_tmp[jj], n_samples)
                     # this is just the vaccination model for delta
-                    vacc_delta_tmp = vacc_ts[ii, :]
-                    vacc_omicron_tmp = 1 - reduction_vacc_effect_omicron[ii]*(1-vacc_delta_tmp)
+                    vacc_delta_tmp = vacc_ts_delta[ii, :]
+                    vacc_omicron_tmp = vacc_ts_omicron[jj, :]
                     # this is the simplified form of the mixture model of the vaccination effects 
                     vacc_post[ii] = m[jj]*vacc_omicron_tmp + (1-m[jj])*vacc_delta_tmp
                 else: 
@@ -1317,8 +1427,6 @@ for typ in forecast_type:
                     
                     # number of days after the start of omicron 
                     jj = ii - omicron_start_day
-                    # number of days after the heterogeneity should start to wane
-                    heterogeneity_delay_days = ii - heterogeneity_delay_start_day
                     
                     # calculate shape and scale 
                     a_m = m_last * ((m_last*(1-m_last)/sig_m) - 1)
@@ -1328,10 +1436,9 @@ for typ in forecast_type:
                     m_last_prime = np.random.beta(a_m, b_m)
                     m[jj] = m_last_prime
                     # this is just the vaccination model for delta
-                    vacc_delta_tmp = vacc_ts[ii, :]
-                    vacc_omicron_tmp = 1 - reduction_vacc_effect_omicron[ii]*(1-vacc_delta_tmp)
+                    vacc_delta_tmp = vacc_ts_delta[ii, :]
+                    vacc_omicron_tmp = vacc_ts_omicron[jj, :]
                     # this is the simplified form of the mixture model of the vaccination effects 
-                    # vacc_post[ii] = 1 + (m[jj] - m[jj]*reduction_vacc_effect_omicron[ii] - 1)*(1 - vacc_tmp)
                     vacc_post[ii] = m[jj]*vacc_omicron_tmp + (1-m[jj])*vacc_delta_tmp
                     
                     # increment days into omicron forecast 
@@ -1339,7 +1446,7 @@ for typ in forecast_type:
                     
         else: # if we are WA then we assume only Delta (12/1/2022)
             for ii in range(vacc_post.shape[0]):
-                vacc_post[ii] = vacc_ts[ii, :]
+                vacc_post[ii] = vacc_ts_delta[ii, :]
         
         # this sets all values of the vaccination data prior to the start date equal to 1 
         for ii in range(vacc_post.shape[0]):
