@@ -61,7 +61,7 @@ def process_vax_data_array(data_date, third_states, third_end_date, variant="Del
             [vaccination_by_state] +
             [pd.Series(vaccination_by_state[latest_vacc_data], name=day) 
             for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
-            axis=1
+            axis=1,
         )
         
     # Convert to simple array only useful to pass to stan (index 1 onwards)
@@ -83,8 +83,7 @@ def get_data_for_posterior(data_date):
     print("Last date in fitting {}".format(fit_date.strftime('%d%b%Y')))
 
     # * Note: 2020-09-09 won't work (for some reason)
-
-    ######### Read in microdistancing (md) surveys #########
+    # read in microdistancing survey data 
     surveys = pd.DataFrame()
     path = "data/md/Barometer wave*.csv"
     for file in glob.glob(path):
@@ -126,7 +125,7 @@ def get_data_for_posterior(data_date):
 
     survey_respond_base = pd.pivot_table(data=always, index='date', columns='state', values='respondents').drop(['Australia', 'Other'], axis=1).astype(int)
 
-    ## read in and process mask wearing data 
+    # read in and process mask wearing data 
     mask_wearing = pd.DataFrame()
     path = "data/face_coverings/face_covering_*_.csv"
     for file in glob.glob(path):
@@ -169,11 +168,13 @@ def get_data_for_posterior(data_date):
     df_Reff['date'] = df_Reff.INFECTION_DATES
     df_Reff['state'] = df_Reff.STATE
 
-    ######### Read in NNDSS/linelist data #########
+    # read in NNDSS/linelist data 
     # If this errors it may be missing a leading zero on the date.
-    df_state = read_in_cases(case_file_date=data_date.strftime('%d%b%Y'), 
-                             apply_delay_at_read=True, 
-                             apply_inc_at_read=True)
+    df_state = read_in_cases(
+        case_file_date=data_date.strftime('%d%b%Y'), 
+        apply_delay_at_read=True, 
+        apply_inc_at_read=True,
+    )
 
     df_Reff = df_Reff.merge(df_state, how='left', left_on=['state', 'date'], right_on=['STATE', 'date_inferred'])  # how = left to use Reff days, NNDSS missing dates
     df_Reff['rho_moving'] = df_Reff.groupby(['state'])['rho'].transform(lambda x: x.rolling(7, 1).mean())  # minimum number of 1
@@ -227,13 +228,12 @@ def get_data_for_posterior(data_date):
 
     # Third wave inputs
     third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
-    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
     # Subtract the truncation days to avoid right truncation as we consider infection dates 
     # and not symptom onset dates 
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
-    # to handle SA data issues 
-    third_end_date_diff = data_date - pd.Timedelta(days=18)
+    # a different fitting end date to handle data issues with any particular states 
+    third_end_date_diff = data_date - pd.Timedelta(days=18+7)
 
     # choose dates for each state for third wave
     # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only! 
@@ -302,7 +302,7 @@ def get_data_for_posterior(data_date):
             dfX[['state', value, 'date']],
             index='date', 
             columns='state', 
-            values=value
+            values=value,
         ).sort_index(axis='columns')
         
         # account for dates pre pre second wave
@@ -314,7 +314,7 @@ def get_data_for_posterior(data_date):
                 df2X[['state', value, 'date']],
                 index='date', 
                 columns='state', 
-                values=value
+                values=value,
             ).sort_index(axis='columns')
         # account for dates pre pre third wave
         if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
@@ -325,7 +325,7 @@ def get_data_for_posterior(data_date):
                 df3X[['state', value, 'date']],
                 index='date', 
                 columns='state', 
-                values=value
+                values=value,
             ).sort_index(axis='columns')
             
     # FIRST PHASE
@@ -412,13 +412,13 @@ def get_data_for_posterior(data_date):
         data_date=data_date,
         third_states=third_states,
         third_end_date=third_end_date, 
-        variant='Delta'
+        variant='Delta',
     )
     omicron_vaccination_by_state_array = process_vax_data_array(
         data_date=data_date,                                                        
         third_states=third_states, 
         third_end_date=third_end_date, 
-        variant='Omicron'
+        variant='Omicron',
     )
 
     # Make state by state arrays
@@ -502,7 +502,7 @@ def get_data_for_posterior(data_date):
     return None 
     
 
-def run_stan(data_date):
+def run_stan(data_date,num_chains=4,num_samples=1000,num_warmup_samples=500):
     """
     Read the input_data.json in and run the stan model.
     """
@@ -517,10 +517,6 @@ def run_stan(data_date):
     # make results dir
     results_dir = "figs/stan_fit/" + data_date.strftime("%Y-%m-%d") + "/"
     os.makedirs(results_dir, exist_ok=True)
-
-    ######### running inference #########
-    num_chains = 4
-    num_samples = 1000
         
     # to run the inference set run_inference to True in params
     if run_inference or run_inference_only:
@@ -531,15 +527,19 @@ def run_stan(data_date):
 
         # compile the stan model
         posterior = stan.build(rho_model_gamma, data=input_data)
-        fit = posterior.sample(num_chains=num_chains, num_samples=num_samples)
-
-        ######### Saving Output #########
+        fit = posterior.sample(
+            num_chains=num_chains, 
+            num_samples=num_samples,
+            num_warmup=num_warmup_samples,
+        )
 
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
             print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
-                                            'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                            'susceptible_depletion_factor']), file=f)
+                                             'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
+                                             'susceptible_depletion_factor']), 
+                  file=f,
+            )
 
         df_fit = fit.to_frame()
         df_fit.to_csv("results/posterior_sample_"+data_date.strftime("%Y-%m-%d")+".csv")
@@ -1027,22 +1027,27 @@ def plot_and_save_posterior_samples(data_date):
     samples_mov_gamma['R_L_prior'] = np.random.gamma(1.8*1.8/0.05, 0.05/1.8, size=samples_mov_gamma.shape[0])
     samples_mov_gamma['R_I_prior'] = np.random.gamma(0.5**2/0.2, .2/0.5, size=samples_mov_gamma.shape[0])
 
-    samples_mov_gamma['R_L_national'] = np.random.gamma(samples_mov_gamma.R_L.values ** 2 / samples_mov_gamma.sig.values,
-                                                        samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values)
+    samples_mov_gamma['R_L_national'] = np.random.gamma(
+        samples_mov_gamma.R_L.values ** 2 / samples_mov_gamma.sig.values,
+        samples_mov_gamma.sig.values / samples_mov_gamma.R_L.values
+    )
 
-    sns.violinplot(x='variable', y='value',
-                data=pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]]),
-                ax=ax,
-                cut=0)
+    sns.violinplot(
+        x='variable', y='value',
+        data=pd.melt(samples_mov_gamma[[col for col in samples_mov_gamma if 'R' in col]]),
+        ax=ax, cut=0, 
+    )
 
     ax.set_yticks([1], minor=True,)
     ax.set_yticks([0, 2, 3], minor=False)
     ax.set_yticklabels([0, 2, 3], minor=False)
     ax.set_ylim((0, 3))
     # state labels in alphabetical
-    ax.set_xticklabels(['R_I', 'R_L0 mean', 'R_L0 ACT', 'R_L0 NSW', 'R_L0 NT',
-                        'R_L0 QLD', 'R_L0 SA', 'R_L0 TAS', 'R_L0 VIC', 'R_L0 WA',
-                        'R_L0 prior', 'R_I prior', 'R_L0 national'])
+    ax.set_xticklabels(
+        ['R_I', 'R_L0 mean', 'R_L0 ACT', 'R_L0 NSW', 'R_L0 NT',
+         'R_L0 QLD', 'R_L0 SA', 'R_L0 TAS', 'R_L0 VIC', 'R_L0 WA',
+         'R_L0 prior', 'R_I prior', 'R_L0 national']
+    )
     ax.set_xlabel('')
     ax.set_ylabel('Effective reproduction number')
     ax.tick_params('x', rotation=90)
@@ -1055,17 +1060,16 @@ def plot_and_save_posterior_samples(data_date):
 
     small_plot_cols = ['R_Li.'+str(i) for i in range(1, 9)] + ['R_I']
 
-    sns.violinplot(x='variable', y='value',
-                data=pd.melt(samples_mov_gamma[small_plot_cols]),
-                ax=ax, cut=0)
+    sns.violinplot(x='variable', y='value', data=pd.melt(samples_mov_gamma[small_plot_cols]), ax=ax, cut=0)
 
     ax.set_yticks([1], minor=True,)
     ax.set_yticks([0, 2, 3], minor=False)
     ax.set_yticklabels([0, 2, 3], minor=False)
     ax.set_ylim((0, 3))
     # state labels in alphabetical
-    ax.set_xticklabels(['$R_L0$ ACT', '$R_L0$ NSW', '$R_L0$ NT', '$R_L0$ QLD', '$R_L0$ SA', 
-                    '$R_L0$ TAS', '$R_L0$ VIC', '$R_L0$ WA', '$R_I$'])
+    ax.set_xticklabels(
+        ['$R_L0$ ACT', '$R_L0$ NSW', '$R_L0$ NT', '$R_L0$ QLD', '$R_L0$ SA', '$R_L0$ TAS', '$R_L0$ VIC', '$R_L0$ WA', '$R_I$']
+    )
     ax.tick_params('x', rotation=90)
     ax.set_xlabel('')
     ax.set_ylabel('Effective reproduction number')
@@ -1078,12 +1082,9 @@ def plot_and_save_posterior_samples(data_date):
     # Making a new figure that doesn't include the priors
     fig, ax = plt.subplots(figsize=(12, 9))
     samples_mov_gamma['voc_effect_third_prior'] = np.random.gamma(1.5*1.5/0.05, 0.05/1.5, size=samples_mov_gamma.shape[0])
-    # small_plot_cols = ['voc_effect_alpha', 'voc_effect_delta', 'eta_NSW', 'eta_other', 'r_NSW', 'r_other']
     small_plot_cols = ['voc_effect_third_prior', 'voc_effect_delta', 'voc_effect_omicron']
 
-    sns.violinplot(x='variable', y='value',
-                data=pd.melt(samples_mov_gamma[small_plot_cols]),
-                ax=ax, cut=0)
+    sns.violinplot(x='variable', y='value', data=pd.melt(samples_mov_gamma[small_plot_cols]), ax=ax, cut=0)
 
     ax.set_yticks([1], minor=True)
     # ax.set_yticks([0, 0.5, 1, 1.5, 2, 2.5, 3], minor=False)
@@ -1109,8 +1110,7 @@ def plot_and_save_posterior_samples(data_date):
 
     fig, ax2 = plt.subplots(figsize=(12, 9))
 
-    ax2 = sns.violinplot(x='variable', y='value',
-                        data=long, ax=ax2, color='C0')
+    ax2 = sns.violinplot(x='variable', y='value', data=long, ax=ax2, color='C0')
 
     ax2.plot([0]*len(predictors), linestyle='dashed', alpha=0.6, color='grey')
     ax2.tick_params(axis='x', rotation=90)
@@ -1126,12 +1126,13 @@ def plot_and_save_posterior_samples(data_date):
 
     ######### generating and plotting TP plots #########
     RL_by_state = {state: samples_mov_gamma['R_Li.'+str(i+1)].values for state, i in state_index.items()}
-    ax3 = predict_plot(samples_mov_gamma, df.loc[(df.date >= start_date) & 
-                                                (df.date <= end_date)], 
-                    moving=True, split=split, grocery=True, ban=ban,
-                    R=RL_by_state, var=True, md_arg=md,
-                    rho=first_states, R_I=samples_mov_gamma.R_I.values,
-                    prop=survey_X.loc[start_date:end_date]) 
+    ax3 = predict_plot(
+        samples_mov_gamma, df.loc[(df.date >= start_date) & (df.date <= end_date)], 
+        moving=True, split=split, grocery=True, ban=ban,
+        R=RL_by_state, var=True, md_arg=md,
+        rho=first_states, R_I=samples_mov_gamma.R_I.values,
+        prop=survey_X.loc[start_date:end_date]
+    ) 
     for ax in ax3:
         for a in ax:
             a.set_ylim((0, 3))
@@ -1144,12 +1145,13 @@ def plot_and_save_posterior_samples(data_date):
         for state in sec_states:
             df.loc[df.state == state, 'is_sec_wave'] = df.loc[df.state == state].date.isin(sec_date_range[state]).astype(int).values
         # plot only if there is second phase data - have to have second_phase=True
-        ax4 = predict_plot(samples_mov_gamma, df.loc[(df.date >= sec_start_date) & 
-                                                    (df.date <= sec_end_date)], 
-                        moving=True, split=split, grocery=True, ban=ban,
-                        R=RL_by_state, var=True, md_arg=md,
-                        rho=sec_states, second_phase=True,
-                        R_I=samples_mov_gamma.R_I.values, prop=survey_X.loc[sec_start_date:sec_end_date])  
+        ax4 = predict_plot(
+            samples_mov_gamma, df.loc[(df.date >= sec_start_date) & (df.date <= sec_end_date)], 
+            moving=True, split=split, grocery=True, ban=ban,
+            R=RL_by_state, var=True, md_arg=md,
+            rho=sec_states, second_phase=True,
+            R_I=samples_mov_gamma.R_I.values, prop=survey_X.loc[sec_start_date:sec_end_date]
+        )  
         for ax in ax4:
             for a in ax:
                 a.set_ylim((0, 3))
@@ -1162,8 +1164,8 @@ def plot_and_save_posterior_samples(data_date):
 
     # Load in vaccination data by state and date
     vaccination_by_state = pd.read_csv(
-        'data/vaccine_effect_timeseries'+data_date.strftime('%Y-%m-%d')+'.csv', 
-        parse_dates=['date']
+        'data/vaccine_effect_timeseries_'+data_date.strftime('%Y-%m-%d')+'.csv', 
+        parse_dates=['date'],
     )
     # there are a couple NA's early on in the time series but is likely due to slightly different start dates
     vaccination_by_state.fillna(1, inplace=True)
@@ -1183,13 +1185,13 @@ def plot_and_save_posterior_samples(data_date):
             [vaccination_by_state_delta] +
             [pd.Series(vaccination_by_state_delta[latest_vacc_data], name=day) 
             for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
-            axis=1
+            axis=1,
         )
         vaccination_by_state_omicron = pd.concat(
             [vaccination_by_state_omicron] +
             [pd.Series(vaccination_by_state_omicron[latest_vacc_data], name=day) 
             for day in pd.date_range(start=latest_vacc_data, end=third_end_date)], 
-            axis=1
+            axis=1,
         )
 
     # get the dates for vaccination
@@ -1199,18 +1201,21 @@ def plot_and_save_posterior_samples(data_date):
     third_days_cumulative = np.append([0], np.cumsum([v for v in third_days.values()]))
     delta_ve_idx_ranges = {
         k: range(third_days_cumulative[i], third_days_cumulative[i+1]) 
-        for (i, k) in enumerate(third_days.keys())}
+        for (i, k) in enumerate(third_days.keys())
+    }
     third_days_tot = sum(v for v in third_days.values())
     
     # construct a range of dates for omicron which starts at the maximum of the start date for that state or the Omicron start date
     third_omicron_date_range = {
         k: pd.date_range(start=max(v[0], pd.to_datetime(omicron_start_date)), end=v[-1]).values
-        for (k, v) in third_date_range.items()}
+        for (k, v) in third_date_range.items()
+    }
     third_omicron_days = {k: v.shape[0] for (k, v) in third_omicron_date_range.items()}
     third_omicron_days_cumulative = np.append([0], np.cumsum([v for v in third_omicron_days.values()]))
     omicron_ve_idx_ranges = {
         k: range(third_omicron_days_cumulative[i], third_omicron_days_cumulative[i+1]) 
-        for (i, k) in enumerate(third_omicron_days.keys())}
+        for (i, k) in enumerate(third_omicron_days.keys())
+    }
     third_omicron_days_tot = sum(v for v in third_omicron_days.values())
     
     # extrac the samples 
@@ -1228,7 +1233,8 @@ def plot_and_save_posterior_samples(data_date):
         delta_ve_samples, 
         delta_ve_idx_ranges, 
         results_dir, 
-        "delta")
+        "delta",
+    )
     
     plot_adjusted_ve(
         data_date, 
@@ -1240,7 +1246,8 @@ def plot_and_save_posterior_samples(data_date):
         omicron_ve_samples, 
         omicron_ve_idx_ranges, 
         results_dir, 
-        "omicron")
+        "omicron",
+    )
 
     # extract the prop of omicron to delta and save 
     total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
@@ -1261,7 +1268,8 @@ def plot_and_save_posterior_samples(data_date):
             R=RL_by_state, var=True, md_arg=md, rho=third_states, third_phase=True,
             R_I=samples_mov_gamma.R_I.values,
             prop=survey_X.loc[third_start_date:third_end_date], masks_prop=mask_wearing_X[third_start_date:third_end_date], 
-            third_states=third_states, prop_omicron_to_delta=prop_omicron_to_delta)  # by states....
+            third_states=third_states, prop_omicron_to_delta=prop_omicron_to_delta,
+        )  # by states....
         
         for ax in ax4:
             for a in ax:
@@ -1305,7 +1313,7 @@ def plot_and_save_posterior_samples(data_date):
         'R_I', 'R_L', 'sig', 'theta_md', 
         'theta_masks', 'voc_effect_alpha', 
         'voc_effect_delta', 'voc_effect_omicron', 
-        'susceptible_depletion_factor'
+        'susceptible_depletion_factor',
     ]
     var_to_csv = var_to_csv + predictors + [
         'R_Li.'+str(i+1) for i in range(len(states_to_fit_all_waves))
@@ -1325,8 +1333,18 @@ def main(data_date):
     Runs the stan model in parts to cut down on memory. 
     """
     
+    # some parameters for HMC
+    num_chains = 2
+    num_samples = 1500
+    num_warmup_samples = 500
+    
     get_data_for_posterior(data_date=data_date)
-    run_stan(data_date=data_date)
+    run_stan(
+        data_date=data_date,
+        num_chains=num_chains,
+        num_samples=num_samples,
+        num_warmup_samples=num_warmup_samples,
+    )
     plot_and_save_posterior_samples(data_date=data_date)
     
     return None 
