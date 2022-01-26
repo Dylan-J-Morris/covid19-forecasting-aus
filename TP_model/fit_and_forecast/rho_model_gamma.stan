@@ -233,7 +233,7 @@ transformed parameters {
 
 model {
 
-    // indexers for moving through parameter vectors
+    // indices for moving through parameter vectors
     int pos2_start;
     int pos2_end;
     int pos2;
@@ -243,13 +243,13 @@ model {
     int pos_omicron2_end;
     real n_star;    // keeps track of the day where the first condition for omicron met
 
-    // fixed parameters for the vaccine effect priors
+    // variables for vax effects (reused for Delta and Omicron VEs)
     real mean_vax;
-    real var_vax = 0.0025;
+    real var_vax = 0.0005;
     array[N_third_wave] real a_vax;
     array[N_third_wave] real b_vax;
     
-    // drifting omicron proportion to 0.9
+    // variables for omicron related effects 
     real long_term_mean_omicron = 0.85;
     real drift_factor;
     real pos_drift_counter;
@@ -258,7 +258,7 @@ model {
     array[N_third_wave] real a_omicron;
     array[N_third_wave] real b_omicron;
     
-    // index arrays and ints for vectorising the model 
+    // index arrays and ints for vectorising the model which makes it more efficient
     array[N_sec_wave] int idxs_sec;
     array[N_third_wave] int idxs_third;
     array[N_third_wave] int idxs_third_omicron;
@@ -266,7 +266,7 @@ model {
     int pos_omicron_idxs;
 
     // priors
-    // social mobility parameters
+    // mobility, micro and masks 
     bet ~ normal(0, 1.5);
     theta_md ~ lognormal(0, 0.5);
     theta_masks ~ lognormal(0, 0.5);
@@ -274,9 +274,10 @@ model {
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
     additive_voc_effect_delta ~ gamma(1.5*1.5/0.05, 1.5/0.05);
-    additive_voc_effect_omicron ~ gamma(1.5*1.5/0.025, 1.5/0.025);
+    // put prior on the additive voc effect for omicron as a multiplicative factor 
+    additive_voc_effect_omicron ~ gamma(square(additive_voc_effect_delta)/0.05, square(additive_voc_effect_delta)/0.05);
 
-    // susceptible depletion
+    // susceptible depletion (uninformative)
     susceptible_depletion_factor ~ beta(2, 2);
 
     // hierarchical model for the baseline RL
@@ -295,6 +296,7 @@ model {
             0.5+imported[:,i], 
             0.5+local[:,i]
         );
+        
         // likelihood
         mu_hat[:,i] ~ gamma(
             square(Reff[:,i]) ./ (sigma2[:,i]), 
@@ -378,7 +380,7 @@ model {
             0.5+local_third_wave[idxs_third[1:pos_idxs-1],i]
         );
         
-        // inferring VE for Delta 
+        // delta VE model 
         for (n in 1:pos_idxs-1){
             // vaccine effect has mean the supplied estimate
             mean_vax = ve_delta_data[i][idxs_third[n]];
@@ -403,7 +405,7 @@ model {
             b_vax[1:pos_idxs-1]
         );
         
-        // inferring VE for Omicron
+        // omicron VE model 
         for (n in 1:N_third_wave){ 
             if (include_in_omicron_wave[i][n] == 1){
                 idxs_third_omicron[pos_omicron_idxs] = n;
