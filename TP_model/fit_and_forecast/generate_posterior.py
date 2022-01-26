@@ -709,7 +709,7 @@ def plot_and_save_posterior_samples(data_date):
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
     # to handle SA data issues 
-    third_end_date_diff = data_date - pd.Timedelta(days=18)
+    third_end_date_diff = data_date - pd.Timedelta(days=18+7)
 
     # choose dates for each state for third wave
     # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only! 
@@ -1169,6 +1169,11 @@ def plot_and_save_posterior_samples(data_date):
     )
     # there are a couple NA's early on in the time series but is likely due to slightly different start dates
     vaccination_by_state.fillna(1, inplace=True)
+    # only want to get up to the end of the fitting date as we will forecast under our methods??? (TODO: check this)
+    vaccination_by_state = vaccination_by_state[
+        (vaccination_by_state.date >= pd.to_datetime(third_start_date) - timedelta(days=1)) & 
+        (vaccination_by_state.date <= third_end_date)
+    ]  
     vaccination_by_state_delta = vaccination_by_state.loc[vaccination_by_state['variant'] == 'Delta'][['state', 'date', 'effect']]
     vaccination_by_state_omicron = vaccination_by_state.loc[vaccination_by_state['variant'] == 'Omicron'][['state', 'date', 'effect']]
 

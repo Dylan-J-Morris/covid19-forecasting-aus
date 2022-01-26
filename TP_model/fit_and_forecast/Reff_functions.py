@@ -352,9 +352,6 @@ def plot_adjusted_ve(data_date,
             vacc_ts_data_before.columns = vacc_tmp.columns
             vacc_ts_data_after.columns = vacc_tmp.columns
             # merge in order
-            # vacc_ts = pd.concat(
-            #     [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after], axis=0, ignore_index=True         
-            # )
             vacc_ts = pd.concat(
                 [vacc_ts_data_before, vacc_tmp], axis=0, ignore_index=True         
             )
@@ -364,7 +361,7 @@ def plot_adjusted_ve(data_date,
             # just tile the data
             vacc_ts = pd.concat(
                 [vacc_ts_data] * samples_mov_gamma.shape[0], 
-                axis=1
+                axis=1,
             )
             # reset the index to be the dates for easier information handling
             vacc_ts.set_index(vacc_ts_data.index, inplace=True)
