@@ -39,7 +39,9 @@ start_date = '2020-03-01'
 # convert third start date to the correct format
 third_start_date = pd.to_datetime(third_start_date)
 third_end_date = data_date - timedelta(truncation_days)
-third_end_date_diff = data_date - timedelta(18)
+
+# a different end date to deal with issues in fitting 
+third_end_date_diff = data_date - timedelta(18+7)
 
 third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'TAS', 'NT'])
 # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
@@ -66,19 +68,19 @@ third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
 #                                     '.csv', 
 #                                     parse_dates=['date'])
 # use the inferred VE 
-vaccination_by_state_delta = pd.read_csv('results/adjusted_vaccine_ts_delta'+ 
-                                    data_date.strftime('%Y-%m-%d')+
-                                    '.csv', 
-                                    parse_dates=['date'])
+vaccination_by_state_delta = pd.read_csv(
+    'results/adjusted_vaccine_ts_delta'+data_date.strftime('%Y-%m-%d')+'.csv', 
+    parse_dates=['date'],
+)
 vaccination_by_state_delta = vaccination_by_state_delta[['state', 'date', 'effect']]
 vaccination_by_state_delta = vaccination_by_state_delta.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 # Convert to simple array for indexing
 vaccination_by_state_delta_array = vaccination_by_state_delta.to_numpy()
 
-vaccination_by_state_omicron = pd.read_csv('results/adjusted_vaccine_ts_omicron'+ 
-                                    data_date.strftime('%Y-%m-%d')+
-                                    '.csv', 
-                                    parse_dates=['date'])
+vaccination_by_state_omicron = pd.read_csv(
+    'results/adjusted_vaccine_ts_omicron'+ data_date.strftime('%Y-%m-%d')+'.csv', 
+    parse_dates=['date'],
+)
 vaccination_by_state_omicron = vaccination_by_state_omicron[['state', 'date', 'effect']]
 vaccination_by_state_omicron = vaccination_by_state_omicron.pivot(index='state', columns='date', values='effect')  # Convert to matrix form
 # Convert to simple array for indexing
@@ -241,7 +243,7 @@ n_training_vaccination = 30  # period to create trend for vaccination
 #     vaccination_by_state.loc[s].values[-1] for s in states
 # )
 # this is for when we use the inferred estimate
-max_vac_effect = 0.9*min(
+max_vax_reduction = 0.9*min(
     vaccination_by_state_delta.loc[s, ~vaccination_by_state_delta.loc[s].isna()].values[-1] for s in states
 )
 
@@ -665,7 +667,7 @@ for i, state in enumerate(states):
 
     vacc_sims_delta = np.vstack(new_vacc_forecast)  # Put forecast days together
     vacc_sims_delta = np.minimum(1, vacc_sims_delta)
-    vacc_sims_delta = np.maximum(max_vac_effect, vacc_sims_delta)
+    vacc_sims_delta = np.maximum(max_vax_reduction, vacc_sims_delta)
     
     # forecasting using the inferred VE Omicron
     mu_overall = np.mean(vaccination_by_state_omicron.loc[state, ~vaccination_by_state_omicron.loc[state].isna()][-n_baseline:])
@@ -695,7 +697,7 @@ for i, state in enumerate(states):
 
     vacc_sims_omicron = np.vstack(new_vacc_forecast)  # Put forecast days together
     vacc_sims_omicron = np.minimum(1, vacc_sims_omicron)
-    vacc_sims_omicron = np.maximum(max_vac_effect, vacc_sims_omicron)
+    vacc_sims_omicron = np.maximum(max_vax_reduction, vacc_sims_omicron)
 
     # get dates
     # if using the Curtin VE 
@@ -1416,7 +1418,7 @@ for typ in forecast_type:
                         m_last = np.minimum(0.97, m_last)
                         m_last = np.maximum(sig_m*2, m_last)
                         # assume (naievely) that we end up at 0.9 or the highest seen values for a particular realisation
-                        drift_mean = np.maximum(0.9, m_last)
+                        drift_mean = np.maximum(0.85, m_last)
                     else:
                         # assume force towards drift_mean becomes dominant towards the end of the forecast window
                         p_force = tt/days_left_of_forecast
