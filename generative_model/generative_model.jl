@@ -43,7 +43,7 @@ include("assumptions.jl")
 function initialise_state_arrays(
     sim_duration, 
     observation_period, 
-    nsims
+    nsims,
 )
     """
     Initialising a state array object with arrays of zeros. 
@@ -162,7 +162,7 @@ function import_cases_model!(
 	"""
 	A model to handle international imports in the forecasting of cases. This can be run prior
 	to the standard forecasting model and will pre-fill D, U and Z for each simulation.
-	
+
 	We assume that cases 
 	arise from 
 	D[t] ∼ NegBin(a[t], 1/(b+1)) 
@@ -586,6 +586,8 @@ function simulate_branching_process(
         forecast_start_date, 
     )
     
+    good_TPs_inds = zeros(Int, nsims)
+    
     # for sim in 1:nsims
     # for sim in ProgressBar(1:nsims)
     Threads.@threads for sim in ProgressBar(1:nsims)
@@ -677,8 +679,10 @@ function simulate_branching_process(
         
         if bad_sim 
             good_sims[sim] = false
+            good_TPs_inds[sim] = -1
         else
             good_TPs[TP_ind] = true
+            good_TPs_inds[sim] = TP_ind
         end
     end
     
@@ -690,9 +694,17 @@ function simulate_branching_process(
     println("======================")
     
     # keep only good sim results and truncate the TP to the same period as per D and U
-    TP_local_good_truncated = TP_local[(end-T_end):end, good_TPs]
+    TP_local_good_truncated = TP_local[(end-T_end):end,good_TPs]
     D_good = forecast.sim_realisations.D[:,:,good_sims]
     U_good = forecast.sim_realisations.U[:,:,good_sims]
+    good_TPs_inds = good_TPs_inds[good_sims]
+    # calculate the total number of infections by day t
+    Z_good = sum(forecast.sim_realisations.Z[:,:,good_sims], dims = 2)
+    Z_good_cumulative = cumsum!(Z_good, dims = 1)[(end-T_end):end,1,:]
+    # adjust the local TP by the number of realised cases 
+    for (i, TP_ind) in enumerate(good_TPs_inds)
+        TP_local_good_truncated[:,i] = TP_local_good_truncated[:,i] .* susceptible_depletion[TP_Ind]*(1 .- Z_good_cumulative[:,:,i] ./ N)
+    end
     
     return (D_good, U_good, TP_local_good_truncated)
     
