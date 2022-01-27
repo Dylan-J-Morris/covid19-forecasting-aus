@@ -1,5 +1,5 @@
 public_holidays = {
-    'ACT': {
+    "ACT": {
         "2020-01-01": "New Year's Day",
         "2020-01-27": "Australia Day",
         "2020-03-09": "Canberra Day",
@@ -12,9 +12,9 @@ public_holidays = {
         "2020-06-08": "Queen's Birthday",
         "2020-10-05": "Labour Day",
         "2020-12-25": "Christmas Day",
-        "2020-12-28": "Boxing Day"
+        "2020-12-28": "Boxing Day",
     },
-    'NSW': {
+    "NSW": {
         "2020-01-01": "New Year's Day",
         "2020-01-27": "Australia Day",
         "2020-04-10": "Good Friday",
@@ -28,9 +28,9 @@ public_holidays = {
         "2020-10-05": "Labour Day",
         "2020-12-25": "Christmas Day",
         "2020-12-26": "Christmas Day",
-        "2020-12-28": "Boxing Day (Additional day)"
+        "2020-12-28": "Boxing Day (Additional day)",
     },
-    'NT': {
+    "NT": {
         "2020-01-01": "New Year's Day",
         "2020-01-27": "Australia Day",
         "2020-04-10": "Good Friday",
@@ -44,10 +44,9 @@ public_holidays = {
         "2020-12-24": "Christmas Eve",
         "2020-12-25": "Christmas Day",
         "2020-12-28": "Boxing Day",
-        "2020-12-31": "New Year's Eve"
-
+        "2020-12-31": "New Year's Eve",
     },
-    'QLD': {
+    "QLD": {
         "2020-01-01": "New Year's Day",
         "2020-01-27": "Australia Day",
         "2020-04-10": "Good Friday",
@@ -59,10 +58,9 @@ public_holidays = {
         "2020-10-05": "Queen's Birthday",
         "2020-12-25": "Christmas Day",
         "2020-12-26": "Boxing Day",
-        "2020-12-28": "Boxing Day (Additional day)"
-
+        "2020-12-28": "Boxing Day (Additional day)",
     },
-    'SA': {
+    "SA": {
         "2020-01-01": "New Year's Day",
         "2020-01-26": "Australia Day",
         "2020-01-27": "Australia Day (Additional day)",
@@ -76,10 +74,9 @@ public_holidays = {
         "2020-12-24": "Christmas Eve",
         "2020-12-25": "Christmas Day",
         "2020-12-28": "Proclamation Day",
-        "2020-12-31": "New Year's Eve"
-
+        "2020-12-31": "New Year's Eve",
     },
-    'TAS': {
+    "TAS": {
         "2020-01-01": "New Year's Day",
         "2020-01-27": "Australia Day",
         "2020-03-09": "Eight Hours Day",
@@ -89,9 +86,9 @@ public_holidays = {
         "2020-04-25": "ANZAC Day",
         "2020-06-08": "Queen's Birthday",
         "2020-12-25": "Christmas Day",
-        "2020-12-28": "Boxing Day"
+        "2020-12-28": "Boxing Day",
     },
-    'VIC': {
+    "VIC": {
         "2020-01-01": "New Year's Day",
         "2020-01-27": "Australia Day",
         "2020-03-09": "Labour Day",
@@ -105,37 +102,51 @@ public_holidays = {
         "2020-11-03": "Melbourne Cup",
         "2020-12-25": "Christmas Day",
         "2020-12-26": "Boxing Day",
-        "2020-12-28": "Boxing Day (Additional day)"
+        "2020-12-28": "Boxing Day (Additional day)",
     },
-    'WA': {
-        "2020-01-01", "New Year's Day",
-        "2020-01-27", "Australia Day",
-        "2020-03-02", "Labour Day",
-        "2020-04-10", "Good Friday",
-        "2020-04-13", "Easter Monday",
-        "2020-04-25", "ANZAC Day",
-        "2020-04-27", "ANZAC Day",
-        "2020-06-01", "Western Australia Day",
-        "2020-09-28", "Queen's Birthday",
-        "2020-12-25", "Christmas Day",
-        "2020-12-26", "Boxing Day",
-        "2020-12-28", "Boxing Day (Additional day)"
+    "WA": {
+        "2020-01-01",
+        "New Year's Day",
+        "2020-01-27",
+        "Australia Day",
+        "2020-03-02",
+        "Labour Day",
+        "2020-04-10",
+        "Good Friday",
+        "2020-04-13",
+        "Easter Monday",
+        "2020-04-25",
+        "ANZAC Day",
+        "2020-04-27",
+        "ANZAC Day",
+        "2020-06-01",
+        "Western Australia Day",
+        "2020-09-28",
+        "Queen's Birthday",
+        "2020-12-25",
+        "Christmas Day",
+        "2020-12-26",
+        "Boxing Day",
+        "2020-12-28",
+        "Boxing Day (Additional day)",
     },
 }
-value_vars = ['retail_and_recreation_percent_change_from_baseline',
-              'grocery_and_pharmacy_percent_change_from_baseline',
-              'parks_percent_change_from_baseline',
-              'transit_stations_percent_change_from_baseline',
-              'workplaces_percent_change_from_baseline',
-              'residential_percent_change_from_baseline']
-mov_values = [val[:-29]+'_7days' for val in value_vars]
+value_vars = [
+    "retail_and_recreation_percent_change_from_baseline",
+    "grocery_and_pharmacy_percent_change_from_baseline",
+    "parks_percent_change_from_baseline",
+    "transit_stations_percent_change_from_baseline",
+    "workplaces_percent_change_from_baseline",
+    "residential_percent_change_from_baseline",
+]
+mov_values = [val[:-29] + "_7days" for val in value_vars]
 states_initials = {
-    'Western Australia': 'WA',
-    'South Australia': 'SA',
-    'Tasmania': 'TAS',
-    'Queensland': 'QLD',
-    'New South Wales': 'NSW',
-    'Victoria': 'VIC',
-    'Australian Capital Territory': 'ACT',
-    'Northern Territory': 'NT'
+    "Western Australia": "WA",
+    "South Australia": "SA",
+    "Tasmania": "TAS",
+    "Queensland": "QLD",
+    "New South Wales": "NSW",
+    "Victoria": "VIC",
+    "Australian Capital Territory": "ACT",
+    "Northern Territory": "NT",
 }
