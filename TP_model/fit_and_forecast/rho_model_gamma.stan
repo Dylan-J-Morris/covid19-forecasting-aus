@@ -248,9 +248,12 @@ model {
 
     // variables for vax effects (reused for Delta and Omicron VEs)
     real mean_vax;
-    real var_vax = 0.0005;     // smaller variance on the vaccine eff?
+    real var_vax = 0.0025;     // smaller variance on the vaccine eff?
     array[N_third_wave] real a_vax;
     array[N_third_wave] real b_vax;
+    
+    real a_vax_scalar;
+    real b_vax_scalar;
     
     // variables for omicron related effects 
     real long_term_mean_omicron = 0.85;
@@ -270,14 +273,14 @@ model {
 
     // priors
     // mobility, micro and masks 
-    bet ~ normal(0, 1.5);
+    bet ~ normal(0, 1);
     theta_md ~ lognormal(0, 0.5);
     theta_masks ~ lognormal(0, 0.5);
     
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
-    additive_voc_effect_delta ~ gamma(1.5*1.5/0.005, 1.5/0.005);
-    additive_voc_effect_omicron ~ gamma(1.5*1.5/0.005, 1.5/0.005);
+    additive_voc_effect_delta ~ gamma(1.5*1.5/0.005, 1.5/0.005);    // pin the Omicron only?
+    additive_voc_effect_omicron ~ gamma(1.5*1.5/0.05, 1.5/0.05);
 
     // susceptible depletion (uninformative)
     susceptible_depletion_factor ~ beta(2, 2);
@@ -361,7 +364,9 @@ model {
             pos_omicron2_end = pos_starts_third_omicron[i];
         }
         
-        // create an array for indexing the proportion terms
+        // create an array for indexing parameters, this will contain the 
+        // days, n, that the wave is happening (i.e. idxs_third[1] is the first
+        // day for the jurisdictions 3rd wave fitting).
         for (n in 1:N_third_wave){ 
             if (include_in_third_wave[i][n] == 1){
                 idxs_third[pos_idxs] = n;
@@ -382,30 +387,71 @@ model {
             0.5+local_third_wave[idxs_third[1:pos_idxs-1],i]
         );
         
+        pos_drift_counter = 0.0;
         // delta VE model 
         for (n in 1:pos_idxs-1){
-            // vaccine effect has mean the supplied estimate
             mean_vax = ve_delta_data[i][idxs_third[n]];
-            if (mean_vax*(1-mean_vax) > var_vax) {
-                a_vax[n] = mean_vax*(mean_vax*(1-mean_vax)/var_vax - 1);
-                b_vax[n] = (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax - 1);
-            } else if (mean_vax > 0.98) {
-                a_vax[n] = 50;
-                b_vax[n] = 2;
-            } else if (mean_vax < 0.02) {
-                a_vax[n] = 2; 
-                b_vax[n] = 50;
+            if (idxs_third[n] <= heterogeneity_start_day){
+                // sample differently pre December 1st
+                a_vax_scalar = 50;
+                b_vax_scalar = 2;
+                // this lets us keep track of the last day (index) that this condition is met
+                n_star = n; 
+            } else if (idxs_third[n] <= heterogeneity_start_day + 15) {
+                pos_drift_counter += 1.0;
+                // the drift 
+                drift_factor = pos_drift_counter / 15.0;
+                // mean is a mixture of the mean proportion for vax and the long term mean
+                mean_vax = (1-drift_factor)*ve_delta[pos2_start+n-1]
+                    + drift_factor*mean_vax;
+                // calculate shape and scale parameters
+                if (mean_vax*(1-mean_vax) > var_vax){
+                    a_vax_scalar = mean_vax*(mean_vax*(1-mean_vax)/var_vax - 1);
+                    b_vax_scalar = (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax - 1);
+                } else if (mean_vax > 0.98) {
+                    // if we are close to 1 or reduced assume a slightly different prior
+                    a_vax_scalar = 50;
+                    b_vax_scalar = 2;
+                } else if (mean_vax < 0.02) {
+                    a_vax_scalar = 2;
+                    b_vax_scalar = 50;
+                } else {
+                    a_vax_scalar = 1; 
+                    b_vax_scalar = 1;
+                }
             } else {
-                a_vax[n] = 1;
-                b_vax[n] = 1;
+                // calculate shape and scale parameters
+                a_vax_scalar = mean_vax*(mean_vax*(1-mean_vax)/var_vax - 1);
+                b_vax_scalar = (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax - 1);
             }
+            // sample this in here as we need these correctly ordered 
+            ve_delta[pos2_start+n-1] ~ beta(a_vax_scalar, b_vax_scalar);
         }
         
-        // sample the vaccination effect 
-        ve_delta[pos2_start:pos2_end] ~ beta(
-            a_vax[1:pos_idxs-1], 
-            b_vax[1:pos_idxs-1]
-        );
+        // old version of inferring the ve for delta
+        // for (n in 1:pos_idxs-1){
+        //     // vaccine effect has mean the supplied estimate
+        //     mean_vax = ve_delta_data[i][idxs_third[n]];
+        //     if (mean_vax*(1-mean_vax) > var_vax) {
+        //         a_vax[n] = mean_vax*(mean_vax*(1-mean_vax)/var_vax - 1);
+        //         b_vax[n] = (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax - 1);
+        //     } else if (mean_vax > 0.98) {
+        //         a_vax[n] = 50;
+        //         b_vax[n] = 2;
+        //     } else if (mean_vax < 0.02) {
+        //         a_vax[n] = 2; 
+        //         b_vax[n] = 50;
+        //     } else {
+        //         a_vax[n] = 1;
+        //         b_vax[n] = 1;
+        //     }
+        // }
+        
+        // // sample the vaccination effect 
+        // ve_delta[pos2_start:pos2_end] ~ beta(
+        //     a_vax[1:pos_idxs-1], 
+        //     b_vax[1:pos_idxs-1]
+        // );
         
         // omicron VE model 
         for (n in 1:N_third_wave){ 
@@ -441,11 +487,12 @@ model {
         
         // reset pos_omicron_idxs 
         pos_omicron_idxs = 1;
+        pos_drift_counter = 0.0;
         
         for (n in 1:N_third_wave){
             if (include_in_omicron_wave[i][n] == 1){
                 if (n <= omicron_start_day+15){
-                    // sample differently pre December 1st or in the first 5 days
+                    // sample differently pre December 1st
                     a_omicron = 2;
                     b_omicron = 50;
                     // this lets us keep track of the last day (index) that this condition is met
@@ -455,7 +502,7 @@ model {
                     // the drift 
                     drift_factor = pos_drift_counter / ((omicron_constant_level_day - n_star)*1.0);
                     // mean is a mixture of the mean proportion for omicron and the long term mean
-                    mean_omicron = (1-drift_factor)*mean(prop_omicron_to_delta[(pos_omicron2_start+pos_omicron_idxs-3):(pos_omicron2_start+pos_omicron_idxs-1)])
+                    mean_omicron = (1-drift_factor)*prop_omicron_to_delta[pos_omicron2_start+pos_omicron_idxs-1]
                         + drift_factor*long_term_mean_omicron;
                     // calculate shape and scale parameters
                     if (mean_omicron*(1-mean_omicron) > var_omicron){
@@ -479,7 +526,7 @@ model {
                     a_omicron = mean_omicron*(mean_omicron*(1-mean_omicron)/var_omicron - 1);
                     b_omicron = (1-mean_omicron)*(mean_omicron*(1-mean_omicron)/var_omicron - 1);
                 }
-                
+                // sample this in here as we need these correctly ordered 
                 prop_omicron_to_delta[pos_omicron2_start+pos_omicron_idxs-1] ~ beta(a_omicron, b_omicron);     
                 pos_omicron_counter += 1.0;
                 pos_omicron_idxs += 1;
