@@ -27,7 +27,7 @@ matplotlib.use('Agg')
 
 from params import truncation_days, download_google_automatically, \
     run_inference_only, third_start_date, run_inference, \
-    omicron_start_date, pop_sizes
+    omicron_start_date, pop_sizes, num_forecast_days
 
 def process_vax_data_array(data_date, third_states, third_end_date, variant="Delta"):
     """
@@ -161,8 +161,7 @@ def get_data_for_posterior(data_date):
     mask_wearing_X = pd.pivot_table(data=mask_wearing_always, index='date', columns='state', values='proportion')
     mask_wearing_counts_base = pd.pivot_table(data=mask_wearing_always, index='date', columns='state', values='count').astype(int)
     mask_wearing_respond_base = pd.pivot_table(data=mask_wearing_always, index='date', columns='state', values='respondents').astype(int)
-
-    ######### Read in EpyReff results #########
+    
     # df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_4.csv", parse_dates=['INFECTION_DATES'])
     df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_5.csv", parse_dates=['INFECTION_DATES'])
     df_Reff['date'] = df_Reff.INFECTION_DATES
@@ -428,7 +427,8 @@ def get_data_for_posterior(data_date):
     apply_alpha_sec_wave = (sec_date_range['NSW'] >= pd.to_datetime(alpha_start_date)).astype(int) 
     omicron_start_day = (pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)).days    
     omicron_constant_level_day = (pd.to_datetime('2022-01-01') - pd.to_datetime(third_start_date)).days
-        
+    heterogeneity_start_day = (pd.to_datetime('2021-08-20') - pd.to_datetime(third_start_date)).days
+    
     # get pop size array 
     pop_size_array = []
     for s in states_to_fit_all_waves: 
@@ -492,9 +492,10 @@ def get_data_for_posterior(data_date):
         'total_N_p_third_omicron': int(sum([sum(x) for x in include_in_omicron_wave]).item()),
         'pos_starts_third_omicron': np.cumsum([sum(x) for x in include_in_omicron_wave]).astype(int).tolist(),
         'pop_size_array': pop_size_array,
+        'heterogeneity_start_day': heterogeneity_start_day,
     }
     
-    # dump the dictionary to a json file
+    # dump the dictionary to a json filex
     a_file = open("results/stan_input_data.pkl", "wb")
     pickle.dump(input_data, a_file)
     a_file.close()
@@ -535,10 +536,11 @@ def run_stan(data_date,num_chains=4,num_samples=1000,num_warmup_samples=500):
 
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
         with open(results_dir+filename, 'w') as f:
-            print(az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
-                                             'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
-                                             'susceptible_depletion_factor']), 
-                  file=f,
+            print(
+                az.summary(fit, var_names=['bet', 'R_I', 'R_L', 'R_Li', 'theta_md', 'theta_masks', 'sig',
+                                           'voc_effect_alpha', 'voc_effect_delta', 'voc_effect_omicron',
+                                           'susceptible_depletion_factor']), 
+                file=f,
             )
 
         df_fit = fit.to_frame()
@@ -671,7 +673,6 @@ def plot_and_save_posterior_samples(data_date):
     # ACT and NT not in original estimates, need to extrapolated sorting keeps consistent with sort in data_by_state
     # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only! 
     states_to_fit_all_waves = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT', 'NT'])
-    # states_to_fit_all_waves = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'ACT'])
 
     first_states = sorted(['NSW', 'VIC', 'QLD', 'SA', 'WA', 'TAS'])
     fit_post_March = True
@@ -1169,10 +1170,10 @@ def plot_and_save_posterior_samples(data_date):
     )
     # there are a couple NA's early on in the time series but is likely due to slightly different start dates
     vaccination_by_state.fillna(1, inplace=True)
-    # only want to get up to the end of the fitting date as we will forecast under our methods??? (TODO: check this)
+    # we take the whole set of estimates up to the end of the forecast period (with 10 days padding which won't be used in the forecast)
     vaccination_by_state = vaccination_by_state[
         (vaccination_by_state.date >= pd.to_datetime(third_start_date) - timedelta(days=1)) & 
-        (vaccination_by_state.date <= third_end_date)
+        (vaccination_by_state.date <= pd.to_datetime(data_date) + timedelta(days=num_forecast_days+10))
     ]  
     vaccination_by_state_delta = vaccination_by_state.loc[vaccination_by_state['variant'] == 'Delta'][['state', 'date', 'effect']]
     vaccination_by_state_omicron = vaccination_by_state.loc[vaccination_by_state['variant'] == 'Omicron'][['state', 'date', 'effect']]
@@ -1256,7 +1257,7 @@ def plot_and_save_posterior_samples(data_date):
 
     # extract the prop of omicron to delta and save 
     total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
-    prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta." + str(j+1) for j in range(0, total_N_p_third_omicron)]]
+    prop_omicron_to_delta = samples_mov_gamma[["prop_omicron_to_delta." + str(j+1) for j in range(total_N_p_third_omicron)]]
     pd.DataFrame(prop_omicron_to_delta.to_csv('results/prop_omicron_to_delta' + data_date.strftime("%Y-%m-%d") + '.csv'))
 
     if df3X.shape[0] > 0:
@@ -1340,8 +1341,8 @@ def main(data_date):
     
     # some parameters for HMC
     num_chains = 2
-    num_samples = 1500
-    num_warmup_samples = 500
+    num_samples = 2000
+    num_warmup_samples = 750
     
     get_data_for_posterior(data_date=data_date)
     run_stan(
