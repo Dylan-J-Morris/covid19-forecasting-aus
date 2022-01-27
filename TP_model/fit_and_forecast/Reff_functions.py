@@ -353,7 +353,9 @@ def plot_adjusted_ve(data_date,
             vacc_ts_data_after.columns = vacc_tmp.columns
             # merge in order
             vacc_ts = pd.concat(
-                [vacc_ts_data_before, vacc_tmp], axis=0, ignore_index=True         
+                [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after], 
+                axis=0, 
+                ignore_index=True,
             )
             vacc_ts.set_index(vacc_ts_data.index[:vacc_ts.shape[0]], inplace=True)
             
@@ -402,7 +404,7 @@ def plot_adjusted_ve(data_date,
 
     df_vacc_ts_adjusted.to_csv('results/adjusted_vaccine_ts_' + strain + data_date.strftime("%Y-%m-%d") + '.csv', index=False)
 
-    plt.savefig(results_dir + data_date.strftime("%Y-%m-%d") + "_" + strain + "_in_TP.png", dpi=144)
+    plt.savefig(results_dir + data_date.strftime("%Y-%m-%d") + "_" + strain + "_ve_reduction_in_TP.png", dpi=144)
 
     # remove plots from memory
     fig.clear()
