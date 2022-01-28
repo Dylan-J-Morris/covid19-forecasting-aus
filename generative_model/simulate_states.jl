@@ -9,7 +9,7 @@ using Revise
 using PDFmerger
 
 include("read_in_cases.jl")
-include("generative_model.jl")
+include("branching_process.jl")
 include("processing_sim.jl")
 include("plot_forecasts.jl")
 
