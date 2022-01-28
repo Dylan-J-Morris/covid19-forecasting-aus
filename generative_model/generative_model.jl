@@ -717,22 +717,23 @@ function simulate_branching_process(
     println("======================")
     
     # keep only good sim results and truncate the TP to the same period as per D and U
-    TP_local_good_truncated = TP_local[(end-T_end):end,good_TPs]
     D_good = forecast.sim_realisations.D[:,:,good_sims]
     U_good = forecast.sim_realisations.U[:,:,good_sims]
     good_TPs_inds = good_TPs_inds[good_sims]
     
+    TP_local_truncated = TP_local[(end-T_end):end,:]
     # calculate the total number of infections by day t
     Z_good = sum(forecast.sim_realisations.Z[:,:,good_sims], dims = 2)
     Z_good_cumulative = cumsum(Z_good, dims = 1)[(end-T_end):end,1,:]
-    prop_infected = zeros(Int, size(TP_local_good_truncated, 1))
+    prop_infected = zeros(Int, size(TP_local_truncated, 1))
+    
     # new array to hold the correctly sampled values
-    TP_local_sims = zeros(size(TP_local_good_truncated, 1), length(good_TPs_inds))
+    TP_local_sims = zeros(size(TP_local_truncated, 1), length(good_TPs_inds))
     
     # adjust the local TP by susceptible depletion model 
     for (i, TP_ind) in enumerate(good_TPs_inds)
         prop_infected = Z_good_cumulative[:,i] ./ N
-        TP_local_sims[:,i] = TP_local_good_truncated[:,TP_ind] .* 
+        TP_local_sims[:,i] = TP_local_truncated[:,TP_ind] .* 
             (1 .- susceptible_depletion[TP_ind]*prop_infected)
     end
     
