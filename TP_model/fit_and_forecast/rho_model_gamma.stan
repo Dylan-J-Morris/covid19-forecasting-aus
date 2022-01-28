@@ -282,7 +282,7 @@ model {
     
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(0.4*0.4/0.075, 0.4/0.075);
-    additive_voc_effect_delta ~ gamma(1.5*1.5/0.005, 1.5/0.005);    // pin the Omicron only?
+    additive_voc_effect_delta ~ gamma(1.5*1.5/0.005, 1.5/0.005);
     additive_voc_effect_omicron ~ gamma(1.5*1.5/0.05, 1.5/0.05);
 
     // susceptible depletion (uninformative)
