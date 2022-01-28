@@ -2,6 +2,7 @@ data {
     
     // overall number of states in model 
     int j_total;
+    
     // first wave data 
     int N;
     int K;
@@ -13,6 +14,7 @@ data {
     vector[N] policy;
     matrix[N,j_first_wave] local;
     matrix[N,j_first_wave] imported;
+    
     // second wave data 
     int N_sec_wave;
     int j_sec_wave;
@@ -24,6 +26,7 @@ data {
     matrix[N_sec_wave,j_sec_wave] local_sec_wave;
     matrix[N_sec_wave,j_sec_wave] imported_sec_wave;
     int apply_alpha_sec_wave[N_sec_wave];
+    
     // third wave data 
     int N_third_wave;
     int j_third_wave;
@@ -34,6 +37,7 @@ data {
     vector[N_third_wave] policy_third_wave;
     matrix[N_third_wave,j_third_wave] local_third_wave;
     matrix[N_third_wave,j_third_wave] imported_third_wave;
+    
     // micro data
     vector[N] count_md[j_first_wave];
     vector[N] respond_md[j_first_wave];
@@ -43,17 +47,21 @@ data {
     vector[N_third_wave] respond_md_third_wave[j_third_wave];
     vector[N_third_wave] count_masks_third_wave[j_third_wave];
     vector[N_third_wave] respond_masks_third_wave[j_third_wave];
+    
     // vectors that map to the correct indices based on j_total 
     int map_to_state_index_first[j_first_wave];
     int map_to_state_index_sec[j_sec_wave];
     int map_to_state_index_third[j_third_wave];
+    
     // ints for moving through the total parameter vectors in the second or third waves
     int total_N_p_sec;
     int total_N_p_third;
+    
     // bool arrays for when to include data 
     vector[N] include_in_first_wave[j_first_wave];
     vector[N_sec_wave] include_in_sec_wave[j_sec_wave];
     vector[N_third_wave] include_in_third_wave[j_third_wave];
+    
     // this is used to index starting points in include_in_XX_wave 
     int pos_starts_sec[j_sec_wave];
     int pos_starts_third[j_third_wave];
@@ -67,6 +75,7 @@ data {
     vector[N_third_wave] include_in_omicron_wave[j_third_wave];
     int total_N_p_third_omicron;
     int pos_starts_third_omicron[j_third_wave];
+    
     int pop_size_array[j_total];
     int heterogeneity_start_day;
     
@@ -93,23 +102,28 @@ parameters {
     vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec_wave;
     vector<lower=0,upper=1>[total_N_p_third] prop_md_third_wave;
     matrix<lower=0,upper=1>[N,j_first_wave] brho;
+    
     // baseline and hierearchical RL parameters 
     real<lower=0> R_I;
     real<lower=0> R_L;
     vector<lower=0>[j_total] R_Li;
     real<lower=0> sig;
+    
     // import parameters 
     vector<lower=0,upper=1>[total_N_p_sec] brho_sec_wave;
     vector<lower=0,upper=1>[total_N_p_third] brho_third_wave;
     vector<lower=0,upper=1>[total_N_p_third] prop_masks_third_wave;
+    
     // voc parameters
     real<lower=0> additive_voc_effect_alpha;
     real<lower=0> additive_voc_effect_delta;
     real<lower=0> additive_voc_effect_omicron;
+    
     // vaccine model parameters 
     vector<lower=0,upper=1>[total_N_p_third] ve_delta;
     vector<lower=0,upper=1>[total_N_p_third_omicron] ve_omicron;
     vector<lower=0,upper=1>[total_N_p_third_omicron] prop_omicron_to_delta;
+    
     real<lower=0,upper=1> susceptible_depletion_factor;
     
 }
@@ -120,14 +134,17 @@ transformed parameters {
     real<lower=0> voc_effect_alpha = 1 + additive_voc_effect_alpha;
     real<lower=0> voc_effect_delta = 1 + additive_voc_effect_delta;
     real<lower=0> voc_effect_omicron = 1 + additive_voc_effect_omicron;
-    // TP models
+    
+    // TP models 
     matrix<lower=0>[N,j_first_wave] mu_hat;
     vector<lower=0>[total_N_p_sec] mu_hat_sec_wave;
     vector<lower=0>[total_N_p_third] mu_hat_third_wave;
+    
     // micro distancing model
     matrix<lower=0>[N,j_first_wave] md;
     vector<lower=0>[total_N_p_sec] md_sec_wave;
     vector<lower=0>[total_N_p_third] md_third_wave;
+    
     // mask wearing model
     vector<lower=0>[total_N_p_third] masks_third_wave;
 
@@ -162,9 +179,9 @@ transformed parameters {
             if (include_in_sec_wave[i][n] == 1){
                 md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
                 social_measures = (
-                    (1-policy_sec_wave[n]) 
-                    +md_sec_wave[pos]*policy_sec_wave[n])
-                    *2*inv_logit(Mob_sec_wave[i][n,:]*(bet)
+                    (1-policy_sec_wave[n]) + 
+                    md_sec_wave[pos]*policy_sec_wave[n])*
+                    2*inv_logit(Mob_sec_wave[i][n,:]*(bet)
                 );
                 TP_local = R_Li[map_to_state_index_sec[i]]*social_measures; 
                 mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I + (1-brho_sec_wave[pos])*TP_local;
@@ -202,19 +219,19 @@ transformed parameters {
                     voc_term = voc_effect_delta;
                     vacc_term = ve_delta[pos];
                 } else {
-                    voc_term = prop_omicron_to_delta[pos_omicron2]*voc_effect_omicron 
-                        + (1-prop_omicron_to_delta[pos_omicron2])*voc_effect_delta;
-                    vacc_term = prop_omicron_to_delta[pos_omicron2]*ve_omicron[pos_omicron2] 
-                        + (1-prop_omicron_to_delta[pos_omicron2])*ve_delta[pos];
+                    voc_term = prop_omicron_to_delta[pos_omicron2]*voc_effect_omicron + 
+                        (1-prop_omicron_to_delta[pos_omicron2])*voc_effect_delta;
+                    vacc_term = prop_omicron_to_delta[pos_omicron2]*ve_omicron[pos_omicron2] + 
+                        (1-prop_omicron_to_delta[pos_omicron2])*ve_delta[pos];
                     pos_omicron2 += 1;
                 }
                 
                 social_measures = (
-                    ((1-policy_third_wave[n])
-                    +md_third_wave[pos]
-                    *masks_third_wave[pos]
-                    *policy_third_wave[n])
-                    *2*inv_logit(Mob_third_wave[i][n,:]*(bet))
+                    ((1-policy_third_wave[n])+
+                    md_third_wave[pos]*
+                    masks_third_wave[pos]*
+                    policy_third_wave[n])*
+                    2*inv_logit(Mob_third_wave[i][n,:]*(bet))
                 );
                 
                 proportion_infected = (cumulative_local_third[n,i]*1.0)/(pop_size_array[map_to_state_index_third[i]]*1.0);
