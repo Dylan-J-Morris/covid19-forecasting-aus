@@ -6,8 +6,8 @@ to run:
         forecasting parts of the model.
     - helper_functions.jl: 
         Code which is commonly reused in the model. This involves non-specialised functions
-        for sampling onset and infection times, and for sampling from a NegativeBinomial and 
-        Binomial distribution using asymptotic limiting properties. 
+        for sampling onset and infection times, and for sampling from a NegativeBinomial 
+        and Binomial distribution using asymptotic limiting properties. 
     - forecast_types.jl 
         Code for some user defined types. This lets us group variables of importance. There 
         is a struct for the dynamical constants, properties of the data and a 
@@ -131,29 +131,29 @@ function initialise_population!(
             end
             
             start_day[sim] = minimum(infection_times)
-            infection_time_counter = 1
+            idx = 1
             
             for _ in 1:D0.S
-                Z[infection_times[infection_time_counter]+36,individual_type_map.S,sim] += 1
-                infection_time_counter += 1
+                Z[infection_times[idx]+36,individual_type_map.S,sim] += 1
+                idx += 1
                 D[1,individual_type_map.S,sim] += 1
             end
             
             for _ in 1:D0.A
-                Z[infection_times[infection_time_counter]+36,individual_type_map.A,sim] += 1
-                infection_time_counter += 1
+                Z[infection_times[idx]+36,individual_type_map.A,sim] += 1
+                idx += 1
                 D[1,individual_type_map.A,sim] += 1
             end
             
             for _ in 1:num_symptomatic_undetected
-                Z[infection_times[infection_time_counter]+36,individual_type_map.S,sim] += 1
-                infection_time_counter += 1
+                Z[infection_times[idx]+36,individual_type_map.S,sim] += 1
+                idx += 1
                 U[1,individual_type_map.S,sim] += 1
             end
             
             for _ in 1:num_asymptomatic_undetected
-                Z[infection_times[infection_time_counter]+36,individual_type_map.A,sim] += 1
-                infection_time_counter += 1
+                Z[infection_times[idx]+36,individual_type_map.A,sim] += 1
+                idx += 1
                 U[1,individual_type_map.A,sim] += 1
             end
         end
@@ -171,7 +171,8 @@ function import_cases_model!(
 )
 	"""
 	A model to handle international imports in the forecasting of cases. This can be run 
-    prior to the standard forecasting model and will pre-fill D, U and Z for each simulation.
+    prior to the standard forecasting model and will pre-fill D, U and Z for each 
+    simulation.
 
 	We assume that cases 
 	arise from 
@@ -179,10 +180,11 @@ function import_cases_model!(
 	where 
 	a[t] = α + f(I[t]) 
 	b = β + 1
-	are the parameters. The function f() is an exponential weighted moving average such that 
+	are the parameters. The function f() is an exponential weighted moving average such 
+    that 
 	f(I[t]) = ϕ I[t] + (1-ϕ) f(I[t-1])
-	and α, β are hyperparameters fixed at 0.5 and 0.2, respectively. We take b = β + 1 as we 
-	assume a fixed period of 1 day for estimating the posterior. 
+	and α, β are hyperparameters fixed at 0.5 and 0.2, respectively. We take b = β + 1 
+    as we assume a fixed period of 1 day for estimating the posterior. 
 	"""
 	
     Z = forecast.sim_realisations.Z
@@ -211,7 +213,8 @@ function import_cases_model!(
 		# available measurement 
 		if t <= T_observed
 			count_on_day = import_cases[days_into_forecast + t]
-			current_ema = forecast.sim_constants.ϕ*count_on_day + (1-forecast.sim_constants.ϕ)*current_ema
+			current_ema = forecast.sim_constants.ϕ*count_on_day + 
+                (1-forecast.sim_constants.ϕ)*current_ema
 			a_post[i] = forecast.sim_constants.prior_alpha + current_ema
 		else
 			a_post[i] = forecast.sim_constants.prior_alpha + current_ema
@@ -228,7 +231,8 @@ function import_cases_model!(
      
 	for sim in 1:size(D, 3)
     
-		# sample the number of imported cases detected and undetected (broadcasting to allocate in place)
+		# sample the number of imported cases detected and undetected 
+        # (broadcasting to allocate in place)
 		D_I .= rand.(NegativeBinomial.(a_post, b_post / (1 + b_post)))
         for (i, d) in enumerate(D_I)
     		unobserved_I[i] = d == 0 ? 1 : d
@@ -290,17 +294,16 @@ function sample_offspring!(
     sim, 
 )
     """
-    Sample offspring for all adults at time t. This uses the fact that the sum of N NB(s, p) is 
-    NB(N*s, p) and hence we can sample ALL offspring for a particular type of adults. 
+    Sample offspring for all adults at time t. This uses the fact that the sum of 
+    N NB(s, p) is NB(N*s, p) and hence we can sample ALL offspring for a particular type 
+    of adults. 
     """
     Z = forecast.sim_realisations.Z
     D = forecast.sim_realisations.D
     U = forecast.sim_realisations.U
     
-    # get the α's
     α_s = forecast.sim_constants.α_s
     α_a = forecast.sim_constants.α_a
-    # assumptions surrouding the probability of symptomatic, relative infectiousness γ and the ratio of Reff (α's) (CHECK THIS) 
     p_symp = forecast.sim_constants.p_symp
     p_detect_given_symp = forecast.sim_constants.p_detect_given_symp
     p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp
@@ -331,7 +334,7 @@ function sample_offspring!(
         D_sim = @views D[:,:,sim]
         U_sim = @views U[:,:,sim]
         
-        # take max of 0 and TP to deal with cases of depletion factor > TP accouting for susceptible_depletion
+        # take max of 0 and TP to deal with cases of depletion factor giving TP = 0
         proportion_infected = get_proportion_infected(
             t, cases_pre_forecast, D_sim, U_sim, N
         )
@@ -382,8 +385,10 @@ function sample_offspring!(
                 num_asymptomatic_offspring, p_detect_given_asymp
             )
             # calc number undetected 
-            num_symptomatic_offspring_undetected = num_symptomatic_offspring-num_symptomatic_offspring_detected
-            num_asymptomatic_offspring_undetected = num_asymptomatic_offspring-num_asymptomatic_offspring_detected
+            num_symptomatic_offspring_undetected = num_symptomatic_offspring - 
+                num_symptomatic_offspring_detected
+            num_asymptomatic_offspring_undetected = num_asymptomatic_offspring - 
+                num_asymptomatic_offspring_detected
             
             # add the onsets to observation arrays
             assign_to_arrays_and_times!(
@@ -419,9 +424,9 @@ function assign_to_arrays_and_times!(
     num_imports_undetected=0,       
 )
     """
-    Increment the arrays D and U based on sampled offsrping counts. The number of each offspring 
-    are keyword parameters which are default 0. This allows us to call this function from multiple
-    spots. 
+    Increment the arrays D and U based on sampled offsrping counts. The number of 
+    each offspring are keyword parameters which are default 0. This allows us to call 
+    this function from multiple spots. 
     """
     
     # TODO: refactor this using multiple dispatch. 

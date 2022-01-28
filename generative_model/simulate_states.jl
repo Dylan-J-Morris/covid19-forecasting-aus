@@ -51,7 +51,9 @@ function simulate_all_states(file_date, states_to_run, nsims)
         "NT" => 246338,
     )
         
-    initial_conditions = Dict{String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}}(
+    initial_conditions = Dict{
+        String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}
+    }(
         "NSW" => (S = 5, A = 8, I = 0),
         "QLD" => (S = 0, A = 0, I = 0),
         "SA" => (S = 0, A = 0, I = 0),
@@ -111,15 +113,37 @@ function simulate_all_states(file_date, states_to_run, nsims)
     
 end
 
+
 function plot_all_forecast_intervals(file_date, states, local_case_dict)
     """
     Simple wrapper function to plot the forecasts with various zoom and confidence levels. 
     """
     
-    plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="both")
-    plot_all_forecasts(file_date, states_to_run, local_case_dict, zoom=true, confidence_level="both")
-    plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="50")
-    plot_all_forecasts(file_date, states_to_run, local_case_dict, confidence_level="95")
+    plot_all_forecasts(
+        file_date, 
+        states_to_run, 
+        local_case_dict, 
+        confidence_level="both",
+    )
+    plot_all_forecasts(
+        file_date, 
+        states_to_run, 
+        local_case_dict, 
+        zoom=true, 
+        confidence_level="both",
+    )
+    plot_all_forecasts(
+        file_date, 
+        states_to_run, 
+        local_case_dict, 
+        confidence_level="50",
+    )
+    plot_all_forecasts(
+        file_date, 
+        states_to_run, 
+        local_case_dict, 
+        confidence_level="95",
+    )
     
     dir_name = "figs/case_forecasts/"*file_date*"/"
     file_name_tmp = "UoA_forecast_"
@@ -137,7 +161,9 @@ function plot_all_forecast_intervals(file_date, states, local_case_dict)
     )
 
     return nothing    
+    
 end
+
 
 function simulate_single_state(file_date,state,nsims)
     """
@@ -171,7 +197,9 @@ function simulate_single_state(file_date,state,nsims)
         "NT" => 246338,
     )
         
-    initial_conditions = Dict{String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}}(
+    initial_conditions = Dict{
+        String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}
+    }(
         "NSW" => (S = 5, A = 5, I = 0),
         "QLD" => (S = 0, A = 0, I = 0),
         "SA" => (S = 0, A = 0, I = 0),
@@ -225,6 +253,7 @@ function simulate_single_state(file_date,state,nsims)
     
 end
 
+
 function visualise_data()
     
     # choose file date 
@@ -268,7 +297,9 @@ function visualise_data()
         "NT" => 246338,
     )
         
-    initial_conditions = Dict{String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}}(
+    initial_conditions = Dict{
+        String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}
+    }(
         "NSW" => (S = 5, A = 5, I = 0),
         "QLD" => (S = 0, A = 0, I = 0),
         "SA" => (S = 0, A = 0, I = 0),

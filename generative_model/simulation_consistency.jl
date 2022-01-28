@@ -17,7 +17,8 @@ function get_simulation_limits(
     of 14 days.
     """
     # this is the number of days into the forecast simulation that dominant begins 
-    days_delta = (Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)).value
+    days_delta = (Dates.Date(omicron_dominant_date) - 
+        Dates.Date(forecast_start_date)).value
     # calculate the cases over the various windows
     cases_pre_backcast = sum(@view local_cases[1:days_delta])
     cases_backcast = sum(@view local_cases[days_delta+1:T_observed])
@@ -52,8 +53,8 @@ function get_simulation_limits(
     # the maximum allowable cases over the forecast period is the population size
     max_forecast_cases = N
     
-    # get the day we want to start using omicron GI and incubation period (+1) as 0 corresponds
-    # to the first element of the arrays 
+    # get the day we want to start using omicron GI and incubation period (+1) as 0 
+    # corresponds to the first element of the arrays 
     omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value + 1
     
     sim_features = Features(
@@ -73,7 +74,9 @@ function get_simulation_limits(
         min_cases, 
         max_cases,
     )
+    
 end
+
 
 function count_cases_in_windows!(
     forecast::Forecast, 
@@ -93,7 +96,9 @@ function count_cases_in_windows!(
     end
     
     return nothing
+    
 end
+
 
 function check_sim!(
     forecast::Forecast, 
@@ -183,8 +188,15 @@ function check_sim!(
         sim_week_cases = sum(@view D[day-6:day,:,sim])
         missing_detections = 0
         
-        if actual_3_day_cases > sim_3_day_threshold || (sim_week_cases == 0 && actual_3_day_cases > 0)
-            print_status && println("actual: ", actual_3_day_cases, " 3day: ", sim_3_day_cases, " 3day thresh: ", sim_3_day_threshold, " week: ", sim_week_cases, " day added: ", day)
+        if (actual_3_day_cases > sim_3_day_threshold) || 
+            (sim_week_cases == 0 && actual_3_day_cases > 0)
+            print_status && println(
+                "actual: ", actual_3_day_cases, 
+                " 3day: ", sim_3_day_cases, 
+                " 3day thresh: ", sim_3_day_threshold, 
+                " week: ", sim_week_cases, 
+                " day added: ", day,
+            )
              
             if sim_week_cases == 0
                 missing_detections = rand(1:actual_3_day_cases)
@@ -203,7 +215,9 @@ function check_sim!(
     end
     
     return (bad_sim, injected_cases)
+    
 end
+
 
 function inject_cases!(
     forecast::Forecast,
@@ -233,7 +247,9 @@ function inject_cases!(
     num_symptomatic_detected = sample_binomial_limit(missing_detections, p_symp_given_detect)
     num_asymptomatic_detected = missing_detections - num_symptomatic_detected
     # infer some undetected symptomatic
-    num_symptomatic_undetected = sample_negative_binomial_limit(missing_detections, p_detect_given_symp)
+    num_symptomatic_undetected = sample_negative_binomial_limit(
+        missing_detections, p_detect_given_symp
+    )
     
     # infer some undetected asumptomatic
     num_symptomatic_total = num_symptomatic_detected + num_symptomatic_undetected
@@ -241,14 +257,19 @@ function inject_cases!(
     if num_symptomatic_total == 0
         num_asymptomatic_undetected = sample_negative_binomial_limit(1, p_symp)
     else
-        num_asymptomatic_undetected = sample_negative_binomial_limit(num_symptomatic_total, p_symp)
+        num_asymptomatic_undetected = sample_negative_binomial_limit(
+            num_symptomatic_total, p_symp
+        )
     end
     
     # detection times are determined triangularly 
     num_symptomatic_each_day = (
         num_symptomatic_detected ÷ 2, 
-        num_symptomatic_detected ÷ 2 + num_symptomatic_detected ÷ 3,
-        num_symptomatic_detected ÷ 2 + num_symptomatic_detected ÷ 3 + num_symptomatic_detected ÷ 6 
+        num_symptomatic_detected ÷ 2 + 
+        num_symptomatic_detected ÷ 3,
+        num_symptomatic_detected ÷ 2 + 
+        num_symptomatic_detected ÷ 3 + 
+        num_symptomatic_detected ÷ 6,
     )
     counter = 0
     onset_time = day
@@ -261,7 +282,8 @@ function inject_cases!(
         elseif counter >= num_symptomatic_each_day[3]
             onset_time = day-2
         end
-        infection_time = onset_time - sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        infection_time = onset_time - 
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
         Z[infection_time+36,individual_type_map.S,sim] += 1
         D[onset_time,individual_type_map.S,sim] += 1 
         counter += 1
@@ -270,8 +292,11 @@ function inject_cases!(
     # detection times are determined triangularly 
     num_asymptomatic_each_day = (
         num_asymptomatic_detected ÷ 2, 
-        num_asymptomatic_detected ÷ 2 + num_asymptomatic_detected ÷ 3,
-        num_asymptomatic_detected ÷ 2 + num_asymptomatic_detected ÷ 3 + num_asymptomatic_detected ÷ 6 
+        num_asymptomatic_detected ÷ 2 + 
+        num_asymptomatic_detected ÷ 3,
+        num_asymptomatic_detected ÷ 2 + 
+        num_asymptomatic_detected ÷ 3 + 
+        num_asymptomatic_detected ÷ 6, 
     )
     counter = 0
     onset_time = day
@@ -284,7 +309,8 @@ function inject_cases!(
         elseif counter >= num_asymptomatic_each_day[3]
             onset_time = day-2
         end
-        infection_time = onset_time - sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        infection_time = onset_time - 
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
         Z[infection_time+36,individual_type_map.A,sim] += 1
         D[onset_time,individual_type_map.A,sim] += 1 
         counter += 1
@@ -295,8 +321,11 @@ function inject_cases!(
     # simulation recording.
     num_symptomatic_each_day = (
         num_symptomatic_undetected ÷ 2, 
-        num_symptomatic_undetected ÷ 2 + num_symptomatic_undetected ÷ 3,
-        num_symptomatic_undetected ÷ 2 + num_symptomatic_undetected ÷ 3 + num_symptomatic_undetected ÷ 6 
+        num_symptomatic_undetected ÷ 2 + 
+        num_symptomatic_undetected ÷ 3,
+        num_symptomatic_undetected ÷ 2 + 
+        num_symptomatic_undetected ÷ 3 + 
+        num_symptomatic_undetected ÷ 6,
     )
     counter = 0
     onset_time = day
@@ -308,7 +337,8 @@ function inject_cases!(
         elseif counter >= num_symptomatic_each_day[3]
             onset_time = day-2
         end
-        infection_time = onset_time - sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        infection_time = onset_time - 
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
         Z[infection_time+36,individual_type_map.S,sim] += 1
         U[onset_time,individual_type_map.S,sim] += 1 
         counter += 1
@@ -317,8 +347,11 @@ function inject_cases!(
     # detection times are determined triangularly 
     num_asymptomatic_each_day = (
         num_asymptomatic_undetected ÷ 2, 
-        num_asymptomatic_undetected ÷ 2 + num_asymptomatic_undetected ÷ 3,
-        num_asymptomatic_undetected ÷ 2 + num_asymptomatic_undetected ÷ 3 + num_asymptomatic_undetected ÷ 6 
+        num_asymptomatic_undetected ÷ 2 + 
+        num_asymptomatic_undetected ÷ 3,
+        num_asymptomatic_undetected ÷ 2 + 
+        num_asymptomatic_undetected ÷ 3 + 
+        num_asymptomatic_undetected ÷ 6,
     )
     counter = 0
     onset_time = day
@@ -331,7 +364,8 @@ function inject_cases!(
         elseif counter >= num_asymptomatic_each_day[3]
             onset_time = day-2
         end
-        infection_time = onset_time - sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        infection_time = onset_time - 
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
         Z[infection_time+36,individual_type_map.A,sim] += 1
         U[onset_time,individual_type_map.A,sim] += 1 
         counter += 1
@@ -340,4 +374,5 @@ function inject_cases!(
     # println("total injected is: ", total_injected, " at time: ", day)
     
     return nothing 
+    
 end

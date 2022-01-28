@@ -14,6 +14,7 @@ struct Features{T}
     omicron_dominant_day::T
 end
 
+
 struct Realisations{T1, T2}
     """
     A type for holding the realisations of the simulations. This is a cleaner way of 
@@ -24,6 +25,7 @@ struct Realisations{T1, T2}
     D::T2
     U::T2
 end
+
 
 struct Constants{T}
     """
@@ -48,11 +50,13 @@ struct Constants{T}
     consistency_multiplier::T
 end
 
+
 struct IndividualTypeMap{T}
     S::T
     A::T
     I::T
 end
+
 
 struct Forecast{T1,T2,T3,T4,T5}
     """

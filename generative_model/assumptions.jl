@@ -16,7 +16,9 @@ function sample_infection_time(;omicron=false)
     infection_time = ceil(Int, rand(Gamma(shape, scale)))
     
     return infection_time
+    
 end
+
 
 function sample_onset_time(;omicron=false)
     """
@@ -33,22 +35,25 @@ function sample_onset_time(;omicron=false)
     onset_time = ceil(Int, rand(Gamma(shape, scale)))
     
     return onset_time
+    
 end
 
 
 function set_simulation_constants(state)
     """
-    Contains the assumptions for simulation parameters. This includes all the dynamical constants: 
+    Contains the assumptions for simulation parameters. This includes all the dynamical
+    constants: 
         - k = heterogeneity parameter
         - p_symp = probability of symptoms 
         - γ = relative infectiousness of asymptomatic individuals 
         - p_symp_given_detect = probability of symptoms given detection
         - p_asymp_given_detect = probability of being asymptomatic given detection
-        - consistency_multiplier = chosen such that sim_cases < consistency_multiplier*actual cases 
+        - consistency_multiplier = chosen such that sim_cases < 
+            consistency_multiplier*actual cases 
             results in cases being injected into the simulation. This is used to account 
             for superspreading events after periods of low incidence. 
-    These values are stored in sim_constants which is a dictionary indexed by the parameter name and 
-    ultimately stored on the stack in a SimulationParameters object. 
+    These values are stored in sim_constants which is a dictionary indexed by the 
+    parameter name and ultimately stored on the stack in a SimulationParameters object. 
     """
 
     # overdispersion parameter 
@@ -96,7 +101,8 @@ function set_simulation_constants(state)
     consistency_multiplier = 5.0
 
     # prob of detecting an international import 
-    qi = 0.98
+    p_detect_import_delta = 0.98
+    p_detect_import_omicron = p_detect  # as of 1/1/2022, same detection prob as local
     # prior parametes for the import model
     prior_alpha = 0.5
     prior_beta = 0.2
@@ -114,7 +120,8 @@ function set_simulation_constants(state)
         γ,
         α_s,
         α_a,
-        qi,
+        p_detect_import_delta,
+        p_detect_import_omicron,
         prior_alpha,
         prior_beta,
         ϕ,
@@ -125,4 +132,5 @@ function set_simulation_constants(state)
     individual_type_map = IndividualTypeMap(1, 2, 3)
 
     return (simulation_constants, individual_type_map)
+    
 end

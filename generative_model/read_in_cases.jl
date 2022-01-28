@@ -87,8 +87,12 @@ function read_in_cases(
 		complete_dates_local_tmp = complete_dates_local[state_local .== s]
 		complete_dates_import_tmp = complete_dates_import[state_import .== s]
 		# get cases on each day 
-		local_cases = sum.(@views complete_dates_local_tmp .== dss for dss in dates_since_start)
-		import_cases = sum.(@views complete_dates_import_tmp .== dss for dss in dates_since_start)
+		local_cases = sum.(
+			@views complete_dates_local_tmp .== dss for dss in dates_since_start
+		)
+		import_cases = sum.(
+			@views complete_dates_import_tmp .== dss for dss in dates_since_start
+		)
 		# append to the df with a deepcopy to avoid a 0 d
 		local_case_dict[s] = deepcopy(local_cases)
 		import_case_dict[s] = deepcopy(import_cases)
