@@ -88,7 +88,7 @@ function simulate_all_states(file_date, states_to_run, nsims)
         (D, U, TP_local) = simulate_branching_process(
             D0, 
             N, 
-            nsims, 
+            nsims[state], 
             local_cases, 
             import_cases, 
             cases_pre_forecast,
