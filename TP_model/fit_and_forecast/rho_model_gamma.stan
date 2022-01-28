@@ -220,13 +220,16 @@ transformed parameters {
                 proportion_infected = (cumulative_local_third[n,i]*1.0)/(pop_size_array[map_to_state_index_third[i]]*1.0);
                 susceptible_depletion_term = 1-susceptible_depletion_factor*proportion_infected;
                 
-                TP_local = R_Li[map_to_state_index_third[i]]
-                    *social_measures
-                    *voc_term
-                    *vacc_term
-                    *susceptible_depletion_term;
+                TP_local = R_Li[map_to_state_index_third[i]]*
+                    social_measures*
+                    voc_term*
+                    vacc_term*
+                    susceptible_depletion_term;
                 
-                mu_hat_third_wave[pos] = brho_third_wave[pos]*R_I+(1-brho_third_wave[pos])*TP_local;
+                mu_hat_third_wave[pos] = (
+                    brho_third_wave[pos]*R_I +
+                    (1-brho_third_wave[pos])*TP_local
+                )*susceptible_depletion_term;
                     
                 pos += 1;
             }
