@@ -14,7 +14,7 @@ struct Features{T}
     omicron_dominant_day::T
 end
 
-struct Realisations{T1, T2}
+struct Realisations{T1,T2}
     """
     A type for holding the realisations of the simulations. This is a cleaner way of 
     holding the information for the three different matrices used. Z is for infections 

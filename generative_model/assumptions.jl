@@ -1,7 +1,7 @@
 using Distributions
 using Random
 
-function sample_infection_time(;omicron=false)
+function sample_infection_time(; omicron=false)
     """
     Sample infection times for num individuals based on the generation 
     interval distribution, Gamma(shape_gen, scale_gen). 
@@ -9,32 +9,31 @@ function sample_infection_time(;omicron=false)
 
     (shape_gen, scale_gen) = (2.75, 1.00)
     (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
-    
-    shape = (1-omicron)*shape_gen + omicron*shape_gen_omicron
-    scale = (1-omicron)*scale_gen + omicron*scale_gen_omicron
-    
+
+    shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
+    scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
+
     infection_time = ceil(Int, rand(Gamma(shape, scale)))
-    
+
     return infection_time
 end
 
-function sample_onset_time(;omicron=false)
+function sample_onset_time(; omicron=false)
     """
     Sample incubation times for num individuals based on incubation period 
     distribution, Gamma(shape_inc, scale_inc). 
     """
-    
+
     (shape_inc, scale_inc) = (5.807, 0.948)
     (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
-    
-    shape = (1-omicron)*shape_inc + omicron*shape_inc_omicron
-    scale = (1-omicron)*scale_inc + omicron*scale_inc_omicron
-    
+
+    shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
+    scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
+
     onset_time = ceil(Int, rand(Gamma(shape, scale)))
-    
+
     return onset_time
 end
-
 
 function set_simulation_constants(state)
     """
@@ -57,8 +56,8 @@ function set_simulation_constants(state)
     # assumptions surrouding the probability of symptomatic, 
     # relative infectiousness γ and the ratio of Reff (α's) 
     p_symp = 0.4
-    
-    p_detect_given_symp_dict = Dict{String, Float64}(
+
+    p_detect_given_symp_dict = Dict{String,Float64}(
         "NSW" => 0.7,
         "QLD" => 0.7,
         "SA" => 0.7,
@@ -68,8 +67,8 @@ function set_simulation_constants(state)
         "NT" => 0.7,
         "VIC" => 0.7,
     )
-    
-    p_detect_given_asymp_dict = Dict{String, Float64}(
+
+    p_detect_given_asymp_dict = Dict{String,Float64}(
         "NSW" => 0.467,
         "QLD" => 0.467,
         "SA" => 0.467,
@@ -79,7 +78,7 @@ function set_simulation_constants(state)
         "NT" => 0.467,
         "VIC" => 0.467,
     )
-    
+
     γ = 0.5     # relative infectiousness of asymptomatic
     # solve the system: 
     # α_s*ps + α_a(1-ps) = 1 
@@ -87,11 +86,11 @@ function set_simulation_constants(state)
     p_detect_given_symp = p_detect_given_symp_dict[state]
     p_detect_given_asymp = p_detect_given_asymp_dict[state]
     # prob of detection
-    p_detect = p_symp*p_detect_given_symp + (1-p_symp)*p_detect_given_asymp
+    p_detect = p_symp * p_detect_given_symp + (1 - p_symp) * p_detect_given_asymp
     # prob symptomatic given detect
-    p_symp_given_detect = p_detect_given_symp*p_symp/p_detect 
-    
-    α_s = 1/(p_symp + γ*(1-p_symp))
+    p_symp_given_detect = p_detect_given_symp * p_symp / p_detect
+
+    α_s = 1 / (p_symp + γ * (1 - p_symp))
     α_a = γ * α_s
     consistency_multiplier = 5.0
 
@@ -109,7 +108,7 @@ function set_simulation_constants(state)
         p_symp,
         p_detect_given_symp,
         p_detect_given_asymp,
-        p_detect, 
+        p_detect,
         p_symp_given_detect,
         γ,
         α_s,
