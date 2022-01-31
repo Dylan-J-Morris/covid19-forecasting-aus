@@ -27,21 +27,20 @@ struct Realisations{T1, T2}
 end
 
 
-struct Constants{T}
+struct Constants{T, S}
     """
     A type for the dynamical / simulation constants 
     """
-    k_delta::T
-    k_omicron::T
-    p_symp::T
-    p_detect_given_symp::T
-    p_detect_given_asymp::T
-    p_detect::T
-    p_symp_given_detect::T
+    k::S
+    p_symp::S
+    p_detect_given_symp::S
+    p_detect_given_asymp::S
+    p_detect::S
+    p_symp_given_detect::S
+    α_s::S
+    α_a::S
+    qi::S
     γ::T
-    α_s::T
-    α_a::T
-    qi::T
     # import model parameters
     prior_alpha::T
     prior_beta::T

@@ -9,7 +9,7 @@ function get_simulation_limits(
     TP_indices, 
     N, 
     T_observed, 
-    T_end
+    T_end,
 )
     """
     Using the observed cases, determine the limits of cases over the backcast and 
@@ -237,14 +237,28 @@ function inject_cases!(
     
     total_injected = missing_detections
     
-    p_symp = forecast.sim_constants.p_symp
-    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp
-    p_symp_given_detect = forecast.sim_constants.p_symp_given_detect
-    
-    omicron_dominant_day = forecast.sim_features.omicron_dominant_day
+    omicron_dominant_day = forecast.sim_features.omicron_dominant_day 
+    # initialise the parameters 
+    p_symp = 0.0 
+    p_detect_given_symp = 0.0 
+    p_detect_given_asymp = 0.0 
+    # grab the correct parameters for the particular dominant strain 
+    if day < omicron_dominant_day 
+        p_symp = forecast.sim_constants.p_symp.delta 
+        p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.delta 
+        p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.delta 
+        p_symp_given_detect = forecast.sim_constants.p_symp_given_detect.delta 
+    else
+        p_symp = forecast.sim_constants.p_symp.omicron 
+        p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.omicron 
+        p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.omicron 
+        p_symp_given_detect = forecast.sim_constants.p_symp_given_detect.omicron 
+    end
     
     # sample number detected 
-    num_symptomatic_detected = sample_binomial_limit(missing_detections, p_symp_given_detect)
+    num_symptomatic_detected = sample_binomial_limit(
+        missing_detections, p_symp_given_detect
+    )
     num_asymptomatic_detected = missing_detections - num_symptomatic_detected
     # infer some undetected symptomatic
     num_symptomatic_undetected = sample_negative_binomial_limit(

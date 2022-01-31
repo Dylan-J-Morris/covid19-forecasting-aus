@@ -77,11 +77,14 @@ function initialise_population!(
     D = forecast.sim_realisations.D
     U = forecast.sim_realisations.U
     
-    # extract prob of being symptomatic and prob of symptoms given detection
-    p_symp = forecast.sim_constants.p_symp
-    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp
+    # extract prob of being symptomatic and prob of symptoms given detection 
+    # NOTE: this currently assumes we are starting in the Delta wave (which is true as
+    # of 31/1/2022) but we will need to update this if we shift the starting date. 
+    p_symp = forecast.sim_constants.p_symp.delta 
+    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.delta 
     T_end = forecast.sim_features.T_end
     individual_type_map = forecast.individual_type_map
+    omicron_dominant_day = forecast.sim_features.omicron_dominant_day 
     
     total_initial_cases = sum(D0)
     
@@ -191,6 +194,11 @@ function import_cases_model!(
     D = forecast.sim_realisations.D
     U = forecast.sim_realisations.U
     
+    omicron_dominant_day = forecast.sim_features.omicron_dominant_day
+    
+    # grab the correct parameters for the particular dominant strain 
+    qi = 0.0
+    
     T_observed = forecast.sim_features.T_observed
     T_end = forecast.sim_features.T_end
     
@@ -223,32 +231,30 @@ function import_cases_model!(
 	
     # assuming a fixed period of 1 day (so this is the same for the whole period)
     b_post = forecast.sim_constants.prior_beta + 1
-	
-    # preallocate daily import vectors 
-    D_I = MVector{length(a_post)}(zeros(Int, length(a_post)))
-    U_I = MVector{length(a_post)}(zeros(Int, length(a_post)))
-    unobserved_I = MVector{length(a_post)}(zeros(Int, length(a_post)))
      
 	for sim in 1:size(D, 3)
-    
-		# sample the number of imported cases detected and undetected 
-        # (broadcasting to allocate in place)
-		D_I .= rand.(NegativeBinomial.(a_post, b_post / (1 + b_post)))
-        for (i, d) in enumerate(D_I)
-    		unobserved_I[i] = d == 0 ? 1 : d
-        end
-		U_I .= rand.(NegativeBinomial.(unobserved_I, forecast.sim_constants.qi))
-	
 		for (i, t) in enumerate(forecast_days_plus_padding)
+            # sample detected imports 
+            D_I = rand(NegativeBinomial(a_post[i], b_post / (1 + b_post)))
+            # see whether they're observed 
+            unobserved_I = D_I == 0 ? 1 : D_I
+            # based on the current day, determine the number sampled 
+            if t < omicron_dominant_day 
+                qi = forecast.sim_constants.qi.delta 
+            else
+                qi = forecast.sim_constants.qi.omicron 
+            end
+            U_I = rand(NegativeBinomial(unobserved_I, qi))
+            
             # day of infection is time t which is why the infection time in 
-			if D_I[i] + U_I[i] > 0
+			if D_I + U_I > 0
 				# add sampled imports to observation arrays
                 assign_to_arrays_and_times!(
                     forecast, 
                     t, 
                     sim, 
-                    num_imports_detected=D_I[i], 
-					num_imports_undetected=U_I[i], 
+                    num_imports_detected=D_I, 
+					num_imports_undetected=U_I, 
                 )
 			end
 		end
@@ -301,15 +307,30 @@ function sample_offspring!(
     Z = forecast.sim_realisations.Z
     D = forecast.sim_realisations.D
     U = forecast.sim_realisations.U
-    
-    α_s = forecast.sim_constants.α_s
-    α_a = forecast.sim_constants.α_a
-    p_symp = forecast.sim_constants.p_symp
-    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp
-    p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp
-    # determine overdispersion parameter based on whether Omicron is dominant or not 
-    k = forecast.sim_constants.k_delta * (t < forecast.sim_features.omicron_dominant_day) + 
-        forecast.sim_constants.k_omicron * (t >= forecast.sim_features.omicron_dominant_day)
+    omicron_dominant_day = forecast.sim_features.omicron_dominant_day 
+    # initialise the parameters 
+    α_s = 0.0 
+    α_a = 0.0
+    p_symp = 0.0 
+    p_detect_given_symp = 0.0 
+    p_detect_given_asymp = 0.0 
+    k = 0.0 
+    # grab the correct parameters for the particular dominant strain 
+    if t < omicron_dominant_day 
+        α_s = forecast.sim_constants.α_s.delta
+        α_a = forecast.sim_constants.α_a.delta
+        p_symp = forecast.sim_constants.p_symp.delta 
+        p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.delta 
+        p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.delta 
+        k = forecast.sim_constants.k.delta 
+    else
+        α_s = forecast.sim_constants.α_s.omicron
+        α_a = forecast.sim_constants.α_a.omicron
+        p_symp = forecast.sim_constants.p_symp.omicron 
+        p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.omicron 
+        p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.omicron 
+        k = forecast.sim_constants.k.omicron 
+    end
     
     # extract fixed simulation values
     cases_pre_forecast = forecast.sim_features.cases_pre_forecast
