@@ -68,7 +68,6 @@ function set_simulation_constants(state)
         "NT" => 0.95,
         "VIC" => 0.95,
     )
-    
     p_detect_given_asymp_delta_dict = Dict{String, Float64}(
         "NSW" => 0.1,
         "QLD" => 0.1,
@@ -79,7 +78,6 @@ function set_simulation_constants(state)
         "NT" => 0.1,
         "VIC" => 0.1,
     )
-    
     p_detect_given_symp_delta = p_detect_given_symp_delta_dict[state]
     p_detect_given_asymp_delta = p_detect_given_asymp_delta_dict[state]
     p_detect_delta = p_symp_delta*p_detect_given_symp_delta + 
@@ -90,11 +88,7 @@ function set_simulation_constants(state)
     
     ## omicron assumptions 
     k_omicron = 0.6
-    
-    # assumptions surrouding the probability of symptomatic, 
-    # relative infectiousness γ and the ratio of Reff (α's) 
     p_symp_omicron = 0.4
-    
     p_detect_given_symp_omicron_dict = Dict{String, Float64}(
         "NSW" => 0.7,
         "QLD" => 0.7,
@@ -105,7 +99,6 @@ function set_simulation_constants(state)
         "NT" => 0.7,
         "VIC" => 0.7,
     )
-    
     p_detect_given_asymp_omicron_dict = Dict{String, Float64}(
         "NSW" => 0.467,
         "QLD" => 0.467,
@@ -116,14 +109,13 @@ function set_simulation_constants(state)
         "NT" => 0.467,
         "VIC" => 0.467,
     )
-    
-    # solve the system: 
     p_detect_given_symp_omicron = p_detect_given_symp_omicron_dict[state]
     p_detect_given_asymp_omicron = p_detect_given_asymp_omicron_dict[state]
     p_detect_omicron = p_symp_omicron*p_detect_given_symp_omicron + 
         (1-p_symp_omicron)*p_detect_given_asymp_omicron 
-    # prob symptomatic given detect
-    p_symp_given_detect_omicron = p_detect_given_symp_omicron*p_symp_omicron/p_detect_omicron 
+    p_symp_given_detect_omicron = (
+        p_detect_given_symp_omicron*p_symp_omicron/p_detect_omicron 
+    )
     # as of 1/1/2022, same as the probability of detection for local omicron cases 
     p_detect_import_omicron = p_detect_omicron  
     
