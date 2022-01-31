@@ -27,7 +27,9 @@ function read_in_cases(
 	# initialise array for complete_onset_dates
 	complete_dates = deepcopy(confirm_dates)
 	# fill the array with the most informative date 
-	complete_dates[.!is_confirmation] = Date.(convert(Vector, df.date_onset[.!is_confirmation]))
+	complete_dates[.!is_confirmation] = Date.(
+		convert(Vector, df.date_onset[.!is_confirmation])
+	)
 	complete_dates[is_confirmation] = confirm_dates[is_confirmation]
 	
 	# if want to apply delay, subtract an incubation period per individual 

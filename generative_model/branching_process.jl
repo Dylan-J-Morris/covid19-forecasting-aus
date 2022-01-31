@@ -578,9 +578,9 @@ function simulate_branching_process(
     state,
 )
     """
-    Simulate branching process nsims times conditional on the cumulative observed cases, with 
-    initial state X0 = (S, A, I) (a named tuple). T is the duration of the simulation and N is the 
-    population size which is currently unused. 
+    Simulate branching process nsims times conditional on the cumulative observed cases, 
+    with initial state X0 = (S, A, I) (a named tuple). T is the duration of the simulation 
+    and N is the population size which is currently unused. 
     """
     # read in the TP for a given state and date
     (TP_indices, TP_local, TP_import) = create_state_TP_matrices(

@@ -1,6 +1,6 @@
 """
-Simple script to grab and install these packages into the global Julia install (easiest way
-of handling this).
+Simple script to grab and install these packages into the global Julia install (easiest 
+way of handling this).
 """
 
 using Pkg 

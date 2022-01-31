@@ -135,7 +135,8 @@ function check_sim!(
     bad_sim = false
     injected_cases = false 
     
-    days_delta = (Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)).value
+    days_delta = (Dates.Date(omicron_dominant_date) - 
+        Dates.Date(forecast_start_date)).value
     
     cases_pre_backcast = sum(@view D[1:days_delta,1:2,sim])
     cases_backcast = sum(@view D[days_delta+1:T_observed,1:2,sim])
