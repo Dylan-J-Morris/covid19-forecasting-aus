@@ -48,7 +48,7 @@ third_start_date = pd.to_datetime(third_start_date)
 third_end_date = data_date - timedelta(truncation_days)
 
 # a different end date to deal with issues in fitting
-third_end_date_diff = data_date - timedelta(18 + 7)
+third_end_date_diff = data_date - timedelta(18 + 7 + 7)
 
 third_states = sorted(["NSW", "VIC", "ACT", "QLD", "SA", "TAS", "NT"])
 # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])

@@ -306,7 +306,7 @@ def get_data_for_posterior(data_date):
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
     # a different fitting end date to handle data issues with any particular states
-    third_end_date_diff = data_date - pd.Timedelta(days=18 + 7)
+    third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)
 
     # choose dates for each state for third wave
     # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only!
@@ -933,7 +933,7 @@ def plot_and_save_posterior_samples(data_date):
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
     # to handle SA data issues
-    third_end_date_diff = data_date - pd.Timedelta(days=18 + 7)
+    third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)
 
     # choose dates for each state for third wave
     # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only!
@@ -1942,7 +1942,7 @@ def main(data_date):
 
     # some parameters for HMC
     num_chains = 2
-    num_samples = 2000
+    num_samples = 1000
     num_warmup_samples = 750
 
     get_data_for_posterior(data_date=data_date)
