@@ -51,7 +51,7 @@ Scenario modelling in the context of this model relates to the assumptions we ap
 
 Run these at the command line. Number of sims is used to name some of the files. These lines provide the VoC flag as well as the scenario. Note that scenario date is only of importance for particular situations and acts only as an identifier for a no-reversion to baseline scenario. 
 ```
-DATADATE='2022-01-25'   # Date of NNDSS data file
+DATADATE='2022-02-01'   # Date of NNDSS data file
 NUM_THREADS=4
 NSIMS=1000               # Total number of simulations to run should be > 5000
 ```
