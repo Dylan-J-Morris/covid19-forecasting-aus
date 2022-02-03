@@ -34,7 +34,7 @@ function get_simulation_limits(
     # min_cases = 0*cases_in_each_window
     max_cases = ceil.(
         Int, 
-        [2.5*cases_pre_backcast, 2.5*cases_backcast, 2.5*cases_60, 4.0*cases_nowcast]
+        [2.5*cases_pre_backcast, 3.0*cases_backcast, 2.5*cases_60, 2.75*cases_nowcast]
     )
 
     # assume maximum of 250 cases if the observed is less than that

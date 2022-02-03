@@ -5,6 +5,17 @@ using DataFrames
 using Pipe
 using Dates 
 
+function NegativeBinomial2(μ, ϕ)
+    """
+    Function for parameterisation of the negative Binomial in terms of mean and variance.
+    NOTE THAT THIS IS CURRENTLY NOT IN USE.
+    """    
+    p = 1 / (1 + μ / ϕ)
+    r = ϕ
+
+    return NegativeBinomial(r, p)
+end
+
 function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     """
     Samples from a NegBin(s, p) distribution. This uses a normal approximation 
@@ -21,7 +32,6 @@ function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     #     σ = sqrt(s*(1-p)/p^2)
     #     X = ceil(Int, rand(Normal(μ, σ)))
     # end
-    
     X = rand(NegativeBinomial(s, p))
     
     return X 

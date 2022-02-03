@@ -146,7 +146,10 @@ function set_simulation_constants(state)
         delta = p_symp_given_detect_delta,
         omicron = p_symp_given_detect_omicron,  
     )
-    p_detect_import = (delta = p_detect_import_delta, omicron = p_detect_import_omicron)
+    p_detect_import = (
+        delta = p_detect_import_delta, 
+        omicron = p_detect_import_omicron
+    )
     
     # other parameters 
     consistency_multiplier = 5.0

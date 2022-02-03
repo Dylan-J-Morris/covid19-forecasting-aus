@@ -259,7 +259,7 @@ transformed parameters {
                     2*inv_logit(Mob_third_wave[i][n,:]*(bet))
                 );
                 proportion_infected = (cumulative_local_third[n,i]*1.0)/(pop_size_array[map_to_state_index_third[i]]*1.0);
-                susceptible_depletion_term = 1-susceptible_depletion_factor*proportion_infected;
+                susceptible_depletion_term = 1 - susceptible_depletion_factor*proportion_infected;
                 
                 TP_local = R_Li[map_to_state_index_third[i]]*
                     social_measures*
@@ -288,7 +288,7 @@ model {
 
     // variables for vax effects (reused for Delta and Omicron VEs)
     real mean_vax;
-    real var_vax = 0.00025;     
+    real var_vax = 0.005;     
     array[N_third_wave] real a_vax;
     array[N_third_wave] real b_vax;
     real a_vax_scalar;
@@ -318,7 +318,7 @@ model {
     
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(square(0.4)/0.075, 0.4/0.075);
-    additive_voc_effect_delta ~ gamma(square(2.0)/0.0025, 2.0/0.0025);
+    additive_voc_effect_delta ~ gamma(square(2.0)/0.05, 2.0/0.05);
     additive_voc_effect_omicron ~ gamma(square(additive_voc_effect_delta)/0.0025, additive_voc_effect_delta/0.0025);
 
     // susceptible depletion (uninformative)
@@ -452,11 +452,11 @@ model {
                 } else {
                     if (mean_vax > 0.98) {
                         // if we are close to 1 or 0, tight prior near relevant value        
-                        a_vax_scalar = 75;
+                        a_vax_scalar = 70;
                         b_vax_scalar = 1;
                     } else if (mean_vax < 0.02) {
                         a_vax_scalar = 1;
-                        b_vax_scalar = 75;
+                        b_vax_scalar = 70;
                     }
                 }
             } else {
@@ -484,11 +484,11 @@ model {
             } else {
                 // if we are close to 1 or 0, tight prior near relevant value        
                 if (mean_vax > 0.98) {
-                    a_vax[n] = 75;
+                    a_vax[n] = 70;
                     b_vax[n] = 1;
                 } else if (mean_vax < 0.02) {
                     a_vax[n] = 1;
-                    b_vax[n] = 75;
+                    b_vax[n] = 70;
                 }
             }
         }
@@ -507,7 +507,7 @@ model {
                 if (n <= omicron_start_day+15){
                     // assume low proportion of Omicron pre-December 2021
                     a_omicron = 2;
-                    b_omicron = 50;
+                    b_omicron = 25;
                 } else if (n <= omicron_start_day+30) {
                     // the drift counter starts at a different point based on the previous day
                     if (include_in_omicron_wave[i][n-1] == 0) {
@@ -531,9 +531,9 @@ model {
                         if (mean_omicron > 0.98) {
                             a_omicron = 50;
                             b_omicron = 2;
-                        } else if (mean_omicron < 0.02) {
+                        } else if (mean_omicron < 0.05) {
                             a_omicron = 2;
-                            b_omicron = 50;
+                            b_omicron = 25;
                         }
                     }
                 } else {

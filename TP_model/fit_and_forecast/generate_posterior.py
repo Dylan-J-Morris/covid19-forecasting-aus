@@ -270,7 +270,6 @@ def get_data_for_posterior(data_date):
     states_to_fit_all_waves = sorted(
         ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"]
     )
-
     first_states = sorted(["NSW", "VIC", "QLD", "SA", "WA", "TAS"])
     fit_post_March = True
     ban = "2020-03-20"
@@ -288,7 +287,6 @@ def get_data_for_posterior(data_date):
     }
 
     # Second wave inputs
-    # sec_states = sorted(['NSW', 'VIC'])
     sec_states = sorted(["NSW"])
     sec_start_date = "2020-06-01"
     sec_end_date = "2021-01-19"
@@ -296,7 +294,6 @@ def get_data_for_posterior(data_date):
     # choose dates for each state for sec wave
     sec_date_range = {
         "NSW": pd.date_range(start=sec_start_date, end="2021-01-19").values,
-        # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-28').values,
     }
 
     # Third wave inputs
@@ -313,7 +310,8 @@ def get_data_for_posterior(data_date):
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
         "NSW": pd.date_range(start="2021-06-23", end=third_end_date).values,
-        "NT": pd.date_range(start="2021-12-01", end=third_end_date_diff).values,
+        # "NT": pd.date_range(start="2021-12-01", end=third_end_date_diff).values,
+        "NT": pd.date_range(start="2021-12-01", end=third_end_date).values,
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
         "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
@@ -927,20 +925,20 @@ def plot_and_save_posterior_samples(data_date):
 
     # Third wave inputs
     third_states = sorted(["NSW", "VIC", "ACT", "QLD", "SA", "TAS", "NT"])
-    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
     # Subtract the truncation days to avoid right truncation as we consider infection dates
     # and not symptom onset dates
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
     # to handle SA data issues
-    third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)
+    # third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)a
 
     # choose dates for each state for third wave
     # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only!
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
         "NSW": pd.date_range(start="2021-06-23", end=third_end_date).values,
-        "NT": pd.date_range(start="2021-12-01", end=third_end_date_diff).values,
+        # "NT": pd.date_range(start="2021-12-01", end=third_end_date_diff).values,
+        "NT": pd.date_range(start="2021-12-01", end=third_end_date).values,
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
         "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
@@ -1942,7 +1940,7 @@ def main(data_date):
 
     # some parameters for HMC
     num_chains = 2
-    num_samples = 1000
+    num_samples = 2000
     num_warmup_samples = 750
 
     get_data_for_posterior(data_date=data_date)
