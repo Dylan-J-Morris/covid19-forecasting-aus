@@ -588,7 +588,7 @@ def get_data_for_posterior(data_date):
         "Reff": data_by_state["mean"].values,
         "Mob": mobility_by_state,
         "Mob_std": mobility_std_by_state,
-        "sigma2": data_by_state["std"].values ** 2,
+        "sigma2": 5*data_by_state["std"].values ** 2,
         "policy": policy.values,
         "local": data_by_state["local"].values,
         "imported": data_by_state["imported"].values,
@@ -597,7 +597,7 @@ def get_data_for_posterior(data_date):
         "Reff_sec_wave": sec_data_by_state["mean"].values,
         "Mob_sec_wave": sec_mobility_by_state,
         "Mob_sec_wave_std": sec_mobility_std_by_state,
-        "sigma2_sec_wave": sec_data_by_state["std"].values ** 2,
+        "sigma2_sec_wave": 5*sec_data_by_state["std"].values ** 2,
         "policy_sec_wave": policy_sec_wave,
         "local_sec_wave": sec_data_by_state["local"].values,
         "imported_sec_wave": sec_data_by_state["imported"].values,
@@ -607,7 +607,7 @@ def get_data_for_posterior(data_date):
         "Reff_third_wave": third_data_by_state["mean"].values,
         "Mob_third_wave": third_mobility_by_state,
         "Mob_third_wave_std": third_mobility_std_by_state,
-        "sigma2_third_wave": third_data_by_state["std"].values ** 2,
+        "sigma2_third_wave": 5*third_data_by_state["std"].values ** 2,
         "policy_third_wave": policy_third_wave,
         "local_third_wave": third_data_by_state["local"].values,
         "imported_third_wave": third_data_by_state["imported"].values,
@@ -644,6 +644,10 @@ def get_data_for_posterior(data_date):
         "pos_starts_third_omicron": np.cumsum([sum(x) for x in include_in_omicron_wave])
         .astype(int)
         .tolist(),
+        'total_N_p_third_blocks': int(sum([int(ceil(sum(x)/7)) for x in include_in_third_wave])),
+        'pos_starts_third_blocks': np.cumsum([int(ceil(sum(x)/7)) for x in include_in_third_wave]).astype(int),
+        'total_N_p_third_omicron_blocks': int(sum([int(ceil(sum(x)/7)) for x in include_in_omicron_wave])),
+        'pos_starts_third_omicron_blocks': np.cumsum([int(ceil(sum(x)/7)) for x in include_in_omicron_wave]).astype(int),
         "pop_size_array": pop_size_array,
         "heterogeneity_start_day": heterogeneity_start_day,
     }
