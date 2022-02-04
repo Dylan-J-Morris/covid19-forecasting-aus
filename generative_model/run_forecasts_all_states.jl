@@ -16,7 +16,7 @@ const states_to_run = [
     "VIC",
     "WA",
     "ACT",
-    # "NT",
+    "NT",
     "TAS",
 ]
     
@@ -44,5 +44,3 @@ const nsims = Dict{String, Int}(
 
 # run main 
 simulate_all_states(file_date, states_to_run, nsims)
-
-
