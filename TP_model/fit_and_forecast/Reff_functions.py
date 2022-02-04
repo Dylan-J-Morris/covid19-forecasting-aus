@@ -143,10 +143,9 @@ def predict_plot(
         elif third_phase:
             df_state = df_state.loc[df_state.is_third_wave == 1]
 
-        if third_phase:
-            masks_prop_sim = masks_prop[states_initials[state]].values[
-                : df_state.shape[0]
-            ]
+        masks_prop_sim = masks_prop[states_initials[state]].values[
+            : df_state.shape[0]
+        ]
 
         samples_sim = samples.sample(1000)
         post_values = samples_sim[
@@ -170,13 +169,13 @@ def predict_plot(
             md = ((1 + theta_md).T ** (-1 * prop_sim)).T
             # set preban md values to 1
             md[: logodds.shape[0]] = 1
-            if third_phase:
-                theta_masks = samples_sim.theta_masks.values  # 1 by samples shape
-                # each row is a date, column a new sample
-                theta_masks = np.tile(theta_masks, (df_state.shape[0], 1))
-                masks = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
-                # set preban mask values to 1
-                masks[: logodds.shape[0]] = 1
+            
+            theta_masks = samples_sim.theta_masks.values  # 1 by samples shape
+            # each row is a date, column a new sample
+            theta_masks = np.tile(theta_masks, (df_state.shape[0], 1))
+            masks = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
+            # set preban mask values to 1
+            masks[: logodds.shape[0]] = 1
 
             # make logodds by appending post ban values
             logodds = np.append(logodds, X2 @ post_values, axis=0)
@@ -300,7 +299,7 @@ def predict_plot(
         if third_phase and states_initials[state] in third_states:
             mu_hat = 2 * md * masks * sim_R * expit(logodds) * vacc_post
         else:
-            mu_hat = 2 * md * sim_R * expit(logodds)
+            mu_hat = 2 * md * masks * sim_R * expit(logodds)
 
         if rho:
             if rho == "data":

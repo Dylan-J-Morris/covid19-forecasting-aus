@@ -47,7 +47,8 @@ def process_vax_data_array(data_date, third_states, third_end_date, variant="Del
         "data/vaccine_effect_timeseries_" + data_date.strftime("%Y-%m-%d") + ".csv",
         parse_dates=["date"],
     )
-    # there are a couple NA's early on in the time series but is likely due to slightly different start dates
+    # there are a couple NA's early on in the time series but is likely due to slightly 
+    # different start dates
     vaccination_by_state.fillna(1, inplace=True)
     vaccination_by_state = vaccination_by_state.loc[
         vaccination_by_state["variant"] == variant
@@ -116,14 +117,14 @@ def get_data_for_posterior(data_date):
     surveys = surveys.sort_values(by="date")
     print("Latest Microdistancing survey is {}".format(surveys.date.values[-1]))
 
-    # surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT', 'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
     surveys["state"] = surveys["state"].map(states_initials).fillna(surveys["state"])
     surveys["proportion"] = surveys["count"] / surveys.respondents
     surveys.date = pd.to_datetime(surveys.date)
 
     always = surveys.loc[surveys.response == "Always"].set_index(["state", "date"])
     always = always.unstack(["state"])
-    # If you get an error here saying 'cannot create a new series when the index is not unique', then you have a duplicated md file.
+    # If you get an error here saying 'cannot create a new series when the index is not unique', 
+    # then you have a duplicated md file.
 
     idx = pd.date_range("2020-03-01", pd.to_datetime("today"))
     always = always.reindex(idx, fill_value=np.nan)
@@ -206,7 +207,6 @@ def get_data_for_posterior(data_date):
         data=mask_wearing_always, index="date", columns="state", values="respondents"
     ).astype(int)
 
-    # df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_4.csv", parse_dates=['INFECTION_DATES'])
     df_Reff = pd.read_csv(
         "results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
         parse_dates=["INFECTION_DATES"],
@@ -265,7 +265,8 @@ def get_data_for_posterior(data_date):
     )
 
     ######### Create useable dataset #########
-    # ACT and NT not in original estimates, need to extrapolated sorting keeps consistent with sort in data_by_state
+    # ACT and NT not in original estimates, need to extrapolated sorting keeps consistent 
+    # with sort in data_by_state
     # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only!
     states_to_fit_all_waves = sorted(
         ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"]
@@ -309,7 +310,8 @@ def get_data_for_posterior(data_date):
     third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)
 
     # choose dates for each state for third wave
-    # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only!
+    # Note that as we now consider the third wave for ACT, we include it in 
+    # the third wave fitting only!
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
         "NSW": pd.date_range(start="2021-06-23", end=third_end_date).values,
@@ -560,7 +562,8 @@ def get_data_for_posterior(data_date):
     # Make state by state arrays
     state_index = {state: i + 1 for i, state in enumerate(states_to_fit_all_waves)}
 
-    # dates to apply alpha in the second wave (this won't allow for VIC to be added as the date_ranges are different)
+    # dates to apply alpha in the second wave (this won't allow for VIC to be added as 
+    # the date_ranges are different)
     apply_alpha_sec_wave = (
         sec_date_range["NSW"] >= pd.to_datetime(alpha_start_date)
     ).astype(int)
@@ -617,6 +620,10 @@ def get_data_for_posterior(data_date):
         "respond_md_sec_wave": sec_respond_by_state,
         "count_md_third_wave": third_count_by_state,
         "respond_md_third_wave": third_respond_by_state,
+        "count_masks": mask_wearing_count_by_state,
+        "respond_masks": mask_wearing_respond_by_state,
+        "count_masks_sec_wave": sec_mask_wearing_count_by_state,
+        "respond_masks_sec_wave": sec_mask_wearing_respond_by_state,
         "count_masks_third_wave": third_mask_wearing_count_by_state,
         "respond_masks_third_wave": third_mask_wearing_respond_by_state,
         "map_to_state_index_first": [state_index[state] for state in first_states],
@@ -645,9 +652,15 @@ def get_data_for_posterior(data_date):
         .astype(int)
         .tolist(),
         'total_N_p_third_blocks': int(sum([int(ceil(sum(x)/7)) for x in include_in_third_wave])),
-        'pos_starts_third_blocks': np.cumsum([int(ceil(sum(x)/7)) for x in include_in_third_wave]).astype(int),
-        'total_N_p_third_omicron_blocks': int(sum([int(ceil(sum(x)/7)) for x in include_in_omicron_wave])),
-        'pos_starts_third_omicron_blocks': np.cumsum([int(ceil(sum(x)/7)) for x in include_in_omicron_wave]).astype(int),
+        'pos_starts_third_blocks': np.cumsum(
+            [int(ceil(sum(x)/7)) for x in include_in_third_wave]
+        ).astype(int),
+        'total_N_p_third_omicron_blocks': int(
+            sum([int(ceil(sum(x)/7)) for x in include_in_omicron_wave])
+        ),
+        'pos_starts_third_omicron_blocks': np.cumsum(
+            [int(ceil(sum(x)/7)) for x in include_in_omicron_wave]
+        ).astype(int),
         "pop_size_array": pop_size_array,
         "heterogeneity_start_day": heterogeneity_start_day,
     }
@@ -745,14 +758,14 @@ def plot_and_save_posterior_samples(data_date):
     surveys = surveys.sort_values(by="date")
     print("Latest Microdistancing survey is {}".format(surveys.date.values[-1]))
 
-    # surveys.loc[surveys.state != 'ACT', 'state'] = surveys.loc[surveys.state != 'ACT', 'state'].map(states_initials).fillna(surveys.loc[surveys.state != 'ACT', 'state'])
     surveys["state"] = surveys["state"].map(states_initials).fillna(surveys["state"])
     surveys["proportion"] = surveys["count"] / surveys.respondents
     surveys.date = pd.to_datetime(surveys.date)
 
     always = surveys.loc[surveys.response == "Always"].set_index(["state", "date"])
     always = always.unstack(["state"])
-    # If you get an error here saying 'cannot create a new series when the index is not unique', then you have a duplicated md file.
+    # If you get an error here saying 'cannot create a new series when the index is not unique', 
+    # then you have a duplicated md file.
 
     idx = pd.date_range("2020-03-01", pd.to_datetime("today"))
     always = always.reindex(idx, fill_value=np.nan)
@@ -835,8 +848,6 @@ def plot_and_save_posterior_samples(data_date):
         data=mask_wearing_always, index="date", columns="state", values="respondents"
     ).astype(int)
 
-    ######### Read in EpyReff results #########
-    # df_Reff = pd.read_csv("results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d")+"tau_4.csv", parse_dates=['INFECTION_DATES'])
     df_Reff = pd.read_csv(
         "results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
         parse_dates=["INFECTION_DATES"],
@@ -894,8 +905,8 @@ def plot_and_save_posterior_samples(data_date):
         how="inner",
     )
 
-    ######### Create useable dataset #########
-    # ACT and NT not in original estimates, need to extrapolated sorting keeps consistent with sort in data_by_state
+    # ACT and NT not in original estimates, need to extrapolated sorting keeps consistent 
+    # with sort in data_by_state
     # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only!
     states_to_fit_all_waves = sorted(
         ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"]
@@ -940,7 +951,8 @@ def plot_and_save_posterior_samples(data_date):
     third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)
 
     # choose dates for each state for third wave
-    # * Note that as we now consider the third wave for ACT, we include it in the third wave fitting only!
+    # Note that as we now consider the third wave for ACT, we include it in the third 
+    # wave fitting only!
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
         "NSW": pd.date_range(start="2021-06-23", end=third_end_date).values,
@@ -1439,7 +1451,7 @@ def plot_and_save_posterior_samples(data_date):
             dpi=144,
         )
 
-    ######### plotting marginal posterior distributions of R0's #########
+    # plotting 
 
     fig, ax = plt.subplots(figsize=(12, 9))
 
@@ -1542,8 +1554,6 @@ def plot_and_save_posterior_samples(data_date):
         dpi=288,
     )
 
-    ######### plotting figures for vaccine and voc effects #########
-
     # Making a new figure that doesn't include the priors
     fig, ax = plt.subplots(figsize=(12, 9))
     samples_mov_gamma["voc_effect_third_prior"] = np.random.gamma(
@@ -1579,7 +1589,6 @@ def plot_and_save_posterior_samples(data_date):
         dpi=288,
     )
 
-    ######### plotting mobility coefficients #########
     posterior = samples_mov_gamma[["bet." + str(i + 1) for i in range(len(predictors))]]
 
     split = True
@@ -1615,7 +1624,7 @@ def plot_and_save_posterior_samples(data_date):
         dpi=288,
     )
 
-    ######### generating and plotting TP plots #########
+    # plot the TP's
     RL_by_state = {
         state: samples_mov_gamma["R_Li." + str(i + 1)].values
         for state, i in state_index.items()
@@ -1633,6 +1642,8 @@ def plot_and_save_posterior_samples(data_date):
         rho=first_states,
         R_I=samples_mov_gamma.R_I.values,
         prop=survey_X.loc[start_date:end_date],
+        masks_prop=mask_wearing_X[start_date:end_date],
+        
     )
     for ax in ax3:
         for a in ax:
@@ -1668,6 +1679,7 @@ def plot_and_save_posterior_samples(data_date):
             second_phase=True,
             R_I=samples_mov_gamma.R_I.values,
             prop=survey_X.loc[sec_start_date:sec_end_date],
+            masks_prop=mask_wearing_X[sec_start_date:sec_end_date],
         )
         for ax in ax4:
             for a in ax:
@@ -1686,9 +1698,11 @@ def plot_and_save_posterior_samples(data_date):
         "data/vaccine_effect_timeseries_" + data_date.strftime("%Y-%m-%d") + ".csv",
         parse_dates=["date"],
     )
-    # there are a couple NA's early on in the time series but is likely due to slightly different start dates
+    # there are a couple NA's early on in the time series but is likely due to slightly 
+    # different start dates
     vaccination_by_state.fillna(1, inplace=True)
-    # we take the whole set of estimates up to the end of the forecast period (with 10 days padding which won't be used in the forecast)
+    # we take the whole set of estimates up to the end of the forecast period 
+    # (with 10 days padding which won't be used in the forecast)
     vaccination_by_state = vaccination_by_state[
         (
             vaccination_by_state.date
@@ -1751,7 +1765,8 @@ def plot_and_save_posterior_samples(data_date):
     }
     third_days_tot = sum(v for v in third_days.values())
 
-    # construct a range of dates for omicron which starts at the maximum of the start date for that state or the Omicron start date
+    # construct a range of dates for omicron which starts at the maximum of the start date 
+    # for that state or the Omicron start date
     third_omicron_date_range = {
         k: pd.date_range(
             start=max(v[0], pd.to_datetime(omicron_start_date)), end=v[-1]
@@ -1900,7 +1915,7 @@ def plot_and_save_posterior_samples(data_date):
         results_dir + data_date.strftime("%Y-%m-%d") + "omicron_proportion.png", dpi=144
     )
 
-    ######### saving the final processed posterior samples to h5 for generate_RL_forecasts.py #########
+    # saving the final processed posterior samples to h5 for generate_RL_forecasts.py
 
     var_to_csv = predictors
     samples_mov_gamma[predictors] = samples_mov_gamma[
