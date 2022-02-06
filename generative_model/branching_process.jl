@@ -40,31 +40,6 @@ include("simulation_consistency.jl")
 include("assumptions.jl")
 
 ##### Methods
-
-function initialise_state_arrays(
-    sim_duration, 
-    observation_period, 
-    nsims,
-)
-    """
-    Initialising a state array object with arrays of zeros. 
-    We pad the infection array Z with 35 days to account for 
-    infections occuring prior to the simulation period. We do this
-    separately (and not in a struct) as the arrays are large. 
-    """
-    
-    Z = zeros(Int, sim_duration+35, 3, nsims)
-    Z_historical = zeros(Int, sim_duration+35, nsims)
-    D = zeros(Int, sim_duration, 3, nsims)
-    U = zeros(Int, sim_duration, 3, nsims)
-    
-    sim_realisations = Realisations(Z, Z_historical, D, U)
-    
-    return sim_realisations
-    
-end
-
-
 function initialise_population!(
     forecast::Forecast, 
     start_day,
@@ -619,7 +594,7 @@ function simulate_branching_process(
     day_range = -35:T_end
         
     # initialise state arrays (T_end + 1 as we include 0 day)
-    sim_realisations = initialise_state_arrays(T_end+1, T_observed+1, nsims)
+    sim_realisations = Realisations(T_end+1, T_observed+1, nsims)
     
     # put everything into a forecast object
     forecast = Forecast(
