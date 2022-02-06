@@ -588,6 +588,10 @@ def plot_adjusted_ve(
             color="C0",
             alpha=0.4,
         )
+        # plot the start and end of the fitting
+        if state in third_states:
+            ax[row, col].axvline(third_date_range[state][0], ls="--", color="red", lw=1)
+            ax[row, col].axvline(third_date_range[state][-1], ls="--", color="red", lw=1)
         ax[row, col].set_title(state)
         ax[row, col].tick_params(axis="x", rotation=90)
 

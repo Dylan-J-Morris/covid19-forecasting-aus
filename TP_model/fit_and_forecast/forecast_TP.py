@@ -1724,7 +1724,8 @@ for typ in forecast_type:
             * voc_multiplier
         )
 
-        # now we increase TP by 15% based on school reopening (this code can probably be reused but inferring it would be pretty difficult
+        # now we increase TP by 15% based on school reopening (this code can probably be reused 
+        # but inferring it would be pretty difficult
         # due to lockdowns and various interruptions since March 2020)
         if scenarios[state] == "school_opening_2022":
             R_L[dd.values >= pd.to_datetime(scenario_dates[state]), :] *= 1.15

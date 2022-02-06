@@ -29,9 +29,7 @@ matplotlib.use("Agg")
 from params import (
     truncation_days,
     download_google_automatically,
-    run_inference_only,
     third_start_date,
-    run_inference,
     omicron_start_date,
     pop_sizes,
     num_forecast_days,
@@ -1954,23 +1952,24 @@ def plot_and_save_posterior_samples(data_date):
     return None
 
 
-def main(data_date):
+def main(data_date, run_inference=True):
     """
     Runs the stan model in parts to cut down on memory.
     """
 
     # some parameters for HMC
-    num_chains = 2
-    num_samples = 1000
-    num_warmup_samples = 750
-
-    get_data_for_posterior(data_date=data_date)
-    run_stan(
-        data_date=data_date,
-        num_chains=num_chains,
-        num_samples=num_samples,
-        num_warmup_samples=num_warmup_samples,
-    )
+    if run_inference:     
+        num_chains = 2
+        num_samples = 1000
+        num_warmup_samples = 750
+        get_data_for_posterior(data_date=data_date)
+        run_stan(
+            data_date=data_date,
+            num_chains=num_chains,
+            num_samples=num_samples,
+            num_warmup_samples=num_warmup_samples,
+        )
+        
     plot_and_save_posterior_samples(data_date=data_date)
 
     return None
@@ -1981,4 +1980,10 @@ if __name__ == "__main__":
     If we are running the script here (which is always) then this ensures things run appropriately.
     """
     data_date = argv[1]
-    main(data_date)
+    
+    if argv[2] == "":
+        run_inference = True
+    elif argv[2] == "FALSE":
+        run_inference = False
+        
+    main(data_date, run_inference)
