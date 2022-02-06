@@ -54,10 +54,11 @@ function initialise_state_arrays(
     """
     
     Z = zeros(Int, sim_duration+35, 3, nsims)
+    Z_historical = zeros(Int, sim_duration+35, nsims)
     D = zeros(Int, sim_duration, 3, nsims)
     U = zeros(Int, sim_duration, 3, nsims)
     
-    sim_realisations = Realisations(Z, D, U)
+    sim_realisations = Realisations(Z, Z_historical, D, U)
     
     return sim_realisations
     
@@ -264,29 +265,21 @@ function import_cases_model!(
 	
 end
 
-
-function get_proportion_infected(
+function calculate_proportion_infected(
+    forecast, 
     day, 
-    cases_pre_forecast, 
-    D_sim, 
-    U_sim, 
-    N
+    sim, 
+    N,
 )
-    """
-    Calculate the proportion of cases that have been infected up to current day.
-    """
-    total_cumulative_cases = cases_pre_forecast
-    
-    for j in 1:3
-        for i in 1:day
-            total_cumulative_cases += D_sim[i,j] + U_sim[i,j]
-        end
+
+    Z_historical = forecast.sim_realisations.Z_historical
+    cases = 0 
+    for t in 1:day
+        cases += Z_historical[t+36,sim] 
     end
     
-    proportion_infected = total_cumulative_cases / N
-    
-    return proportion_infected
-    
+    return cases / N
+
 end
 
 
@@ -305,9 +298,11 @@ function sample_offspring!(
     of adults. 
     """
     Z = forecast.sim_realisations.Z
+    Z_historical = forecast.sim_realisations.Z_historical
     D = forecast.sim_realisations.D
     U = forecast.sim_realisations.U
     omicron_dominant_day = forecast.sim_features.omicron_dominant_day 
+    
     # initialise the parameters 
     α_s = 0.0 
     α_a = 0.0
@@ -315,6 +310,7 @@ function sample_offspring!(
     p_detect_given_symp = 0.0 
     p_detect_given_asymp = 0.0 
     k = 0.0 
+    
     # grab the correct parameters for the particular dominant strain 
     if t < omicron_dominant_day 
         α_s = forecast.sim_constants.α_s.delta
@@ -344,21 +340,27 @@ function sample_offspring!(
     
     # if the total number of infected individuals at time t is 0, return immediately
     if sum(Z_tmp) > 0 
+        
         # extract the number of each parent who are infected on day t 
         (S_parents, A_parents, I_parents) = Z_tmp
+        
+        # sum up the number local infections on the current day
+        # Z_tmp gets emptied at the end of sampling so we won't be double counting 
+        Z_historical[t+36,sim] += S_parents + A_parents
+        # calculate proportion of population infected so far
+        
+        proportion_infected = calculate_proportion_infected(
+            forecast, 
+            t, 
+            sim, 
+            N,
+        )
 
         # reset infections on day t (so we can inject new cases)
         # find day based on the indices representing time from forecast origin
         TP_ind = findfirst(t == ind for ind in TP_indices)
         
-        # create views and use a function barrier to decrease allocations 
-        D_sim = @views D[:,:,sim]
-        U_sim = @views U[:,:,sim]
-        
         # take max of 0 and TP to deal with cases of depletion factor giving TP = 0
-        proportion_infected = get_proportion_infected(
-            t, cases_pre_forecast, D_sim, U_sim, N
-        )
         TP_local_parent = max(
             0, 
             TP_local_sim[TP_ind] * (1 - susceptible_depletion_sim*proportion_infected)
@@ -749,18 +751,19 @@ function simulate_branching_process(
     
     TP_local_truncated = TP_local[(end-T_end):end,:]
     # calculate the total number of infections by day t
-    Z_good = sum(forecast.sim_realisations.Z[:,:,good_sims], dims = 2)
-    Z_good_cumulative = cumsum(Z_good, dims = 1)[(end-T_end):end,1,:]
-    prop_infected = zeros(Int, size(TP_local_truncated, 1))
+    Z_historical_cumulative = cumsum(
+        forecast.sim_realisations.Z_historical[(end-T_end):end,good_sims],
+        dims = 1, 
+    )
+    prop_infected = Z_historical_cumulative ./ N
     
     # new array to hold the correctly sampled values
     TP_local_sims = zeros(size(TP_local_truncated, 1), length(good_TPs_inds))
     
     # adjust the local TP by susceptible depletion model 
     for (i, TP_ind) in enumerate(good_TPs_inds)
-        prop_infected = Z_good_cumulative[:,i] ./ N
         TP_local_sims[:,i] = TP_local_truncated[:,TP_ind] .* 
-            (1 .- susceptible_depletion[TP_ind]*prop_infected)
+            (1 .- susceptible_depletion[TP_ind]*prop_infected[:,i])
     end
     
     return (D_good, U_good, TP_local_sims)

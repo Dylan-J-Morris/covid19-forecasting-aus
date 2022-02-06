@@ -15,15 +15,16 @@ struct Features{T}
 end
 
 
-struct Realisations{T1, T2}
+struct Realisations{T1, T2, T3}
     """
     A type for holding the realisations of the simulations. This is a cleaner way of 
     holding the information for the three different matrices used. Z is for infections 
     D is for observed cases and U is for undetected cases. 
     """
     Z::T1
-    D::T2
-    U::T2
+    Z_historical::T2
+    D::T3
+    U::T3
 end
 
 
