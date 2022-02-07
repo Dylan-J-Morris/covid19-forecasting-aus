@@ -278,6 +278,7 @@ transformed parameters {
             if (include_in_first_wave[i][n] == 1){
                 md[n,i] = pow(1+theta_md, -1*prop_md[n,i]);
                 masks[n,i] = pow(1+theta_masks, -1*prop_masks[n,i]);
+                
                 social_measures = (
                     (1-policy[n]) 
                     +md[n,i]*policy[n]   
@@ -306,6 +307,7 @@ transformed parameters {
             if (include_in_sec_wave[i][n] == 1){
                 md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
                 masks_sec_wave[pos] = pow(1+theta_masks, -1*prop_masks_sec_wave[pos]);
+                
                 social_measures = (
                     (1-policy_sec_wave[n]) 
                     +md_sec_wave[pos]*policy_sec_wave[n]
@@ -327,8 +329,9 @@ transformed parameters {
         int pos_omicron2;
         real TP_local;
         real social_measures;
-        real voc_term; 
-        real vacc_term; 
+        // real voc_term; 
+        // real vacc_term; 
+        real voc_vacc_product; 
         real susceptible_depletion_term;
         
         if (i == 1){
@@ -345,15 +348,12 @@ transformed parameters {
                 masks_third_wave[pos] = pow(1+theta_masks, -1*prop_masks_third_wave[pos]);
 
                 if (n <= omicron_start_day){
-                    voc_term = voc_effect_delta;
-                    vacc_term = ve_delta[pos];
+                    voc_vacc_product = voc_effect_delta*ve_delta[pos];
                 } else {
-                    voc_term = prop_omicron_to_delta[pos_omicron2]*voc_effect_omicron 
-                        +(1-prop_omicron_to_delta[pos_omicron2])*voc_effect_delta;
-                    vacc_term = prop_omicron_to_delta[pos_omicron2]
-                        *ve_omicron[pos_omicron2] 
+                    voc_vacc_product = prop_omicron_to_delta[pos_omicron2]
+                        *voc_effect_omicron*ve_omicron[pos_omicron2]
                         +(1-prop_omicron_to_delta[pos_omicron2])
-                        *ve_delta[pos];
+                        *voc_effect_delta*ve_delta[pos];
                     pos_omicron2 += 1;
                 }
                 
@@ -367,8 +367,7 @@ transformed parameters {
                 
                 TP_local = R_Li[map_to_state_index_third[i]]
                     *social_measures
-                    *voc_term
-                    *vacc_term;
+                    *voc_vacc_product;
                     
                 mu_hat_third_wave[pos] = (
                     brho_third_wave[pos]*R_I 
@@ -394,7 +393,7 @@ model {
 
     // variables for vax effects (reused for Delta and Omicron VEs)
     real mean_vax;
-    real var_vax_delta = 0.0001;     
+    real var_vax_delta = 0.0005;     
     real var_vax_omicron = 0.0001;
     array[N_third_wave] real a_vax;
     array[N_third_wave] real b_vax;
@@ -402,11 +401,11 @@ model {
     real b_vax_scalar;
     
     // variables for omicron related effects 
-    real long_term_mean_omicron = 0.85;
+    real long_term_mean_omicron = 0.9;
     real drift_factor;
     real pos_drift_counter;
     real mean_omicron; 
-    real var_omicron = 0.0001; 
+    real var_omicron = 0.001; 
     real a_omicron;
     real b_omicron;
     
@@ -523,10 +522,14 @@ model {
                         mean_vax = ve_delta_data[i][n];
                     } else if (include_in_third_wave[i][n-1] == 0){
                         mean_vax = ve_delta_data[i][n];
-                    }else {
+                    } else {
                         mean_vax = mean(ve_delta_data[i][n-tau_vax_block_size+1:n]);
                     }
-                    if (mean_vax*(1-mean_vax) > var_vax_delta) {
+                    
+                    if (n < heterogeneity_start_day + 10) {
+                        a_vax_scalar = 75; 
+                        b_vax_scalar = 2;
+                    } else if (mean_vax*(1-mean_vax) > var_vax_delta) {
                         a_vax_scalar = mean_vax*(mean_vax*(1-mean_vax)/var_vax_delta-1);
                         b_vax_scalar = 
                             (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax_delta-1);

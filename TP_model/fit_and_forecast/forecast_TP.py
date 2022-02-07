@@ -193,7 +193,7 @@ df_google = df_google_all.loc[df_google_all.date <= data_date]
 df_google.to_csv("results/test_google_data.csv")
 df_google = pd.read_csv("results/test_google_data.csv")
 # remove the temporary file
-os.remove("results/test_google_data.csv")
+# os.remove("results/test_google_data.csv")
 
 # Simple interpolation for missing vlaues in Google data
 df_google = df_google.interpolate(method="linear", axis=0)
@@ -1479,7 +1479,7 @@ for typ in forecast_type:
                     idx[k] = range(days_into_omicron[0], days_into_omicron[1])
 
         # tile the reduction in vaccination effect for omicron (i.e. VE is (1+r)*VE)
-        vacc_post = np.zeros_like(vacc_ts_delta)
+        voc_vacc_product = np.zeros_like(vacc_ts_delta)
 
         # proportion of omicron cases each day.
         if state in {"VIC", "NSW", "ACT", "QLD", "SA", "NT", "TAS"}:
@@ -1629,10 +1629,22 @@ for typ in forecast_type:
         # loop over days in third wave and apply the appropriate form (i.e. decay or not)
         # note that in here we apply the entire sample to the vaccination data to create a days by samples array
         tmp_date = pd.to_datetime("2020-03-01")
+        
         if state not in {"WA"}:
-            for ii in range(vacc_post.shape[0]):
+            for ii in range(voc_vacc_product.shape[0]):
                 if ii < omicron_start_day:
-                    vacc_post[ii] = vacc_ts_delta[ii, :]
+                    if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]
+                    elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
+                    elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
+                    else:
+                        jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
+                        voc_vacc_product[ii] = (
+                            m[jj] * voc_multiplier_omicron[ii] * vacc_ts_delta[ii, :]
+                            + (1 - m[jj]) * voc_multiplier_delta[ii] * vacc_ts_delta[ii, :]
+                        )
                 elif ii < omicron_start_day + len(idx[state]):
                     jj = ii - omicron_start_day
                     m[jj] = np.tile(m_tmp[jj], n_samples)
@@ -1640,16 +1652,17 @@ for typ in forecast_type:
                     vacc_delta_tmp = vacc_ts_delta[ii, :]
                     vacc_omicron_tmp = vacc_ts_omicron[ii, :]
                     # this is the simplified form of the mixture model of the vaccination effects
-                    vacc_post[ii] = (
-                        m[jj] * vacc_omicron_tmp + (1 - m[jj]) * vacc_delta_tmp
+                    voc_vacc_product[ii] = (
+                        m[jj] * vacc_omicron_tmp * voc_multiplier_omicron[ii] 
+                        + (1 - m[jj]) * vacc_delta_tmp * voc_multiplier_delta[ii]
                     )
+                    
                 else:
-
                     # variance on beta distribution centered at m_last
                     if tt == 0:
                         m_last = m[jj]
                         var_omicron = 0.0025
-                        long_term_mean = np.maximum(0.85, m_last)
+                        long_term_mean = np.maximum(0.90, m_last)
 
                     # number of days after the start of omicron
                     jj = ii - omicron_start_day
@@ -1661,7 +1674,6 @@ for typ in forecast_type:
                     b_m = (1 - long_term_mean) * (
                         (long_term_mean * (1 - long_term_mean) / var_omicron) - 1
                     )
-
                     # sample a proportion with some noise about the recent value
                     m_last_prime = np.random.beta(a_m, b_m)
                     m[jj] = m_last_prime
@@ -1669,49 +1681,22 @@ for typ in forecast_type:
                     vacc_delta_tmp = vacc_ts_delta[ii, :]
                     vacc_omicron_tmp = vacc_ts_omicron[ii, :]
                     # this is the simplified form of the mixture model of the vaccination effects
-                    vacc_post[ii] = (
-                        m[jj] * vacc_omicron_tmp + (1 - m[jj]) * vacc_delta_tmp
+                    voc_vacc_product[ii] = (
+                        m[jj] * vacc_omicron_tmp * voc_multiplier_omicron[ii] + 
+                        (1 - m[jj]) * vacc_delta_tmp * voc_multiplier_delta[ii]
                     )
 
                     # increment days into omicron forecast
                     tt += 1
 
         else:  # if we are WA then we assume only Delta (12/1/2022)
-            for ii in range(vacc_post.shape[0]):
-                vacc_post[ii] = vacc_ts_delta[ii, :]
-
-        # this sets all values of the vaccination data prior to the start date equal to 1
-        for ii in range(vacc_post.shape[0]):
-            if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:
-                vacc_post[ii] = 1.0
-
-        # now we just modify the values before the introduction of the voc to be 1.0
-        voc_multiplier = np.zeros_like(voc_multiplier_delta)
-
-        # calculate the voc effects
-        if state not in {"WA"}:
-            for ii in range(voc_multiplier.shape[0]):
+            for ii in range(voc_vacc_product.shape[0]):
                 if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-                    voc_multiplier[ii] = 1.0
+                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]
                 elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-                    voc_multiplier[ii] = voc_multiplier_alpha[ii]
-                elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
-                    voc_multiplier[ii] = voc_multiplier_delta[ii]
+                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
                 else:
-                    jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
-                    voc_multiplier[ii] = (
-                        m[jj] * voc_multiplier_omicron[ii]
-                        + (1 - m[jj]) * voc_multiplier_delta[ii]
-                    )
-
-        else:
-            for ii in range(voc_multiplier.shape[0]):
-                if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-                    voc_multiplier[ii] = 1.0
-                elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-                    voc_multiplier[ii] = voc_multiplier_alpha[ii]
-                else:
-                    voc_multiplier[ii] = voc_multiplier_delta[ii]
+                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
 
         # calculate TP
         R_L = (
@@ -1720,8 +1705,7 @@ for typ in forecast_type:
             * mask_wearing_factor
             * sim_R
             * expit(logodds)
-            * vacc_post
-            * voc_multiplier
+            * voc_vacc_product
         )
 
         # now we increase TP by 15% based on school reopening (this code can probably be reused 

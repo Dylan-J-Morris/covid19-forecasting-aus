@@ -232,10 +232,7 @@ def predict_plot(
         )
         ax[i // 4, i % 4].set_title(state)
         # grid line at R_eff =1
-        ax[i // 4, i % 4].set_yticks(
-            [1],
-            minor=True,
-        )
+        ax[i // 4, i % 4].axhline(1, ls="--", c="k", lw=1)
         ax[i // 4, i % 4].set_yticks([0, 1, 2], minor=False)
         ax[i // 4, i % 4].set_yticklabels([0, 1, 2], minor=False)
         ax[i // 4, i % 4].yaxis.grid(

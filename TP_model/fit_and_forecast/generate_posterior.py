@@ -589,7 +589,7 @@ def get_data_for_posterior(data_date):
     ).days
     
     # number of days we fit the average VE over 
-    tau_vax_block_size = 3
+    tau_vax_block_size = 7
 
     # get pop size array
     pop_size_array = []
@@ -605,7 +605,7 @@ def get_data_for_posterior(data_date):
         "Reff": data_by_state["mean"].values,
         "Mob": mobility_by_state,
         "Mob_std": mobility_std_by_state,
-        "sigma2": data_by_state["std"].values ** 2,
+        "sigma2": 3*data_by_state["std"].values ** 2,
         "policy": policy.values,
         "local": data_by_state["local"].values,
         "imported": data_by_state["imported"].values,
@@ -614,7 +614,7 @@ def get_data_for_posterior(data_date):
         "Reff_sec_wave": sec_data_by_state["mean"].values,
         "Mob_sec_wave": sec_mobility_by_state,
         "Mob_sec_wave_std": sec_mobility_std_by_state,
-        "sigma2_sec_wave": sec_data_by_state["std"].values ** 2,
+        "sigma2_sec_wave": 3*sec_data_by_state["std"].values ** 2,
         "policy_sec_wave": policy_sec_wave,
         "local_sec_wave": sec_data_by_state["local"].values,
         "imported_sec_wave": sec_data_by_state["imported"].values,
@@ -624,7 +624,7 @@ def get_data_for_posterior(data_date):
         "Reff_third_wave": third_data_by_state["mean"].values,
         "Mob_third_wave": third_mobility_by_state,
         "Mob_third_wave_std": third_mobility_std_by_state,
-        "sigma2_third_wave": third_data_by_state["std"].values ** 2,
+        "sigma2_third_wave": 3*third_data_by_state["std"].values ** 2,
         "policy_third_wave": policy_third_wave,
         "local_third_wave": third_data_by_state["local"].values,
         "imported_third_wave": third_data_by_state["imported"].values,
@@ -1906,6 +1906,7 @@ def plot_and_save_posterior_samples(data_date):
 
     fig, ax = plt.subplots(figsize=(15, 12), nrows=4, ncols=2, sharex=True, sharey=True)
 
+    # note to ignore NT while the offset at the end is weird
     for (i, s) in enumerate(third_date_range.keys()):
         ax[i // 2, i % 2].plot(
             omicron_date_range[-prop_omicron_to_delta_dict[s].shape[1] :],
