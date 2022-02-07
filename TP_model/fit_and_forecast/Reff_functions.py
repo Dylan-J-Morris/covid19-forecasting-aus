@@ -264,8 +264,8 @@ def plot_adjusted_ve(
 ):
 
     """
-    A function to process the inferred VE. This will save an updated timeseries which is the mean posterior
-    estimates.
+    A function to process the inferred VE. This will save an updated timeseries which 
+    is the mean posterior estimates.
     """
 
     fig, ax = plt.subplots(figsize=(15, 12), ncols=2, nrows=4, sharey=True, sharex=True)
@@ -282,7 +282,8 @@ def plot_adjusted_ve(
 
         # apply different vaccine form depending on if NSW
         if state in third_states:
-            # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
+            # get the sampled vaccination effect (this will be incomplete as it's only 
+            # over the fitting period)
             vacc_tmp = ve_samples.iloc[ve_idx_ranges[state], :]
             # get before and after fitting and tile them
             vacc_ts_data_before = pd.concat(
@@ -330,7 +331,8 @@ def plot_adjusted_ve(
         # create zero array to fill in with the full vaccine effect model
         vacc_eff = np.zeros_like(vacc_ts)
 
-        # * Note that in here we apply the entire sample to the vaccination data to create a days by samples array
+        # Note that in here we apply the entire sample to the vaccination data 
+        # to create a days by samples array
         for ii in range(vacc_eff.shape[0]):
             vacc_eff[ii] = vacc_ts.iloc[ii, :]
 
