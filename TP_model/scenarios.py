@@ -2,14 +2,14 @@
 # define scenarios for each state
 
 scenarios_normal = {
-    "NSW": "no_reversion",
-    "QLD": "no_reversion",
-    "SA": "no_reversion",
-    "TAS": "no_reversion",
-    "VIC": "no_reversion",
-    "WA": "no_reversion",
-    "ACT": "no_reversion",
-    "NT": "no_reversion",
+    "NSW": "",
+    "QLD": "",
+    "SA": "",
+    "TAS": "",
+    "VIC": "",
+    "WA": "",
+    "ACT": "",
+    "NT": "",
 }
 
 
