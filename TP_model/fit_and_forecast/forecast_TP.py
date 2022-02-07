@@ -56,7 +56,7 @@ third_states = sorted(["NSW", "VIC", "ACT", "QLD", "SA", "TAS", "NT"])
 # NOTE: These need to be in date sorted order
 third_date_range = {
     "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
-    "NSW": pd.date_range(start="2021-06-23", end=third_end_date).values,
+    "NSW": pd.date_range(start=third_start_date, end=third_end_date).values,
     "NT": pd.date_range(start="2021-12-01", end=third_end_date_diff).values,
     "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
     "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
@@ -68,8 +68,8 @@ third_date_range = {
 df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 
 third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
-# Load in vaccination data by state and date which should have the same date as the NNDSS/linelist data
-# use the inferred VE
+# Load in vaccination data by state and date which should have the same date as the 
+# NNDSS/linelist data use the inferred VE
 vaccination_by_state_delta = pd.read_csv(
     "results/adjusted_vaccine_ts_delta" + data_date.strftime("%Y-%m-%d") + ".csv",
     parse_dates=["date"],
