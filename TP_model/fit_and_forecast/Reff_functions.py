@@ -244,6 +244,7 @@ def predict_plot(
             ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
 
     plt.legend()
+    
     return ax
 
 

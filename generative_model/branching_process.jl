@@ -23,7 +23,7 @@ to run:
 The key logic of this simulation is featured in the function simulate_branching_process(). 
 This is written in such a way that it is relatively straightforward to follow the logic of 
 the processes and functions are called in a systematic way. simulate_branching_process() 
-will return reshaped arrays that are the "good" simulated realisations based off 
+will return reshaped arrays that are the good simulated realisations based off 
 the consistency checks. 
 """
 
@@ -152,18 +152,23 @@ function import_cases_model!(
 	A model to handle international imports in the forecasting of cases. This can be run 
     prior to the standard forecasting model and will pre-fill D, U and Z for each 
     simulation.
-
 	We assume that cases 
 	arise from 
-	D[t] ∼ NegBin(a[t], 1/(b+1)) 
+    ```
+	D[t] \sim NegBin(a[t], 1/(b+1)) 
+    ```
 	where 
-	a[t] = α + f(I[t]) 
-	b = β + 1
+    ```
+	a[t] = \alpha + f(I[t]) 
+	b = \beta + 1
+    ```
 	are the parameters. The function f() is an exponential weighted moving average such 
-    that 
-	f(I[t]) = ϕ I[t] + (1-ϕ) f(I[t-1])
-	and α, β are hyperparameters fixed at 0.5 and 0.2, respectively. We take b = β + 1 
-    as we assume a fixed period of 1 day for estimating the posterior. 
+    that
+    ```
+	f(I[t]) = \phi I[t] + (1-\phi) f(I[t-1])
+    ``` 
+	and `\alpha`, `\beta` are hyperparameters fixed at 0.5 and 0.2, respectively. We 
+    take `b = β + 1` as we assume a fixed period of 1 day for estimating the posterior. 
 	"""
 	
     Z = forecast.sim_realisations.Z
