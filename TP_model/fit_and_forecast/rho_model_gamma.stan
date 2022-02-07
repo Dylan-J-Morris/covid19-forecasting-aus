@@ -79,11 +79,12 @@ data {
     vector[N_third_wave] ve_omicron_data[j_third_wave];     
     // data for handling omicron 
     int omicron_start_day;
-    int omicron_constant_level_day;
+    int omicron_dominance_day;
     vector[N_third_wave] include_in_omicron_wave[j_third_wave];
     int total_N_p_third_omicron;
     int pos_starts_third_omicron[j_third_wave];
     
+    int tau_vax_block_size; 
     int total_N_p_third_blocks;
     int pos_starts_third_blocks[j_third_wave];
     int total_N_p_third_omicron_blocks;
@@ -92,13 +93,18 @@ data {
     int pop_size_array[j_total];
     int heterogeneity_start_day;
     
+    real p_detect_delta; 
+    real p_detect_omicron; 
+    
 }
 
 transformed data {
     
     // for now we just calculate the cumulative number of cases in the
     // third wave as pre third wave cases were negligible
-    matrix[N_third_wave,j_third_wave] cumulative_local_third;
+    vector[N_third_wave] local_third_wave_tmp;
+    vector[N_third_wave] cumulative_local_third;
+    matrix[N_third_wave,j_third_wave] proportion_infected;
     // shape and scale for the likelihood in each wave
     matrix[N,j_first_wave] a_mu_hat;
     matrix[N,j_first_wave] b_mu_hat;
@@ -108,27 +114,42 @@ transformed data {
     matrix[N_third_wave,j_third_wave] b_mu_hat_third_wave;
     
     for (i in 1:j_third_wave){
-        cumulative_local_third[:,i] = cumulative_sum(local_third_wave[:,i]);
+        local_third_wave_tmp = local_third_wave[:,i];
+        for (n in 1:N_third_wave) { 
+            // scale up local case count by assumed ascertainment
+            if (n <= omicron_dominance_day) {
+                local_third_wave_tmp[n] *= 1/p_detect_delta;
+            } else {
+                local_third_wave_tmp[n] *= 1/p_detect_omicron;
+            }
+        }
+
+        cumulative_local_third = cumulative_sum(local_third_wave_tmp);
+        
+        for (n in 1:N_third_wave) {
+            // can't have more cases than the observed population
+            proportion_infected[n,i] = fmax(
+                cumulative_local_third[n]
+                /(1.0*pop_size_array[map_to_state_index_third[i]]), 
+                1.0
+            );
+        }
     }
 
     // compute the shape and scale for the likelihood 
     for (i in 1:j_first_wave) {
-        a_mu_hat[:,i] = square(Reff[:,i]) ./ sigma2[:,i];
-        b_mu_hat[:,i] = Reff[:,i] ./ sigma2[:,i];
+        a_mu_hat[:,i] = square(Reff[:,i])./sigma2[:,i];
+        b_mu_hat[:,i] = Reff[:,i]./sigma2[:,i];
     }
     
     for (i in 1:j_sec_wave) {
-        a_mu_hat_sec_wave[:,i] = square(Reff_sec_wave[:,i]) 
-            ./ sigma2_sec_wave[:,i];
-        b_mu_hat_sec_wave[:,i] = Reff_sec_wave[:,i] 
-            ./ sigma2_sec_wave[:,i];
+        a_mu_hat_sec_wave[:,i] = square(Reff_sec_wave[:,i])./sigma2_sec_wave[:,i];
+        b_mu_hat_sec_wave[:,i] = Reff_sec_wave[:,i]./sigma2_sec_wave[:,i];
     }
     
     for (i in 1:j_third_wave) {
-        a_mu_hat_third_wave[:,i] = square(Reff_third_wave[:,i]) 
-            ./ sigma2_third_wave[:,i];
-        b_mu_hat_third_wave[:,i] = Reff_third_wave[:,i] 
-            ./ sigma2_third_wave[:,i];
+        a_mu_hat_third_wave[:,i] = square(Reff_third_wave[:,i])./sigma2_third_wave[:,i];
+        b_mu_hat_third_wave[:,i] = Reff_third_wave[:,i]./sigma2_third_wave[:,i];
     }
 }
 
@@ -177,7 +198,7 @@ transformed parameters {
     vector<lower=0,upper=1>[total_N_p_third] ve_delta;
     vector<lower=0,upper=1>[total_N_p_third_omicron] ve_omicron;
     
-    //reverse the ordering of the raw vax effects in a local scope
+    //reverse the ordering of the weekly vax effects in a local scope
     {
         int pos = 1;
         int pos_block = 1;
@@ -208,18 +229,16 @@ transformed parameters {
                 if (include_in_third_wave[i][n] == 1){
                     ve_delta[pos] = ve_delta_tau[pos_block];
                     pos_counter += 1; 
-                    if (pos_counter == 7) {
+                    if (pos_counter == tau_vax_block_size) {
                         pos_counter = 0; 
                         pos_block += 1;
                     }
                     pos += 1;
                     
                     if (include_in_omicron_wave[i][n] == 1) {
-                        ve_omicron[pos_omicron] = ve_omicron_tau[
-                            pos_block_omicron
-                        ];
+                        ve_omicron[pos_omicron] = ve_omicron_tau[pos_block_omicron];
                         pos_omicron_counter += 1;
-                        if (pos_omicron_counter == 7) {
+                        if (pos_omicron_counter == tau_vax_block_size) {
                             pos_omicron_counter = 0; 
                             pos_block_omicron += 1;
                         }
@@ -231,9 +250,9 @@ transformed parameters {
     }
     
     // voc parameters (shifted by 1)
-    real voc_effect_alpha = 1 + additive_voc_effect_alpha;
-    real voc_effect_delta = 1 + additive_voc_effect_delta;
-    real voc_effect_omicron = 1 + additive_voc_effect_omicron;
+    real voc_effect_alpha = 1+additive_voc_effect_alpha;
+    real voc_effect_delta = 1+additive_voc_effect_delta;
+    real voc_effect_omicron = 1+additive_voc_effect_omicron;
     
     // TP models 
     matrix[N,j_first_wave] mu_hat;
@@ -258,14 +277,11 @@ transformed parameters {
         for (n in 1:N){
             if (include_in_first_wave[i][n] == 1){
                 md[n,i] = pow(1+theta_md, -1*prop_md[n,i]);
-                masks[n,i] = pow(
-                    1+theta_masks, 
-                    -1*prop_masks[n,i]
-                );
+                masks[n,i] = pow(1+theta_masks, -1*prop_masks[n,i]);
                 social_measures = (
                     (1-policy[n]) 
-                    + md[n,i]*policy[n]   
-                ) * masks[n,i]
+                    +md[n,i]*policy[n]   
+                )*masks[n,i]
                 *2*inv_logit(Mob[i][n,:]*(bet));
                 
                 TP_local = R_Li[map_to_state_index_first[i]]*social_measures;
@@ -289,18 +305,16 @@ transformed parameters {
         for (n in 1:N_sec_wave){
             if (include_in_sec_wave[i][n] == 1){
                 md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
-                masks_sec_wave[pos] = pow(
-                    1+theta_masks, -1*prop_masks_sec_wave[pos]
-                );
+                masks_sec_wave[pos] = pow(1+theta_masks, -1*prop_masks_sec_wave[pos]);
                 social_measures = (
                     (1-policy_sec_wave[n]) 
-                    + md_sec_wave[pos]*policy_sec_wave[n]
+                    +md_sec_wave[pos]*policy_sec_wave[n]
                 )*masks_sec_wave[pos]
                 *2*inv_logit(Mob_sec_wave[i][n,:]*(bet));
                 
                 TP_local = R_Li[map_to_state_index_sec[i]]*social_measures; 
                 mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I 
-                    + (1-brho_sec_wave[pos])*TP_local;
+                    +(1-brho_sec_wave[pos])*TP_local;
                 pos += 1;
             }
         }
@@ -316,7 +330,6 @@ transformed parameters {
         real voc_term; 
         real vacc_term; 
         real susceptible_depletion_term;
-        real proportion_infected; 
         
         if (i == 1){
             pos = 1;
@@ -328,23 +341,15 @@ transformed parameters {
         
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n] == 1){
-                md_third_wave[pos] = pow(
-                    1+theta_md, 
-                    -1*prop_md_third_wave[pos]
-                );
-                masks_third_wave[pos] = pow(
-                    1+theta_masks, 
-                    -1*prop_masks_third_wave[pos]
-                );
+                md_third_wave[pos] = pow(1+theta_md, -1*prop_md_third_wave[pos]);
+                masks_third_wave[pos] = pow(1+theta_masks, -1*prop_masks_third_wave[pos]);
 
                 if (n <= omicron_start_day){
                     voc_term = voc_effect_delta;
                     vacc_term = ve_delta[pos];
                 } else {
-                    voc_term = prop_omicron_to_delta[pos_omicron2]
-                        *voc_effect_omicron 
-                        +(1-prop_omicron_to_delta[pos_omicron2])
-                        *voc_effect_delta;
+                    voc_term = prop_omicron_to_delta[pos_omicron2]*voc_effect_omicron 
+                        +(1-prop_omicron_to_delta[pos_omicron2])*voc_effect_delta;
                     vacc_term = prop_omicron_to_delta[pos_omicron2]
                         *ve_omicron[pos_omicron2] 
                         +(1-prop_omicron_to_delta[pos_omicron2])
@@ -357,10 +362,8 @@ transformed parameters {
                     *masks_third_wave[pos]
                     *2*inv_logit(Mob_third_wave[i][n,:]*(bet))
                 );
-                proportion_infected = (cumulative_local_third[n,i]*1.0)
-                    /(pop_size_array[map_to_state_index_third[i]]*1.0);
                 susceptible_depletion_term = 
-                    1 - susceptible_depletion_factor*proportion_infected;
+                    1-susceptible_depletion_factor*proportion_infected[n,i];
                 
                 TP_local = R_Li[map_to_state_index_third[i]]
                     *social_measures
@@ -369,7 +372,7 @@ transformed parameters {
                     
                 mu_hat_third_wave[pos] = (
                     brho_third_wave[pos]*R_I 
-                    + (1-brho_third_wave[pos])*TP_local
+                    +(1-brho_third_wave[pos])*TP_local
                 )*susceptible_depletion_term;
                 
                 pos += 1;
@@ -391,8 +394,8 @@ model {
 
     // variables for vax effects (reused for Delta and Omicron VEs)
     real mean_vax;
-    real var_vax_delta = 0.001;     
-    real var_vax_omicron = 0.0005;
+    real var_vax_delta = 0.0001;     
+    real var_vax_omicron = 0.0001;
     array[N_third_wave] real a_vax;
     array[N_third_wave] real b_vax;
     real a_vax_scalar;
@@ -403,7 +406,7 @@ model {
     real drift_factor;
     real pos_drift_counter;
     real mean_omicron; 
-    real var_omicron = 0.0025; 
+    real var_omicron = 0.0001; 
     real a_omicron;
     real b_omicron;
     
@@ -417,19 +420,16 @@ model {
     // priors
     // mobility, micro and masks 
     bet ~ normal(0, 1);
-    theta_md ~ lognormal(0, 0.25);
-    theta_masks ~ lognormal(0, 0.25);
+    theta_md ~ lognormal(0, 0.5);
+    theta_masks ~ lognormal(0, 0.5);
     
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(square(0.4)/0.075, 0.4/0.075);
-    additive_voc_effect_delta ~ gamma(square(2.0)/0.05, 2.0/0.05);
-    additive_voc_effect_omicron ~ gamma(
-        square(additive_voc_effect_delta)/0.005, 
-        additive_voc_effect_delta/0.005
-    );
+    additive_voc_effect_delta ~ gamma(square(2.0)/0.001, 2.0/0.001);
+    additive_voc_effect_omicron ~ gamma(square(2.0)/0.001, 2.0/0.001);
 
     // susceptible depletion (uninformative)
-    susceptible_depletion_factor ~ beta(2, 2);
+    susceptible_depletion_factor ~ beta(100, 2);
 
     // hierarchical model for the baseline RL
     R_L ~ gamma(square(1.7)/0.005, 1.7/0.005);
@@ -439,10 +439,7 @@ model {
 
     // first wave model
     for (i in 1:j_first_wave) { 
-        prop_md[:,i] ~ beta(
-            1+count_md[i][:], 
-            1+respond_md[i][:]-count_md[i][:]
-        );
+        prop_md[:,i] ~ beta(1+count_md[i][:], 1+respond_md[i][:]-count_md[i][:]);
         prop_masks[:,i] ~ beta(
             1+count_masks[i][:], 
             1+respond_masks[i][:]-count_masks[i][:]
@@ -522,25 +519,24 @@ model {
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n] == 1){
                 if (pos_counter == 0){    
-                    if (include_in_third_wave[i][n-1] == 0) {
+                    if (n < tau_vax_block_size) {
                         mean_vax = ve_delta_data[i][n];
-                    } else {
-                        mean_vax = mean(ve_delta_data[i][n-6:n]);
+                    } else if (include_in_third_wave[i][n-1] == 0){
+                        mean_vax = ve_delta_data[i][n];
+                    }else {
+                        mean_vax = mean(ve_delta_data[i][n-tau_vax_block_size+1:n]);
                     }
                     if (mean_vax*(1-mean_vax) > var_vax_delta) {
-                        a_vax_scalar = mean_vax*(
-                            mean_vax*(1-mean_vax)/var_vax_delta - 1
-                        );
-                        b_vax_scalar = (1-mean_vax)*(
-                            mean_vax*(1-mean_vax)/var_vax_delta - 1
-                        );
+                        a_vax_scalar = mean_vax*(mean_vax*(1-mean_vax)/var_vax_delta-1);
+                        b_vax_scalar = 
+                            (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax_delta-1);
                     } else {
                         // if we are close to 1 or 0, tight prior value        
                         if (mean_vax > 0.98) {
                             a_vax_scalar = 75;
-                            b_vax_scalar = 1;
+                            b_vax_scalar = 2;
                         } else if (mean_vax < 0.02) {
-                            a_vax_scalar = 1;
+                            a_vax_scalar = 2;
                             b_vax_scalar = 75;
                         }
                     }
@@ -548,7 +544,7 @@ model {
                 }
                     
                 pos_counter += 1; 
-                if (pos_counter == 7) {
+                if (pos_counter == tau_vax_block_size) {
                     pos_counter = 0; 
                     pos_block += 1;
                 }
@@ -556,37 +552,33 @@ model {
             
             if (include_in_omicron_wave[i][n] == 1){
                 if (pos_omicron_counter == 0){    
-                    if (include_in_omicron_wave[i][n-1] == 0) {
+                    if (n < tau_vax_block_size) {
                         mean_vax = ve_omicron_data[i][n];
-                    } else {
-                        mean_vax = mean(ve_omicron_data[i][n-6:n]);
+                    } else if (include_in_omicron_wave[i][n-1] == 0) {
+                        mean_vax = ve_omicron_data[i][n];
+                    }else {
+                        mean_vax = mean(ve_omicron_data[i][n-tau_vax_block_size+1:n]);
                     }
                     
                     if (mean_vax*(1-mean_vax) > var_vax_omicron) {
-                        a_vax_scalar = mean_vax*(
-                            mean_vax*(1-mean_vax)/var_vax_omicron - 1
-                        );
-                        b_vax_scalar = (1-mean_vax)*(
-                            mean_vax*(1-mean_vax)/var_vax_omicron - 1
-                        );
+                        a_vax_scalar = mean_vax*(mean_vax*(1-mean_vax)/var_vax_omicron-1);
+                        b_vax_scalar = 
+                            (1-mean_vax)*(mean_vax*(1-mean_vax)/var_vax_omicron-1);
                     } else {
                         // if we are close to 1 or 0, tight prior on that       
                         if (mean_vax > 0.98) {
                             a_vax_scalar = 75;
-                            b_vax_scalar = 1;
+                            b_vax_scalar = 2;
                         } else if (mean_vax < 0.02) {
-                            a_vax_scalar = 1;
+                            a_vax_scalar = 2;
                             b_vax_scalar = 75;
                         }
                     }
-                    ve_omicron_tau[pos_block_omicron] ~ beta(
-                        a_vax_scalar, 
-                        b_vax_scalar
-                    );
+                    ve_omicron_tau[pos_block_omicron] ~ beta(a_vax_scalar, b_vax_scalar);
                 }
                     
                 pos_omicron_counter += 1; 
-                if (pos_omicron_counter == 7) {
+                if (pos_omicron_counter == tau_vax_block_size) {
                     pos_omicron_counter = 0; 
                     pos_block_omicron += 1;
                 }
@@ -659,32 +651,26 @@ model {
                     // the drift counter starts at a different point 
                     // based on the previous day
                     if (include_in_omicron_wave[i][n-1] == 0) {
-                        pos_drift_counter = 1.0*(
-                            n - omicron_start_day + 15 - 1
-                        );
+                        pos_drift_counter = 1.0*(n-omicron_start_day+15-1);
                     }
                     
                     pos_drift_counter += 1.0;
-                    drift_factor = pos_drift_counter / 15.0;
+                    drift_factor = pos_drift_counter/15.0;
                     
-                    mean_omicron = 
-                        ((pos_omicron_idxs - 2) == pos_omicron2_start) * 0.05 + 
-                        ((pos_omicron_idxs - 2) > pos_omicron2_start) * 
-                        prop_omicron_to_delta[
-                            pos_omicron2_start+pos_omicron_idxs-2
-                        ];
+                    mean_omicron = 0.05
+                        *((pos_omicron_idxs-2) == pos_omicron2_start)
+                        +((pos_omicron_idxs-2) > pos_omicron2_start)
+                        *prop_omicron_to_delta[pos_omicron2_start+pos_omicron_idxs-2];
                         
-                    mean_omicron = (1-drift_factor)*mean_omicron + 
-                        drift_factor*long_term_mean_omicron;
+                    mean_omicron = (1-drift_factor)*mean_omicron
+                        +drift_factor*long_term_mean_omicron;
                         
                     // calculate shape and scale parameters for beta dist 
                     if (mean_omicron*(1-mean_omicron) > var_omicron){
-                        a_omicron = mean_omicron*(
-                            mean_omicron*(1-mean_omicron)/var_omicron - 1
-                        );
-                        b_omicron = (1-mean_omicron)*(
-                            mean_omicron*(1-mean_omicron)/var_omicron - 1
-                        );
+                        a_omicron = 
+                            mean_omicron*(mean_omicron*(1-mean_omicron)/var_omicron-1);
+                        b_omicron = 
+                            (1-mean_omicron)*(mean_omicron*(1-mean_omicron)/var_omicron-1);
                     } else {
                         // if we are close to 1 or 0, tight prior near 
                         // relevant value        
@@ -698,18 +684,17 @@ model {
                     }
                 } else {
                     mean_omicron = long_term_mean_omicron;
-                    a_omicron = mean_omicron*(
-                        mean_omicron*(1-mean_omicron)/var_omicron - 1
-                    );
-                    b_omicron = (1-mean_omicron)*(
-                        mean_omicron*(1-mean_omicron)/var_omicron - 1
-                    );
+                    a_omicron = 
+                        mean_omicron*(mean_omicron*(1-mean_omicron)/var_omicron-1);
+                    b_omicron = 
+                        (1-mean_omicron)*(mean_omicron*(1-mean_omicron)/var_omicron-1);
                 }
                 
                 // sample this inside loop as we have a dependency structure 
                 // between x(i-1), x(i)
-                prop_omicron_to_delta[pos_omicron2_start+pos_omicron_idxs-1] 
-                    ~ beta(a_omicron, b_omicron);  
+                prop_omicron_to_delta[pos_omicron2_start+pos_omicron_idxs-1] ~ beta(
+                    a_omicron, b_omicron
+                );  
                        
                 pos_omicron_counter += 1.0;
                 pos_omicron_idxs += 1;
