@@ -236,12 +236,13 @@ def predict_plot(
             [1],
             minor=True,
         )
-        ax[i // 4, i % 4].set_yticks([0, 2, 3], minor=False)
-        ax[i // 4, i % 4].set_yticklabels([0, 2, 3], minor=False)
+        ax[i // 4, i % 4].set_yticks([0, 1, 2], minor=False)
+        ax[i // 4, i % 4].set_yticklabels([0, 1, 2], minor=False)
         ax[i // 4, i % 4].yaxis.grid(
             which="minor", linestyle="--", color="black", linewidth=2
         )
-        ax[i // 4, i % 4].set_ylim((0, 4))
+        ax[i // 4, i % 4].set_ylim((0, 2.5))
+        
         if i // 4 == 1:
             ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
 
