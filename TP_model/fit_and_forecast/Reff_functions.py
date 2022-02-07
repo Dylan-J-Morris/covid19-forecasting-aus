@@ -143,297 +143,66 @@ def predict_plot(
         elif third_phase:
             df_state = df_state.loc[df_state.is_third_wave == 1]
 
-        masks_prop_sim = masks_prop[states_initials[state]].values[
-            : df_state.shape[0]
-        ]
-
-        samples_sim = samples.sample(1000)
-        post_values = samples_sim[
-            ["bet." + str(i + 1) for i in range(len(value_vars))]
-        ].values.T
-        prop_sim = prop[states_initials[state]].values[: df_state.shape[0]]
-
-        if split:
-
-            # split model with parameters pre and post policy
-            df1 = df_state.loc[df_state.date <= ban]
-            df2 = df_state.loc[df_state.date > ban]
-            X1 = df1[value_vars] / 100  # N by K
-            X2 = df2[value_vars] / 100
-            # N by K times (Nsamples by K )^T = N by N
-            logodds = X1 @ post_values
-
-            theta_md = samples_sim.theta_md.values  # 1 by samples shape
-            # each row is a date, column a new sample
-            theta_md = np.tile(theta_md, (df_state.shape[0], 1))
-            md = ((1 + theta_md).T ** (-1 * prop_sim)).T
-            # set preban md values to 1
-            md[: logodds.shape[0]] = 1
+        # directly plot the fitted TP values 
+        states_to_fitd = {s: i + 1 for i, s in enumerate(rho)}
+        
+        if not second_phase and not third_phase:
+            mu_hat = samples[
+                [
+                    "mu_hat."
+                    + str(j + 1)
+                    + "."
+                    + str(states_to_fitd[states_initials[state]])
+                    for j in range(df_state.shape[0])
+                ]
+            ].values.T
+        elif second_phase:
+            mu_hat = samples[
+                [
+                    "mu_hat_sec_wave." + str(j + 1)
+                    for j in range(
+                        pos,
+                        pos
+                        + df.loc[
+                            df.state == states_initials[state]
+                        ].is_sec_wave.sum(),
+                    )
+                ]
+            ].values.T
+            pos = (
+                pos
+                + df.loc[
+                    df.state == states_initials[state]
+                ].is_sec_wave.sum()
+            )
+        elif third_phase:
+            mu_hat = samples[
+                [
+                    "mu_hat_third_wave." + str(j + 1)
+                    for j in range(
+                        pos,
+                        pos
+                        + df.loc[
+                            df.state == states_initials[state]
+                        ].is_third_wave.sum(),
+                    )
+                ]
+            ].values.T
+            pos = (
+                pos
+                + df.loc[
+                    df.state == states_initials[state]
+                ].is_third_wave.sum()
+            )
             
-            theta_masks = samples_sim.theta_masks.values  # 1 by samples shape
-            # each row is a date, column a new sample
-            theta_masks = np.tile(theta_masks, (df_state.shape[0], 1))
-            masks = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
-            # set preban mask values to 1
-            masks[: logodds.shape[0]] = 1
-
-            # make logodds by appending post ban values
-            logodds = np.append(logodds, X2 @ post_values, axis=0)
-
-            # grab posterior sampled vaccination effects here and multiply by the daily efficacy
-            if third_phase and states_initials[state] in third_states:
-                third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
-                third_days_cumulative = np.append(
-                    [0], np.cumsum([v for v in third_days.values()])
-                )
-                vax_idx_ranges = {
-                    k: range(third_days_cumulative[i], third_days_cumulative[i + 1])
-                    for (i, k) in enumerate(third_days.keys())
-                }
-                third_days_tot = sum(v for v in third_days.values())
-
-                # construct a range of dates for omicron which starts at the maximum of the start date for that state or the Omicron start date
-                third_omicron_days = {
-                    k: v.shape[0] for (k, v) in third_omicron_date_range.items()
-                }
-                third_omicron_days_cumulative = np.append(
-                    [0], np.cumsum([v for v in third_omicron_days.values()])
-                )
-                omicron_ve_idx_ranges = {
-                    k: range(
-                        third_omicron_days_cumulative[i],
-                        third_omicron_days_cumulative[i + 1],
-                    )
-                    for (i, k) in enumerate(third_omicron_days.keys())
-                }
-                third_omicron_days_tot = sum(v for v in third_omicron_days.values())
-
-                # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-                delta_ve_samples = samples_sim[
-                    ["ve_delta." + str(j + 1) for j in range(third_days_tot)]
-                ].T
-                omicron_ve_samples = samples_sim[
-                    ["ve_omicron." + str(j + 1) for j in range(third_omicron_days_tot)]
-                ].T
-                delta_ve_tmp = delta_ve_samples.iloc[
-                    vax_idx_ranges[states_initials[state]], :
-                ]
-                omicron_ve_tmp = omicron_ve_samples.iloc[
-                    omicron_ve_idx_ranges[states_initials[state]], :
-                ]
-
-                omicron_start_day = (
-                    pd.to_datetime(omicron_start_date)
-                    - third_date_range[states_initials[state]][0]
-                ).days
-                omicron_start_day = 0 if omicron_start_day < 0 else omicron_start_day
-
-                # create zero array to fill in with the full vaccine effect model
-                vacc_post = np.zeros_like(delta_ve_tmp)
-
-                days_into_omicron = np.cumsum(
-                    np.append(
-                        [0],
-                        [
-                            (v >= pd.to_datetime(omicron_start_date)).sum()
-                            for v in third_date_range.values()
-                        ],
-                    )
-                )
-                idx = {}
-                kk = 0
-                for k in third_date_range.keys():
-                    idx[k] = range(days_into_omicron[kk], days_into_omicron[kk + 1])
-                    kk += 1
-
-                m = prop_omicron_to_delta.iloc[
-                    :, idx[states_initials[state]]
-                ].to_numpy()
-                m = m[: vacc_post.shape[1]].T
-
-                # note that in here we apply the entire sample to the vaccination data to create a days by samples array
-                for ii in range(vacc_post.shape[0]):
-                    if ii < omicron_start_day:
-                        vacc_post[ii] = delta_ve_tmp.iloc[ii, :]
-                    else:
-                        jj = ii - omicron_start_day
-                        # calculate the raw vax effect
-                        vacc_delta = delta_ve_tmp.iloc[ii, :]
-                        # indexed by days into omicron
-                        vacc_omicron = omicron_ve_tmp.iloc[jj, :]
-                        # calculate the full vaccination effect
-                        vacc_post[ii] = m[jj] * vacc_omicron + (1 - m[jj]) * vacc_delta
-
-                for ii in range(vacc_post.shape[0]):
-                    if (
-                        ii
-                        < df_state.loc[df_state.date < vaccination_start_date].shape[0]
-                    ):
-                        vacc_post[ii] = 1.0
-
-        if type(R) == str:  # 'state'
-            try:
-                sim_R = samples_sim["R_" + states_initials[state]]
-            except KeyError:
-                # this state not fitted, use gamma prior on initial value
-                print("using initial value for state" + state)
-                sim_R = np.random.gamma(
-                    shape=df.loc[df.date == "2020-03-01", "mean"].mean() ** 2 / 0.2,
-                    scale=0.2 / df.loc[df.date == "2020-03-01", "mean"].mean(),
-                    size=df_state.shape[0],
-                )
-
-        if type(R) == dict:
-            if states_initials[state] != ["NT"]:
-                # if state, use inferred
-                sim_R = np.tile(
-                    R[states_initials[state]][: samples_sim.shape[0]],
-                    (df_state.shape[0], 1),
-                )
-            else:
-                # if territory, use generic R_L
-                sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0], 1))
-        else:
-            sim_R = np.tile(samples_sim.R_L.values, (df_state.shape[0], 1))
-
-        if third_phase and states_initials[state] in third_states:
-            mu_hat = 2 * md * masks * sim_R * expit(logodds) * vacc_post
-        else:
-            mu_hat = 2 * md * masks * sim_R * expit(logodds)
-
-        if rho:
-            if rho == "data":
-                rho_data = np.tile(
-                    df_state.rho_moving.values[np.newaxis].T, (1, samples_sim.shape[0])
-                )
-            else:
-                states_to_fitd = {s: i + 1 for i, s in enumerate(rho)}
-                if states_initials[state] in states_to_fitd.keys():
-                    # transpose as columns are days, need rows to be days
-                    if second_phase:
-                        # use brho_v
-
-                        rho_data = samples_sim[
-                            [
-                                "brho_sec_wave." + str(j + 1)
-                                for j in range(
-                                    pos,
-                                    pos
-                                    + df.loc[
-                                        df.state == states_initials[state]
-                                    ].is_sec_wave.sum(),
-                                )
-                            ]
-                        ].values.T
-
-                        pos = (
-                            pos
-                            + df.loc[
-                                df.state == states_initials[state]
-                            ].is_sec_wave.sum()
-                        )
-                    elif third_phase:
-                        # use brho_v
-
-                        rho_data = samples_sim[
-                            [
-                                "brho_third_wave." + str(j + 1)
-                                for j in range(
-                                    pos,
-                                    pos
-                                    + df.loc[
-                                        df.state == states_initials[state]
-                                    ].is_third_wave.sum(),
-                                )
-                            ]
-                        ].values.T
-
-                        voc_multiplier_alpha = samples_sim[
-                            ["voc_effect_alpha"]
-                        ].values.T
-                        voc_multiplier_delta = np.tile(
-                            samples_sim[["voc_effect_delta"]].values.T,
-                            (mu_hat.shape[0], 1),
-                        )
-                        voc_multiplier_omicron = np.tile(
-                            samples_sim[["voc_effect_omicron"]].values.T,
-                            (mu_hat.shape[0], 1),
-                        )
-                        # now we just modify the values before the introduction of the voc to be 1.0
-                        voc_multiplier = np.zeros_like(voc_multiplier_delta)
-
-                        for ii in range(voc_multiplier.shape[0]):
-                            if (
-                                ii
-                                < df_state.loc[df_state.date < alpha_start_date].shape[
-                                    0
-                                ]
-                            ):
-                                voc_multiplier[ii] = 1.0
-                            elif (
-                                ii
-                                < df_state.loc[df_state.date < delta_start_date].shape[
-                                    0
-                                ]
-                            ):
-                                voc_multiplier[ii] = voc_multiplier_alpha[ii]
-                            elif (
-                                ii
-                                < df_state.loc[
-                                    df_state.date < omicron_start_date
-                                ].shape[0]
-                            ):
-                                voc_multiplier[ii] = voc_multiplier_delta[ii]
-                            else:
-                                jj = (
-                                    ii
-                                    - df_state.loc[
-                                        df_state.date < omicron_start_date
-                                    ].shape[0]
-                                )
-                                voc_multiplier[ii] = (
-                                    m[jj] * voc_multiplier_omicron[ii]
-                                    + (1 - m[jj]) * voc_multiplier_delta[ii]
-                                )
-
-                        # now modify the mu_hat
-                        mu_hat *= voc_multiplier
-
-                        pos = (
-                            pos
-                            + df.loc[
-                                df.state == states_initials[state]
-                            ].is_third_wave.sum()
-                        )
-
-                    else:
-                        # first phase
-                        rho_data = samples_sim[
-                            [
-                                "brho."
-                                + str(j + 1)
-                                + "."
-                                + str(states_to_fitd[states_initials[state]])
-                                for j in range(df_state.shape[0])
-                            ]
-                        ].values.T
-                else:
-                    print("Using data as inference not done on {}".format(state))
-                    rho_data = np.tile(
-                        df_state.rho_moving.values[np.newaxis].T,
-                        (1, samples_sim.shape[0]),
-                    )
-
-            R_I_sim = np.tile(samples_sim.R_I.values, (df_state.shape[0], 1))
-
-            R_eff_hat = rho_data * R_I_sim + (1 - rho_data) * mu_hat
-
-        df_hat = pd.DataFrame(R_eff_hat.T)
+    
+        df_hat = pd.DataFrame(mu_hat.T)
 
         if states_initials[state] not in rho:
             if i // 4 == 1:
                 ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
             continue
+        
         # plot actual R_eff
         ax[i // 4, i % 4].plot(
             df_state.date, df_state["mean"], label="$R_{eff}$", color="C1"
