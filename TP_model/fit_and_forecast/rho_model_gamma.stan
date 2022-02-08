@@ -349,8 +349,8 @@ transformed parameters {
                     pos_omicron2 += 1;
                 }
                 
-                social_measures = masks_third_wave[pos]*2
-                    *inv_logit(Mob_third_wave[i][n,:]*(bet));
+                social_measures = masks_third_wave[pos]
+                    *2*inv_logit(Mob_third_wave[i][n,:]*(bet));
                 susceptible_depletion_term = 
                     1-susceptible_depletion_factor*proportion_infected[n,i];
                 
@@ -394,7 +394,8 @@ model {
     real drift_factor;
     real pos_drift_counter;
     real mean_omicron; 
-    real var_omicron = 0.0005; 
+    real var_omicron = 0.005; 
+    real long_term_var_omicron = 0.001;
     real a_omicron;
     real b_omicron;
     
@@ -511,7 +512,7 @@ model {
                     }
                     
                     if (n < heterogeneity_start_day + 15) {
-                        a_vax_scalar = 100; 
+                        a_vax_scalar = 200; 
                         b_vax_scalar = 2;
                     } else if (mean_vax*(1-mean_vax) > var_vax_delta) {
                         a_vax_scalar = mean_vax*(mean_vax*(1-mean_vax)/var_vax_delta-1);
@@ -650,10 +651,10 @@ model {
                         
                     // calculate shape and scale parameters for beta dist 
                     if (mean_omicron*(1-mean_omicron) > var_omicron){
-                        a_omicron = 
-                            mean_omicron*(mean_omicron*(1-mean_omicron)/var_omicron-1);
-                        b_omicron = 
-                            (1-mean_omicron)*(mean_omicron*(1-mean_omicron)/var_omicron-1);
+                        a_omicron = mean_omicron*
+                            (mean_omicron*(1-mean_omicron)/var_omicron-1);
+                        b_omicron = (1-mean_omicron)
+                            *(mean_omicron*(1-mean_omicron)/var_omicron-1);
                     } else {
                         // if we are close to 1 or 0, tight prior near 
                         // relevant value        
@@ -667,10 +668,10 @@ model {
                     }
                 } else {
                     mean_omicron = long_term_mean_omicron;
-                    a_omicron = 
-                        mean_omicron*(mean_omicron*(1-mean_omicron)/var_omicron-1);
-                    b_omicron = 
-                        (1-mean_omicron)*(mean_omicron*(1-mean_omicron)/var_omicron-1);
+                    a_omicron = mean_omicron
+                        *(mean_omicron*(1-mean_omicron)/long_term_var_omicron-1);
+                    b_omicron = (1-mean_omicron)
+                        *(mean_omicron*(1-mean_omicron)/long_term_var_omicron-1);
                 }
                 
                 // sample this inside loop as we have a dependency structure 

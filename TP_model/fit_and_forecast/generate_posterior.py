@@ -329,7 +329,7 @@ def get_data_for_posterior(data_date):
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
         "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
-        "VIC": pd.date_range(start="2021-08-01", end=third_end_date).values,
+        "VIC": pd.date_range(start="2021-07-01", end=third_end_date).values,
     }
 
     fit_mask = df.state.isin(first_states)
@@ -991,7 +991,7 @@ def plot_and_save_posterior_samples(data_date):
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
         "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
-        "VIC": pd.date_range(start="2021-08-01", end=third_end_date).values,
+        "VIC": pd.date_range(start="2021-07-01", end=third_end_date).values,
     }
 
     fit_mask = df.state.isin(first_states)
@@ -1957,7 +1957,7 @@ def main(data_date, run_inference=True):
     # some parameters for HMCn
     if run_inference:     
         num_chains = 4
-        num_samples = 1500
+        num_samples = 1000
         num_warmup_samples = 1000
         get_data_for_posterior(data_date=data_date)
         run_stan(
