@@ -599,6 +599,7 @@ def get_data_for_posterior(data_date):
     # input data block for stan model
     input_data = {
         "j_total": len(states_to_fit_all_waves),
+        
         "N": dfX.loc[dfX.state == first_states[0]].shape[0],
         "K": len(predictors),
         "j_first_wave": len(first_states),
@@ -609,6 +610,7 @@ def get_data_for_posterior(data_date):
         "policy": policy.values,
         "local": data_by_state["local"].values,
         "imported": data_by_state["imported"].values,
+        
         "N_sec_wave": df2X.loc[df2X.state == sec_states[0]].shape[0],
         "j_sec_wave": len(sec_states),
         "Reff_sec_wave": sec_data_by_state["mean"].values,
@@ -619,6 +621,7 @@ def get_data_for_posterior(data_date):
         "local_sec_wave": sec_data_by_state["local"].values,
         "imported_sec_wave": sec_data_by_state["imported"].values,
         "apply_alpha_sec_wave": apply_alpha_sec_wave,
+        
         "N_third_wave": df3X.loc[df3X.state == third_states[0]].shape[0],
         "j_third_wave": len(third_states),
         "Reff_third_wave": third_data_by_state["mean"].values,
@@ -628,34 +631,42 @@ def get_data_for_posterior(data_date):
         "policy_third_wave": policy_third_wave,
         "local_third_wave": third_data_by_state["local"].values,
         "imported_third_wave": third_data_by_state["imported"].values,
+        
         "count_md": count_by_state,
         "respond_md": respond_by_state,
         "count_md_sec_wave": sec_count_by_state,
         "respond_md_sec_wave": sec_respond_by_state,
         "count_md_third_wave": third_count_by_state,
         "respond_md_third_wave": third_respond_by_state,
+        
         "count_masks": mask_wearing_count_by_state,
         "respond_masks": mask_wearing_respond_by_state,
         "count_masks_sec_wave": sec_mask_wearing_count_by_state,
         "respond_masks_sec_wave": sec_mask_wearing_respond_by_state,
         "count_masks_third_wave": third_mask_wearing_count_by_state,
         "respond_masks_third_wave": third_mask_wearing_respond_by_state,
+        
         "map_to_state_index_first": [state_index[state] for state in first_states],
         "map_to_state_index_sec": [state_index[state] for state in sec_states],
         "map_to_state_index_third": [state_index[state] for state in third_states],
+        
         "total_N_p_sec": sum([sum(x) for x in include_in_sec_wave]).item(),
         "total_N_p_third": sum([sum(x) for x in include_in_third_wave]).item(),
+        
         "include_in_first_wave": include_in_first_wave,
         "include_in_sec_wave": include_in_sec_wave,
         "include_in_third_wave": include_in_third_wave,
+        
         "pos_starts_sec": np.cumsum([sum(x) for x in include_in_sec_wave])
-        .astype(int)
-        .tolist(),
+            .astype(int)
+            .tolist(),
         "pos_starts_third": np.cumsum([sum(x) for x in include_in_third_wave])
-        .astype(int)
-        .tolist(),
+            .astype(int)
+            .tolist(),
+        
         "ve_delta_data": delta_vaccination_by_state_array,
         "ve_omicron_data": omicron_vaccination_by_state_array,
+        
         "omicron_start_day": omicron_start_day,
         "omicron_dominance_day": omicron_dominance_day,
         "include_in_omicron_wave": include_in_omicron_wave,
@@ -663,8 +674,8 @@ def get_data_for_posterior(data_date):
             sum([sum(x) for x in include_in_omicron_wave]).item()
         ),
         "pos_starts_third_omicron": np.cumsum([sum(x) for x in include_in_omicron_wave])
-        .astype(int)
-        .tolist(),
+            .astype(int)
+            .tolist(),
         'tau_vax_block_size': tau_vax_block_size, 
         'total_N_p_third_blocks': int(
             sum([int(ceil(sum(x)/tau_vax_block_size)) for x in include_in_third_wave])
@@ -733,7 +744,7 @@ def run_stan(data_date, num_chains=4, num_samples=1000, num_warmup_samples=500):
                         "R_I",
                         "R_L",
                         "R_Li",
-                        # "theta_md",
+                        "theta_md",
                         # "theta_masks",
                         "sig",
                         "voc_effect_alpha",
@@ -1909,7 +1920,7 @@ def plot_and_save_posterior_samples(data_date):
         "R_I",
         "R_L",
         "sig",
-        # "theta_md",
+        "theta_md",
         # "theta_masks",
         "voc_effect_alpha",
         "voc_effect_delta",
