@@ -118,9 +118,9 @@ transformed data {
         for (n in 1:N_third_wave) { 
             // scale up local case count by assumed ascertainment
             if (n <= omicron_dominance_day) {
-                local_third_wave_tmp[n] *= 1/p_detect_delta;
+                local_third_wave_tmp[n] *= 1 / p_detect_delta;
             } else {
-                local_third_wave_tmp[n] *= 1/p_detect_omicron;
+                local_third_wave_tmp[n] *= 1 / p_detect_omicron;
             }
         }
 
@@ -130,7 +130,7 @@ transformed data {
             // can't have more cases than the observed population
             proportion_infected[n,i] = fmax(
                 cumulative_local_third[n]
-                    /(1.0*pop_size_array[map_to_state_index_third[i]]), 
+                    / (1.0 * pop_size_array[map_to_state_index_third[i]]), 
                 1.0
             );
         }
@@ -138,18 +138,18 @@ transformed data {
 
     // compute the shape and scale for the likelihood 
     for (i in 1:j_first_wave) {
-        a_mu_hat[:,i] = square(Reff[:,i])./sigma2[:,i];
-        b_mu_hat[:,i] = Reff[:,i]./sigma2[:,i];
+        a_mu_hat[:,i] = square(Reff[:,i]) ./ sigma2[:,i];
+        b_mu_hat[:,i] = Reff[:,i] ./ sigma2[:,i];
     }
     
     for (i in 1:j_sec_wave) {
-        a_mu_hat_sec_wave[:,i] = square(Reff_sec_wave[:,i])./sigma2_sec_wave[:,i];
-        b_mu_hat_sec_wave[:,i] = Reff_sec_wave[:,i]./sigma2_sec_wave[:,i];
+        a_mu_hat_sec_wave[:,i] = square(Reff_sec_wave[:,i]) ./ sigma2_sec_wave[:,i];
+        b_mu_hat_sec_wave[:,i] = Reff_sec_wave[:,i] ./ sigma2_sec_wave[:,i];
     }
     
     for (i in 1:j_third_wave) {
-        a_mu_hat_third_wave[:,i] = square(Reff_third_wave[:,i])./sigma2_third_wave[:,i];
-        b_mu_hat_third_wave[:,i] = Reff_third_wave[:,i]./sigma2_third_wave[:,i];
+        a_mu_hat_third_wave[:,i] = square(Reff_third_wave[:,i]) ./ sigma2_third_wave[:,i];
+        b_mu_hat_third_wave[:,i] = Reff_third_wave[:,i] ./ sigma2_third_wave[:,i];
     }
 }
 
@@ -159,9 +159,15 @@ parameters {
     vector[K] bet;
     real<lower=0> theta_md;
     real<lower=0> theta_md_omicron;
+    real<lower=0> theta_masks;
+    
     matrix<lower=0,upper=1>[N,j_first_wave] prop_md;
     vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec_wave;
     vector<lower=0,upper=1>[total_N_p_third] prop_md_third_wave;
+    
+    matrix<lower=0,upper=1>[N,j_first_wave] prop_masks;
+    vector<lower=0,upper=1>[total_N_p_sec] prop_masks_sec_wave;
+    vector<lower=0,upper=1>[total_N_p_third] prop_masks_third_wave;
     
     // baseline and hierearchical RL parameters 
     real<lower=0> R_I;
@@ -214,10 +220,10 @@ transformed parameters {
                 pos_omicron = 1;
                 pos_block_omicron = 1;
             } else {
-                pos = pos_starts_third[i-1]+1;
-                pos_block = pos_starts_third_blocks[i-1]+1;
-                pos_omicron = pos_starts_third_omicron[i-1]+1;
-                pos_block_omicron = pos_starts_third_omicron_blocks[i-1]+1;
+                pos = pos_starts_third[i-1] + 1;
+                pos_block = pos_starts_third_blocks[i-1] + 1;
+                pos_omicron = pos_starts_third_omicron[i-1] + 1;
+                pos_block_omicron = pos_starts_third_omicron_blocks[i-1] + 1;
             }
             
             //reverse the array
@@ -246,9 +252,9 @@ transformed parameters {
     }
     
     // voc parameters (shifted by 1)
-    real voc_effect_alpha = 1+additive_voc_effect_alpha;
-    real voc_effect_delta = 1+additive_voc_effect_delta;
-    real voc_effect_omicron = 1+additive_voc_effect_omicron;
+    real voc_effect_alpha = 1 + additive_voc_effect_alpha;
+    real voc_effect_delta = 1 + additive_voc_effect_delta;
+    real voc_effect_omicron = 1 + additive_voc_effect_omicron;
     
     // TP models 
     matrix[N,j_first_wave] mu_hat;
@@ -256,14 +262,15 @@ transformed parameters {
     vector[total_N_p_third] mu_hat_third_wave;
     
     // micro distancing model
-    // matrix[N,j_first_wave] md;
-    // vector[total_N_p_sec] md_sec_wave;
-    // vector[total_N_p_third] md_third_wave;
-    
-    // mask wearing model
     matrix[N,j_first_wave] md;
     vector[total_N_p_sec] md_sec_wave;
     vector[total_N_p_third] md_third_wave;
+    
+    // mask wearing model
+    matrix[N,j_first_wave] masks;
+    vector[total_N_p_sec] masks_sec_wave;
+    vector[total_N_p_third] masks_third_wave;
+    // vector[total_N_p_third_omicron] md_third_omicron_wave;
 
     // first wave model
     for (i in 1:j_first_wave) {
@@ -272,14 +279,14 @@ transformed parameters {
         
         for (n in 1:N){
             if (include_in_first_wave[i][n] == 1){
-                md[n,i] = pow(1+theta_md, -1*prop_md[n,i]);
+                md[n,i] = pow(1 + theta_md, -1 * prop_md[n,i]);
+                masks[n,i] = pow(1 + theta_masks, -1 * prop_masks[n,i]);
                 social_measures = (
-                    (1-policy[n]) 
-                    +md[n,i]*policy[n]   
-                )*2*inv_logit(Mob[i][n,:]*(bet));
+                    (1 - policy[n]) + md[n,i] * policy[n]   
+                ) * masks[n,i] * 2 * inv_logit(Mob[i][n,:] * (bet));
                 
-                TP_local = R_Li[map_to_state_index_first[i]]*social_measures;
-                mu_hat[n,i] = brho[n,i]*R_I+(1-brho[n,i])*TP_local;
+                TP_local = R_Li[map_to_state_index_first[i]] * social_measures;
+                mu_hat[n,i] = brho[n,i] * R_I + (1 - brho[n,i]) * TP_local;
             }
         }
     }
@@ -293,20 +300,20 @@ transformed parameters {
         if (i == 1){
             pos = 1;
         } else {
-            pos = pos_starts_sec[i-1]+1;
+            pos = pos_starts_sec[i-1] + 1;
         }
         
         for (n in 1:N_sec_wave){
             if (include_in_sec_wave[i][n] == 1){
-                md_sec_wave[pos] = pow(1+theta_md, -1*prop_md_sec_wave[pos]);
+                md_sec_wave[pos] = pow(1 + theta_md, -1 * prop_md_sec_wave[pos]);
+                masks_sec_wave[pos] = pow(1 + theta_masks, -1 * prop_masks_sec_wave[pos]);
                 social_measures = (
-                    (1-policy_sec_wave[n]) 
-                    +md_sec_wave[pos]*policy_sec_wave[n]
-                )*2*inv_logit(Mob_sec_wave[i][n,:]*(bet));
+                    (1 - policy_sec_wave[n]) + md_sec_wave[pos] * policy_sec_wave[n]
+                ) * masks_sec_wave[pos] * 2 * inv_logit(Mob_sec_wave[i][n,:] * (bet));
                 
-                TP_local = R_Li[map_to_state_index_sec[i]]*social_measures; 
-                mu_hat_sec_wave[pos] = brho_sec_wave[pos]*R_I 
-                    +(1-brho_sec_wave[pos])*TP_local;
+                TP_local = R_Li[map_to_state_index_sec[i]] * social_measures; 
+                mu_hat_sec_wave[pos] = brho_sec_wave[pos] * R_I 
+                    + (1 - brho_sec_wave[pos]) * TP_local;
                 pos += 1;
             }
         }
@@ -328,42 +335,54 @@ transformed parameters {
             pos = 1;
             pos_omicron2 = 1;
         } else {
-            pos = pos_starts_third[i-1]+1;
-            pos_omicron2 = pos_starts_third_omicron[i-1]+1;
+            pos = pos_starts_third[i-1] + 1;
+            pos_omicron2 = pos_starts_third_omicron[i-1] + 1;
         }
         
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n] == 1){
+                masks_third_wave[pos] = pow(
+                    1 + theta_masks, -1 * prop_masks_third_wave[pos]
+                );
 
                 if (n <= omicron_start_day){
-                    voc_vacc_product = voc_effect_delta*ve_delta[pos];
                     md_third_wave[pos] = pow(
-                        1+theta_md, -1*prop_md_third_wave[pos]
+                        1 + theta_md, -1 * prop_md_third_wave[pos]
                     );
+                    voc_vacc_product = voc_effect_delta * ve_delta[pos];
                 } else {
-                    voc_vacc_product = prop_omicron_to_delta[pos_omicron2]
-                        *voc_effect_omicron*ve_omicron[pos_omicron2]
-                        +(1-prop_omicron_to_delta[pos_omicron2])
-                        *voc_effect_delta*ve_delta[pos];
                     md_third_wave[pos] = pow(
-                        1+theta_md_omicron, -1*prop_md_third_wave[pos]
+                        1 + theta_md_omicron, -1 * prop_md_third_wave[pos]
                     );
+                    // md_third_omicron_wave[pos_omicron2] = pow(
+                    //     1+theta_md_omicron, -1*prop_md_third_wave[pos]
+                    // );
+                    // voc_vacc_product = prop_omicron_to_delta[pos_omicron2]
+                    //     *voc_effect_omicron*ve_omicron[pos_omicron2]
+                    //     *md_third_omicron_wave[pos_omicron2]
+                    //     +(1-prop_omicron_to_delta[pos_omicron2])
+                    //     *voc_effect_delta*ve_delta[pos]
+                    //     *md_third_wave[pos];
+                    voc_vacc_product = prop_omicron_to_delta[pos_omicron2]
+                        * voc_effect_omicron * ve_omicron[pos_omicron2]
+                        + (1 - prop_omicron_to_delta[pos_omicron2])
+                        * voc_effect_delta * ve_delta[pos];
                     pos_omicron2 += 1;
                 }
                 
-                social_measures = md_third_wave[pos]
-                    *2*inv_logit(Mob_third_wave[i][n,:]*(bet));
+                social_measures = 2 * md_third_wave[pos] * masks_third_wave[pos]
+                    * inv_logit(Mob_third_wave[i][n,:] * (bet));
                 susceptible_depletion_term = 
-                    1-susceptible_depletion_factor*proportion_infected[n,i];
+                    1 - susceptible_depletion_factor * proportion_infected[n,i];
                 
                 TP_local = R_Li[map_to_state_index_third[i]]
-                    *social_measures
-                    *voc_vacc_product;
+                    * voc_vacc_product
+                    * social_measures;
                     
                 mu_hat_third_wave[pos] = (
-                    brho_third_wave[pos]*R_I 
-                    +(1-brho_third_wave[pos])*TP_local
-                )*susceptible_depletion_term;
+                    brho_third_wave[pos] * R_I 
+                    + (1 - brho_third_wave[pos]) * TP_local
+                ) * susceptible_depletion_term;
                 
                 pos += 1;
             }
@@ -411,27 +430,31 @@ model {
     // priors
     // mobility, micro and masks 
     bet ~ normal(0, 1);
+    theta_masks ~ lognormal(0, 0.5);
     theta_md ~ lognormal(0, 0.5);
     theta_md_omicron ~ lognormal(0, 0.5);
     
     // gives full priors of 1 + Gamma() for each VoC effect
-    additive_voc_effect_alpha ~ gamma(square(0.4)/0.075, 0.4/0.075);
-    additive_voc_effect_delta ~ gamma(square(2.0)/0.001, 2.0/0.001);
-    additive_voc_effect_omicron ~ gamma(square(2.0)/0.001, 2.0/0.001);
+    additive_voc_effect_alpha ~ gamma(square(0.4) / 0.075, 0.4 / 0.075);
+    additive_voc_effect_delta ~ gamma(square(2.0) / 0.001, 2.0 / 0.001);
+    additive_voc_effect_omicron ~ gamma(square(2.0) / 0.001, 2.0 / 0.001);
 
     // susceptible depletion (uninformative)
     susceptible_depletion_factor ~ beta(100, 2);
 
     // hierarchical model for the baseline RL
-    R_L ~ gamma(square(1.7)/0.005, 1.7/0.005);
-    R_I ~ gamma(square(0.5)/0.2, 0.5/0.2);
+    R_L ~ gamma(square(1.7) / 0.005, 1.7 / 0.005);
+    R_I ~ gamma(square(0.5) / 0.2, 0.5 / 0.2);
     sig ~ exponential(250);
-    R_Li ~ gamma(square(R_L)/sig, R_L/sig);
+    R_Li ~ gamma(square(R_L) / sig, R_L / sig);
 
     // first wave model
     for (i in 1:j_first_wave) { 
         prop_md[:,i] ~ beta(
             1+count_md[i][:], 1+respond_md[i][:]-count_md[i][:]
+        );
+        prop_masks[:,i] ~ beta(
+            1+count_masks[i][:], 1+respond_masks[i][:]-count_masks[i][:]
         );
         
         brho[:,i] ~ beta(
@@ -466,6 +489,12 @@ model {
             1+count_md_sec_wave[i][idxs_sec[1:pos_idxs-1]], 
             1+respond_md_sec_wave[i][idxs_sec[1:pos_idxs-1]]
                 -count_md_sec_wave[i][idxs_sec[1:pos_idxs-1]]
+        );
+        
+        prop_masks_sec_wave[pos2_start:pos2_end] ~ beta(
+            1+count_masks_sec_wave[i][idxs_sec[1:pos_idxs-1]], 
+            1+respond_masks_sec_wave[i][idxs_sec[1:pos_idxs-1]]
+                -count_masks_sec_wave[i][idxs_sec[1:pos_idxs-1]]
         );
         
         brho_sec_wave[pos2_start:pos2_end] ~ beta(
@@ -513,7 +542,7 @@ model {
                     }
                     
                     if (n < heterogeneity_start_day + 15) {
-                        a_vax_scalar = 200; 
+                        a_vax_scalar = 100; 
                         b_vax_scalar = 2;
                     } else if (mean_vax*(1-mean_vax) > var_vax_delta) {
                         a_vax_scalar = mean_vax*(mean_vax*(1-mean_vax)/var_vax_delta-1);
@@ -608,6 +637,12 @@ model {
             1+count_md_third_wave[i][idxs_third[1:pos_idxs-1]], 
             1+respond_md_third_wave[i][idxs_third[1:pos_idxs-1]]
                 -count_md_third_wave[i][idxs_third[1:pos_idxs-1]]
+        );
+        
+        prop_masks_third_wave[pos2_start:pos2_end] ~ beta(
+            1+count_masks_third_wave[i][idxs_third[1:pos_idxs-1]], 
+            1+respond_masks_third_wave[i][idxs_third[1:pos_idxs-1]]
+                -count_masks_third_wave[i][idxs_third[1:pos_idxs-1]]
         );
         
         brho_third_wave[pos2_start:pos2_end] ~ beta(
