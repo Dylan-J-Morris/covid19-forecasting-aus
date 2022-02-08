@@ -1120,137 +1120,137 @@ df_ve_omicron.to_csv(
     + ".csv"
 )
 
-expo_decay = True
-theta_md = np.tile(df_samples["theta_md"].values, (df_md["NSW"].shape[0], 1))
-
-fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
 
 print("============")
 print("Plotting forecasted estimates")
 print("============")
-for i, state in enumerate(plot_states):
-    # np.random.normal(df_md[state].values, df_md_std.values)
-    prop_sim = df_md[state].values
-    if expo_decay:
-        md = ((1 + theta_md).T ** (-1 * prop_sim)).T
-    else:
-        md = 2 * expit(-1 * theta_md * prop_sim[:, np.newaxis])
+# expo_decay = True
+# theta_md = np.tile(df_samples["theta_md"].values, (df_md["NSW"].shape[0], 1))
 
-    row = i // 2
-    col = i % 2
+# fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+# for i, state in enumerate(plot_states):
+#     # np.random.normal(df_md[state].values, df_md_std.values)
+#     prop_sim = df_md[state].values
+#     if expo_decay:
+#         md = ((1 + theta_md).T ** (-1 * prop_sim)).T
+#     else:
+#         md = 2 * expit(-1 * theta_md * prop_sim[:, np.newaxis])
 
-    ax[row, col].plot(
-        df_md[state].index, np.median(md, axis=1), label="Microdistancing"
-    )
-    ax[row, col].fill_between(
-        df_md[state].index,
-        np.quantile(md, 0.25, axis=1),
-        np.quantile(md, 0.75, axis=1),
-        label="Microdistancing",
-        alpha=0.4,
-        color="C0",
-    )
-    ax[row, col].fill_between(
-        df_md[state].index,
-        np.quantile(md, 0.05, axis=1),
-        np.quantile(md, 0.95, axis=1),
-        label="Microdistancing",
-        alpha=0.4,
-        color="C0",
-    )
-    ax[row, col].set_title(state)
-    ax[row, col].tick_params("x", rotation=45)
+#     row = i // 2
+#     col = i % 2
 
-    ax[row, col].set_xticks(
-        [df_md[state].index.values[-n_forecast - extra_days_md]],
-        minor=True,
-    )
-    ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
+#     ax[row, col].plot(
+#         df_md[state].index, np.median(md, axis=1), label="Microdistancing"
+#     )
+#     ax[row, col].fill_between(
+#         df_md[state].index,
+#         np.quantile(md, 0.25, axis=1),
+#         np.quantile(md, 0.75, axis=1),
+#         label="Microdistancing",
+#         alpha=0.4,
+#         color="C0",
+#     )
+#     ax[row, col].fill_between(
+#         df_md[state].index,
+#         np.quantile(md, 0.05, axis=1),
+#         np.quantile(md, 0.95, axis=1),
+#         label="Microdistancing",
+#         alpha=0.4,
+#         color="C0",
+#     )
+#     ax[row, col].set_title(state)
+#     ax[row, col].tick_params("x", rotation=45)
 
-fig.text(
-    0.03,
-    0.5,
-    "Multiplicative effect \n of micro-distancing $M_d$",
-    ha="center",
-    va="center",
-    rotation="vertical",
-    fontsize=20,
-)
+#     ax[row, col].set_xticks(
+#         [df_md[state].index.values[-n_forecast - extra_days_md]],
+#         minor=True,
+#     )
+#     ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
 
-fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
+# fig.text(
+#     0.03,
+#     0.5,
+#     "Multiplicative effect \n of micro-distancing $M_d$",
+#     ha="center",
+#     va="center",
+#     rotation="vertical",
+#     fontsize=20,
+# )
 
-plt.tight_layout(rect=[0.05, 0.04, 1, 1])
+# fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
 
-fig.savefig(
-    "figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d") + "/md_factor.png",
-    dpi=144,
-)
+# plt.tight_layout(rect=[0.05, 0.04, 1, 1])
 
-theta_masks = np.tile(df_samples["theta_masks"].values, (df_masks["NSW"].shape[0], 1))
+# fig.savefig(
+#     "figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d") + "/md_factor.png",
+#     dpi=144,
+# )
 
-fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+# theta_masks = np.tile(df_samples["theta_masks"].values, (df_masks["NSW"].shape[0], 1))
 
-for i, state in enumerate(plot_states):
-    # np.random.normal(df_md[state].values, df_md_std.values)
-    masks_prop_sim = df_masks[state].values
-    if expo_decay:
-        mask_wearing_factor = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
-    else:
-        mask_wearing_factor = 2 * expit(
-            -1 * theta_masks * masks_prop_sim[:, np.newaxis]
-        )
+# fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
 
-    row = i // 2
-    col = i % 2
+# for i, state in enumerate(plot_states):
+#     # np.random.normal(df_md[state].values, df_md_std.values)
+#     masks_prop_sim = df_masks[state].values
+#     if expo_decay:
+#         mask_wearing_factor = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
+#     else:
+#         mask_wearing_factor = 2 * expit(
+#             -1 * theta_masks * masks_prop_sim[:, np.newaxis]
+#         )
 
-    ax[row, col].plot(
-        df_masks[state].index,
-        np.median(mask_wearing_factor, axis=1),
-        label="Microdistancing",
-    )
-    ax[row, col].fill_between(
-        df_masks[state].index,
-        np.quantile(mask_wearing_factor, 0.25, axis=1),
-        np.quantile(mask_wearing_factor, 0.75, axis=1),
-        label="Microdistancing",
-        alpha=0.4,
-        color="C0",
-    )
-    ax[row, col].fill_between(
-        df_masks[state].index,
-        np.quantile(mask_wearing_factor, 0.05, axis=1),
-        np.quantile(mask_wearing_factor, 0.95, axis=1),
-        label="Microdistancing",
-        alpha=0.4,
-        color="C0",
-    )
-    ax[row, col].set_title(state)
-    ax[row, col].tick_params("x", rotation=45)
+#     row = i // 2
+#     col = i % 2
 
-    ax[row, col].set_xticks(
-        [df_masks[state].index.values[-n_forecast - extra_days_masks]], minor=True
-    )
-    ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
+#     ax[row, col].plot(
+#         df_masks[state].index,
+#         np.median(mask_wearing_factor, axis=1),
+#         label="Microdistancing",
+#     )
+#     ax[row, col].fill_between(
+#         df_masks[state].index,
+#         np.quantile(mask_wearing_factor, 0.25, axis=1),
+#         np.quantile(mask_wearing_factor, 0.75, axis=1),
+#         label="Microdistancing",
+#         alpha=0.4,
+#         color="C0",
+#     )
+#     ax[row, col].fill_between(
+#         df_masks[state].index,
+#         np.quantile(mask_wearing_factor, 0.05, axis=1),
+#         np.quantile(mask_wearing_factor, 0.95, axis=1),
+#         label="Microdistancing",
+#         alpha=0.4,
+#         color="C0",
+#     )
+#     ax[row, col].set_title(state)
+#     ax[row, col].tick_params("x", rotation=45)
 
-fig.text(
-    0.03,
-    0.5,
-    "Multiplicative effect \n of mask-wearing $M_d$",
-    ha="center",
-    va="center",
-    rotation="vertical",
-    fontsize=20,
-)
+#     ax[row, col].set_xticks(
+#         [df_masks[state].index.values[-n_forecast - extra_days_masks]], minor=True
+#     )
+#     ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
 
-fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
+# fig.text(
+#     0.03,
+#     0.5,
+#     "Multiplicative effect \n of mask-wearing $M_d$",
+#     ha="center",
+#     va="center",
+#     rotation="vertical",
+#     fontsize=20,
+# )
 
-plt.tight_layout(rect=[0.05, 0.04, 1, 1])
-fig.savefig(
-    "figs/mobility_forecasts/"
-    + data_date.strftime("%Y-%m-%d")
-    + "/mask_wearing_factor.png",
-    dpi=144,
-)
+# fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
+
+# plt.tight_layout(rect=[0.05, 0.04, 1, 1])
+# fig.savefig(
+#     "figs/mobility_forecasts/"
+#     + data_date.strftime("%Y-%m-%d")
+#     + "/mask_wearing_factor.png",
+#     dpi=144,
+# )
 
 n_samples = 100
 df_R = df_R.sort_values("date")
@@ -1319,25 +1319,15 @@ for typ in forecast_type:
         df_state = df_R.loc[df_R.state == state]
         dd = df_state.date
         post_values = samples[predictors].values.T
-        prop_sim = df_md[state].values
-        masks_prop_sim = df_masks[state].values
         # grab vaccination data
         vacc_ts_delta = df_ve_delta[state]
         vacc_ts_omicron = df_ve_omicron[state]
 
         # take right size of md to be N by N
-        theta_md = np.tile(samples["theta_md"].values, (df_state.shape[0], n_samples))
-        theta_masks = np.tile(
-            samples["theta_masks"].values, (df_state.shape[0], n_samples)
-        )
         susceptible_depletion_factor = np.tile(
             samples["susceptible_depletion_factor"].values,
             (df_state.shape[0], n_samples),
         )
-
-        if expo_decay:
-            md = ((1 + theta_md).T ** (-1 * prop_sim)).T
-            mask_wearing_factor = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
 
         if state in third_states:
             third_states_indices = {
@@ -1526,8 +1516,6 @@ for typ in forecast_type:
 
             df1 = df_state.loc[df_state.date <= ban]
             X1 = df1[predictors]  # N by K
-            # set initial pre ban values of md to 1
-            md[: X1.shape[0], :] = 1
 
             if n == 0:
                 # initialise arrays (loggodds)
@@ -1553,9 +1541,6 @@ for typ in forecast_type:
                     X3 = np.zeros_like(df3[predictors])
 
                     # social mobility all at baseline implies R_l = R_L0
-
-                    # md has no effect after June 1st
-                    md[(X1.shape[0] + df2.shape[0]) :, :] = 1
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
                     logodds = np.append(logodds, X3 @ post_values, axis=0)
 
@@ -1592,10 +1577,6 @@ for typ in forecast_type:
                     X2 = df2[predictors]
                     X3 = np.zeros_like(df3[predictors])
 
-                    # social mobility all at baseline implies R_l = R_L0
-                    # md has no effect after June 1st
-
-                    md[(X1.shape[0] + df2.shape[0]) :, :] = 1
                     logodds2 = X2 @ post_values
                     logodds3 = X3 @ post_values
                     logodds_sample = np.append(logodds1, logodds2, axis=0)
@@ -1701,10 +1682,8 @@ for typ in forecast_type:
         # calculate TP
         R_L = (
             2
-            * md
-            * mask_wearing_factor
-            * sim_R
             * expit(logodds)
+            * sim_R
             * voc_vacc_product
         )
 

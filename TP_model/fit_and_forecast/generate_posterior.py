@@ -733,8 +733,8 @@ def run_stan(data_date, num_chains=4, num_samples=1000, num_warmup_samples=500):
                         "R_I",
                         "R_L",
                         "R_Li",
-                        "theta_md",
-                        "theta_masks",
+                        # "theta_md",
+                        # "theta_masks",
                         "sig",
                         "voc_effect_alpha",
                         "voc_effect_delta",
@@ -1653,17 +1653,8 @@ def plot_and_save_posterior_samples(data_date):
         samples_mov_gamma,
         df.loc[(df.date >= start_date) & (df.date <= end_date)],
         moving=True,
-        split=split,
         grocery=True,
-        ban=ban,
-        R=RL_by_state,
-        var=True,
-        md_arg=md,
         rho=first_states,
-        R_I=samples_mov_gamma.R_I.values,
-        prop=survey_X.loc[start_date:end_date],
-        masks_prop=mask_wearing_X[start_date:end_date],
-        
     )
     for ax in ax3:
         for a in ax:
@@ -1689,17 +1680,9 @@ def plot_and_save_posterior_samples(data_date):
             samples_mov_gamma,
             df.loc[(df.date >= sec_start_date) & (df.date <= sec_end_date)],
             moving=True,
-            split=split,
             grocery=True,
-            ban=ban,
-            R=RL_by_state,
-            var=True,
-            md_arg=md,
             rho=sec_states,
             second_phase=True,
-            R_I=samples_mov_gamma.R_I.values,
-            prop=survey_X.loc[sec_start_date:sec_end_date],
-            masks_prop=mask_wearing_X[sec_start_date:sec_end_date],
         )
         for ax in ax4:
             for a in ax:
@@ -1856,22 +1839,10 @@ def plot_and_save_posterior_samples(data_date):
         ax4 = predict_plot(
             samples_mov_gamma,
             df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
-            third_date_range=third_date_range,
-            third_omicron_date_range=third_omicron_date_range,
             moving=True,
-            split=split,
             grocery=True,
-            ban=ban,
-            R=RL_by_state,
-            var=True,
-            md_arg=md,
             rho=third_states,
             third_phase=True,
-            R_I=samples_mov_gamma.R_I.values,
-            prop=survey_X.loc[third_start_date:third_end_date],
-            masks_prop=mask_wearing_X[third_start_date:third_end_date],
-            third_states=third_states,
-            prop_omicron_to_delta=prop_omicron_to_delta,
         )  # by states....
 
         for ax in ax4:
@@ -1938,8 +1909,8 @@ def plot_and_save_posterior_samples(data_date):
         "R_I",
         "R_L",
         "sig",
-        "theta_md",
-        "theta_masks",
+        # "theta_md",
+        # "theta_masks",
         "voc_effect_alpha",
         "voc_effect_delta",
         "voc_effect_omicron",
@@ -1974,9 +1945,9 @@ def main(data_date, run_inference=True):
 
     # some parameters for HMCn
     if run_inference:     
-        num_chains = 2
-        num_samples = 1000
-        num_warmup_samples = 750
+        num_chains = 4
+        num_samples = 1500
+        num_warmup_samples = 1000
         get_data_for_posterior(data_date=data_date)
         run_stan(
             data_date=data_date,

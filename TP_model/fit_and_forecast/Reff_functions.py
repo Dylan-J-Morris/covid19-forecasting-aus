@@ -82,23 +82,11 @@ def read_in_google(Aus_only=True, local=False, moving=False):
 def predict_plot(
     samples,
     df,
-    third_date_range=None,
-    third_omicron_date_range=None,
-    split=True,
     moving=True,
     grocery=True,
-    R=2.2,
-    md_arg=None,
-    R_I=None,
-    ban="2020-03-16",
-    var=None,
     rho=None,
-    prop=None,
-    masks_prop=None,
     second_phase=False,
     third_phase=False,
-    third_states=None,
-    prop_omicron_to_delta=None,
 ):
     """
     Produce posterior predictive plots for all states
