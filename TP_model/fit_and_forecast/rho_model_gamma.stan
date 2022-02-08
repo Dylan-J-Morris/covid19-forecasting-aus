@@ -259,14 +259,14 @@ transformed parameters {
     vector[total_N_p_third] mu_hat_third_wave;
     
     // micro distancing model
-    matrix[N,j_first_wave] md;
-    vector[total_N_p_sec] md_sec_wave;
-    vector[total_N_p_third] md_third_wave;
+    // matrix[N,j_first_wave] md;
+    // vector[total_N_p_sec] md_sec_wave;
+    // vector[total_N_p_third] md_third_wave;
     
     // mask wearing model
-    // matrix[N,j_first_wave] masks;
-    // vector[total_N_p_sec] masks_sec_wave;
-    // vector[total_N_p_third] masks_third_wave;
+    matrix[N,j_first_wave] masks;
+    vector[total_N_p_sec] masks_sec_wave;
+    vector[total_N_p_third] masks_third_wave;
 
     // first wave model
     for (i in 1:j_first_wave) {
