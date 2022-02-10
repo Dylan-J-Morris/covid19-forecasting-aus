@@ -2,14 +2,14 @@
 # define scenarios for each state
 
 scenarios_normal = {
-    "NSW": "no_reversion",
-    "QLD": "no_reversion",
-    "SA": "no_reversion",
-    "TAS": "no_reversion",
-    "VIC": "no_reversion",
-    "WA": "no_reversion",
-    "ACT": "no_reversion",
-    "NT": "no_reversion",
+    "NSW": "",
+    "QLD": "",
+    "SA": "",
+    "TAS": "",
+    "VIC": "",
+    "WA": "",
+    "ACT": "",
+    "NT": "",
 }
 
 
@@ -47,5 +47,5 @@ scenario_dates_school_openings_2022 = {
     "NT": "2022-01-31",
 }
 
-scenarios = scenarios_normal
-scenario_dates = scenario_dates_normal
+scenarios = scenarios_school_openings_2022
+scenario_dates = scenario_dates_school_openings_2022

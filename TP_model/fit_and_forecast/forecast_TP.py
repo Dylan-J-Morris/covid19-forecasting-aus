@@ -12,7 +12,6 @@ from params import (
     num_forecast_days,
     alpha_start_date,
     delta_start_date,
-    vaccination_start_date,
     truncation_days,
     third_start_date,
     start_date,
@@ -50,27 +49,27 @@ third_end_date = data_date - timedelta(truncation_days)
 # a different end date to deal with issues in fitting
 third_end_date_diff = data_date - timedelta(18 + 7 + 7)
 
-third_states = sorted(["NSW", "VIC", "ACT", "QLD", "SA", "TAS", "NT"])
+third_states = sorted(["NSW", "VIC", "ACT", "QLD", "SA", "TAS", "NT", "WA"])
 # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
 # choose dates for each state for third wave
 # NOTE: These need to be in date sorted order
 third_date_range = {
     "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
-    "NSW": pd.date_range(start="2021-06-23", end=third_end_date).values,
-    # "NT": pd.date_range(start="2021-12-01", end=third_end_date_diff).values,
+    "NSW": pd.date_range(start=third_start_date, end=third_end_date).values,
     "NT": pd.date_range(start="2021-12-01", end=third_end_date).values,
     "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
     "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
     "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
     "VIC": pd.date_range(start="2021-08-01", end=third_end_date).values,
+    "WA": pd.date_range(start="2022-01-01", end=third_end_date).values,
 }
 
 # Get Google Data - Don't use the smoothed data?
 df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 
 third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
-# Load in vaccination data by state and date which should have the same date as the NNDSS/linelist data
-# use the inferred VE
+# Load in vaccination data by state and date which should have the same date as the 
+# NNDSS/linelist data use the inferred VE
 vaccination_by_state_delta = pd.read_csv(
     "results/adjusted_vaccine_ts_delta" + data_date.strftime("%Y-%m-%d") + ".csv",
     parse_dates=["date"],
@@ -194,7 +193,7 @@ df_google = df_google_all.loc[df_google_all.date <= data_date]
 df_google.to_csv("results/test_google_data.csv")
 df_google = pd.read_csv("results/test_google_data.csv")
 # remove the temporary file
-os.remove("results/test_google_data.csv")
+# os.remove("results/test_google_data.csv")
 
 # Simple interpolation for missing vlaues in Google data
 df_google = df_google.interpolate(method="linear", axis=0)
@@ -1121,137 +1120,137 @@ df_ve_omicron.to_csv(
     + ".csv"
 )
 
-expo_decay = True
-theta_md = np.tile(df_samples["theta_md"].values, (df_md["NSW"].shape[0], 1))
-
-fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
 
 print("============")
 print("Plotting forecasted estimates")
 print("============")
-for i, state in enumerate(plot_states):
-    # np.random.normal(df_md[state].values, df_md_std.values)
-    prop_sim = df_md[state].values
-    if expo_decay:
-        md = ((1 + theta_md).T ** (-1 * prop_sim)).T
-    else:
-        md = 2 * expit(-1 * theta_md * prop_sim[:, np.newaxis])
+# expo_decay = True
+# theta_md = np.tile(df_samples["theta_md"].values, (df_md["NSW"].shape[0], 1))
 
-    row = i // 2
-    col = i % 2
+# fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+# for i, state in enumerate(plot_states):
+#     # np.random.normal(df_md[state].values, df_md_std.values)
+#     prop_sim = df_md[state].values
+#     if expo_decay:
+#         md = ((1 + theta_md).T ** (-1 * prop_sim)).T
+#     else:
+#         md = 2 * expit(-1 * theta_md * prop_sim[:, np.newaxis])
 
-    ax[row, col].plot(
-        df_md[state].index, np.median(md, axis=1), label="Microdistancing"
-    )
-    ax[row, col].fill_between(
-        df_md[state].index,
-        np.quantile(md, 0.25, axis=1),
-        np.quantile(md, 0.75, axis=1),
-        label="Microdistancing",
-        alpha=0.4,
-        color="C0",
-    )
-    ax[row, col].fill_between(
-        df_md[state].index,
-        np.quantile(md, 0.05, axis=1),
-        np.quantile(md, 0.95, axis=1),
-        label="Microdistancing",
-        alpha=0.4,
-        color="C0",
-    )
-    ax[row, col].set_title(state)
-    ax[row, col].tick_params("x", rotation=45)
+#     row = i // 2
+#     col = i % 2
 
-    ax[row, col].set_xticks(
-        [df_md[state].index.values[-n_forecast - extra_days_md]],
-        minor=True,
-    )
-    ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
+#     ax[row, col].plot(
+#         df_md[state].index, np.median(md, axis=1), label="Microdistancing"
+#     )
+#     ax[row, col].fill_between(
+#         df_md[state].index,
+#         np.quantile(md, 0.25, axis=1),
+#         np.quantile(md, 0.75, axis=1),
+#         label="Microdistancing",
+#         alpha=0.4,
+#         color="C0",
+#     )
+#     ax[row, col].fill_between(
+#         df_md[state].index,
+#         np.quantile(md, 0.05, axis=1),
+#         np.quantile(md, 0.95, axis=1),
+#         label="Microdistancing",
+#         alpha=0.4,
+#         color="C0",
+#     )
+#     ax[row, col].set_title(state)
+#     ax[row, col].tick_params("x", rotation=45)
 
-fig.text(
-    0.03,
-    0.5,
-    "Multiplicative effect \n of micro-distancing $M_d$",
-    ha="center",
-    va="center",
-    rotation="vertical",
-    fontsize=20,
-)
+#     ax[row, col].set_xticks(
+#         [df_md[state].index.values[-n_forecast - extra_days_md]],
+#         minor=True,
+#     )
+#     ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
 
-fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
+# fig.text(
+#     0.03,
+#     0.5,
+#     "Multiplicative effect \n of micro-distancing $M_d$",
+#     ha="center",
+#     va="center",
+#     rotation="vertical",
+#     fontsize=20,
+# )
 
-plt.tight_layout(rect=[0.05, 0.04, 1, 1])
+# fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
 
-fig.savefig(
-    "figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d") + "/md_factor.png",
-    dpi=144,
-)
+# plt.tight_layout(rect=[0.05, 0.04, 1, 1])
 
-theta_masks = np.tile(df_samples["theta_masks"].values, (df_masks["NSW"].shape[0], 1))
+# fig.savefig(
+#     "figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d") + "/md_factor.png",
+#     dpi=144,
+# )
 
-fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+# theta_masks = np.tile(df_samples["theta_masks"].values, (df_masks["NSW"].shape[0], 1))
 
-for i, state in enumerate(plot_states):
-    # np.random.normal(df_md[state].values, df_md_std.values)
-    masks_prop_sim = df_masks[state].values
-    if expo_decay:
-        mask_wearing_factor = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
-    else:
-        mask_wearing_factor = 2 * expit(
-            -1 * theta_masks * masks_prop_sim[:, np.newaxis]
-        )
+# fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
 
-    row = i // 2
-    col = i % 2
+# for i, state in enumerate(plot_states):
+#     # np.random.normal(df_md[state].values, df_md_std.values)
+#     masks_prop_sim = df_masks[state].values
+#     if expo_decay:
+#         mask_wearing_factor = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
+#     else:
+#         mask_wearing_factor = 2 * expit(
+#             -1 * theta_masks * masks_prop_sim[:, np.newaxis]
+#         )
 
-    ax[row, col].plot(
-        df_masks[state].index,
-        np.median(mask_wearing_factor, axis=1),
-        label="Microdistancing",
-    )
-    ax[row, col].fill_between(
-        df_masks[state].index,
-        np.quantile(mask_wearing_factor, 0.25, axis=1),
-        np.quantile(mask_wearing_factor, 0.75, axis=1),
-        label="Microdistancing",
-        alpha=0.4,
-        color="C0",
-    )
-    ax[row, col].fill_between(
-        df_masks[state].index,
-        np.quantile(mask_wearing_factor, 0.05, axis=1),
-        np.quantile(mask_wearing_factor, 0.95, axis=1),
-        label="Microdistancing",
-        alpha=0.4,
-        color="C0",
-    )
-    ax[row, col].set_title(state)
-    ax[row, col].tick_params("x", rotation=45)
+#     row = i // 2
+#     col = i % 2
 
-    ax[row, col].set_xticks(
-        [df_masks[state].index.values[-n_forecast - extra_days_masks]], minor=True
-    )
-    ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
+#     ax[row, col].plot(
+#         df_masks[state].index,
+#         np.median(mask_wearing_factor, axis=1),
+#         label="Microdistancing",
+#     )
+#     ax[row, col].fill_between(
+#         df_masks[state].index,
+#         np.quantile(mask_wearing_factor, 0.25, axis=1),
+#         np.quantile(mask_wearing_factor, 0.75, axis=1),
+#         label="Microdistancing",
+#         alpha=0.4,
+#         color="C0",
+#     )
+#     ax[row, col].fill_between(
+#         df_masks[state].index,
+#         np.quantile(mask_wearing_factor, 0.05, axis=1),
+#         np.quantile(mask_wearing_factor, 0.95, axis=1),
+#         label="Microdistancing",
+#         alpha=0.4,
+#         color="C0",
+#     )
+#     ax[row, col].set_title(state)
+#     ax[row, col].tick_params("x", rotation=45)
 
-fig.text(
-    0.03,
-    0.5,
-    "Multiplicative effect \n of mask-wearing $M_d$",
-    ha="center",
-    va="center",
-    rotation="vertical",
-    fontsize=20,
-)
+#     ax[row, col].set_xticks(
+#         [df_masks[state].index.values[-n_forecast - extra_days_masks]], minor=True
+#     )
+#     ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
 
-fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
+# fig.text(
+#     0.03,
+#     0.5,
+#     "Multiplicative effect \n of mask-wearing $M_d$",
+#     ha="center",
+#     va="center",
+#     rotation="vertical",
+#     fontsize=20,
+# )
 
-plt.tight_layout(rect=[0.05, 0.04, 1, 1])
-fig.savefig(
-    "figs/mobility_forecasts/"
-    + data_date.strftime("%Y-%m-%d")
-    + "/mask_wearing_factor.png",
-    dpi=144,
-)
+# fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
+
+# plt.tight_layout(rect=[0.05, 0.04, 1, 1])
+# fig.savefig(
+#     "figs/mobility_forecasts/"
+#     + data_date.strftime("%Y-%m-%d")
+#     + "/mask_wearing_factor.png",
+#     dpi=144,
+# )
 
 n_samples = 100
 df_R = df_R.sort_values("date")
@@ -1313,135 +1312,140 @@ print("============")
 print("Using posterior sample and forecasted estimates to calculate TP")
 print("============")
 
+# prop_omicron_to_delta = pd.read_csv(
+#     'results/prop_omicron_to_delta' + data_date.strftime("%Y-%m-%d") + '.csv'
+# )
+
+# prop_omicron_to_delta = prop_omicron_to_delta[
+#     [
+#         "prop_omicron_to_delta." + str(j + 1)
+#         for j in range(total_N_p_third_omicron)
+#     ]
+# ]
+
+# prop_omicron_to_delta = prop_omicron_to_delta.iloc[samples.index, :]
+
+def sigmoid(t, r, tau, m0, m1):
+    y = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+    
+    return y.T
+
 for typ in forecast_type:
     state_R = {}
-    for state in states:
+    for (kk, state) in enumerate(states):
         # sort df_R by date so that rows are dates. rows are dates, columns are predictors
         df_state = df_R.loc[df_R.state == state]
         dd = df_state.date
         post_values = samples[predictors].values.T
         prop_sim = df_md[state].values
-        masks_prop_sim = df_masks[state].values
         # grab vaccination data
         vacc_ts_delta = df_ve_delta[state]
         vacc_ts_omicron = df_ve_omicron[state]
 
-        # take right size of md to be N by N
         theta_md = np.tile(samples["theta_md"].values, (df_state.shape[0], n_samples))
-        theta_masks = np.tile(
-            samples["theta_masks"].values, (df_state.shape[0], n_samples)
-        )
+        r = np.tile(samples["r." + str(kk + 1)].values, (df_state.shape[0], n_samples))
+        tau = np.tile(samples["tau." + str(kk + 1)].values, (df_state.shape[0], n_samples))
+        m0 = np.tile(samples["m0." + str(kk + 1)].values, (df_state.shape[0], n_samples))
+        m1 = np.tile(samples["m1." + str(kk + 1)].values, (df_state.shape[0], n_samples))
+
+        # take right size of md to be N by N
         susceptible_depletion_factor = np.tile(
             samples["susceptible_depletion_factor"].values,
             (df_state.shape[0], n_samples),
         )
+        
+        md = ((1 + theta_md).T ** (-1 * prop_sim)).T
 
-        if expo_decay:
-            md = ((1 + theta_md).T ** (-1 * prop_sim)).T
-            mask_wearing_factor = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
+        third_states_indices = {
+            state: index + 1 for (index, state) in enumerate(third_states)
+        }
+        third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
+        third_days_cumulative = np.append(
+            [0], np.cumsum([v for v in third_days.values()])
+        )
+        vax_idx_ranges = {
+            k: range(third_days_cumulative[i], third_days_cumulative[i + 1])
+            for (i, k) in enumerate(third_days.keys())
+        }
+        third_days_tot = sum(v for v in third_days.values())
+        # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
+        sampled_vax_effects_all = np.tile(
+            samples[["ve_delta." + str(j + 1) for j in range(third_days_tot)]],
+            (n_samples, 1),
+        ).T
+        vacc_tmp = sampled_vax_effects_all[vax_idx_ranges[state], :]
+        # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
 
-        if state in third_states:
-            third_states_indices = {
-                state: index + 1 for (index, state) in enumerate(third_states)
-            }
-            third_days = {k: v.shape[0] for (k, v) in third_date_range.items()}
-            third_days_cumulative = np.append(
-                [0], np.cumsum([v for v in third_days.values()])
+        # get before and after fitting and tile them
+        vacc_ts_data_before = pd.concat(
+            [vacc_ts_delta.loc[vacc_ts_delta.index < third_date_range[state][0]]]
+            * n_samples ** 2,
+            axis=1,
+        ).to_numpy()
+        vacc_ts_data_after = pd.concat(
+            [vacc_ts_delta.loc[vacc_ts_delta.index > third_date_range[state][-1]]]
+            * n_samples ** 2,
+            axis=1,
+        ).to_numpy()
+        # merge in order
+        vacc_ts_delta = np.vstack(
+            [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after]
+        )
+
+        # construct a range of dates for omicron which starts at the maximum of the start date for that state or the Omicron start date
+        third_omicron_date_range = {
+            k: pd.date_range(
+                start=max(v[0], pd.to_datetime(omicron_start_date)), end=v[-1]
+            ).values
+            for (k, v) in third_date_range.items()
+        }
+        third_omicron_days = {
+            k: v.shape[0] for (k, v) in third_omicron_date_range.items()
+        }
+        third_omicron_days_cumulative = np.append(
+            [0], np.cumsum([v for v in third_omicron_days.values()])
+        )
+        omicron_ve_idx_ranges = {
+            k: range(
+                third_omicron_days_cumulative[i],
+                third_omicron_days_cumulative[i + 1],
             )
-            vax_idx_ranges = {
-                k: range(third_days_cumulative[i], third_days_cumulative[i + 1])
-                for (i, k) in enumerate(third_days.keys())
-            }
-            third_days_tot = sum(v for v in third_days.values())
-            # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-            sampled_vax_effects_all = np.tile(
-                samples[["ve_delta." + str(j + 1) for j in range(third_days_tot)]],
-                (n_samples, 1),
-            ).T
-            vacc_tmp = sampled_vax_effects_all[vax_idx_ranges[state], :]
-            # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
+            for (i, k) in enumerate(third_omicron_days.keys())
+        }
+        third_omicron_days_tot = sum(v for v in third_omicron_days.values())
+        # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
+        sampled_vax_effects_all = np.tile(
+            samples[
+                ["ve_omicron." + str(j + 1) for j in range(third_omicron_days_tot)]
+            ],
+            (n_samples, 1),
+        ).T
+        vacc_tmp = sampled_vax_effects_all[omicron_ve_idx_ranges[state], :]
+        # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
 
-            # get before and after fitting and tile them
-            vacc_ts_data_before = pd.concat(
-                [vacc_ts_delta.loc[vacc_ts_delta.index < third_date_range[state][0]]]
-                * n_samples ** 2,
-                axis=1,
-            ).to_numpy()
-            vacc_ts_data_after = pd.concat(
-                [vacc_ts_delta.loc[vacc_ts_delta.index > third_date_range[state][-1]]]
-                * n_samples ** 2,
-                axis=1,
-            ).to_numpy()
-            # merge in order
-            vacc_ts_delta = np.vstack(
-                [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after]
-            )
-        else:
-            # just tile the data
-            vacc_ts_delta = pd.concat(
-                [vacc_ts_delta] * n_samples ** 2, axis=1
-            ).to_numpy()
-
-        if state in third_states:
-            # construct a range of dates for omicron which starts at the maximum of the start date for that state or the Omicron start date
-            third_omicron_date_range = {
-                k: pd.date_range(
-                    start=max(v[0], pd.to_datetime(omicron_start_date)), end=v[-1]
-                ).values
-                for (k, v) in third_date_range.items()
-            }
-            third_omicron_days = {
-                k: v.shape[0] for (k, v) in third_omicron_date_range.items()
-            }
-            third_omicron_days_cumulative = np.append(
-                [0], np.cumsum([v for v in third_omicron_days.values()])
-            )
-            omicron_ve_idx_ranges = {
-                k: range(
-                    third_omicron_days_cumulative[i],
-                    third_omicron_days_cumulative[i + 1],
-                )
-                for (i, k) in enumerate(third_omicron_days.keys())
-            }
-            third_omicron_days_tot = sum(v for v in third_omicron_days.values())
-            # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-            sampled_vax_effects_all = np.tile(
-                samples[
-                    ["ve_omicron." + str(j + 1) for j in range(third_omicron_days_tot)]
-                ],
-                (n_samples, 1),
-            ).T
-            vacc_tmp = sampled_vax_effects_all[omicron_ve_idx_ranges[state], :]
-            # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
-
-            # get before and after fitting and tile them
-            vacc_ts_data_before = pd.concat(
-                [
-                    vacc_ts_omicron.loc[
-                        vacc_ts_omicron.index < third_omicron_date_range[state][0]
-                    ]
+        # get before and after fitting and tile them
+        vacc_ts_data_before = pd.concat(
+            [
+                vacc_ts_omicron.loc[
+                    vacc_ts_omicron.index < third_omicron_date_range[state][0]
                 ]
-                * n_samples ** 2,
-                axis=1,
-            ).to_numpy()
-            vacc_ts_data_after = pd.concat(
-                [
-                    vacc_ts_omicron.loc[
-                        vacc_ts_omicron.index > third_date_range[state][-1]
-                    ]
+            ]
+            * n_samples ** 2,
+            axis=1,
+        ).to_numpy()
+        vacc_ts_data_after = pd.concat(
+            [
+                vacc_ts_omicron.loc[
+                    vacc_ts_omicron.index > third_date_range[state][-1]
                 ]
-                * n_samples ** 2,
-                axis=1,
-            ).to_numpy()
-            # merge in order
-            vacc_ts_omicron = np.vstack(
-                [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after]
-            )
-        else:
-            # just tile the data
-            vacc_ts_omicron = pd.concat(
-                [vacc_ts_omicron] * n_samples ** 2, axis=1
-            ).to_numpy()
+            ]
+            * n_samples ** 2,
+            axis=1,
+        ).to_numpy()
+        # merge in order
+        vacc_ts_omicron = np.vstack(
+            [vacc_ts_data_before, vacc_tmp, vacc_ts_data_after]
+        )
 
         # setup some variables for handling the omicron starts
         third_states_indices = {
@@ -1459,12 +1463,6 @@ for typ in forecast_type:
                 ],
             )
         )
-        prop_omicron_to_delta = samples[
-            [
-                "prop_omicron_to_delta." + str(j + 1)
-                for j in range(total_N_p_third_omicron)
-            ]
-        ]
 
         idx = {}
         kk = 0
@@ -1472,26 +1470,8 @@ for typ in forecast_type:
             idx[k] = range(days_into_omicron[kk], days_into_omicron[kk + 1])
             kk += 1
 
-        for k in states:
-            if k not in third_date_range.keys():
-                if k == "WA":
-                    idx[k] = range(days_into_omicron[kk], days_into_omicron[kk])
-                else:
-                    idx[k] = range(days_into_omicron[0], days_into_omicron[1])
-
         # tile the reduction in vaccination effect for omicron (i.e. VE is (1+r)*VE)
-        vacc_post = np.zeros_like(vacc_ts_delta)
-
-        # proportion of omicron cases each day.
-        if state in {"VIC", "NSW", "ACT", "QLD", "SA", "NT", "TAS"}:
-            m_tmp = prop_omicron_to_delta.iloc[:, idx[state]].to_numpy().T
-        elif state in {"WA"}:
-            m_tmp = 0 * prop_omicron_to_delta.iloc[:, idx["ACT"]].to_numpy().T
-
-        # initialise array for holding the proportion attributable to Omicron
-        m = np.zeros(
-            shape=(df_state.shape[0] - omicron_start_day, n_samples * m_tmp.shape[1])
-        )
+        voc_vacc_product = np.zeros_like(vacc_ts_delta)
         # calculate the voc effects
         voc_multiplier_delta = np.tile(
             samples["voc_effect_delta"].values, (df_state.shape[0], n_samples)
@@ -1527,7 +1507,6 @@ for typ in forecast_type:
 
             df1 = df_state.loc[df_state.date <= ban]
             X1 = df1[predictors]  # N by K
-            # set initial pre ban values of md to 1
             md[: X1.shape[0], :] = 1
 
             if n == 0:
@@ -1554,11 +1533,9 @@ for typ in forecast_type:
                     X3 = np.zeros_like(df3[predictors])
 
                     # social mobility all at baseline implies R_l = R_L0
-
-                    # md has no effect after June 1st
-                    md[(X1.shape[0] + df2.shape[0]) :, :] = 1
                     logodds = np.append(logodds, X2 @ post_values, axis=0)
                     logodds = np.append(logodds, X3 @ post_values, axis=0)
+                    md[(X1.shape[0] + df2.shape[0]) :, :] = 1
 
                 else:
                     # forecast as before, no changes to md
@@ -1593,14 +1570,11 @@ for typ in forecast_type:
                     X2 = df2[predictors]
                     X3 = np.zeros_like(df3[predictors])
 
-                    # social mobility all at baseline implies R_l = R_L0
-                    # md has no effect after June 1st
-
-                    md[(X1.shape[0] + df2.shape[0]) :, :] = 1
                     logodds2 = X2 @ post_values
                     logodds3 = X3 @ post_values
                     logodds_sample = np.append(logodds1, logodds2, axis=0)
                     logodds_sample = np.append(logodds_sample, logodds3, axis=0)
+                    md[(X1.shape[0] + df2.shape[0]) :, :] = 1
 
                 else:
                     # forecast as before, no changes to md
@@ -1630,102 +1604,58 @@ for typ in forecast_type:
         # loop over days in third wave and apply the appropriate form (i.e. decay or not)
         # note that in here we apply the entire sample to the vaccination data to create a days by samples array
         tmp_date = pd.to_datetime("2020-03-01")
-        if state not in {"WA"}:
-            for ii in range(vacc_post.shape[0]):
-                if ii < omicron_start_day:
-                    vacc_post[ii] = vacc_ts_delta[ii, :]
-                elif ii < omicron_start_day + len(idx[state]):
-                    jj = ii - omicron_start_day
-                    m[jj] = np.tile(m_tmp[jj], n_samples)
-                    # this is just the vaccination model for delta
-                    vacc_delta_tmp = vacc_ts_delta[ii, :]
-                    vacc_omicron_tmp = vacc_ts_omicron[ii, :]
-                    # this is the simplified form of the mixture model of the vaccination effects
-                    vacc_post[ii] = (
-                        m[jj] * vacc_omicron_tmp + (1 - m[jj]) * vacc_delta_tmp
-                    )
-                else:
-
-                    # variance on beta distribution centered at m_last
-                    if tt == 0:
-                        m_last = m[jj]
-                        var_omicron = 0.0025
-                        long_term_mean = np.maximum(0.85, m_last)
-
-                    # number of days after the start of omicron
-                    jj = ii - omicron_start_day
-
-                    # calculate shape and scale
-                    a_m = long_term_mean * (
-                        (long_term_mean * (1 - long_term_mean) / var_omicron) - 1
-                    )
-                    b_m = (1 - long_term_mean) * (
-                        (long_term_mean * (1 - long_term_mean) / var_omicron) - 1
-                    )
-
-                    # sample a proportion with some noise about the recent value
-                    m_last_prime = np.random.beta(a_m, b_m)
-                    m[jj] = m_last_prime
-                    # this is just the vaccination model for delta
-                    vacc_delta_tmp = vacc_ts_delta[ii, :]
-                    vacc_omicron_tmp = vacc_ts_omicron[ii, :]
-                    # this is the simplified form of the mixture model of the vaccination effects
-                    vacc_post[ii] = (
-                        m[jj] * vacc_omicron_tmp + (1 - m[jj]) * vacc_delta_tmp
-                    )
-
-                    # increment days into omicron forecast
-                    tt += 1
-
-        else:  # if we are WA then we assume only Delta (12/1/2022)
-            for ii in range(vacc_post.shape[0]):
-                vacc_post[ii] = vacc_ts_delta[ii, :]
-
-        # this sets all values of the vaccination data prior to the start date equal to 1
-        for ii in range(vacc_post.shape[0]):
-            if ii < df_state.loc[df_state.date < vaccination_start_date].shape[0]:
-                vacc_post[ii] = 1.0
-
-        # now we just modify the values before the introduction of the voc to be 1.0
-        voc_multiplier = np.zeros_like(voc_multiplier_delta)
-
-        # calculate the voc effects
-        if state not in {"WA"}:
-            for ii in range(voc_multiplier.shape[0]):
+        
+        for ii in range(voc_vacc_product.shape[0]):
+            if ii < omicron_start_day:
                 if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-                    voc_multiplier[ii] = 1.0
+                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]
                 elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-                    voc_multiplier[ii] = voc_multiplier_alpha[ii]
+                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
                 elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
-                    voc_multiplier[ii] = voc_multiplier_delta[ii]
-                else:
-                    jj = ii - df_state.loc[df_state.date < omicron_start_date].shape[0]
-                    voc_multiplier[ii] = (
-                        m[jj] * voc_multiplier_omicron[ii]
-                        + (1 - m[jj]) * voc_multiplier_delta[ii]
-                    )
+                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
+            elif ii < omicron_start_day + len(idx[state]):
+                jj = ii - omicron_start_day
+                m = sigmoid(jj, r[ii], tau[ii], m0[ii], m1[ii])
+                # this is just the vaccination model for delta
+                vacc_delta_tmp = vacc_ts_delta[ii, :]
+                vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                # this is the simplified form of the mixture model of the vaccination effects
+                voc_vacc_product[ii] = (
+                    m * vacc_omicron_tmp * voc_multiplier_omicron[ii] 
+                    + (1 - m) * vacc_delta_tmp * voc_multiplier_delta[ii]
+                )
+                
+            else:
+                # variance on beta distribution centered at m_last
+                if tt == 0:
+                    m_last = m[jj]
+                    var_omicron = 0.0025
 
-        else:
-            for ii in range(voc_multiplier.shape[0]):
-                if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-                    voc_multiplier[ii] = 1.0
-                elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-                    voc_multiplier[ii] = voc_multiplier_alpha[ii]
-                else:
-                    voc_multiplier[ii] = voc_multiplier_delta[ii]
+                # number of days after the start of omicron
+                jj = ii - omicron_start_day
+                # this is just the vaccination model for delta
+                vacc_delta_tmp = vacc_ts_delta[ii, :]
+                vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                # this is the simplified form of the mixture model of the vaccination effects
+                voc_vacc_product[ii] = (
+                    m_last * vacc_omicron_tmp * voc_multiplier_omicron[ii] + 
+                    (1 - m_last) * vacc_delta_tmp * voc_multiplier_delta[ii]
+                )
+
+                # increment days into omicron forecast
+                tt += 1
 
         # calculate TP
         R_L = (
             2
-            * md
-            * mask_wearing_factor
-            * sim_R
             * expit(logodds)
-            * vacc_post
-            * voc_multiplier
+            * md
+            * sim_R
+            * voc_vacc_product
         )
 
-        # now we increase TP by 15% based on school reopening (this code can probably be reused but inferring it would be pretty difficult
+        # now we increase TP by 15% based on school reopening (this code can probably be reused 
+        # but inferring it would be pretty difficult
         # due to lockdowns and various interruptions since March 2020)
         if scenarios[state] == "school_opening_2022":
             R_L[dd.values >= pd.to_datetime(scenario_dates[state]), :] *= 1.15
