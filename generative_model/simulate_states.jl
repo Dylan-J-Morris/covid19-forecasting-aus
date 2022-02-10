@@ -13,7 +13,7 @@ include("branching_process.jl")
 include("processing_sim.jl")
 include("plot_forecasts.jl")
 
-function simulate_all_states(file_date, states_to_run, nsims)
+function simulate_all_states(file_date, states_to_run, nsims, run_simulation)
     """
     This runs the branching process for each of the states in states_to_run and then 
     merges and saves the files. 
@@ -30,7 +30,7 @@ function simulate_all_states(file_date, states_to_run, nsims)
         "TAS" => "2021-11-01",
         "WA" => "2021-12-15",
         "ACT" => "2021-08-01",
-        "NT" => "2021-11-01",
+        "NT" => "2021-12-01",
         "VIC" => "2021-08-01",
     )
     
@@ -71,37 +71,43 @@ function simulate_all_states(file_date, states_to_run, nsims)
     
     # create vector for dates 
     onset_dates = latest_start_date:Dates.Day(1):forecast_end_date
+    
+    # add a small truncation to the simulations as we don't trust the most recent data 
+    truncation_days = 0
+    
+    if run_simulation 
+        for state in states_to_run
 
-    for state in states_to_run
+            forecast_start_date = Dates.Date(simulation_start_dates[state]) - 
+                Dates.Day(truncation_days)
+            local_cases = local_case_dict[state]
+            import_cases = import_case_dict[state]
 
-        forecast_start_date = Dates.Date(simulation_start_dates[state])
-        local_cases = local_case_dict[state]
-        import_cases = import_case_dict[state]
+            # named tuple for initial condi
+            D0 = initial_conditions[state]
+            N = pop_sizes[state]
 
-        # named tuple for initial condi
-        D0 = initial_conditions[state]
-        N = pop_sizes[state]
+            # get the observed cases 
+            cases_pre_forecast = sum(local_case_dict[state][dates .< forecast_start_date])
+            local_cases = local_case_dict[state][dates .>= forecast_start_date]
+            import_cases = import_case_dict[state]
+            
+            (D, U, TP_local) = simulate_branching_process(
+                D0, 
+                N, 
+                nsims[state], 
+                local_cases, 
+                import_cases, 
+                cases_pre_forecast,
+                forecast_start_date, 
+                file_date, 
+                omicron_dominant_date, 
+                state,
+            )
+            
+            save_simulations(D,TP_local,state,file_date,onset_dates,rng)
 
-        # get the observed cases 
-        cases_pre_forecast = sum(local_case_dict[state][dates .< forecast_start_date])
-        local_cases = local_case_dict[state][dates .>= forecast_start_date]
-        import_cases = import_case_dict[state]
-        
-        (D, U, TP_local) = simulate_branching_process(
-            D0, 
-            N, 
-            nsims[state], 
-            local_cases, 
-            import_cases, 
-            cases_pre_forecast,
-            forecast_start_date, 
-            file_date, 
-            omicron_dominant_date, 
-            state,
-        )
-        
-        save_simulations(D,TP_local,state,file_date,onset_dates,rng)
-
+        end
     end
 
     # merge all the simulation and TP files for states into single CSV

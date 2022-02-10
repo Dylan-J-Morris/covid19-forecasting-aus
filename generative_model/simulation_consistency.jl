@@ -19,6 +19,7 @@ function get_simulation_limits(
     # this is the number of days into the forecast simulation that dominant begins 
     days_delta = (Dates.Date(omicron_dominant_date) - 
         Dates.Date(forecast_start_date)).value
+        
     # calculate the cases over the various windows
     cases_pre_backcast = sum(@view local_cases[1:days_delta])
     cases_backcast = sum(@view local_cases[days_delta+1:T_observed])
@@ -34,7 +35,7 @@ function get_simulation_limits(
     # min_cases = 0*cases_in_each_window
     max_cases = ceil.(
         Int, 
-        [2.5*cases_pre_backcast, 3.0*cases_backcast, 2.5*cases_60, 2.75*cases_nowcast]
+        [2.5*cases_pre_backcast, 3.0*cases_backcast, 2.5*cases_60, 2.5*cases_nowcast]
     )
 
     # assume maximum of 250 cases if the observed is less than that

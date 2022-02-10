@@ -1658,7 +1658,9 @@ for typ in forecast_type:
         # but inferring it would be pretty difficult
         # due to lockdowns and various interruptions since March 2020)
         if scenarios[state] == "school_opening_2022":
-            R_L[dd.values >= pd.to_datetime(scenario_dates[state]), :] *= 1.15
+            R_L[dd.values >= pd.to_datetime(scenario_dates[state]), :] = (
+                1.15 * R_L[dd.values >= pd.to_datetime(scenario_dates[state]), :]
+            )
 
         # calculate summary stats
         R_L_med = np.median(R_L, axis=1)
