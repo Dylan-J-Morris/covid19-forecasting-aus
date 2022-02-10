@@ -87,7 +87,7 @@ function plot_all_forecasts(
         # boolean for correct case dates 
         case_dates_ind = [d ∈ onset_dates ? true : false for d in case_dates]
 
-        onset_dates_lims = Dates.value.([onset_dates[end]-Dates.Day(75), onset_dates[end]])
+        onset_dates_lims = Dates.value.([onset_dates[end]-Dates.Day(90), onset_dates[end]])
         
         if confidence_level == "50" || confidence_level == "both"
             plot!(
@@ -236,7 +236,7 @@ function plot_all_forecasts(
         xlims!(fig, subplot=tp, onset_dates_lims...)
         ylims!(fig, subplot=tp, 0, 1.25*maximum(df_TP_summary[!,"top"]))
         if zoom 
-            ylims!(fig, subplot=c, 0, 1.1*maximum(local_cases))
+            ylims!(fig, subplot=c, 0, 1.25*maximum(local_cases))
         end
         
     end

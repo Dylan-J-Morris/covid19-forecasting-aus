@@ -154,21 +154,15 @@ function import_cases_model!(
     simulation.
 	We assume that cases 
 	arise from 
-    ```
-	D[t] \sim NegBin(a[t], 1/(b+1)) 
-    ```
+	D[t] ~ NegBin(a[t], 1/(b+1)) 
 	where 
-    ```
-	a[t] = \alpha + f(I[t]) 
-	b = \beta + 1
-    ```
+	a[t] = alpha + f(I[t]) 
+	b = beta + 1
 	are the parameters. The function f() is an exponential weighted moving average such 
     that
-    ```
-	f(I[t]) = \phi I[t] + (1-\phi) f(I[t-1])
-    ``` 
-	and `\alpha`, `\beta` are hyperparameters fixed at 0.5 and 0.2, respectively. We 
-    take `b = β + 1` as we assume a fixed period of 1 day for estimating the posterior. 
+	f(I[t]) = phi I[t] + (1-phi) f(I[t-1])
+	and alpha, beta are hyperparameters fixed at 0.5 and 0.2, respectively. We 
+    take b = β + 1 as we assume a fixed period of 1 day for estimating the posterior. 
 	"""
 	
     Z = forecast.sim_realisations.Z
@@ -258,7 +252,7 @@ function calculate_proportion_infected(
         cases += Z_historical[t+36,sim] 
     end
     
-    return cases / N
+    return min(0, cases / N)
 
 end
 
