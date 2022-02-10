@@ -177,7 +177,7 @@ mask_wearing_all = mask_wearing_X
 # Get posterior
 df_samples = read_in_posterior(date=data_date.strftime("%Y-%m-%d"))
 
-states = ["NSW", "QLD", "SA", "VIC", "TAS", "WA", "ACT", "NT"]
+states = sorted(["NSW", "QLD", "SA", "VIC", "TAS", "WA", "ACT", "NT"])
 plot_states = states.copy()
 
 one_month = data_date + timedelta(days=num_forecast_days)
