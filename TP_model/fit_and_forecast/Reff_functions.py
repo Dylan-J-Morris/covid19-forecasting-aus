@@ -183,8 +183,10 @@ def predict_plot(
                 ].is_third_wave.sum()
             )
             
-    
+        
         df_hat = pd.DataFrame(mu_hat.T)
+        
+        df_hat.to_csv('mu_hat_' + state + '.csv')
 
         if states_initials[state] not in rho:
             if i // 4 == 1:
