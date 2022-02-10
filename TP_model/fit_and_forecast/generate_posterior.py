@@ -281,7 +281,6 @@ def get_data_for_posterior(data_date):
     states_to_fit_all_waves = sorted(
         ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"]
     )
-
     first_states = sorted(["NSW", "VIC", "QLD", "SA", "WA", "TAS"])
     fit_post_March = True
     ban = "2020-03-20"
@@ -299,7 +298,6 @@ def get_data_for_posterior(data_date):
     }
 
     # Second wave inputs
-    # sec_states = sorted(['NSW', 'VIC'])
     sec_states = sorted(["NSW"])
     sec_start_date = "2020-06-01"
     sec_end_date = "2021-01-19"
@@ -307,7 +305,6 @@ def get_data_for_posterior(data_date):
     # choose dates for each state for sec wave
     sec_date_range = {
         "NSW": pd.date_range(start=sec_start_date, end="2021-01-19").values,
-        # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-28').values,
     }
 
     # Third wave inputs
@@ -980,7 +977,7 @@ def plot_and_save_posterior_samples(data_date):
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
     # to handle SA data issues
-    third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)
+    # third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)a
 
     # choose dates for each state for third wave
     # Note that as we now consider the third wave for ACT, we include it in the third 
@@ -1997,7 +1994,6 @@ def main(data_date, run_inference=True):
     """
     Runs the stan model in parts to cut down on memory.
     """
-
     # some parameters for HMCn
     if run_inference:     
         num_chains = 4

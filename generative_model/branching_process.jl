@@ -252,7 +252,7 @@ function calculate_proportion_infected(
         cases += Z_historical[t+36,sim] 
     end
     
-    return min(0, cases / N)
+    return min(1, cases / N)
 
 end
 
