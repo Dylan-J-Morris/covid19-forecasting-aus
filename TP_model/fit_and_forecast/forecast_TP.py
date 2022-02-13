@@ -1615,7 +1615,14 @@ for typ in forecast_type:
                     voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
             elif ii < omicron_start_day + len(idx[state]):
                 jj = ii - omicron_start_day
-                m = sigmoid(jj, r[ii], tau[ii], m0[ii], m1[ii])
+                # if state is one of the late starters, we assume that almost all cases are 
+                # Omicron, i.e. assume a fixed level as the transition point for 
+                # most other jurisdictions is around December and we can assume that the import 
+                # risk is almost completely omicron
+                if state in {'NT', 'TAS', 'WA'}:
+                    m = m1[ii]
+                else:
+                    m = sigmoid(jj, r[ii], tau[ii], m0[ii], m1[ii])
                 # this is just the vaccination model for delta
                 vacc_delta_tmp = vacc_ts_delta[ii, :]
                 vacc_omicron_tmp = vacc_ts_omicron[ii, :]
@@ -1628,7 +1635,7 @@ for typ in forecast_type:
             else:
                 # variance on beta distribution centered at m_last
                 if tt == 0:
-                    m_last = m[jj]
+                    m_last = m
                     var_omicron = 0.0025
 
                 # number of days after the start of omicron

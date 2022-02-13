@@ -27,8 +27,8 @@ ncores = 4  # number of cores to use (this is relevant for the simulation)
 p_detect_delta = 0.695
 p_detect_omicron = 0.5602
 
-third_start_date = "2021-06-15"
-start_date = "2021-06-23"
+third_start_date = "2021-06-25"
+start_date = "2021-06-25"
 omicron_dominance_date = "2021-12-15"
 
 start_dates = {
