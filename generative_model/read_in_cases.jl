@@ -6,7 +6,7 @@ function read_in_cases(
 )
 
 	# read in the reff file
-	case_file_name = "data/interim_linelist_"*date*".csv"
+	case_file_name = "data/interim_linelist_" * date * ".csv"
 	# drop the first column 
 	df = CSV.read(case_file_name, DataFrame)
 	# indicator for the NA dates
@@ -44,9 +44,13 @@ function read_in_cases(
 			is_omicron = complete_dates .>= Dates.Date(omicron_dominant_date)
 			shape_inc_omicron = 3.33
 			scale_inc_omicron = 1.34
-			inc_omicron = rand(rng, Gamma(shape_inc_omicron, scale_inc_omicron), length(complete_dates))
+			inc_omicron = rand(
+				rng, 
+				Gamma(shape_inc_omicron, scale_inc_omicron), 
+				length(complete_dates),
+			)
 			# add the incubation for omicron dates in 
-			inc = (1-is_omicron)*inc + is_omicron*inc_omicron
+			inc = (1 - is_omicron) * inc + is_omicron * inc_omicron
 		end
 		
 		complete_dates = complete_dates - round.(inc) * Day(1)
@@ -60,7 +64,7 @@ function read_in_cases(
 	dates_since_start = range(
 		Date("2020-03-01"), 
 		maximum(complete_dates),
-		step = Day(1)
+		step = Day(1),
 	)
 
 	complete_dates_local = complete_dates[import_status .== 0]
@@ -82,22 +86,32 @@ function read_in_cases(
 	import_case_dict = Dict()
 	local_case_dict["date"] = dates_since_start
 	import_case_dict["date"] = dates_since_start
-
+	
+	# initialise arrays in the dictionary to copy into 
+	for s in unique(state) 
+		# filter by state	
+		local_case_dict[s] = zeros(length(dates_since_start))
+		import_case_dict[s] = zeros(length(dates_since_start))
+	end
+	# initialise arrays to hold daily cases in 
+	local_cases = zeros(length(dates_since_start))
+	import_cases = zeros(length(dates_since_start))
+	
 	# loop over states and then sum the number of cases on that day
 	for s in unique(state)
 		# filter by state	
 		complete_dates_local_tmp = complete_dates_local[state_local .== s]
 		complete_dates_import_tmp = complete_dates_import[state_import .== s]
 		# get cases on each day 
-		local_cases = sum.(
+		local_cases .= sum.(
 			@views complete_dates_local_tmp .== dss for dss in dates_since_start
 		)
-		import_cases = sum.(
+		import_cases .= sum.(
 			@views complete_dates_import_tmp .== dss for dss in dates_since_start
 		)
 		# append to the df with a deepcopy to avoid a 0 d
-		local_case_dict[s] = deepcopy(local_cases)
-		import_case_dict[s] = deepcopy(import_cases)
+		local_case_dict[s] .= local_cases
+		import_case_dict[s] .= import_cases
 		# reset the case vectors
 		local_cases .= 0
 		import_cases .= 0

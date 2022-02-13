@@ -15,7 +15,7 @@ function plot_all_forecasts(
     states_to_plot,
     local_case_dict; 
     zoom=false,
-    confidence_level="both"
+    confidence_level="both",
 )
     """
     Plots all the forecasts and saves the result as a pdf. 
@@ -30,6 +30,10 @@ function plot_all_forecasts(
         "results/UoA_forecast_output/"*file_date*"/UoA_TP_"*file_date*".csv", 
         DataFrame
     )
+    
+    # number of days we DONT condition on data for. I.e. we run the forecast forward from 
+    # 7 days before the end of the datadate 
+    truncation_days = 7
     
     # read in the case data 
     case_dates = collect(local_case_dict["date"])
@@ -205,6 +209,7 @@ function plot_all_forecasts(
             )
         end
         
+        # plot the world famous Reff = 1 (= TP)
         hline!(
             fig, 
             subplot=tp, 
@@ -214,24 +219,25 @@ function plot_all_forecasts(
             label=false,
         )
         
+        # plot the last date used for conditioning the simulations 
         vline!(
             fig, 
             subplot=c,
-            [Dates.Date(file_date)], 
+            [Dates.Date(file_date) - Dates.Day(truncation_days)], 
+            lc=:gray,
+            ls=:dash,
+            label=false,
+        )
+        vline!(
+            fig, 
+            subplot=tp,
+            [Dates.Date(file_date) - Dates.Day(truncation_days)], 
             lc=:gray,
             ls=:dash,
             label=false,
         )
         
-        vline!(
-            fig, 
-            subplot=tp,
-            [Dates.Date(file_date)], 
-            lc=:gray,
-            ls=:dash,
-            label=false,
-        )
-
+        # adjust limits to make plots a little nicer to look at 
         xlims!(fig, subplot=c, onset_dates_lims...)
         xlims!(fig, subplot=tp, onset_dates_lims...)
         ylims!(fig, subplot=tp, 0, 1.25*maximum(df_TP_summary[!,"top"]))
