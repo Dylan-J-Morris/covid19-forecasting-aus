@@ -1,6 +1,12 @@
 include("forecast_types.jl")
 include("helper_functions.jl")
 
+function moving_average(g, n)
+    ma = [i < n ? mean(g[begin:i]) : mean(g[i-n+1:i]) for i in 1:length(g)]
+    return ma 
+end
+
+
 function get_simulation_limits(
     local_cases, 
     forecast_start_date,
@@ -16,26 +22,85 @@ function get_simulation_limits(
     nowcast. This assumes consistency over windows of fixed length and a nowcast period 
     of 14 days.
     """
+    # # this is the number of days into the forecast simulation that dominant begins 
+    # days_delta = (Dates.Date(omicron_dominant_date) - 
+    #     Dates.Date(forecast_start_date)).value
+        
+    # # calculate the 7-day moving average of cases
+    # # Mt = moving_average(local_cases, 7)
+    
+    # min_cases = 0.3 * local_cases[1:7:end]
+    # max_cases = 2.5 * local_cases[1:7:end]
+
+    # # assume maximum of 250 cases if the observed is less than that
+    # for (i, val) in enumerate(min_cases)
+    #     if val < 500
+    #         min_cases[i] = 0
+    #     end
+    # end
+    
+    # for (i, val) in enumerate(max_cases)
+    #     if val < 30
+    #         max_cases[i] = 250
+    #     end
+    # end
+
+    # # the maximum allowable cases over the forecast period is the population size
+    # max_forecast_cases = N
+    
+    # # get the day we want to start using omicron GI and incubation period (+1) as 0 
+    # # corresponds to the first element of the arrays 
+    # omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value + 1
+    
+    # sim_features = Features(
+    #     max_forecast_cases,
+    #     cases_pre_forecast, 
+    #     N,
+    #     T_observed, 
+    #     T_end, 
+    #     omicron_dominant_day, 
+    # )
+    
+    # window_lengths = 0
+    
+    # return (
+    #     sim_features,
+    #     window_lengths,
+    #     min_cases, 
+    #     max_cases,
+    # )
+
     # this is the number of days into the forecast simulation that dominant begins 
     days_delta = (Dates.Date(omicron_dominant_date) - 
         Dates.Date(forecast_start_date)).value
         
     # calculate the cases over the various windows
     cases_pre_backcast = sum(@view local_cases[1:days_delta])
-    cases_backcast = sum(@view local_cases[days_delta+1:T_observed])
-    cases_60 = sum(@view local_cases[60:T_observed])
-    cases_nowcast = sum(@view local_cases[14:T_observed])
+    cases_backcast = sum(@view local_cases[days_delta+1:T_observed-7])
+    # need to take the max of 1 and T_observed-X to avoid negative indices 
+    cases_60 = sum(@view local_cases[max(1, T_observed-60):T_observed-7])
+    cases_nowcast = sum(@view local_cases[max(1, T_observed-14):T_observed-7])
     # cases_nowcast = sum(@view local_cases[7:T_observed])
     
     # calculate minimum and maximum observed cases in each period 
     min_cases = floor.(
         Int, 
-        [0.3*cases_pre_backcast, 0.5*cases_backcast, 0.5*cases_60, 0.7*cases_nowcast]
+        [
+            0.3 * cases_pre_backcast, 
+            0.5 * cases_backcast, 
+            0.5 * cases_60, 
+            0.7 * cases_nowcast,
+        ]
     )
     # min_cases = 0*cases_in_each_window
     max_cases = ceil.(
         Int, 
-        [2.5*cases_pre_backcast, 3.0*cases_backcast, 2.5*cases_60, 2.5*cases_nowcast]
+        [
+            2.5 * cases_pre_backcast,
+            2.5 * cases_backcast,
+            2.0 * cases_60,
+            1.5 * cases_nowcast,
+        ]
     )
 
     # assume maximum of 250 cases if the observed is less than that
@@ -78,28 +143,27 @@ function get_simulation_limits(
     
 end
 
-
-function count_cases_in_windows!(
+function count_cases!(
+    case_counts, 
     forecast::Forecast, 
-    case_counts,  
-    window_lengths, 
-    D_total, 
-    sim
+    sim,
 )
-    """
-    Count the cases in each observation period and store in case_counts. 
-    """
+
+    D = forecast.sim_realisations.D
     
-    t_start = 1
-    for (i,t) in enumerate(window_lengths)
-        case_counts[i] = sum(@view D_total[t_start:t,sim])
-        t_start = t
+    day = 1
+    tmp = 0
+    for i in 1:length(case_counts)
+        tmp += D[i, 1, sim] + D[i, 2, sim]
+        if i % 7 == 1
+            case_counts[day] = tmp
+            tmp = 0
+            day += 1
+        end
     end
     
     return nothing
-    
 end
-
 
 function check_sim!(
     forecast::Forecast, 
@@ -120,6 +184,30 @@ function check_sim!(
     are met.
     """
     
+    # print_status = true
+    
+    # Z = forecast.sim_realisations.Z
+    # D = forecast.sim_realisations.D
+    # U = forecast.sim_realisations.U
+    
+    # # days forecast observed for 
+    # T_observed = forecast.sim_features.T_observed
+    # max_forecast_cases = forecast.sim_features.max_forecast_cases
+    
+    # consistency_multiplier = forecast.sim_constants.consistency_multiplier
+    
+    # # initialise the bad sim
+    # bad_sim = false
+    # injected_cases = false 
+    
+    # days_delta = (Dates.Date(omicron_dominant_date) - 
+    #     Dates.Date(forecast_start_date)).value
+    
+    # # this is just the total cases over the forecast horizon 
+    # D_forecast = sum(@view D[T_observed+1:end,1:2,sim])
+    # # count how many cases each day 
+    # count_cases!(case_counts, forecast, sim)
+    
     print_status = false
     
     Z = forecast.sim_realisations.Z
@@ -139,10 +227,10 @@ function check_sim!(
     days_delta = (Dates.Date(omicron_dominant_date) - 
         Dates.Date(forecast_start_date)).value
     
-    cases_pre_backcast = sum(@view D[1:days_delta,1:2,sim])
-    cases_backcast = sum(@view D[days_delta+1:T_observed,1:2,sim])
-    cases_60 = sum(@view D[60:T_observed,1:2,sim])
-    cases_nowcast = sum(@view D[14:T_observed,1:2,sim])
+    cases_pre_backcast = sum(@view D[1:days_delta, 1:2, sim])
+    cases_backcast = sum(@view D[days_delta+1:T_observed-7, 1:2, sim])
+    cases_60 = sum(@view D[T_observed-60:T_observed-7, 1:2, sim])
+    cases_nowcast = sum(@view D[T_observed-14:T_observed-7, 1:2, sim])
     
     case_counts[1] = cases_pre_backcast
     case_counts[2] = cases_backcast
@@ -150,7 +238,7 @@ function check_sim!(
     case_counts[end] = cases_nowcast
     
     # this is just the total cases over the forecast horizon 
-    D_forecast = sum(@view D[T_observed-7+1:end,1:2,sim])
+    D_forecast = sum(@view D[T_observed-7+1:end, 1:2, sim])
     
     # if we've exceeded the max cases over a given period
     if D_forecast > max_forecast_cases
@@ -159,19 +247,24 @@ function check_sim!(
     end
     
     if !bad_sim 
-        for (i, (c,m)) in enumerate(zip(case_counts,max_cases))
+        
+        for (i, (c, m)) in enumerate(
+            zip(case_counts,max_cases)
+        )
             if c > m 
                 bad_sim = true 
-                print_status && println("too many cases", c, " ", m, " day: ", day)
+                print_status && println("sim: ", sim, " too many cases: ", c, " ", m, " day: ", day)
                 break
             end
         end
         
         if day == 0
-            for (i, (c,m)) in enumerate(zip(case_counts,min_cases))
+            for (i, (c, m)) in enumerate(
+                zip(case_counts,min_cases)
+            )
                 if c < m 
                     bad_sim = true 
-                    print_status && println("too few cases", c, " ", m, " day: ", day)
+                    print_status && println("sim: ", sim, "too few cases: ", c, " ", m, " day: ", day)
                     break
                 end
             end
@@ -183,28 +276,26 @@ function check_sim!(
     
     if !bad_sim && reinitialise_allowed
         # calculate the number of detections missed over the 5 day period 
-        actual_3_day_cases = sum(@view local_cases[day-2:day])
-        sim_3_day_cases = sum(@view D[day-2:day,:,sim])
-        sim_3_day_threshold = consistency_multiplier*max(1, sim_3_day_cases)
+        # actual_3_day_cases = sum(@view local_cases[day-2:day])
+        actual_week_cases = sum(@view local_cases[day-6:day])
+        # sim_7_day_cases = sum(@view D[day-6:day,:,sim])
+        # sim__day_threshold = consistency_multiplier*max(1, sim_3_day_cases)
         # calculate total number of cases over week 
-        sim_week_cases = sum(@view D[day-6:day,:,sim])
+        sim_week_cases = max(1, sum(@view D[day-6:day, 1:2, sim]))
         missing_detections = 0
         
-        if (actual_3_day_cases > sim_3_day_threshold) || 
-            (sim_week_cases == 0 && actual_3_day_cases > 0)
+        if (sim_week_cases < ceil(Int, 1 / consistency_multiplier * actual_week_cases))
             print_status && println(
-                "actual: ", actual_3_day_cases, 
-                " 3day: ", sim_3_day_cases, 
-                " 3day thresh: ", sim_3_day_threshold, 
-                " week: ", sim_week_cases, 
+                " sim: ", sim,  
+                " sim cases: ", sim_week_cases, 
+                " actual cases: ", actual_week_cases, 
                 " day added: ", day,
             )
              
-            if sim_week_cases == 0
-                missing_detections = rand(1:actual_3_day_cases)
-            else
-                missing_detections = rand(1:(actual_3_day_cases - sim_3_day_cases))
-            end
+            missing_detections = ceil(
+                Int, 
+                actual_week_cases - sim_week_cases,
+            )
             
             injected_cases = true 
             inject_cases!(
@@ -214,6 +305,32 @@ function check_sim!(
                 sim, 
             )
         end
+        
+        # if (actual_3_day_cases > sim_3_day_threshold) || 
+        #     (sim_week_cases == 0 && actual_3_day_cases > 0)
+        #     print_status && println(
+        #         " sim: ", sim, 
+        #         " actual: ", actual_3_day_cases, 
+        #         " 3day: ", sim_3_day_cases, 
+        #         " 3day thresh: ", sim_3_day_threshold, 
+        #         " week: ", sim_week_cases, 
+        #         " day added: ", day,
+        #     )
+             
+        #     if sim_week_cases == 0
+        #         missing_detections = rand(1:actual_3_day_cases)
+        #     else
+        #         missing_detections = rand(1:(actual_3_day_cases - sim_3_day_cases))
+        #     end
+            
+        #     injected_cases = true 
+        #     inject_cases!(
+        #         forecast::Forecast, 
+        #         missing_detections, 
+        #         day, 
+        #         sim, 
+        #     )
+        # end
     end
     
     return (bad_sim, injected_cases)
@@ -294,13 +411,13 @@ function inject_cases!(
     for _ in 1:num_symptomatic_detected
         total_injected += 1
         if counter >= num_symptomatic_each_day[2]
-            onset_time = day-1
+            onset_time = day - 1
         elseif counter >= num_symptomatic_each_day[3]
-            onset_time = day-2
+            onset_time = day - 2
         end
         infection_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[infection_time+36,individual_type_map.S,sim] += 1
+        Z[infection_time+36, individual_type_map.S, sim] += 1
         D[onset_time,individual_type_map.S,sim] += 1 
         counter += 1
     end
@@ -321,14 +438,14 @@ function inject_cases!(
     for _ in 1:num_asymptomatic_detected
         total_injected += 1
         if counter >= num_asymptomatic_each_day[2]
-            onset_time = day-1
+            onset_time = day - 1
         elseif counter >= num_asymptomatic_each_day[3]
-            onset_time = day-2
+            onset_time = day - 2
         end
         infection_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[infection_time+36,individual_type_map.A,sim] += 1
-        D[onset_time,individual_type_map.A,sim] += 1 
+        Z[infection_time+36, individual_type_map.A, sim] += 1
+        D[onset_time, individual_type_map.A, sim] += 1 
         counter += 1
     end
     
@@ -349,14 +466,14 @@ function inject_cases!(
     for _ in 1:num_symptomatic_undetected
         total_injected += 1
         if counter >= num_symptomatic_each_day[2]
-            onset_time = day-1
+            onset_time = day - 1
         elseif counter >= num_symptomatic_each_day[3]
-            onset_time = day-2
+            onset_time = day - 2
         end
         infection_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[infection_time+36,individual_type_map.S,sim] += 1
-        U[onset_time,individual_type_map.S,sim] += 1 
+        Z[infection_time+36, individual_type_map.S, sim] += 1
+        U[onset_time, individual_type_map.S, sim] += 1 
         counter += 1
     end
     
@@ -376,14 +493,14 @@ function inject_cases!(
     for _ in 1:num_asymptomatic_undetected
         total_injected += 1
         if counter >= num_asymptomatic_each_day[2]
-            onset_time = day-1
+            onset_time = day - 1
         elseif counter >= num_asymptomatic_each_day[3]
-            onset_time = day-2
+            onset_time = day - 2
         end
         infection_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[infection_time+36,individual_type_map.A,sim] += 1
-        U[onset_time,individual_type_map.A,sim] += 1 
+        Z[infection_time+36, individual_type_map.A, sim] += 1
+        U[onset_time, individual_type_map.A, sim] += 1 
         counter += 1
     end
     

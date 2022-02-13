@@ -621,9 +621,11 @@ function simulate_branching_process(
     
     good_TPs_inds = zeros(Int, nsims)
     
+    # counts in each window 
+    case_counts = zeros(Int, length(max_cases))
+    # for sim in 1:nsims
+    # for sim in ProgressBar(1:nsims)
     Threads.@threads for sim in ProgressBar(1:nsims)
-        # counts in each window 
-        case_counts = zeros(Int, length(max_cases))
         # sample the TP/susceptible_depletion for this sim
         TP_ind = sim % 2000 == 0 ? 2000 : sim % 2000
         TP_local_sim = @view TP_local[:,TP_ind]
@@ -654,7 +656,7 @@ function simulate_branching_process(
                 reinitialise_allowed =  day >= 7 && 
                     day <= T_observed && 
                     n_restarts < max_restarts && 
-                    day - last_injection >= 3
+                    day - last_injection >= 7
                     
                 (bad_sim, injected_cases) = check_sim!(
                     forecast,
@@ -740,6 +742,7 @@ function simulate_branching_process(
             (1 .- susceptible_depletion[TP_ind]*prop_infected[:,i])
     end
     
+    # return (forecast.sim_realisations.D, forecast.sim_realisations.U, TP_local)
     return (D_good, U_good, TP_local_sims)
     
 end
