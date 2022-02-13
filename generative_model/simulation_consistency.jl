@@ -97,8 +97,8 @@ function get_simulation_limits(
         Int, 
         [
             2.5 * cases_pre_backcast,
-            2.5 * cases_backcast,
-            2.0 * cases_60,
+            3.0 * cases_backcast,
+            2.5 * cases_60,
             1.5 * cases_nowcast,
         ]
     )
@@ -229,8 +229,8 @@ function check_sim!(
     
     cases_pre_backcast = sum(@view D[1:days_delta, 1:2, sim])
     cases_backcast = sum(@view D[days_delta+1:T_observed-7, 1:2, sim])
-    cases_60 = sum(@view D[T_observed-60:T_observed-7, 1:2, sim])
-    cases_nowcast = sum(@view D[T_observed-14:T_observed-7, 1:2, sim])
+    cases_60 = sum(@view D[max(1, T_observed-60):T_observed-7, 1:2, sim])
+    cases_nowcast = sum(@view D[max(1, T_observed-14):T_observed-7, 1:2, sim])
     
     case_counts[1] = cases_pre_backcast
     case_counts[2] = cases_backcast
