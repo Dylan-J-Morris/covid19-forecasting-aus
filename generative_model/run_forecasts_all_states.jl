@@ -28,27 +28,27 @@ const states_to_run = [
     "WA",
 ]
     
-const nsims = Dict{String, Int}(
-    "NSW" => 5000,
-    "QLD" => 5000,
-    "SA" => 5000,
-    "VIC" => 5000,
-    "WA" => 5000,
-    "ACT" => 5000,
-    "NT" => 5000,
-    "TAS" => 5000,
-)
-
 # const nsims = Dict{String, Int}(
-#     "NSW" => 1000,
-#     "QLD" => 1000,
-#     "SA" => 1000,
-#     "VIC" => 1000,
-#     "WA" => 1000,
-#     "ACT" => 1000,
-#     "NT" => 1000,
-#     "TAS" => 1000,
+#     "ACT" => 20000,
+#     "NSW" => 6000,
+#     "NT" => 20000,
+#     "QLD" => 3000,
+#     "SA" => 3000,
+#     "TAS" => 3000,
+#     "VIC" => 5000,
+#     "WA" => 3000,
 # )
+
+const nsims = Dict{String, Int}(
+    "NSW" => 1000,
+    "QLD" => 1000,
+    "SA" => 1000,
+    "VIC" => 1000,
+    "WA" => 1000,
+    "ACT" => 1000,
+    "NT" => 1000,
+    "TAS" => 1000,
+)
 
 # run main 
 simulate_all_states(file_date, states_to_run, nsims, run_simulation)

@@ -383,13 +383,17 @@ transformed parameters {
                     // number of days into omicron period 
                     n_omicron = n - omicron_start_day;
                     // proportion of omicron
-                    prop_omicron_to_delta = sigmoid(
-                        n_omicron, 
-                        tau[map_to_state_index_third[i]], 
-                        r[map_to_state_index_third[i]], 
-                        m0[map_to_state_index_third[i]], 
-                        m1[map_to_state_index_third[i]]
-                    );
+                    if (i == 3 || i == 6 || i == 8) {
+                        prop_omicron_to_delta = m1[map_to_state_index_third[i]];
+                    } else {
+                        prop_omicron_to_delta = sigmoid(
+                            n_omicron, 
+                            tau[map_to_state_index_third[i]], 
+                            r[map_to_state_index_third[i]], 
+                            m0[map_to_state_index_third[i]], 
+                            m1[map_to_state_index_third[i]]
+                        );
+                    }
                     
                     voc_vacc_product = prop_omicron_to_delta
                         * voc_effect_omicron
@@ -438,8 +442,8 @@ model {
 
     // variables for vax effects (reused for Delta and Omicron VEs)
     real mean_vax;
-    real var_vax_delta = 0.0001;     
-    real var_vax_omicron = 0.0001;
+    real var_vax_delta = 0.0005;     
+    real var_vax_omicron = 0.0005;
     real a_vax_scalar;
     real b_vax_scalar;
     
@@ -451,13 +455,13 @@ model {
     // priors
     // mobility, micro
     bet ~ normal(0, 1.0);
-    theta_md ~ lognormal(0, 0.5);
-    // theta_masks ~ lognormal(0, 0.5);
+    theta_md ~ exponential(5);
+    // theta_masks ~ exponential(5);
     
     // third wave transition parameters 
     m0 ~ uniform(0, 0.1);     // initial Omicron proportion is low 
     m1 ~ uniform(0.90, 1);     // long term Omicron proportion 
-    r ~ gamma(5*3, 20*3);       // median of 0.2
+    r ~ gamma(5, 20);       // median of 0.2
     
     for (i in 1:j_third_wave) {
         tau[i] ~ normal(30, 1) T[15, 45];     // mean of 20 days 
@@ -571,10 +575,12 @@ model {
                         mean_vax = mean(ve_delta_data[i][n-tau_vax_block_size+1:n]);
                     }
                     
-                    if (n < heterogeneity_start_day + 15) {
-                        a_vax_scalar = 100; 
-                        b_vax_scalar = 2;
-                    } else if (mean_vax * (1 - mean_vax) > var_vax_delta) {
+                    // if (n < heterogeneity_start_day + 15) {
+                    //     a_vax_scalar = 100; 
+                    //     b_vax_scalar = 2;
+                    // } else 
+                    
+                    if (mean_vax * (1 - mean_vax) > var_vax_delta) {
                         a_vax_scalar = mean_vax * (
                             mean_vax * (1 - mean_vax) / var_vax_delta - 1
                         );
@@ -712,12 +718,6 @@ generated quantities {
         
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n] == 1){
-                md_third_wave[pos] = pow(
-                    1 + theta_md, -1 * prop_md_third_wave[pos]
-                );
-                // masks_third_wave[pos] = pow(
-                //     1 + theta_masks, -1 * prop_masks_third_wave[pos]
-                // );
 
                 if (n <= omicron_start_day){
                     voc_vacc_product = voc_effect_delta * ve_delta[pos];

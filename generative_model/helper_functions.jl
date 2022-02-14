@@ -26,13 +26,13 @@ function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     # mean of NegBin(s, p) => this will boil down to N*TP
     μ = s/p - s
     
-    # if μ <= approx_limit
-    #     X = rand(NegativeBinomial(s, p))
-    # else
-    #     σ = sqrt(s*(1-p)/p^2)
-    #     X = ceil(Int, rand(Normal(μ, σ)))
-    # end
-    X = rand(NegativeBinomial(s, p))
+    if μ <= approx_limit
+        X = rand(NegativeBinomial(s, p))
+    else
+        σ = sqrt(s*(1-p)/p^2)
+        X = ceil(Int, rand(Normal(μ, σ)))
+    end
+    # X = rand(NegativeBinomial(s, p))
     
     return X 
 end
