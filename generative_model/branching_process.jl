@@ -121,27 +121,27 @@ function initialise_population!(
             idx = 1
             
             for _ in 1:D0.S
-                Z[infection_times[idx]+36,individual_type_map.S,sim] += 1
+                Z[infection_times[idx]+36, individual_type_map.S, sim] += 1
                 idx += 1
-                D[1,individual_type_map.S,sim] += 1
+                D[1, individual_type_map.S, sim] += 1
             end
             
             for _ in 1:D0.A
-                Z[infection_times[idx]+36,individual_type_map.A,sim] += 1
+                Z[infection_times[idx]+36, individual_type_map.A, sim] += 1
                 idx += 1
-                D[1,individual_type_map.A,sim] += 1
+                D[1, individual_type_map.A, sim] += 1
             end
             
             for _ in 1:num_symptomatic_undetected
-                Z[infection_times[idx]+36,individual_type_map.S,sim] += 1
+                Z[infection_times[idx]+36, individual_type_map.S, sim] += 1
                 idx += 1
-                U[1,individual_type_map.S,sim] += 1
+                U[1, individual_type_map.S, sim] += 1
             end
             
             for _ in 1:num_asymptomatic_undetected
-                Z[infection_times[idx]+36,individual_type_map.A,sim] += 1
+                Z[infection_times[idx]+36, individual_type_map.A, sim] += 1
                 idx += 1
-                U[1,individual_type_map.A,sim] += 1
+                U[1, individual_type_map.A, sim] += 1
             end
         end
     end
@@ -197,15 +197,15 @@ function import_cases_model!(
 	
 	# current ema is taken 11 days before the forecast start date
 	current_ema = zero(Float64)
-    current_ema += import_cases[days_into_forecast - 11]
+    current_ema += import_cases[days_into_forecast-11]
     
 	for (i, t) in enumerate(forecast_days_plus_padding)	
 		# if within observation period, update the posterior. Otherwise use the last 
 		# available measurement 
 		if t <= T_observed
 			count_on_day = import_cases[days_into_forecast + t]
-			current_ema = forecast.sim_constants.ϕ*count_on_day + 
-                (1-forecast.sim_constants.ϕ)*current_ema
+			current_ema = forecast.sim_constants.ϕ * count_on_day + 
+                (1 - forecast.sim_constants.ϕ) * current_ema
 			a_post[i] = forecast.sim_constants.prior_alpha + current_ema
 		else
 			a_post[i] = forecast.sim_constants.prior_alpha + current_ema
@@ -236,8 +236,8 @@ function import_cases_model!(
                     forecast, 
                     t, 
                     sim, 
-                    num_imports_detected=D_I, 
-					num_imports_undetected=U_I, 
+                    num_imports_detected = D_I, 
+					num_imports_undetected = U_I, 
                 )
 			end
 		end
@@ -318,7 +318,7 @@ end
     num_offspring = zero(Int)
     
     # pointer to the current day's infections 
-    Z_tmp = @view Z[t+36,:,sim]
+    Z_tmp = @view Z[t+36, :, sim]
     
     # if the total number of infected individuals at time t is 0, return immediately
     if sum(Z_tmp) > 0 
@@ -328,7 +328,7 @@ end
         
         # sum up the number local infections on the current day
         # Z_tmp gets emptied at the end of sampling so we won't be double counting 
-        Z_historical[t+36,sim] += S_parents + A_parents
+        Z_historical[t+36, sim] += S_parents + A_parents
         # calculate proportion of population infected so far
         
         proportion_infected = calculate_proportion_infected(
@@ -345,35 +345,35 @@ end
         # take max of 0 and TP to deal with cases of depletion factor giving TP = 0
         TP_local_parent = max(
             0, 
-            TP_local_sim[TP_ind] * (1 - susceptible_depletion_sim*proportion_infected)
+            TP_local_sim[TP_ind] * (1 - susceptible_depletion_sim * proportion_infected)
         )
         TP_import_parent = max(
             0, 
-            TP_import_sim[TP_ind] * (1 - susceptible_depletion_sim*proportion_infected)
+            TP_import_sim[TP_ind] * (1 - susceptible_depletion_sim * proportion_infected)
         )
         
         # total number of infections arising from all parents infected at time t 
         # (sum of M NB(r,p) is NB(r*M,p))
         if S_parents > 0 && TP_local_parent > 0
-            s = k*S_parents
-            p = 1 - α_s*TP_local_parent/(k+α_s*TP_local_parent)
+            s = k * S_parents
+            p = 1 - α_s * TP_local_parent / (k + α_s * TP_local_parent)
             num_offspring += sample_negative_binomial_limit(s, p)
         end
         
         if A_parents > 0 && TP_local_parent > 0
-            s = k*A_parents
-            p = 1 - α_a*TP_local_parent/(k+α_a*TP_local_parent)            
+            s = k * A_parents
+            p = 1 - α_a * TP_local_parent / (k + α_a * TP_local_parent)            
             num_offspring += sample_negative_binomial_limit(s, p)
         end
         
         if I_parents > 0 && TP_import_parent > 0
-            s = k*I_parents
+            s = k * I_parents
             # p_{v,h} is the proportion of hotel quarantine workers vaccinated
-            p_vh = 0.9+rand(Beta(2, 4))*9/100
+            p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
             # v_{e,h} is the overall vaccine effectiveness
-            v_eh = 0.83+rand(Beta(2, 2))*14/100
-            TP_import_parent *= (1-p_vh*v_eh)*1.39*1.3
-            p = 1 - TP_import_parent/(k+TP_import_parent)
+            v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
+            TP_import_parent *= (1 - p_vh * v_eh) * 1.39 * 1.3
+            p = 1 - TP_import_parent / (k + TP_import_parent)
             num_offspring += sample_negative_binomial_limit(s, p)
         end
     
@@ -381,7 +381,7 @@ end
         if num_offspring > 0
             # sample those symptomatic
             num_symptomatic_offspring = sample_binomial_limit(num_offspring, p_symp)
-            num_asymptomatic_offspring = num_offspring-num_symptomatic_offspring
+            num_asymptomatic_offspring = num_offspring - num_symptomatic_offspring
             # sample number detected of each type  
             num_symptomatic_offspring_detected = sample_binomial_limit(
                 num_symptomatic_offspring, p_detect_given_symp
@@ -400,10 +400,10 @@ end
                 forecast, 
                 t, 
                 sim, 
-                num_symptomatic_detected=num_symptomatic_offspring_detected, 
-                num_symptomatic_undetected=num_symptomatic_offspring_undetected, 
-                num_asymptomatic_detected=num_asymptomatic_offspring_detected, 
-                num_asymptomatic_undetected=num_asymptomatic_offspring_undetected, 
+                num_symptomatic_detected = num_symptomatic_offspring_detected, 
+                num_symptomatic_undetected = num_symptomatic_offspring_undetected, 
+                num_asymptomatic_detected = num_asymptomatic_offspring_detected, 
+                num_asymptomatic_undetected = num_asymptomatic_offspring_undetected, 
             )
             
             # zero out infections on day t so we can restart sim 
@@ -421,12 +421,12 @@ end
     forecast::Forecast, 
     day, 
     sim;
-    num_symptomatic_detected=0,
-    num_symptomatic_undetected=0,
-    num_asymptomatic_detected=0,
-    num_asymptomatic_undetected=0,
-    num_imports_detected=0, 
-    num_imports_undetected=0,       
+    num_symptomatic_detected = 0,
+    num_symptomatic_undetected = 0,
+    num_asymptomatic_detected = 0,
+    num_asymptomatic_undetected = 0,
+    num_imports_detected = 0, 
+    num_imports_undetected = 0,       
 )
     """
     Increment the arrays D and U based on sampled offsrping counts. The number of 
@@ -447,32 +447,32 @@ end
     for _ in 1:num_symptomatic_detected
         infection_time = day + sample_infection_time(omicron = day >= omicron_dominant_day)
         if infection_time <= T_end 
-            Z[infection_time+36,individual_type_map.S,sim] += 1
+            Z[infection_time+36, individual_type_map.S, sim] += 1
         end
         
         onset_time = infection_time + 
             sample_onset_time(omicron = infection_time >= omicron_dominant_day)
         if onset_time < 1 
-            D[1,individual_type_map.S,sim] += 1
+            D[1, individual_type_map.S, sim] += 1
         elseif onset_time <= T_end
             # time+1 as first index is day 0
-            D[onset_time+1,individual_type_map.S,sim] += 1
+            D[onset_time+1, individual_type_map.S, sim] += 1
         end
     end
     
     for _ in 1:num_asymptomatic_detected
         infection_time = day + sample_infection_time(omicron = day >= omicron_dominant_day)
         if infection_time <= T_end 
-            Z[infection_time+36,individual_type_map.A,sim] += 1
+            Z[infection_time+36, individual_type_map.A, sim] += 1
         end
         
         onset_time = infection_time + 
             sample_onset_time(omicron = infection_time >= omicron_dominant_day)
         if onset_time < 1 
-            D[1,individual_type_map.A,sim] += 1
+            D[1, individual_type_map.A, sim] += 1
         elseif onset_time <= T_end
             # time+1 as first index is day 0
-            D[onset_time+1,individual_type_map.A,sim] += 1
+            D[onset_time+1, individual_type_map.A, sim] += 1
         end
     end
     
@@ -480,16 +480,16 @@ end
     for _ in 1:num_symptomatic_undetected
         infection_time = day + sample_infection_time(omicron = day >= omicron_dominant_day)
         if infection_time <= T_end 
-            Z[infection_time+36,individual_type_map.S,sim] += 1
+            Z[infection_time+36, individual_type_map.S, sim] += 1
         end
         
         onset_time = infection_time + 
             sample_onset_time(omicron = infection_time >= omicron_dominant_day)
         if onset_time < 1 
-            U[1,individual_type_map.S,sim] += 1
+            U[1, individual_type_map.S, sim] += 1
         elseif onset_time <= T_end
             # time+1 as first index is day 0
-            U[onset_time+1,individual_type_map.S,sim] += 1
+            U[onset_time+1, individual_type_map.S, sim] += 1
         end
     end
     
@@ -497,16 +497,16 @@ end
         infection_time = day + 
             sample_infection_time(omicron = day >= omicron_dominant_day)
         if infection_time <= T_end 
-            Z[infection_time+36,individual_type_map.A,sim] += 1
+            Z[infection_time+36, individual_type_map.A, sim] += 1
         end
         
         onset_time = infection_time + 
             sample_onset_time(omicron = infection_time >= omicron_dominant_day)
         if onset_time < 1 
-            U[1,individual_type_map.A,sim] += 1
+            U[1, individual_type_map.A, sim] += 1
         elseif onset_time <= T_end
             # time+1 as first index is day 0
-            U[onset_time+1,individual_type_map.A,sim] += 1
+            U[onset_time+1, individual_type_map.A, sim] += 1
         end
     end
     
@@ -515,32 +515,32 @@ end
     for _ in 1:num_imports_detected
         infection_time = day
         if infection_time <= T_end 
-            Z[infection_time+36,individual_type_map.I,sim] += 1
+            Z[infection_time+36, individual_type_map.I, sim] += 1
         end
         
         onset_time = infection_time + 
             sample_onset_time(omicron = infection_time >= omicron_dominant_day)
         if onset_time < 1 
-            D[1,individual_type_map.I,sim] += 1
+            D[1, individual_type_map.I, sim] += 1
         elseif onset_time <= T_end
             # time+1 as first index is day 0
-            D[onset_time+1,individual_type_map.I,sim] += 1
+            D[onset_time+1, individual_type_map.I, sim] += 1
         end
     end
     
     for _ in 1:num_imports_undetected
         infection_time = day
         if infection_time <= T_end 
-            Z[infection_time+35,individual_type_map.I,sim] += 1
+            Z[infection_time+35, individual_type_map.I, sim] += 1
         end
         
         onset_time = infection_time + 
             sample_onset_time(omicron = infection_time >= omicron_dominant_day)
         if onset_time < 1 
-            U[1,individual_type_map.I,sim] += 1
+            U[1, individual_type_map.I, sim] += 1
         elseif onset_time <= T_end
             # time+1 as first index is day 0
-            U[onset_time+1,individual_type_map.I,sim] += 1
+            U[onset_time+1, individual_type_map.I, sim] += 1
         end
     end
     
@@ -586,7 +586,7 @@ function simulate_branching_process(
     # get simulation constants 
     (sim_constants, individual_type_map) = set_simulation_constants(state)
     # calculate the upper and lower limits for checking sims against data 
-    (sim_features, window_lengths, min_cases, max_cases) = get_simulation_limits(
+    (sim_features, min_cases, max_cases) = get_simulation_limits(
         local_cases, 
         forecast_start_date,
         omicron_dominant_date,
@@ -601,7 +601,7 @@ function simulate_branching_process(
     day_range = -35:T_end
         
     # initialise state arrays (T_end + 1 as we include 0 day)
-    sim_realisations = Realisations(T_end+1, T_observed+1, nsims)
+    sim_realisations = Realisations(T_end + 1, T_observed + 1, nsims)
     
     # put everything into a forecast object
     forecast = Forecast(
@@ -635,10 +635,10 @@ function simulate_branching_process(
     @sync @showprogress @distributed for sim in 1:nsims
         # sample the TP/susceptible_depletion for this sim
         # counts in each window 
-        case_counts = zeros(Int, length(max_cases))
+        case_counts = zero(similar(max_cases))
         TP_ind = sim % 2000 == 0 ? 2000 : sim % 2000
-        TP_local_sim = @view TP_local[:,TP_ind]
-        TP_import_sim = @view TP_import[:,TP_ind]
+        TP_local_sim = @view TP_local[:, TP_ind]
+        TP_import_sim = @view TP_import[:, TP_ind]
         susceptible_depletion_sim = susceptible_depletion[TP_ind]
     
         bad_sim = false
@@ -662,11 +662,11 @@ function simulate_branching_process(
             )
             
             if day > 0
-                reinitialise_allowed =  day >= 7 && 
+                reinitialise_allowed =  day >= 3 && 
                     day <= T_observed && 
                     n_restarts < max_restarts && 
-                    day - last_injection >= 7
-                    
+                    day - last_injection >= 3
+                
                 (bad_sim, injected_cases) = check_sim!(
                     forecast,
                     forecast_start_date,
@@ -674,11 +674,10 @@ function simulate_branching_process(
                     case_counts, 
                     sim,
                     local_cases, 
-                    window_lengths,
                     min_cases, 
                     max_cases,
                     reinitialise_allowed;
-                    day=day,
+                    day = day,
                 )
             end
             
@@ -686,16 +685,23 @@ function simulate_branching_process(
             if !injected_cases 
                 day += 1
             else 
+                # reinitialise_allowed && println("============") 
+                # reinitialise_allowed && println("sim: ", sim) 
+                # reinitialise_allowed && println("current time: ", day) 
+                # reinitialise_allowed && println("time since last inject: ", day - last_injection)
+                # reinitialise_allowed && println("============") 
+                
+                last_injection = day
                 day = start_day[sim]
                 n_restarts += 1
                 injected_cases = false
-                last_injection = day
                 if n_restarts > max_restarts 
                     bad_sim = true
+                    # bad_sim && println("sim ", sim " had too many restarts")
                 end
             end
             
-            bad_sim && break
+            # bad_sim && break
         end
         
         if !bad_sim
@@ -707,11 +713,13 @@ function simulate_branching_process(
                 case_counts, 
                 sim,
                 local_cases, 
-                window_lengths,
                 min_cases, 
                 max_cases,
                 reinitialise_allowed,
             )
+            
+            # bad_sim && println("sim: ", sim, " didn't pass final check")
+            
         end
         
         if bad_sim 
@@ -727,19 +735,26 @@ function simulate_branching_process(
     println("- ", sum(good_sims), " good simulations.")
     println("======================")
     
-    # return (forecast.sim_realisations.D, forecast.sim_realisations.U, TP_local)
+    # return (
+    #     forecast.sim_realisations.D, 
+    #     forecast.sim_realisations.Z,
+    #     forecast.sim_realisations.U,
+    #     forecast.sim_realisations.Z_historical,  
+    #     TP_local,
+    # )
     
     # keep only good sim results and truncate the TP to the same period as per D and U
-    D_good = forecast.sim_realisations.D[:,:,good_sims]
-    U_good = forecast.sim_realisations.U[:,:,good_sims]
+    D_good = forecast.sim_realisations.D[:, :, good_sims]
+    U_good = forecast.sim_realisations.U[:, :, good_sims]
     good_TPs_inds = good_TPs_inds[good_sims]
     
-    TP_local_truncated = TP_local[(end-T_end):end,:]
+    TP_local_truncated = TP_local[(end-T_end):end, :]
     # calculate the total number of infections by day t
+    Z_historical = forecast.sim_realisations.Z_historical
     Z_historical_cumulative = cumsum(
-        forecast.sim_realisations.Z_historical[(end-T_end):end,good_sims],
-        dims = 1, 
-    )
+        Z_historical[:, good_sims],
+        dims = 1,
+    )[(end-T_end):end, :]
     prop_infected = Z_historical_cumulative ./ N
     
     # new array to hold the correctly sampled values
@@ -747,8 +762,8 @@ function simulate_branching_process(
     
     # adjust the local TP by susceptible depletion model 
     for (i, TP_ind) in enumerate(good_TPs_inds)
-        TP_local_sims[:,i] = TP_local_truncated[:,TP_ind] .* 
-            (1 .- susceptible_depletion[TP_ind]*prop_infected[:,i])
+        TP_local_sims[:, i] = TP_local_truncated[:, TP_ind] .* 
+            (1 .- susceptible_depletion[TP_ind] * prop_infected[:, i])
     end
     
     # return (forecast.sim_realisations.D, forecast.sim_realisations.U, TP_local)
