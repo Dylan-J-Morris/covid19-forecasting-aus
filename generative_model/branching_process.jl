@@ -28,6 +28,7 @@ the consistency checks.
 """
 
 using Distributed 
+using ProgressMeter
 
 @everywhere begin 
 
@@ -631,7 +632,7 @@ function simulate_branching_process(
     # for sim in 1:nsims
     # for sim in ProgressBar(1:nsims)
     # Threads.@threads for sim in ProgressBar(1:nsims)
-    @sync @distributed for sim in 1:nsims
+    @sync @showprogress @distributed for sim in 1:nsims
         # sample the TP/susceptible_depletion for this sim
         # counts in each window 
         case_counts = zeros(Int, length(max_cases))
