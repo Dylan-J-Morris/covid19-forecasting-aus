@@ -15,16 +15,16 @@ struct Features
 end
 
 
-struct Realisations
+mutable struct Realisations
     """
     A type for holding the realisations of the simulations. This is a cleaner way of 
     holding the information for the three different matrices used. Z is for infections 
     D is for observed cases and U is for undetected cases. 
     """
-    Z::Array{Int}
-    Z_historical::Array{Int}
-    D::Array{Int}
-    U::Array{Int}
+    Z::SharedArray{Int}
+    Z_historical::SharedArray{Int}
+    D::SharedArray{Int}
+    U::SharedArray{Int}
     
     function Realisations(
         sim_duration, 
@@ -38,10 +38,10 @@ struct Realisations
         separately (and not in a struct) as the arrays are large. 
         """
         
-        Z = zeros(Int, sim_duration+35, 3, nsims)
-        Z_historical = zeros(Int, sim_duration+35, nsims)
-        D = zeros(Int, sim_duration, 3, nsims)
-        U = zeros(Int, sim_duration, 3, nsims)
+        Z = SharedArray(zeros(Int, sim_duration+35, 3, nsims))
+        Z_historical = SharedArray(zeros(Int, sim_duration+35, nsims))
+        D = SharedArray(zeros(Int, sim_duration, 3, nsims))
+        U = SharedArray(zeros(Int, sim_duration, 3, nsims))
         
         return new(Z, Z_historical, D, U) 
     end

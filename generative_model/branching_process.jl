@@ -27,17 +27,24 @@ will return reshaped arrays that are the good simulated realisations based off
 the consistency checks. 
 """
 
-using Distributions
-using Random 
-using Statistics 
-using LinearAlgebra
-using ProgressBars
-using StaticArrays
+using Distributed 
 
-include("helper_functions.jl")
-include("forecast_types.jl")
-include("simulation_consistency.jl")
-include("assumptions.jl")
+@everywhere begin 
+
+    using Distributions
+    using Random 
+    using Statistics 
+    using LinearAlgebra
+    using ProgressBars
+    using StaticArrays
+    using SharedArrays
+
+    include("helper_functions.jl")
+    include("forecast_types.jl")
+    include("simulation_consistency.jl")
+    include("assumptions.jl")
+
+end # @everywhere
 
 ##### Methods
 function initialise_population!(
@@ -239,7 +246,7 @@ function import_cases_model!(
 	
 end
 
-function calculate_proportion_infected(
+@everywhere function calculate_proportion_infected(
     forecast, 
     day, 
     sim, 
@@ -257,7 +264,7 @@ function calculate_proportion_infected(
 end
 
 
-function sample_offspring!(
+@everywhere function sample_offspring!(
     forecast::Forecast, 
     t,  
     TP_local_sim, 
@@ -409,7 +416,7 @@ function sample_offspring!(
 end
 
 
-function assign_to_arrays_and_times!(
+@everywhere function assign_to_arrays_and_times!(
     forecast::Forecast, 
     day, 
     sim;
@@ -572,8 +579,8 @@ function simulate_branching_process(
      
     cumulative_local_cases = cumsum(local_cases)
     max_restarts = 10
-    good_sims = ones(Bool, nsims)
-    good_TPs = zeros(Bool, size(TP_local, 2))
+    good_sims = SharedArray(ones(Bool, nsims))
+    good_TPs = SharedArray(zeros(Bool, size(TP_local, 2)))
     
     # get simulation constants 
     (sim_constants, individual_type_map) = set_simulation_constants(state)
@@ -619,14 +626,15 @@ function simulate_branching_process(
         forecast_start_date, 
     )
     
-    good_TPs_inds = zeros(Int, nsims)
+    good_TPs_inds = SharedArray(zeros(Int, nsims))
     
-    # counts in each window 
-    case_counts = zeros(Int, length(max_cases))
     # for sim in 1:nsims
     # for sim in ProgressBar(1:nsims)
-    Threads.@threads for sim in ProgressBar(1:nsims)
+    # Threads.@threads for sim in ProgressBar(1:nsims)
+    @sync @distributed for sim in 1:nsims
         # sample the TP/susceptible_depletion for this sim
+        # counts in each window 
+        case_counts = zeros(Int, length(max_cases))
         TP_ind = sim % 2000 == 0 ? 2000 : sim % 2000
         TP_local_sim = @view TP_local[:,TP_ind]
         TP_import_sim = @view TP_import[:,TP_ind]
@@ -709,7 +717,6 @@ function simulate_branching_process(
             good_sims[sim] = false
             good_TPs_inds[sim] = -1
         else
-            good_TPs[TP_ind] = true
             good_TPs_inds[sim] = TP_ind
         end
     end
@@ -717,8 +724,9 @@ function simulate_branching_process(
     println("======================")
     println("Summary for ", state, ":")
     println("- ", sum(good_sims), " good simulations.")
-    println("- ", sum(good_TPs), " unique TPs sampled.") 
     println("======================")
+    
+    # return (forecast.sim_realisations.D, forecast.sim_realisations.U, TP_local)
     
     # keep only good sim results and truncate the TP to the same period as per D and U
     D_good = forecast.sim_realisations.D[:,:,good_sims]
