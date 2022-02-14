@@ -10,8 +10,8 @@ function sample_infection_time(;omicron=false)
     (shape_gen, scale_gen) = (2.75, 1.00)
     (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
     
-    shape = (1-omicron)*shape_gen + omicron*shape_gen_omicron
-    scale = (1-omicron)*scale_gen + omicron*scale_gen_omicron
+    shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
+    scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
     infection_time = ceil(Int, rand(Gamma(shape, scale)))
     
@@ -29,8 +29,8 @@ function sample_onset_time(;omicron=false)
     (shape_inc, scale_inc) = (5.807, 0.948)
     (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
     
-    shape = (1-omicron)*shape_inc + omicron*shape_inc_omicron
-    scale = (1-omicron)*scale_inc + omicron*scale_inc_omicron
+    shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
+    scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
     
     onset_time = ceil(Int, rand(Gamma(shape, scale)))
     

@@ -168,7 +168,7 @@ struct Constants{S, T}
         )
         
         # other parameters 
-        consistency_multiplier = 10.0
+        consistency_multiplier = 5.0
         # prior parametes for the import model
         prior_alpha = 0.5
         prior_beta = 0.2

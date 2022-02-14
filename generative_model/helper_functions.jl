@@ -65,7 +65,7 @@ function read_in_TP(date, state)
     # drop the first column 
     df = CSV.read(TP_file_name, DataFrame, drop=[1])
     # extract the unique states
-    unique_states = unique(df[!,"state"])
+    unique_states = unique(df[!, "state"])
 
     TP_dict_local = Dict{String, Array}()
     # get the dates 

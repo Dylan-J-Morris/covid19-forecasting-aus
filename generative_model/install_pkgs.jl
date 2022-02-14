@@ -9,7 +9,6 @@ Pkg.add("Distributions")
 Pkg.add("Random" )
 Pkg.add("Statistics" )
 Pkg.add("LinearAlgebra")
-Pkg.add("ProgressBars")
 Pkg.add("DataStructures")
 
 Pkg.add("FileIO")
@@ -22,3 +21,7 @@ Pkg.add("Pipe")
 
 Pkg.add("DelimitedFiles")
 Pkg.add("Dates" )
+
+Pkg.add("Distributed")
+Pkg.add("SharedArrays")
+Pkg.add("ProgressMeter")
