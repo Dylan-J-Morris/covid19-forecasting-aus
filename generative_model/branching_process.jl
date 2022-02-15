@@ -43,7 +43,6 @@ using ProgressMeter
     include("helper_functions.jl")
     include("forecast_types.jl")
     include("simulation_consistency.jl")
-    include("assumptions.jl")
 
 end # @everywhere
 

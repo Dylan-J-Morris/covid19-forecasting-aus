@@ -18,9 +18,10 @@ Pkg.add("Plots")
 Pkg.add("Measures")
 Pkg.add("Pyplot")
 Pkg.add("Pipe")
+Pkg.add("PDFmerger") # *NOTE* that this will not be added on phoenix 
 
 Pkg.add("DelimitedFiles")
-Pkg.add("Dates" )
+Pkg.add("Dates")
 
 Pkg.add("Distributed")
 Pkg.add("SharedArrays")

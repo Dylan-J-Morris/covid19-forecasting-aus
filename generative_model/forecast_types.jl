@@ -48,7 +48,6 @@ mutable struct Realisations
 end
 
 
-
 struct Constants{S, T}
     """
     A type for the dynamical / simulation constants 
