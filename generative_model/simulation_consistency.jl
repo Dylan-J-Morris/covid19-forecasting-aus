@@ -266,7 +266,8 @@ function check_sim!(
     case_counts = [
         sum(D[1:days_delta, 1:2, sim]),
         sum(D[max(1, T_observed - 90):T_observed, 1:2, sim]),
-        sum(D[max(1, T_observed - 45):T_observed, 1:2, sim])
+        sum(D[max(1, T_observed - 60):T_observed, 1:2, sim]),
+        sum(D[max(1, T_observed - 14):T_observed, 1:2, sim])
     ]
     
     # print_status = false
