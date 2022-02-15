@@ -28,7 +28,6 @@ the consistency checks.
 """
 
 using Distributed 
-using ProgressMeter
 
 @everywhere begin 
 
@@ -39,6 +38,7 @@ using ProgressMeter
     using ProgressBars
     using StaticArrays
     using SharedArrays
+    using ProgressMeter
 
     include("helper_functions.jl")
     include("forecast_types.jl")
