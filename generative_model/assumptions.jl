@@ -1,65 +1,59 @@
-using Distributions
-using Random
+struct JurisdictionAssumptions
 
-function sample_infection_time(;omicron=false)
-    """
-    Sample infection times for num individuals based on the generation 
-    interval distribution, Gamma(shape_gen, scale_gen). 
-    """
+    simulation_start_dates::Dict{String, String}
+    pop_sizes::Dict{String, Int}
+    initial_conditions::Dict{
+        String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}
+    }
+    omicron_dominant_date::Date
 
-    (shape_gen, scale_gen) = (2.75, 1.00)
-    (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
+    function JurisdictionAssumptions()
+        simulation_start_dates = Dict{String, String}(
+            "NSW" => "2021-06-23",
+            "QLD" => "2021-11-01",
+            "SA" => "2021-11-01",
+            "TAS" => "2021-11-01",
+            "WA" => "2021-12-15",
+            "ACT" => "2021-08-01",
+            "NT" => "2021-12-01",
+            "VIC" => "2021-08-01",
+        )
+        
+        # date we want to apply increase in cases due to Omicron 
+        omicron_dominant_date = Dates.Date("2021-12-15")
+        
+        pop_sizes = Dict{String, Int}(
+            "NSW" => 8189266,
+            "QLD" => 5221170,
+            "SA" => 1773243,
+            "TAS" => 541479,
+            "VIC" => 6649159,
+            "WA" => 2681633,
+            "ACT" => 432266,
+            "NT" => 246338,
+        )
+            
+        initial_conditions = Dict{
+            String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}
+        }(
+            "NSW" => (S = 5, A = 8, I = 0),
+            "QLD" => (S = 0, A = 0, I = 0),
+            "SA" => (S = 0, A = 0, I = 0),
+            "TAS" => (S = 0, A = 0, I = 0),
+            "VIC" => (S = 20, A = 20, I = 0),
+            "WA" => (S = 3, A = 2, I = 0),
+            "ACT" => (S = 0, A = 0, I = 0),
+            "NT" => (S = 3, A = 2, I = 0),
+        )
+        
+        return new(
+            simulation_start_dates, 
+            pop_sizes, 
+            initial_conditions, 
+            omicron_dominant_date,
+        )
+        
+    end
     
-    shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
-    scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
-    
-    infection_time = ceil(Int, rand(Gamma(shape, scale)))
-    
-    return infection_time
-    
-end
 
-
-function sample_onset_time(;omicron=false)
-    """
-    Sample incubation times for num individuals based on incubation period 
-    distribution, Gamma(shape_inc, scale_inc). 
-    """
-    
-    (shape_inc, scale_inc) = (5.807, 0.948)
-    (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
-    
-    shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
-    scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
-    
-    onset_time = ceil(Int, rand(Gamma(shape, scale)))
-    
-    return onset_time
-    
-end
-
-
-function set_simulation_constants(state)
-    """
-    Contains the assumptions for simulation parameters. This includes all the dynamical
-    constants: 
-        - k = heterogeneity parameter
-        - p_symp = probability of symptoms 
-        - γ = relative infectiousness of asymptomatic individuals 
-        - p_symp_given_detect = probability of symptoms given detection
-        - p_asymp_given_detect = probability of being asymptomatic given detection
-        - consistency_multiplier = chosen such that sim_cases < 
-            consistency_multiplier*actual cases 
-            results in cases being injected into the simulation. This is used to account 
-            for superspreading events after periods of low incidence. 
-    These values are stored in sim_constants which is a dictionary indexed by the 
-    parameter name and ultimately stored on the stack in a SimulationParameters object. 
-    """
-    # get the simulation constants
-    simulation_constants = Constants(state)
-    # mapping between types 
-    individual_type_map = IndividualTypeMap()
-
-    return (simulation_constants, individual_type_map)
-    
 end
