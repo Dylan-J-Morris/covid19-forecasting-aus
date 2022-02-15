@@ -13,7 +13,7 @@
 # module load arch/haswell (older versions of Julia here)
 module load arch/skylake
 # load latest Julia module
-module load Julia/1.7.0
+module load Julia/1.6.0
 
 states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 
