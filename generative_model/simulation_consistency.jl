@@ -29,8 +29,8 @@ function get_simulation_limits(
     MAt = zeros(Float64, length(local_cases))
     moving_average!(MAt, local_cases, 3)
     
-    min_cases = 0.25 * MAt
-    max_cases = 2.5 * MAt
+    min_cases = 0.25 * local_cases
+    max_cases = 2.0 * local_cases
 
     # assume maximum of 250 cases if the observed is less than that
     for (i, val) in enumerate(min_cases)
@@ -158,7 +158,8 @@ function count_cases!(
         day += 1
     end
     
-    moving_average!(case_counts, case_counts_tmp, 3)
+    # moving_average!(case_counts, case_counts_tmp, 3)
+    case_counts .= case_counts_tmp
     
     return nothing
 end
@@ -258,15 +259,15 @@ function check_sim!(
         end
         
         if day == 0
-            # for (i, (c, m)) in enumerate(
-            #     zip(case_counts, min_cases)
-            # )
-            #     if c < m 
-            #         bad_sim = true 
-            #         print_status && println("sim: ", sim, " too few cases: ", c, " < ", m, " day: ", day)
-            #         break
-            #     end
-            # end
+            for (i, (c, m)) in enumerate(
+                zip(case_counts, min_cases)
+            )
+                if c < m 
+                    bad_sim = true 
+                    print_status && println("sim: ", sim, " too few cases: ", c, " < ", m, " day: ", day)
+                    break
+                end
+            end
         end
     end
     
@@ -290,7 +291,7 @@ function check_sim!(
                 " actual cases: ", observed_3_day_cases, 
                 " day added: ", day,
             )
-             
+            # uniformly sample a number of missing detections to add in
             missing_detections = rand(
                 1:ceil(
                     Int, 
