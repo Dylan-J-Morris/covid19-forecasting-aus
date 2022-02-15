@@ -18,8 +18,8 @@ function save_simulations(D,TP_local,state,file_date,onset_dates,rng)
     # indexer for naming the columns 
     i = 0
     for (d, tp) in zip(eachcol(D_observed), eachcol(TP_local))
-        df_observed[!, "sim" * string(i)] = d[(end-length(onset_dates)+1):end]
-        df_TP_local[!, "sim" * string(i)] = tp[(end-length(onset_dates)+1):end]
+        df_observed[!, "sim" * string(i)] = d[(end - length(onset_dates) + 1):end]
+        df_TP_local[!, "sim" * string(i)] = tp[(end - length(onset_dates) + 1):end]
         i += 1
         if i == 2000
             break
@@ -39,12 +39,12 @@ function save_simulations(D,TP_local,state,file_date,onset_dates,rng)
             if i == 1
                 ind = 1
             else
-                ind = rand(rng, 1:(i-1))
+                ind = rand(rng, 1:(i - 1))
             end
             d = D_observed[:, ind]
             tp = TP_local[:, ind]
-            df_observed[!, "sim" * string(j)] = d[(end-length(onset_dates)+1):end]
-            df_TP_local[!, "sim" * string(j)] = tp[(end-length(onset_dates)+1):end]
+            df_observed[!, "sim" * string(j)] = d[(end - length(onset_dates) + 1):end]
+            df_TP_local[!, "sim" * string(j)] = tp[(end - length(onset_dates) + 1):end]
         end
     end
     

@@ -27,8 +27,7 @@ mutable struct Realisations
     U::SharedArray{Int}
     
     function Realisations(
-        sim_duration, 
-        observation_period, 
+        sim_duration,  
         nsims,
     )
         """
@@ -38,8 +37,8 @@ mutable struct Realisations
         separately (and not in a struct) as the arrays are large. 
         """
         
-        Z = SharedArray(zeros(Int, sim_duration+35, 3, nsims))
-        Z_historical = SharedArray(zeros(Int, sim_duration+35, nsims))
+        Z = SharedArray(zeros(Int, sim_duration + 35, 3, nsims))
+        Z_historical = SharedArray(zeros(Int, sim_duration + 35, nsims))
         D = SharedArray(zeros(Int, sim_duration, 3, nsims))
         U = SharedArray(zeros(Int, sim_duration, 3, nsims))
         

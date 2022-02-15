@@ -72,12 +72,12 @@ function plot_all_forecasts(
         tp = TP_plot_inds[i]
         
         # get relevant columns of the dataframe and merge to matrix
-        D = Matrix(sim_all_states[sim_all_states.state .== state, 3:end-1])
+        D = Matrix(sim_all_states[sim_all_states.state .== state, 3:end - 1])
         # if anything in D is missing, it means the sims didn't work so 0 out those entries
         D[ismissing.(D)] .= 0
         D = Matrix{Int}(D)
         
-        TP_local = Matrix(TP_all_states[TP_all_states.state .== state, 3:end-1])
+        TP_local = Matrix(TP_all_states[TP_all_states.state .== state, 3:end - 1])
         TP_local[ismissing.(TP_local)] .= 0.0
         TP_local = Matrix{Float64}(TP_local)
         
@@ -90,7 +90,9 @@ function plot_all_forecasts(
         # boolean for correct case dates 
         case_dates_ind = [d ∈ onset_dates ? true : false for d in case_dates]
 
-        onset_dates_lims = Dates.value.([onset_dates[end]-Dates.Day(90), onset_dates[end]])
+        onset_dates_lims = Dates.value.(
+            [onset_dates[end] - Dates.Day(90), onset_dates[end]]
+        )
         
         if confidence_level == "50" || confidence_level == "both"
             plot!(
