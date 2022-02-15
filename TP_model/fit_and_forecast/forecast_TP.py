@@ -1802,7 +1802,102 @@ for i, state in enumerate(plot_states):
     # plot window start date
     plot_window_start_date = min(
         pd.to_datetime(today) - timedelta(days=6 * 30),
-        sim_start_date - timedelta(days=10),
+        sim_start_date - timedelta(days=truncation_days),
+    )
+
+    # create a plot window over the last six months
+    ax[row, col].set_xlim(
+        plot_window_start_date,
+        pd.to_datetime(today) + timedelta(days=num_forecast_days),
+    )
+    # plot the start date
+    ax[row, col].axvline(sim_start_date, ls="--", color="green", lw=2)
+    ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=2)
+
+fig.text(
+    0.03,
+    0.5,
+    "Transmission potential",
+    va="center",
+    ha="center",
+    rotation="vertical",
+    fontsize=20,
+)
+fig.text(0.525, 0.02, "Date", va="center", ha="center", fontsize=20)
+plt.tight_layout(rect=[0.04, 0.04, 1, 1])
+
+os.makedirs("figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d"), exist_ok=True)
+
+plt.savefig(
+    "figs/mobility_forecasts/"
+    + data_date.strftime("%Y-%m-%d")
+    + "/TP_6_month_"
+    + data_date.strftime("%Y-%m-%d")
+    + ".png",
+    dpi=144,
+)
+
+fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+
+for i, state in enumerate(plot_states):
+
+    row = i // 2
+    col = i % 2
+
+    plot_df = df_Rhats.loc[(df_Rhats.state == state) & (df_Rhats.type == "R_L")]
+    # split the TP into pre data date and after
+    plot_df_backcast = plot_df.loc[plot_df["date"] <= data_date]
+    plot_df_forecast = plot_df.loc[plot_df["date"] > data_date]
+    # plot the backcast TP
+    ax[row, col].plot(plot_df_backcast.date, plot_df_backcast["median"], color="C0")
+    ax[row, col].fill_between(
+        plot_df_backcast.date,
+        plot_df_backcast["lower"],
+        plot_df_backcast["upper"],
+        alpha=0.4,
+        color="C0",
+    )
+    ax[row, col].fill_between(
+        plot_df_backcast.date,
+        plot_df_backcast["bottom"],
+        plot_df_backcast["top"],
+        alpha=0.4,
+        color="C0",
+    )
+    # plot the forecast TP
+    ax[row, col].plot(plot_df_forecast.date, plot_df_forecast["median"], color="C1")
+    ax[row, col].fill_between(
+        plot_df_forecast.date,
+        plot_df_forecast["lower"],
+        plot_df_forecast["upper"],
+        alpha=0.4,
+        color="C1",
+    )
+    ax[row, col].fill_between(
+        plot_df_forecast.date,
+        plot_df_forecast["bottom"],
+        plot_df_forecast["top"],
+        alpha=0.4,
+        color="C1",
+    )
+
+    ax[row, col].tick_params("x", rotation=90)
+    ax[row, col].set_title(state)
+    ax[row, col].set_yticks(
+        [1],
+        minor=True,
+    )
+    ax[row, col].set_yticks([0, 2, 4, 6], minor=False)
+    ax[row, col].set_yticklabels([0, 2, 4, 6], minor=False)
+    ax[row, col].yaxis.grid(which="minor", linestyle="--", color="black", linewidth=2)
+    ax[row, col].set_ylim((0, 6))
+
+    # ax[row, col].set_xticks([plot_df.date.values[-n_forecast]], minor=True)
+    ax[row, col].axvline(data_date, ls="-.", color="black", lw=1)
+    # plot window start date
+    plot_window_start_date = min(
+        pd.to_datetime(today) - timedelta(days=12 * 30),
+        sim_start_date - timedelta(days=truncation_days),
     )
 
     # create a plot window over the last six months
@@ -1835,7 +1930,7 @@ os.makedirs("figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d"), exist_o
 plt.savefig(
     "figs/mobility_forecasts/"
     + data_date.strftime("%Y-%m-%d")
-    + "/soc_mob_R_L_hats"
+    + "/TP_12_month_"
     + data_date.strftime("%Y-%m-%d")
     + ".png",
     dpi=144,

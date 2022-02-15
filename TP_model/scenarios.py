@@ -47,5 +47,7 @@ scenario_dates_school_openings_2022 = {
     "NT": "2022-01-31",
 }
 
-scenarios = scenarios_school_openings_2022
-scenario_dates = scenario_dates_school_openings_2022
+scenarios = scenarios_normal
+scenario_dates = scenario_dates_normal
+# scenarios = scenarios_school_openings_2022
+# scenario_dates = scenario_dates_school_openings_2022
