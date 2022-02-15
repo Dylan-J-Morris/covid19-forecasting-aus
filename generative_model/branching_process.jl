@@ -701,7 +701,8 @@ function simulate_branching_process(
                 end
             end
             
-            # bad_sim && break
+            bad_sim && break
+            
         end
         
         if !bad_sim
