@@ -182,7 +182,7 @@ function check_sim!(
     are met.
     """
     
-    print_status = true
+    print_status = false
     
     Z = forecast.sim_realisations.Z
     D = forecast.sim_realisations.D
