@@ -182,7 +182,7 @@ function check_sim!(
     are met.
     """
     
-    print_status = false
+    print_status = true
     
     Z = forecast.sim_realisations.Z
     D = forecast.sim_realisations.D
@@ -292,11 +292,12 @@ function check_sim!(
                 " day added: ", day,
             )
             # uniformly sample a number of missing detections to add in
-            missing_detections = rand(
-                1:ceil(
+            missing_detections = max(
+                1, 
+                ceil(
                     Int, 
-                    observed_3_day_cases - sim_3_day_cases,
-                )
+                    1 / consistency_multiplier * observed_3_day_cases - sim_3_day_cases,
+                ),
             )
             
             # println("missing detections: ", missing_detections)

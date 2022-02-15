@@ -6,6 +6,7 @@ using Measures      # for better positioning of figures
 
 # if you have python installed, you can use pyplot for better formatting
 pyplot()
+# gr()
 
 include("read_in_cases.jl")
 include("processing_sim.jl")
