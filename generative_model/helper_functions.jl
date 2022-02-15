@@ -5,6 +5,26 @@ using DataFrames
 using Pipe
 using Dates 
 
+function map_day_to_index_Z(day)
+    """
+    Map the day to the appropriate index for the infection array Z.
+    """
+    res = day + 35
+    
+    return day + 35
+    
+end
+
+function map_day_to_index_UD(day)
+    """
+    Map the day to the appropriate index for the infection array Z.
+    """
+    # a branchless if statement for mapping between day and index 
+    res = (day <= 0) * 1 + (day > 0) * (day + 1)
+    
+    return res
+end
+
 function NegativeBinomial2(μ, ϕ)
     """
     Function for parameterisation of the negative Binomial in terms of mean and variance.
@@ -16,10 +36,15 @@ function NegativeBinomial2(μ, ϕ)
     return NegativeBinomial(r, p)
 end
 
-function sample_infection_time(;omicron=false)
+function sample_inf_time(; omicron=false)
     """
     Sample infection times for num individuals based on the generation 
     interval distribution, Gamma(shape_gen, scale_gen). 
+    We round the times instead of take the ceiling as then we sort of deal with 
+    the cases when infector-infectee pairs have same day presence. Think about when 
+    an individual is infected at the start of day t and infects the other person that
+    same day. Taking the ceiling => time = t + 1 but should be t. This is different 
+    the old Python model but in that we tracked individuals exact times. 
     """
 
     (shape_gen, scale_gen) = (2.75, 1.00)
@@ -28,17 +53,22 @@ function sample_infection_time(;omicron=false)
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
-    infection_time = ceil(Int, rand(Gamma(shape, scale)))
+    infection_time = round(Int, rand(Gamma(shape, scale)))
     
     return infection_time
     
 end
 
 
-function sample_onset_time(;omicron=false)
+function sample_onset_time(; omicron=false)
     """
     Sample incubation times for num individuals based on incubation period 
     distribution, Gamma(shape_inc, scale_inc). 
+    We round the times instead of take the ceiling as then we sort of deal with 
+    the cases when infector-infectee pairs have same day presence. Think about when 
+    an individual is infected at the start of day t and infects the other person that
+    same day. Taking the ceiling => time = t + 1 but should be t. This is different 
+    the old Python model but in that we tracked individuals exact times. 
     """
     
     (shape_inc, scale_inc) = (5.807, 0.948)
@@ -47,7 +77,7 @@ function sample_onset_time(;omicron=false)
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
     
-    onset_time = ceil(Int, rand(Gamma(shape, scale)))
+    onset_time = round(Int, rand(Gamma(shape, scale)))
     
     return onset_time
     
@@ -90,13 +120,13 @@ function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     # mean of NegBin(s, p) => this will boil down to N*TP
     μ = s/p - s
     
-    if μ <= approx_limit
-        X = rand(NegativeBinomial(s, p))
-    else
-        σ = sqrt(s*(1-p)/p^2)
-        X = ceil(Int, rand(Normal(μ, σ)))
-    end
-    # X = rand(NegativeBinomial(s, p))
+    # if μ <= approx_limit
+    #     X = rand(NegativeBinomial(s, p))
+    # else
+    #     σ = sqrt(s*(1-p)/p^2)
+    #     X = ceil(Int, rand(Normal(μ, σ)))
+    # end
+    X = rand(NegativeBinomial(s, p))
     
     return X 
 end
@@ -110,13 +140,14 @@ function sample_binomial_limit(n, p; approx_limit = 1000)
     """
     X = zero(Int)
     
-    if n*p <= approx_limit || n*(1-p) <= approx_limit
-        X = rand(Binomial(n, p))
-    else
-        μ = n*p
-        σ = sqrt(n*p*(1-p))
-        X = ceil(Int, rand(Normal(μ, σ)))
-    end
+    # if n*p <= approx_limit || n*(1-p) <= approx_limit
+    #     X = rand(Binomial(n, p))
+    # else
+    #     μ = n*p
+    #     σ = sqrt(n*p*(1-p))
+    #     X = ceil(Int, rand(Normal(μ, σ)))
+    # end
+    X = rand(Binomial(n, p))
     
     return X 
 end
@@ -216,9 +247,9 @@ function read_in_cases(
 	date, 
 	rng; 
 	apply_inc = false, 
-	omicron_dominant_date = nothing
+	omicron_dominant_date = nothing,
 )
-
+    
 	# read in the reff file
 	case_file_name = "data/interim_linelist_" * date * ".csv"
 	# drop the first column 
@@ -233,7 +264,7 @@ function read_in_cases(
 	scale_rd = 2.31
 	# sample from delay distribtuion
 	rd = rand(rng, Gamma(shape_rd, scale_rd), length(confirm_dates))
-	confirm_dates = confirm_dates - round.(rd) * Day(1)
+	confirm_dates = confirm_dates - ceil.(rd) * Day(1)
 	# adjust confirmation dates to get to onset 
 	# rd = ceil(Int, mean(Gamma(shape_rd, scale_rd)))
 	# confirm_dates = confirm_dates .- rd * Day(1)
@@ -267,7 +298,7 @@ function read_in_cases(
 			inc = (1 - is_omicron) * inc + is_omicron * inc_omicron
 		end
 		
-		complete_dates = complete_dates - round.(inc) * Day(1)
+		complete_dates = complete_dates - ceil.(inc) * Day(1)
 	end
 
 	# other useful fields
@@ -291,9 +322,7 @@ function read_in_cases(
 	import_cases = zeros(Int, length(dates_since_start))
 
 	# construct df to hold all the linelists	
-	new_df = DataFrame(
-		"date" => dates_since_start
-	)
+	new_df = DataFrame("date" => dates_since_start)
 
 	# construct df to hold all the linelists	
 	local_case_dict = Dict()
@@ -307,6 +336,7 @@ function read_in_cases(
 		local_case_dict[s] = zeros(length(dates_since_start))
 		import_case_dict[s] = zeros(length(dates_since_start))
 	end
+    
 	# initialise arrays to hold daily cases in 
 	local_cases = zeros(length(dates_since_start))
 	import_cases = zeros(length(dates_since_start))
