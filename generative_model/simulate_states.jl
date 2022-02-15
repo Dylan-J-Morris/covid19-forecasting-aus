@@ -7,11 +7,8 @@ using TimerOutputs
 using BenchmarkTools
 using Revise
 
-include("read_in_cases.jl")
 include("branching_process.jl")
 include("processing_sim.jl")
-include("forecast_plots.jl")
-include("assumptions.jl")
 
 function simulate_single_state(
     file_date, 
@@ -65,7 +62,7 @@ function simulate_single_state(
         (D, U, TP_local) = simulate_branching_process(
             D0, 
             N, 
-            nsims[state], 
+            nsims, 
             local_cases, 
             import_cases, 
             cases_pre_forecast,
