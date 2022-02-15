@@ -54,8 +54,8 @@ function simulate_single_state(
         # get the observed cases 
         cases_pre_forecast = sum(local_case_dict[state][dates .< forecast_start_date])
         local_cases = local_case_dict[state][dates .>= forecast_start_date]
-        # cutoff the last bit of the local cases
         import_cases = import_case_dict[state]
+        # cutoff the last bit of the local cases
         local_cases = local_cases[begin:end-truncation_days]
         import_cases = import_cases[begin:end-truncation_days]
         

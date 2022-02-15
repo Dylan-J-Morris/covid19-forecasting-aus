@@ -1,10 +1,73 @@
 include("forecast_types.jl")
 include("helper_functions.jl")
 
-function moving_average!(ma, g, n)
-    ma .= [i < n ? mean(g[begin:i]) : mean(g[i-n+1:i]) for i in 1:length(g)]
-    return ma 
+function calculate_bounds(local_cases, τ)
+    
+    # tolerance for when we consider cases to be stable
+    ϵ = 0.0
+    
+    # multipliers on the n-day average 
+    ℓ = 0.25
+    u = 2.25
+    
+    # observation period 
+    T = length(local_cases)
+    # the slope over the n-day period 
+    m = 0.0
+    Mₜ = zero(similar(local_cases))
+    
+    Lₜ = zero(similar(local_cases))
+    Uₜ = zero(similar(local_cases)) 
+    
+    # consider τ = 3 and t = (0, 1, 2), clearly n = 2 - 0 = 2
+    n = τ - 1
+    
+    n2 = 7
+    
+    for t in range(1, T)
+        # approximate the slope naively 
+        if t < T - n2
+            m = (local_cases[t + n2] - local_cases[t]) / n2
+        else
+            m = (local_cases[t] - local_cases[t - n2]) / n2
+        end
+        
+        Mₜ[t] = m
+        
+        # depending on the sign of the slope, take average of future or past cases 
+        if m < -ϵ
+            Lₜ[t] = ℓ * mean(local_cases[t:min(T, t + n)]) 
+            Uₜ[t] = u * mean(local_cases[max(1, t - n):t]) 
+            Lₜ[t] = mean(local_cases[t:min(T, t + n)]) 
+            Uₜ[t] = mean(local_cases[max(1, t - n):t]) 
+        elseif m > ϵ
+            Lₜ[t] = ℓ * mean(local_cases[max(1, t - 2):t]) 
+            Uₜ[t] = u * mean(local_cases[t:min(T, t + 2)]) 
+            Lₜ[t] = mean(local_cases[max(1, t - 2):t]) 
+            Uₜ[t] = mean(local_cases[t:min(T, t + 2)]) 
+        else
+            n2 = n ÷ 2
+            Lₜ[t] = ℓ * mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
+            Uₜ[t] = u * mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
+            Lₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
+            Uₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
+        end
+        
+        # adjust the bounds for periods with low cases
+        if Lₜ[t] < 50
+            Lₜ[t] = 0
+        end
+        
+        if Uₜ[t] < 50
+            Uₜ[t] = 50
+        end
+    end
+    
+    # return (Lₜ, Uₜ, Mₜ)
+    return (Lₜ, Uₜ) 
+    
 end
+
 
 function get_simulation_limits(
     local_cases, 
@@ -13,38 +76,32 @@ function get_simulation_limits(
     cases_pre_forecast, 
     TP_indices, 
     N, 
-    T_observed, 
-    T_end,
 )
     """
     Using the observed cases, determine the limits of cases over the backcast and 
     nowcast. This assumes consistency over windows of fixed length and a nowcast period 
     of 14 days.
     """
+    
+    # length of observed time series 
+    T_observed = length(local_cases)
+    # duration of forecast simulation including initial day
+    T_end = sum(ind >= 0 for ind in TP_indices)
+    
     # this is the number of days into the forecast simulation that dominant begins 
     days_delta = (Dates.Date(omicron_dominant_date) - 
         Dates.Date(forecast_start_date)).value
         
-    # calculate the 7-day moving average of cases
-    MAt = zeros(Float64, length(local_cases))
-    moving_average!(MAt, local_cases, 3)
+    # (min_cases, max_cases) = calculate_bounds(local_cases, 3)
     
-    min_cases = 0.25 * local_cases
-    max_cases = 2.0 * local_cases
-
-    # assume maximum of 250 cases if the observed is less than that
-    for (i, val) in enumerate(min_cases)
-        if val < 50
-            min_cases[i] = 0
-        end
-    end
+    max_cases = [
+        max(50, 3.0 * sum(local_cases[1:days_delta])),
+        max(50, 3.0 * sum(local_cases[max(1, T_observed - 90):end])),
+        max(50, 3.0 * sum(local_cases[max(1, T_observed - 60):end])),
+        max(50, 3.0 * sum(local_cases[max(1, T_observed - 14):end])),
+    ] 
+    min_cases = zero(similar(max_cases))
     
-    for (i, val) in enumerate(max_cases)
-        if val < 50
-            max_cases[i] = 50
-        end
-    end
-
     # the maximum allowable cases over the forecast period is the population size
     max_forecast_cases = N
     
@@ -204,7 +261,13 @@ function check_sim!(
     # this is just the total cases over the forecast horizon 
     D_forecast = sum(@view D[T_observed+1:end, 1:2, sim])
     # count how many cases each day 
-    count_cases!(case_counts, forecast, sim)
+    # count_cases!(case_counts, forecast, sim)
+    # sum all cases over observation period 
+    case_counts = [
+        sum(D[1:days_delta, 1:2, sim]),
+        sum(D[max(1, T_observed - 90):T_observed, 1:2, sim]),
+        sum(D[max(1, T_observed - 45):T_observed, 1:2, sim])
+    ]
     
     # print_status = false
     
@@ -425,9 +488,9 @@ function inject_cases!(
         elseif counter >= num_symptomatic_each_day[3]
             onset_time = day - 2
         end
-        infection_time = onset_time - 
+        inf_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[infection_time+36, individual_type_map.S, sim] += 1
+        Z[map_day_to_index_Z(inf_time), individual_type_map.S, sim] += 1
         D[onset_time, individual_type_map.S, sim] += 1 
         counter += 1
     end
@@ -452,9 +515,9 @@ function inject_cases!(
         elseif counter >= num_asymptomatic_each_day[3]
             onset_time = day - 2
         end
-        infection_time = onset_time - 
+        inf_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[infection_time+36, individual_type_map.A, sim] += 1
+        Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
         D[onset_time, individual_type_map.A, sim] += 1 
         counter += 1
     end
@@ -480,9 +543,9 @@ function inject_cases!(
         elseif counter >= num_symptomatic_each_day[3]
             onset_time = day - 2
         end
-        infection_time = onset_time - 
+        inf_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[infection_time+36, individual_type_map.S, sim] += 1
+        Z[map_day_to_index_Z(inf_time), individual_type_map.S, sim] += 1
         U[onset_time, individual_type_map.S, sim] += 1 
         counter += 1
     end
@@ -507,9 +570,9 @@ function inject_cases!(
         elseif counter >= num_asymptomatic_each_day[3]
             onset_time = day - 2
         end
-        infection_time = onset_time - 
+        inf_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[infection_time+36, individual_type_map.A, sim] += 1
+        Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
         U[onset_time, individual_type_map.A, sim] += 1 
         counter += 1
     end
