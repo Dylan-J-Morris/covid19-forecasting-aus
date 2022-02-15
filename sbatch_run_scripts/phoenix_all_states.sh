@@ -19,4 +19,4 @@ states=("NSW" "VIC" "SA" "QLD" "TAS" "WA" "ACT" "NT")
 
 DATADATE=$1
 
-julia -p 12 generative_model/run_forecasts_single_state $DATADATE ${states[$SLURM_ARRAY_TASK_ID]}
+julia -p 12 generative_model/run_forecasts_single_state.jl $DATADATE ${states[$SLURM_ARRAY_TASK_ID]}
