@@ -9,7 +9,6 @@ using PDFmerger
 pyplot()
 # gr()
 
-include("read_in_cases.jl")
 include("processing_sim.jl")
 
 function plot_all_forecasts(

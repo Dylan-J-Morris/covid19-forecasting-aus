@@ -1,4 +1,5 @@
 include("simulate_states.jl")
+include("forecast_plots.jl")
 
 # parameters to pass to the main function 
 const file_date = ARGS[1]

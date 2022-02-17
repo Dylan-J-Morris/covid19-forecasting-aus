@@ -72,9 +72,9 @@ function initialise_population!(
     total_initial_cases = sum(D0)
     
     for sim in 1:size(Z, 3)
-        
         # infer some initial undetected symptomatic
         num_symptomatic_undetected = 0
+        
         if D0.S == 0
             num_symptomatic_undetected = sample_negative_binomial_limit(
                 1, 
@@ -90,6 +90,7 @@ function initialise_population!(
         # infer some initial undetected asymptomatic
         total_symptomatic = D0.S + num_symptomatic_undetected
         num_asymptomatic_undetected = 0
+        
         if total_symptomatic == 0
             num_asymptomatic_undetected = sample_negative_binomial_limit(1, p_symp)
         else
@@ -105,7 +106,6 @@ function initialise_population!(
             num_asymptomatic_undetected
         
         if total_initial_cases_sim > 0  
-            
             inf_times = MVector{total_initial_cases_sim}(
                 zeros(Int, total_initial_cases_sim)
             )
@@ -349,11 +349,11 @@ end
         # take max of 0 and TP to deal with cases of depletion factor giving TP = 0
         TP_local_parent = max(
             0, 
-            TP_local_sim[TP_ind] * (1 - susceptible_depletion_sim * proportion_infected)
+            TP_local_sim[TP_ind] * (1 - susceptible_depletion_sim * proportion_infected),
         )
         TP_import_parent = max(
             0, 
-            TP_import_sim[TP_ind] * (1 - susceptible_depletion_sim * proportion_infected)
+            TP_import_sim[TP_ind] * (1 - susceptible_depletion_sim * proportion_infected),
         )
         
         # total number of infections arising from all parents infected at time t 
@@ -438,8 +438,6 @@ end
     this function from multiple spots. 
     """
     
-    # TODO: refactor this using multiple dispatch. 
-    
     Z = forecast.sim_realisations.Z
     D = forecast.sim_realisations.D
     U = forecast.sim_realisations.U
@@ -491,8 +489,7 @@ end
     end
     
     for _ in 1:num_asymptomatic_undetected
-        inf_time = day + 
-            sample_inf_time(omicron = day >= omicron_dominant_day)
+        inf_time = day + sample_inf_time(omicron = day >= omicron_dominant_day)
         if inf_time < T_end 
             Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
         end
@@ -578,10 +575,11 @@ function simulate_branching_process(
         cases_pre_forecast, 
         TP_indices, 
         N, 
+        state, 
     )
     
-    # the range of days for the simulation
-    day_range = -35:sim_features.T_end
+    # the range of days for the simulation -1 as the "days", day ↦ day + 1
+    day_range = -35:sim_features.T_end - 1
         
     # initialise state arrays (T_end + 1 as we include 0 day)
     sim_realisations = Realisations(sim_features.T_end, nsims)
@@ -611,6 +609,12 @@ function simulate_branching_process(
     )
     
     good_TPs_inds = SharedArray(zeros(Int, nsims))
+    
+    if state == "NSW"
+        TP_ind = findfirst(40 == ind for ind in TP_indices)
+        TP_local[1:TP_ind, :] *= 0.5
+        TP_import[1:TP_ind, :] *= 0.5
+    end
     
     # for sim in 1:nsims
     # @showprogress for sim in 1:nsims
@@ -720,24 +724,25 @@ function simulate_branching_process(
     println("- ", sum(good_sims), " good simulations.")
     println("======================")
     
-    # return (
-    #     forecast.sim_realisations.D, 
-    #     forecast.sim_realisations.Z,
-    #     forecast.sim_realisations.U,
-    #     forecast.sim_realisations.Z_historical,  
-    #     TP_local,
-    # )
-    
-    # keep only good sim results and truncate the TP to the same period as per D and U
+    # keep only good sim results
     D_good = forecast.sim_realisations.D[:, :, good_sims]
     U_good = forecast.sim_realisations.U[:, :, good_sims]
     good_TPs_inds = good_TPs_inds[good_sims]
+    Z_historical_good = forecast.sim_realisations.Z_historical[:, good_sims]
     
+    # determine top p×100% of simulations
+    # top_good_inds = final_check(D_good, local_cases; p = 0.1, metric = "RMSE")
+    # # now filter out only these "close" simulations
+    # D_good = D_good[:, :, top_good_inds]
+    # U_good = U_good[:, :, top_good_inds]
+    # good_TPs_inds = good_TPs_inds[top_good_inds]
+    # Z_historical_good = Z_historical_good[:, top_good_inds]
+    
+    # truncate the TP to the same period as per D and U
     TP_local_truncated = TP_local[(end - forecast.sim_features.T_end):end, :]
     # calculate the total number of infections by day t
-    Z_historical = forecast.sim_realisations.Z_historical
     Z_historical_cumulative = cumsum(
-        Z_historical[:, good_sims],
+        Z_historical_good, 
         dims = 1,
     )[(end - forecast.sim_features.T_end):end, :]
     prop_infected = Z_historical_cumulative ./ N

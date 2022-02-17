@@ -9,9 +9,9 @@ function map_day_to_index_Z(day)
     """
     Map the day to the appropriate index for the infection array Z.
     """
-    res = day + 35
+    res = day + 35 + 1
     
-    return day + 35
+    return res
     
 end
 
@@ -23,6 +23,7 @@ function map_day_to_index_UD(day)
     res = (day <= 0) * 1 + (day > 0) * (day + 1)
     
     return res
+    
 end
 
 function NegativeBinomial2(μ, ϕ)
@@ -34,6 +35,7 @@ function NegativeBinomial2(μ, ϕ)
     r = ϕ
 
     return NegativeBinomial(r, p)
+    
 end
 
 function sample_inf_time(; omicron=false)
@@ -53,7 +55,7 @@ function sample_inf_time(; omicron=false)
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
-    infection_time = round(Int, rand(Gamma(shape, scale)))
+    infection_time = ceil(Int, rand(Gamma(shape, scale)))
     
     return infection_time
     
@@ -64,6 +66,7 @@ function sample_onset_time(; omicron=false)
     """
     Sample incubation times for num individuals based on incubation period 
     distribution, Gamma(shape_inc, scale_inc). 
+    
     We round the times instead of take the ceiling as then we sort of deal with 
     the cases when infector-infectee pairs have same day presence. Think about when 
     an individual is infected at the start of day t and infects the other person that
@@ -77,7 +80,7 @@ function sample_onset_time(; omicron=false)
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
     
-    onset_time = round(Int, rand(Gamma(shape, scale)))
+    onset_time = ceil(Int, rand(Gamma(shape, scale)))
     
     return onset_time
     
@@ -129,6 +132,7 @@ function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     X = rand(NegativeBinomial(s, p))
     
     return X 
+    
 end
 
 
@@ -150,6 +154,7 @@ function sample_binomial_limit(n, p; approx_limit = 1000)
     X = rand(Binomial(n, p))
     
     return X 
+    
 end
 
 
@@ -233,10 +238,10 @@ function read_in_susceptible_depletion(file_date)
     
     susceptible_depletion = Vector(
         CSV.read(
-            "results/forecasting/sampled_susceptible_depletion_"*file_date*".csv", 
+            "results/forecasting/sampled_susceptible_depletion_" * file_date * ".csv", 
             DataFrame, 
-            drop=[1],
-        )[:,1]
+            drop = [1],
+        )[:, 1]
     )
     
     return susceptible_depletion
@@ -297,8 +302,9 @@ function read_in_cases(
 			# add the incubation for omicron dates in 
 			inc = (1 - is_omicron) * inc + is_omicron * inc_omicron
 		end
-		
+        
 		complete_dates = complete_dates - ceil.(inc) * Day(1)
+        
 	end
 
 	# other useful fields

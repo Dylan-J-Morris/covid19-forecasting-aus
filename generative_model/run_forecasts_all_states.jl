@@ -17,7 +17,7 @@ end
 # states to simulate 
 const states_to_run = [
     "ACT",
-    "NSW",
+    # "NSW",
     "NT",
     "QLD",
     "SA",
@@ -27,14 +27,14 @@ const states_to_run = [
 ]
 
 const nsims = Dict{String, Int}(
-    "NSW" => 3000,
-    "QLD" => 3000,
-    "SA" => 3000,
-    "VIC" => 3000,
-    "WA" => 3000,
-    "ACT" => 3000,
-    "NT" => 3000,
-    "TAS" => 3000,
+    # "NSW" => 10000,
+    "QLD" => 10000,
+    "SA" => 10000,
+    "VIC" => 10000,
+    "WA" => 10000,
+    "ACT" => 10000,
+    "NT" => 10000,
+    "TAS" => 10000,
 )
 
 # run main 
