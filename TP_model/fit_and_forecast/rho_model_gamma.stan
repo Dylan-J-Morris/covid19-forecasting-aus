@@ -442,8 +442,10 @@ model {
 
     // variables for vax effects (reused for Delta and Omicron VEs)
     real mean_vax;
-    real var_vax_delta = 0.0005;     
-    real var_vax_omicron = 0.0005;
+    real var_vax_delta = 0.00005;     
+    real var_vax_omicron = 0.00005;
+    // real var_vax_delta = 0.0005;     
+    // real var_vax_omicron = 0.0005;
     real a_vax_scalar;
     real b_vax_scalar;
     
@@ -461,10 +463,11 @@ model {
     // third wave transition parameters 
     m0 ~ uniform(0, 0.1);     // initial Omicron proportion is low 
     m1 ~ uniform(0.90, 1);     // long term Omicron proportion 
-    r ~ gamma(5, 20);       // median of 0.2
+    // r ~ gamma(3*5, 3*20);       // median of 0.2
+    r ~ gamma(3 * 5, 3 * 20);       // median of 0.2
     
     for (i in 1:j_third_wave) {
-        tau[i] ~ normal(30, 1) T[15, 45];     // mean of 20 days 
+        tau[i] ~ normal(30, 2) T[15, 45];     // mean of 20 days 
     }
     
     // gives full priors of 1 + Gamma() for each VoC effect

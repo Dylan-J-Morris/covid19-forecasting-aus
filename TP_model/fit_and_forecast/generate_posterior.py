@@ -1,10 +1,7 @@
 ######### imports #########
 from ast import arg
-from datetime import time, timedelta
-from math import trunc
+from datetime import timedelta
 import sys
-
-from pandas.core.tools.datetimes import to_datetime
 
 sys.path.insert(0, "TP_model")
 sys.path.insert(0, "TP_model/fit_and_forecast")
@@ -19,8 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import matplotlib
-from numpy.random import sample
-from scipy.stats import truncnorm
 from math import ceil
 import pickle
 import stan
@@ -1996,7 +1991,7 @@ def main(data_date, run_inference=True):
     """
     # some parameters for HMCn
     if run_inference:     
-        num_chains = 4
+        num_chains = 2
         num_samples = 1000
         num_warmup_samples = 1000
         get_data_for_posterior(data_date=data_date)

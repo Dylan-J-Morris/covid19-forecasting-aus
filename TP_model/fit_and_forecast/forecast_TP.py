@@ -704,7 +704,7 @@ for i, state in enumerate(states):
 
     new_delta = []
     new_omicron = []
-    var_vax = 0.0005
+    var_vax = 0.00005
     a_vax = np.zeros_like(mob_samples)
     b_vax = np.zeros_like(mob_samples)
 
@@ -1124,67 +1124,67 @@ df_ve_omicron.to_csv(
 print("============")
 print("Plotting forecasted estimates")
 print("============")
-# expo_decay = True
-# theta_md = np.tile(df_samples["theta_md"].values, (df_md["NSW"].shape[0], 1))
+expo_decay = True
+theta_md = np.tile(df_samples["theta_md"].values, (df_md["NSW"].shape[0], 1))
 
-# fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
-# for i, state in enumerate(plot_states):
-#     # np.random.normal(df_md[state].values, df_md_std.values)
-#     prop_sim = df_md[state].values
-#     if expo_decay:
-#         md = ((1 + theta_md).T ** (-1 * prop_sim)).T
-#     else:
-#         md = 2 * expit(-1 * theta_md * prop_sim[:, np.newaxis])
+fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+for i, state in enumerate(plot_states):
+    # np.random.normal(df_md[state].values, df_md_std.values)
+    prop_sim = df_md[state].values
+    if expo_decay:
+        md = ((1 + theta_md).T ** (-1 * prop_sim)).T
+    else:
+        md = 2 * expit(-1 * theta_md * prop_sim[:, np.newaxis])
 
-#     row = i // 2
-#     col = i % 2
+    row = i // 2
+    col = i % 2
 
-#     ax[row, col].plot(
-#         df_md[state].index, np.median(md, axis=1), label="Microdistancing"
-#     )
-#     ax[row, col].fill_between(
-#         df_md[state].index,
-#         np.quantile(md, 0.25, axis=1),
-#         np.quantile(md, 0.75, axis=1),
-#         label="Microdistancing",
-#         alpha=0.4,
-#         color="C0",
-#     )
-#     ax[row, col].fill_between(
-#         df_md[state].index,
-#         np.quantile(md, 0.05, axis=1),
-#         np.quantile(md, 0.95, axis=1),
-#         label="Microdistancing",
-#         alpha=0.4,
-#         color="C0",
-#     )
-#     ax[row, col].set_title(state)
-#     ax[row, col].tick_params("x", rotation=45)
+    ax[row, col].plot(
+        df_md[state].index, np.median(md, axis=1), label="Microdistancing"
+    )
+    ax[row, col].fill_between(
+        df_md[state].index,
+        np.quantile(md, 0.25, axis=1),
+        np.quantile(md, 0.75, axis=1),
+        label="Microdistancing",
+        alpha=0.4,
+        color="C0",
+    )
+    ax[row, col].fill_between(
+        df_md[state].index,
+        np.quantile(md, 0.05, axis=1),
+        np.quantile(md, 0.95, axis=1),
+        label="Microdistancing",
+        alpha=0.4,
+        color="C0",
+    )
+    ax[row, col].set_title(state)
+    ax[row, col].tick_params("x", rotation=45)
 
-#     ax[row, col].set_xticks(
-#         [df_md[state].index.values[-n_forecast - extra_days_md]],
-#         minor=True,
-#     )
-#     ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
+    ax[row, col].set_xticks(
+        [df_md[state].index.values[-n_forecast - extra_days_md]],
+        minor=True,
+    )
+    ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
 
-# fig.text(
-#     0.03,
-#     0.5,
-#     "Multiplicative effect \n of micro-distancing $M_d$",
-#     ha="center",
-#     va="center",
-#     rotation="vertical",
-#     fontsize=20,
-# )
+fig.text(
+    0.03,
+    0.5,
+    "Multiplicative effect \n of micro-distancing $M_d$",
+    ha="center",
+    va="center",
+    rotation="vertical",
+    fontsize=20,
+)
 
-# fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
+fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
 
-# plt.tight_layout(rect=[0.05, 0.04, 1, 1])
+plt.tight_layout(rect=[0.05, 0.04, 1, 1])
 
-# fig.savefig(
-#     "figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d") + "/md_factor.png",
-#     dpi=144,
-# )
+fig.savefig(
+    "figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d") + "/md_factor.png",
+    dpi=144,
+)
 
 # theta_masks = np.tile(df_samples["theta_masks"].values, (df_masks["NSW"].shape[0], 1))
 
@@ -1605,53 +1605,72 @@ for typ in forecast_type:
         # note that in here we apply the entire sample to the vaccination data to create a days by samples array
         tmp_date = pd.to_datetime("2020-03-01")
         
+        # get the correct Omicron start date 
+        omicron_start_date_tmp = np.maximum(
+            pd.to_datetime(omicron_start_date),
+            pd.to_datetime(third_date_range[state][0]),
+        )
+        # calculate the number of days with omicron used in the fitting
+        days_of_omicron = np.sum(
+            v >= omicron_start_date_tmp for v in third_date_range[state]
+        )
+        
+        omicron_start_day_tmp = (
+            pd.to_datetime(omicron_start_date_tmp) - pd.to_datetime(start_date)
+        ).days
+        
         for ii in range(voc_vacc_product.shape[0]):
-            if ii < omicron_start_day:
+            # if before omicron introduced in a jurisdiction, we consider what period we're at: 
+            # 1. Wildtype
+            # 2. Alpha
+            # 3. Delta
+            if ii < omicron_start_day_tmp:
                 if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
                     voc_vacc_product[ii] = vacc_ts_delta[ii, :]
                 elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
                     voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
-                elif ii < df_state.loc[df_state.date < omicron_start_date].shape[0]:
+                elif ii < df_state.loc[df_state.date < omicron_start_date_tmp].shape[0]:
                     voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
-            elif ii < omicron_start_day + len(idx[state]):
-                jj = ii - omicron_start_day
-                # if state is one of the late starters, we assume that almost all cases are 
-                # Omicron, i.e. assume a fixed level as the transition point for 
-                # most other jurisdictions is around December and we can assume that the import 
-                # risk is almost completely omicron
-                if state in {'NT', 'TAS', 'WA'}:
-                    m = m1[ii]
-                else:
-                    m = sigmoid(jj, r[ii], tau[ii], m0[ii], m1[ii])
-                # this is just the vaccination model for delta
-                vacc_delta_tmp = vacc_ts_delta[ii, :]
-                vacc_omicron_tmp = vacc_ts_omicron[ii, :]
-                # this is the simplified form of the mixture model of the vaccination effects
-                voc_vacc_product[ii] = (
-                    m * vacc_omicron_tmp * voc_multiplier_omicron[ii] 
-                    + (1 - m) * vacc_delta_tmp * voc_multiplier_delta[ii]
-                )
-                
+                    
             else:
-                # variance on beta distribution centered at m_last
-                if tt == 0:
-                    m_last = m
-                    var_omicron = 0.0025
+                if ii < omicron_start_day_tmp + days_of_omicron:
+                    jj = ii - omicron_start_day_tmp
+                    # if state is one of the late starters, we assume that almost all cases are 
+                    # Omicron, i.e. assume a fixed level as the transition point for 
+                    # most other jurisdictions is around December and we can assume that the import 
+                    # risk is almost completely omicron
+                    if state in {'NT', 'TAS', 'WA'}:
+                        m = m1[ii]
+                    else:
+                        m = sigmoid(jj, r[ii], tau[ii], m0[ii], m1[ii])
+                        
+                    # this is just the vaccination model for delta
+                    vacc_delta_tmp = vacc_ts_delta[ii, :]
+                    vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                    # this is the simplified form of the mixture model of the vaccination effects
+                    voc_vacc_product[ii] = (
+                        m * vacc_omicron_tmp * voc_multiplier_omicron[ii] 
+                        + (1 - m) * vacc_delta_tmp * voc_multiplier_delta[ii]
+                    )
+                
+                else:
+                    if tt == 0:
+                        m_last = m
 
-                # number of days after the start of omicron
-                jj = ii - omicron_start_day
-                # this is just the vaccination model for delta
-                vacc_delta_tmp = vacc_ts_delta[ii, :]
-                vacc_omicron_tmp = vacc_ts_omicron[ii, :]
-                # this is the simplified form of the mixture model of the vaccination effects
-                voc_vacc_product[ii] = (
-                    m_last * vacc_omicron_tmp * voc_multiplier_omicron[ii] + 
-                    (1 - m_last) * vacc_delta_tmp * voc_multiplier_delta[ii]
-                )
+                    # number of days after the start of omicron
+                    jj = ii - omicron_start_day
+                    # this is just the vaccination model for delta
+                    vacc_delta_tmp = vacc_ts_delta[ii, :]
+                    vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                    # this is the simplified form of the mixture model of the vaccination effects
+                    voc_vacc_product[ii] = (
+                        m_last * vacc_omicron_tmp * voc_multiplier_omicron[ii] + 
+                        (1 - m_last) * vacc_delta_tmp * voc_multiplier_delta[ii]
+                    )
 
-                # increment days into omicron forecast
-                tt += 1
-
+                    # increment days into omicron forecast
+                    tt += 1
+        
         # calculate TP
         R_L = (
             2
