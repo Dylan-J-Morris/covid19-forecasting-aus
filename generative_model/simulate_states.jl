@@ -23,7 +23,7 @@ function simulate_single_state(
     
     # set seed for consistent plots (NOTE: this is not useful when multithreading 
     # enabled as we use separate seeds but the simulation pool should handle that)
-    rng = Random.Xoshiro(2022)
+    rng = Random.seed!(2022)
     
     jurisdiction_assumptions = JurisdictionAssumptions()
     
