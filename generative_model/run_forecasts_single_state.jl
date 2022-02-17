@@ -28,4 +28,4 @@ const nsims = Dict{String, Int}(
 )
 
 # run main 
-simulate_single_state(file_date, state, nsims, run_simulation)
+simulate_single_state(file_date, state, nsims[state], run_simulation)
