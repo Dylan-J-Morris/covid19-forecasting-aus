@@ -242,11 +242,11 @@ struct JurisdictionAssumptions
     function JurisdictionAssumptions()
         simulation_start_dates = Dict{String, String}(
             "NSW" => "2021-06-01",
-            "QLD" => "2021-11-01",
+            "QLD" => "2021-11-20",
             "SA" => "2021-11-01",
             "TAS" => "2021-11-01",
             "WA" => "2021-12-15",
-            "ACT" => "2021-08-01",
+            "ACT" => "2021-12-01",
             "NT" => "2021-12-01",
             "VIC" => "2021-08-01",
         )
@@ -269,13 +269,13 @@ struct JurisdictionAssumptions
             String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}
         }(
             "NSW" => (S = 0, A = 0, I = 0),
-            "QLD" => (S = 0, A = 0, I = 0),
+            "QLD" => (S = 1, A = 1, I = 0),
             "SA" => (S = 0, A = 0, I = 0),
             "TAS" => (S = 0, A = 0, I = 0),
             "VIC" => (S = 20, A = 20, I = 0),
-            "WA" => (S = 3, A = 2, I = 0),
-            "ACT" => (S = 0, A = 0, I = 0),
-            "NT" => (S = 3, A = 2, I = 0),
+            "WA" => (S = 1, A = 2, I = 0),
+            "ACT" => (S = 12, A = 10, I = 0),
+            "NT" => (S = 0, A = 0, I = 0),
         )
         
         return new(

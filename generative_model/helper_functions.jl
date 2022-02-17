@@ -17,7 +17,7 @@ end
 
 function map_day_to_index_UD(day)
     """
-    Map the day to the appropriate index for the infection array Z.
+    Map the day to the appropriate index for the "detection" arrays U and D.
     """
     # a branchless if statement for mapping between day and index 
     res = (day <= 0) * 1 + (day > 0) * (day + 1)
@@ -42,11 +42,6 @@ function sample_inf_time(; omicron=false)
     """
     Sample infection times for num individuals based on the generation 
     interval distribution, Gamma(shape_gen, scale_gen). 
-    We round the times instead of take the ceiling as then we sort of deal with 
-    the cases when infector-infectee pairs have same day presence. Think about when 
-    an individual is infected at the start of day t and infects the other person that
-    same day. Taking the ceiling => time = t + 1 but should be t. This is different 
-    the old Python model but in that we tracked individuals exact times. 
     """
 
     (shape_gen, scale_gen) = (2.75, 1.00)
@@ -66,12 +61,6 @@ function sample_onset_time(; omicron=false)
     """
     Sample incubation times for num individuals based on incubation period 
     distribution, Gamma(shape_inc, scale_inc). 
-    
-    We round the times instead of take the ceiling as then we sort of deal with 
-    the cases when infector-infectee pairs have same day presence. Think about when 
-    an individual is infected at the start of day t and infects the other person that
-    same day. Taking the ceiling => time = t + 1 but should be t. This is different 
-    the old Python model but in that we tracked individuals exact times. 
     """
     
     (shape_inc, scale_inc) = (5.807, 0.948)

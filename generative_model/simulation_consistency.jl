@@ -66,50 +66,72 @@ function calculate_bounds(local_cases, τ, state)
     
     n2 = 7
     
-    for t in range(1, T)
+    for t in 1:T
         
         if state == "NSW"    
             if t < 30
                 (ℓ, u) = (0, 10)
             elseif t < T - 7
-                (ℓ, u) = (0.25, 3.0)
+                (ℓ, u) = (0.25, 2.0)
             else
-                (ℓ, u) = (0.5, 3.0)
+                (ℓ, u) = (0.5, 2.0)
             end
         else
             if t < 7
                 (ℓ, u) = (0, 3.0)
             elseif t < T - 7
-                (ℓ, u) = (0.25, 3.0)
+                (ℓ, u) = (0.5, 2.0)
             else
-                (ℓ, u) = (0.5, 2.5)
+                (ℓ, u) = (0.5, 2.0)
             end
         end
         
         # approximate the slope naively 
         if t < T - n
-            m = (local_cases[map_day_to_index_UD(t) + n] - local_cases[map_day_to_index_UD(t)]) / n
+            m = 1 / n * (
+                local_cases[map_day_to_index_UD(t) + n] - 
+                local_cases[map_day_to_index_UD(t)]
+            )
         else
-            m = (local_cases[map_day_to_index_UD(t)] - local_cases[map_day_to_index_UD(t) - n]) / n
+            m = 1 / n * (
+                local_cases[map_day_to_index_UD(t)] - 
+                local_cases[map_day_to_index_UD(t) - n]
+            ) 
         end
         
         Mₜ[t] = m
         
         # depending on the sign of the slope, take average of future or past cases 
         if m < -ϵ
-            Lₜ[t] = ℓ * mean(local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]) 
-            Uₜ[t] = u * mean(local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]) 
+            Lₜ[t] = ℓ * mean(
+                local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]
+            ) 
+            Uₜ[t] = u * mean(
+                local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]
+            ) 
             # Lₜ[t] = mean(local_cases[t:min(T, t + n)]) 
             # Uₜ[t] = mean(local_cases[max(1, t - n):t]) 
         elseif m > ϵ
-            Lₜ[t] = ℓ * mean(local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]) 
-            Uₜ[t] = u * mean(local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]) 
+            Lₜ[t] = ℓ * mean(
+                local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]
+            ) 
+            Uₜ[t] = u * mean(
+                local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]
+            ) 
             # Lₜ[t] = mean(local_cases[max(1, t - 2):t]) 
             # Uₜ[t] = mean(local_cases[t:min(T, t + 2)]) 
         else
             n2 = n ÷ 2
-            Lₜ[t] = ℓ * mean(local_cases[max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)]) 
-            Uₜ[t] = u * mean(local_cases[max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)]) 
+            Lₜ[t] = ℓ * mean(
+                local_cases[
+                    max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)
+                ]
+            ) 
+            Uₜ[t] = u * mean(
+                local_cases[
+                    max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)
+                ]
+            ) 
             # Lₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
             # Uₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
         end
@@ -122,10 +144,16 @@ function calculate_bounds(local_cases, τ, state)
         if Uₜ[t] < 25
             Uₜ[t] = 25
         end
+        
+        if isnan(Lₜ[t])
+            Lₜ[t] = Lₜ[t-1]
+        end
+        
+        if isnan(Uₜ[t])
+            Uₜ[t] = Uₜ[t-1]
+        end
     end
     
-    # return (Lₜ, Uₜ, Mₜ)
-    # return (Lₜ[14:end], Uₜ[14:end]) 
     return (Lₜ, Uₜ) 
     
 end
@@ -319,9 +347,7 @@ function check_sim!(
         # sim_7_day_cases = sum(@view D[day-6:day,:,sim])
         # sim__day_threshold = consistency_multiplier*max(1, sim_3_day_cases)
         # calculate total number of cases over week 
-        sim_3_day_cases = max(
-            0, sum(@view D[map_day_to_index_UD(day), 1:2, sim])
-        )
+        sim_3_day_cases = sum(@view D[map_day_to_index_UD(day), 1:2, sim])
         missing_detections = 0
         threshold = max(1, ceil(Int, consistency_multiplier * sim_3_day_cases))
         
@@ -333,12 +359,9 @@ function check_sim!(
                 " day added: ", day,
             )
             # uniformly sample a number of missing detections to add in
-            missing_detections = max(
-                1, 
-                ceil(
-                    Int, 
-                    observed_3_day_cases - sim_3_day_cases,
-                ),
+            missing_detections = ceil(
+                Int, 
+                observed_3_day_cases - sim_3_day_cases,
             )
             
             # println("missing detections: ", missing_detections)
