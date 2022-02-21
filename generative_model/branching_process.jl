@@ -556,7 +556,9 @@ function simulate_branching_process(
     """
     # read in the TP for a given state and date
     (TP_indices, TP_local, TP_import) = create_state_TP_matrices(
-        forecast_start_date, date, state
+        forecast_start_date, 
+        date, 
+        state,
     )
     # read in susceptible_depletion parameters 
     susceptible_depletion = read_in_susceptible_depletion(date)
@@ -610,6 +612,8 @@ function simulate_branching_process(
     
     good_TPs_inds = SharedArray(zeros(Int, nsims))
     
+    # Applying a reduction in NSW TP based off observations in the fit. This issue is
+    # pre-third wave so doesn't really influence the results for Omicron. 
     if state == "NSW"
         TP_ind = findfirst(40 == ind for ind in TP_indices)
         TP_local[1:TP_ind, :] *= 0.5

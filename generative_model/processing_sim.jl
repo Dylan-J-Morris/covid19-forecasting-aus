@@ -1,7 +1,14 @@
 using DataFrames
 using CSV
 
-function save_simulations(D,TP_local,state,file_date,onset_dates,rng)
+function save_simulations(
+    D,
+    TP_local,
+    state,
+    file_date,
+    onset_dates,
+    rng,
+)
     """
     Saves a CSV in the same format as required for the ensemble forecast. 
     Also saves a CSV for the TP paths used per simulation.

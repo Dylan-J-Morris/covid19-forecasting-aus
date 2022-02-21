@@ -273,7 +273,7 @@ struct JurisdictionAssumptions
             "SA" => (S = 0, A = 0, I = 0),
             "TAS" => (S = 0, A = 0, I = 0),
             "VIC" => (S = 20, A = 20, I = 0),
-            "WA" => (S = 1, A = 2, I = 0),
+            "WA" => (S = 0, A = 0, I = 0),
             "ACT" => (S = 12, A = 10, I = 0),
             "NT" => (S = 0, A = 0, I = 0),
         )

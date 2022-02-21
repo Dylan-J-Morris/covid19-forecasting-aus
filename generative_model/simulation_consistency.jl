@@ -68,21 +68,29 @@ function calculate_bounds(local_cases, τ, state)
     
     for t in 1:T
         
-        if state == "NSW"    
+        if state == "NSW"  
             if t < 30
                 (ℓ, u) = (0, 10)
             elseif t < T - 7
-                (ℓ, u) = (0.25, 2.0)
+                (ℓ, u) = (0.25, 2.5)
             else
                 (ℓ, u) = (0.5, 2.0)
             end
+        elseif state == "NT"
+            if t < 30
+                (ℓ, u) = (0, 4.0)
+            elseif t < T - 7
+                (ℓ, u) = (0.25, 4.0)
+            else
+                (ℓ, u) = (0.5, 3.0)
+            end
         else
             if t < 7
-                (ℓ, u) = (0, 3.0)
+                (ℓ, u) = (0, 4.0)
             elseif t < T - 7
-                (ℓ, u) = (0.5, 2.0)
+                (ℓ, u) = (0.25, 3.0)
             else
-                (ℓ, u) = (0.5, 2.0)
+                (ℓ, u) = (0.5, 3.0)
             end
         end
         
@@ -137,12 +145,12 @@ function calculate_bounds(local_cases, τ, state)
         end
         
         # adjust the bounds for periods with low cases
-        if Lₜ[t] < 25
+        if Lₜ[t] < 50
             Lₜ[t] = 0
         end
         
-        if Uₜ[t] < 25
-            Uₜ[t] = 25
+        if Uₜ[t] < 50
+            Uₜ[t] = 50
         end
         
         if isnan(Lₜ[t])
@@ -273,18 +281,19 @@ function check_sim!(
     # days forecast observed for 
     T_observed = forecast.sim_features.T_observed
     max_forecast_cases = forecast.sim_features.max_forecast_cases
-    
     consistency_multiplier = forecast.sim_constants.consistency_multiplier
     
     # initialise the bad sim
     bad_sim = false
     injected_cases = false 
     
-    days_delta = (Dates.Date(omicron_dominant_date) - 
-        Dates.Date(forecast_start_date)).value
+    days_delta = (
+        Dates.Date(omicron_dominant_date) - 
+        Dates.Date(forecast_start_date)
+    ).value
     
     # this is just the total cases over the forecast horizon 
-    D_forecast = sum(@view D[T_observed+1:end, 1:2, sim])
+    D_forecast = sum(@view D[T_observed + 1:end, 1:2, sim])
     # count how many cases each day 
     count_cases!(case_counts, forecast, sim)
     
@@ -304,34 +313,34 @@ function check_sim!(
     end
     
     if !bad_sim 
-        # if any(case_counts .> max_cases) 
-        #     bad_sim = true 
-        # end
-        for (i, (c, m)) in enumerate(
-            zip(case_counts, max_cases)
-        )
-            if c > m 
-                bad_sim = true 
-                # bad_sim && println("sim: ", sim, " had too many cases: ", c, " > ", m)
-                print_status && println("sim: ", sim, " too many cases: ", c, " > ", m, " day: ", day)
-                break
-            end
+        if any(case_counts .> max_cases) 
+            bad_sim = true 
         end
+        # for (i, (c, m)) in enumerate(
+        #     zip(case_counts, max_cases)
+        # )
+        #     if c > m 
+        #         bad_sim = true 
+        #         # bad_sim && println("sim: ", sim, " had too many cases: ", c, " > ", m)
+        #         print_status && println("sim: ", sim, " too many cases: ", c, " > ", m, " day: ", day)
+        #         break
+        #     end
+        # end
         
         if day == 0 
-            # if any(case_counts .< min_cases)
-            #     bad_sim = true
-            # end
-            
-            for (i, (c, m)) in enumerate(
-                zip(case_counts, min_cases)
-            )
-                if c < m 
-                    bad_sim = true 
-                    print_status && println("sim: ", sim, " too few cases: ", c, " < ", m, " day: ", day)
-                    break
-                end
+            if any(case_counts .< min_cases)
+                bad_sim = true
             end
+            
+            # for (i, (c, m)) in enumerate(
+            #     zip(case_counts, min_cases)
+            # )
+            #     if c < m 
+            #         bad_sim = true 
+            #         print_status && println("sim: ", sim, " too few cases: ", c, " < ", m, " day: ", day)
+            #         break
+            #     end
+            # end
         end
     end
     
@@ -406,6 +415,8 @@ function inject_cases!(
     p_symp = 0.0 
     p_detect_given_symp = 0.0 
     p_detect_given_asymp = 0.0 
+    p_symp_given_detect = 0.0 
+    
     # grab the correct parameters for the particular dominant strain 
     if day < omicron_dominant_day 
         p_symp = forecast.sim_constants.p_symp.delta 
@@ -435,6 +446,7 @@ function inject_cases!(
     # infer some undetected asumptomatic
     num_symptomatic_total = num_symptomatic_detected + num_symptomatic_undetected
     
+    num_asymptomatic_undetected = 0
     if num_symptomatic_total == 0
         num_asymptomatic_undetected = sample_negative_binomial_limit(1, p_symp)
     else

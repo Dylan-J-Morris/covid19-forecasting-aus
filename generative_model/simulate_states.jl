@@ -23,7 +23,8 @@ function simulate_single_state(
     
     # set seed for consistent plots (NOTE: this is not useful when multithreading 
     # enabled as we use separate seeds but the simulation pool should handle that)
-    rng = Random.seed!(2022)
+    # rng = Random.seed!(2022)
+    rng = Random.Xoshiro(2022)
     
     jurisdiction_assumptions = JurisdictionAssumptions()
     
@@ -102,7 +103,7 @@ function simulate_all_states(
     
     # set seed for consistent plots (NOTE: this is not useful when multithreading 
     # enabled as we use separate seeds but the simulation pool should handle that)
-    rng = Random.Xoshiro(2022)
+    rng = Random.seed!(2022)
 
     jurisdiction_assumptions = JurisdictionAssumptions()
 
@@ -121,6 +122,10 @@ function simulate_all_states(
     
     if run_simulation 
         for state in states
+            
+            println("======================")
+            println("Simulating ", state)
+            println("======================")
 
             forecast_start_date = Dates.Date(
                 jurisdiction_assumptions.simulation_start_dates[state]

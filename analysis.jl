@@ -27,6 +27,7 @@ let
     using Random
     using Distributions
     using BenchmarkTools
+    using ProgressBars
 end
 
 gr()
@@ -41,7 +42,7 @@ scalefontsizes(0.95)
 ##
 
 samples = CSV.read(
-    "results/posterior_sample_2022-02-09.csv", 
+    "results/posterior_sample_2022-02-15.csv", 
     DataFrame, 
 )
 
@@ -163,15 +164,21 @@ end
 # estimates. More of a sanity check than anything else and just helps to see that the
 # posterior sampled μ(t) and recombined/forecasted estimates align. 
 
-state = "NT"
+state = "ACT"
 
-mu_hat_filtered_old = CSV.read(
-    "results/UoA_forecast_output/2022-02-02/" * state * "_2022-02-02_TP.csv",
-    DataFrame,
+# mu_hat_filtered_old = CSV.read(
+#     "results/UoA_forecast_output/2022-02-15/" * state * "_2022-02-15_TP.csv",
+#     DataFrame,
+# )
+
+mu_hat_local = CSV.read(
+    "mu_hat_Australian Capital Territory.csv", 
+    DataFrame, 
+    drop = [1],
 )
 
 mu_hat_all = CSV.read(
-    "results/soc_mob_R2022-02-09.csv", 
+    "results/soc_mob_R2022-02-15.csv", 
     DataFrame,
     drop = [1],
 )
@@ -184,12 +191,12 @@ mu_hat_forecast = @chain mu_hat_all begin
 end
 
 mu_hat_filtered = CSV.read(
-    "results/UoA_forecast_output/2022-02-09/" * state * "_2022-02-09_TP.csv",
+    "results/UoA_forecast_output/2022-02-15/" * state * "_2022-02-15_TP.csv",
     DataFrame,
 )
 
 Reff = CSV.read(
-    "results/EpyReff/Reff2022-02-09tau_5.csv", 
+    "results/EpyReff/Reff2022-02-15tau_5.csv", 
     DataFrame
 )
 
@@ -205,16 +212,51 @@ plot!(
     mu_hat_filtered_median,    
     label = "filtered mu"
 )
-mu_hat_filtered_old_median = median(Matrix(mu_hat_filtered_old[:,3:end-1]), dims = 2)
+mu_hat_local_median = median(Matrix(mu_hat_local[:,3:end-1]), dims = 1)[:]
+t0 = Dates.Date("2021-12-01")
+Δt = Dates.Day(1)
+t1 = t0 + Dates.Day(length(mu_hat_local_median)-1)
+dr = t0:Δt:t1
 plot!(
-    mu_hat_filtered_old[:,"onset date"], 
-    mu_hat_filtered_old_median,    
-    label = "old filtered mu"
+    dr, 
+    mu_hat_local_median,    
+    label = "fitted mu"
 )
 plot!(
     Reff_state[:,"INFECTION_DATES"], 
     Reff_state[:,"median"],    
     label = "Reff"
+)
+vline!(
+    [Dates.Date("2021-12-19")]
+)
+ylims!((0,2))
+# xlims!((NSW_date_range[1], NSW_date_range[end] + Dates.Day(35)))
+xlims!((Dates.Date("2021-12-15"), Dates.Date("2021-12-15") + Dates.Day(60)))
+
+Reff_state = filter(:STATE => ==(state), Reff)
+plot(
+    mu_hat_forecast.date, 
+    Matrix(mu_hat_forecast[!,9:end]),
+    label = "mu", 
+    lc = 1, 
+    leg = false, 
+)
+# mu_hat_filtered_median = median(Matrix(mu_hat_filtered[:,3:end-1]), dims = 2)
+# plot!(
+#     mu_hat_filtered[:,"onset date"], 
+#     mu_hat_filtered_median,    
+#     label = "filtered mu"
+# )
+mu_hat_local_mat = Matrix(mu_hat_local[:,3:end-1])'
+t0 = Dates.Date("2021-12-01")
+Δt = Dates.Day(1)
+t1 = t0 + Dates.Day(length(mu_hat_local_median)-1)
+dr = t0:Δt:t1
+plot!(
+    dr, 
+    mu_hat_local_mat,    
+    lc = 2, 
 )
 vline!(
     [Dates.Date("2021-12-19")]
