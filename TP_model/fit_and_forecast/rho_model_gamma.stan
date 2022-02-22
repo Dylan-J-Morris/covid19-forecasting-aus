@@ -461,13 +461,15 @@ model {
     // theta_masks ~ exponential(5);
     
     // third wave transition parameters 
-    m0 ~ uniform(0, 0.1);     // initial Omicron proportion is low 
-    m1 ~ uniform(0.90, 1);     // long term Omicron proportion 
+    // m0 ~ uniform(0, 0.1);     // initial Omicron proportion is low 
+    // m1 ~ uniform(0.90, 1);     // long term Omicron proportion 
     // r ~ gamma(3*5, 3*20);       // median of 0.2
-    r ~ gamma(3 * 5, 3 * 20);       // median of 0.2
+    r ~ gamma(4 * 5, 4 * 20);       // median of 0.2
     
     for (i in 1:j_third_wave) {
         tau[i] ~ normal(30, 2) T[15, 45];     // mean of 20 days 
+        m0[i] ~ normal(0.05, 0.05) T[0, 0.1];
+        m1[i] ~ normal(0.95, 0.05) T[0.9, 1.0];     // long term Omicron proportion 
     }
     
     // gives full priors of 1 + Gamma() for each VoC effect
