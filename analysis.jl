@@ -42,11 +42,11 @@ scalefontsizes(0.95)
 ##
 
 samples = CSV.read(
-    "results/posterior_sample_2022-02-15.csv", 
+    "results/posterior_sample_2022-02-22.csv", 
     DataFrame, 
 )
 
-plot_kde = false
+plot_kde = true
 plot_traceplots = false
 
 # filter by divergent samples

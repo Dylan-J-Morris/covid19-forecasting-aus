@@ -94,9 +94,11 @@ struct Constants{S, T}
         )
         p_detect_given_symp_delta = p_detect_given_symp_delta_dict[state]
         p_detect_given_asymp_delta = p_detect_given_asymp_delta_dict[state]
-        p_detect_delta = p_symp_delta*p_detect_given_symp_delta + 
-            (1-p_symp_delta)*p_detect_given_asymp_delta 
-        p_symp_given_detect_delta = p_detect_given_symp_delta*p_symp_delta/p_detect_delta 
+        p_detect_delta = p_symp_delta * p_detect_given_symp_delta + 
+            (1 - p_symp_delta) * p_detect_given_asymp_delta 
+        p_symp_given_detect_delta = (
+            p_detect_given_symp_delta * p_symp_delta / p_detect_delta 
+        )
         # prob of detecting an international import 
         p_detect_import_delta = 0.98
         
@@ -125,18 +127,18 @@ struct Constants{S, T}
         )
         p_detect_given_symp_omicron = p_detect_given_symp_omicron_dict[state]
         p_detect_given_asymp_omicron = p_detect_given_asymp_omicron_dict[state]
-        p_detect_omicron = p_symp_omicron*p_detect_given_symp_omicron + 
-            (1-p_symp_omicron)*p_detect_given_asymp_omicron 
+        p_detect_omicron = p_symp_omicron * p_detect_given_symp_omicron + 
+            (1 - p_symp_omicron)* p_detect_given_asymp_omicron 
         p_symp_given_detect_omicron = (
-            p_detect_given_symp_omicron*p_symp_omicron/p_detect_omicron 
+            p_detect_given_symp_omicron * p_symp_omicron / p_detect_omicron 
         )
         # as of 1/1/2022, same as the probability of detection for local omicron cases 
-        p_detect_import_omicron = p_detect_omicron  
+        p_detect_import_omicron = p_detect_omicron
         
         γ = 0.5     # relative infectiousness of asymptomatic
-        α_s_delta = 1/(p_symp_delta + γ*(1-p_symp_delta))
+        α_s_delta = 1 / (p_symp_delta + γ * (1 - p_symp_delta))
         α_a_delta = γ * α_s_delta
-        α_s_omicron = 1/(p_symp_omicron + γ*(1-p_symp_omicron))
+        α_s_omicron = 1 / (p_symp_omicron + γ * (1 - p_symp_omicron))
         α_a_omicron = γ * α_s_omicron
         
         # store all parameters in named tuples indexed by strain
@@ -158,11 +160,11 @@ struct Constants{S, T}
         )
         p_symp_given_detect = (
             delta = p_symp_given_detect_delta,
-            omicron = p_symp_given_detect_omicron,  
+            omicron = p_symp_given_detect_omicron,
         )
         p_detect_import = (
-            delta = p_detect_import_delta, 
-            omicron = p_detect_import_omicron
+            delta = p_detect_import_delta,
+            omicron = p_detect_import_omicron,
         )
         
         # other parameters 
@@ -279,10 +281,10 @@ struct JurisdictionAssumptions
         )
         
         return new(
-            simulation_start_dates, 
-            pop_sizes, 
-            initial_conditions, 
+            simulation_start_dates,
+            pop_sizes,
+            initial_conditions,
             omicron_dominant_date,
-        ) 
+        )
     end
 end

@@ -147,15 +147,24 @@ function plot_all_forecasts(
             )
         end
         
-        bar!(
+        # bar!(
+        #     fig, 
+        #     subplot = c, 
+        #     case_dates[case_dates_ind], 
+        #     local_cases, 
+        #     lc = "gray", 
+        #     fc = "gray", 
+        #     fillalpha = 0.4, 
+        #     linealpha = 0.4,
+        #     label = false,
+        # )
+        
+        plot!(
             fig, 
             subplot = c, 
             case_dates[case_dates_ind], 
             local_cases, 
-            lc = "gray", 
-            fc = "gray", 
-            fillalpha = 0.4, 
-            linealpha = 0.4,
+            lc = "black",
             label = false,
         )
         
