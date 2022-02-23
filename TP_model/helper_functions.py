@@ -10,7 +10,8 @@ def read_in_NNDSS(
     running_epyreff=False,
 ):
     """
-    A general function to read in the NNDSS data. Alternatively this can be manually set to read in the linelist instead.
+    A general function to read in the NNDSS data. Alternatively this can be manually
+    set to read in the linelist instead.
     Args:
         date_string: (str) a string of the date of the data file.
 
@@ -35,7 +36,8 @@ def read_in_NNDSS(
     )
 
     if not use_linelist:
-        # On occasion the date string in NNDSS will be missing the leading 0  (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
+        # On occasion the date string in NNDSS will be missing the leading 0  
+        # (e.g. 2Aug2021 vs 02Aug2021). In this case manually add the zero.
         case_file_date = pd.to_datetime(date_string).strftime("%d%b%Y")
         path = "data/COVID-19 UoM " + case_file_date + "*.xlsx"
 
@@ -84,18 +86,21 @@ def read_in_NNDSS(
                 df["date_inferred"].isna(), "NOTIFICATION_DATE"
             ]
 
-        # now we apply the incubation period to the inferred onset date. Note that this should never be done in the
-        # absence of the delay
+        # now we apply the incubation period to the inferred onset date. Note that this should 
+        # never be done in the absence of the delay
         if apply_inc_at_read:
-            # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
+            # assuming that the date_onset field is valid, this is the actual date that 
+            # individuals get symptoms
             n_infs = df["date_inferred"].shape[0]
             inc = np.random.gamma(shape=shape_inc, scale=scale_inc, size=n_infs)
-            # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior
-            # doesnt work properly
+            # need to take the ceiling of the incubation period as otherwise the merging in 
+            # generate_posterior doesnt work properly
             inc = np.ceil(inc) * timedelta(days=1)
             df["date_inferred"] = df["date_inferred"] - inc
 
-        # The first 4 digits is the country code. We use this to determin if the cases is local or imported. We can choose which assumption we keep. This should be set to true during local outbreak waves.
+        # The first 4 digits is the country code. We use this to determin if the cases is local 
+        # or imported. We can choose which assumption we keep. This should be set to true 
+        # during local outbreak waves.
         if assume_local_cases_if_unknown:
             # Fill blanks with local code
             df.PLACE_OF_ACQUISITION.fillna("11019999", inplace=True)
@@ -114,7 +119,8 @@ def read_in_NNDSS(
         return df
 
     else:
-        # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / imported status vetted by a human. This can be a lot more reliable during an outbreak.
+        # The linelist, currently produce by Gerry Ryan, has had the onset dates and local / 
+        # imported status vetted by a human. This can be a lot more reliable during an outbreak.
 
         case_file_date = pd.to_datetime(date_string).strftime("%Y-%m-%d")
         path = "data/interim_linelist_" + case_file_date + "*.csv"
@@ -166,10 +172,11 @@ def read_in_NNDSS(
                 df["date_inferred"].isna(), "date_confirmation"
             ]
 
-        # now we apply the incubation period to the inferred onset date. Note that this should never be done in the
-        # absence of the delay
+        # now we apply the incubation period to the inferred onset date. Note that this should 
+        # never be done in the absence of the delay
         if apply_inc_at_read:
-            # assuming that the date_onset field is valid, this is the actual date that individuals get symptoms
+            # assuming that the date_onset field is valid, this is the actual date that 
+            # individuals get symptoms
             n_infs = df["date_inferred"].shape[0]
             inc = np.random.gamma(shape=shape_inc, scale=scale_inc, size=n_infs)
             inc_omicron = np.random.gamma(
@@ -180,8 +187,8 @@ def read_in_NNDSS(
             ).to_numpy()
             inc = (1 - is_omicron_dominant) * inc + is_omicron_dominant * inc_omicron
 
-            # need to take the ceiling of the incubation period as otherwise the merging in generate_posterior
-            # doesnt work properly
+            # need to take the ceiling of the incubation period as otherwise the merging 
+            # in generate_posterior doesnt work properly
             inc = np.ceil(inc) * timedelta(days=1)
             df["date_inferred"] = df["date_inferred"] - inc
 

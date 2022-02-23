@@ -10,10 +10,9 @@ assumptions.
 
 use_linelist = True
 use_imputed_linelist = False
-run_TP_adjustment = False
-use_TP_adjustment = False
+use_TP_adjustment = True
 testing_inference = False
-n_days_nowcast_TP_adjustment = 45
+n_days_nowcast_TP_adjustment = 30
 num_TP_samples = 2000  # number of forecasted TP samples to save
 # number of days to remove to stop the issues with the right-truncation
 truncation_days = 14

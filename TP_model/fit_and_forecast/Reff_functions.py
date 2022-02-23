@@ -89,7 +89,9 @@ def predict_plot(
     third_phase=False,
 ):
     """
-    Produce posterior predictive plots for all states
+    Produce posterior predictive plots for all states using the inferred mu_hat. This should run 
+    regardless of the form of the model as it only requires the mu_hat parameter which is 
+    calculated inside stan (the TP model fitted to the Reff). 
     """
     from scipy.special import expit
     from params import third_start_date

@@ -740,10 +740,10 @@ def run_stan(data_date, num_chains=4, num_samples=1000, num_warmup_samples=500):
                     var_names=[
                         "bet",
                         "R_I",
+                        "R_I_omicron",
                         "R_L",
                         "R_Li",
                         "theta_md",
-                        # "theta_masks",
                         "sig",
                         "voc_effect_alpha",
                         "voc_effect_delta",
@@ -1387,6 +1387,8 @@ def plot_and_save_posterior_samples(data_date):
             results_dir + data_date.strftime("%Y-%m-%d") + "rho_sec_phase.png", dpi=144
         )
 
+    df_rho_third_all_states = pd.DataFrame()
+    df_rho_third_tmp = pd.DataFrame()
     # Third  phase
     if df3X.shape[0] > 0:
         fig, ax = plt.subplots(
@@ -1408,6 +1410,12 @@ def plot_and_save_posterior_samples(data_date):
                 ]
             ]
             pos = pos + df3X.loc[df3X.state == state].is_third_wave.sum()
+            
+            df_rho_third_tmp = rho_samples.T
+            df_rho_third_tmp["date"] = dates           
+            df_rho_third_tmp["state"] = state
+            
+            df_rho_third_all_states = pd.concat([df_rho_third_all_states, df_rho_third_tmp])
 
             ax[0, i].plot(dates, rho_samples.median(), label="fit", color="C0")
             ax[0, i].fill_between(
@@ -1476,8 +1484,11 @@ def plot_and_save_posterior_samples(data_date):
             dpi=144,
         )
 
-    # plotting 
+    df_rho_third_all_states.to_csv(
+        "results/rho_samples" + data_date.strftime("%Y-%m-%d") + ".csv"
+    )
 
+    # plotting 
     fig, ax = plt.subplots(figsize=(12, 9))
 
     # sample from the priors for RL and RI
@@ -1514,6 +1525,7 @@ def plot_and_save_posterior_samples(data_date):
     ax.set_xticklabels(
         [
             "R_I",
+            "R_I_omicron",
             "R_L0 mean",
             "R_L0 ACT",
             "R_L0 NSW",
@@ -1890,7 +1902,11 @@ def plot_and_save_posterior_samples(data_date):
         omicron_date_range_tmp = pd.date_range(
             omicron_start_date_tmp, third_date_range[state][-1]
         )
-        prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+        
+        if state in {"TAS", "WA", "NT"}:
+            prop_omicron_to_delta_tmp = m1 
+        else:
+            prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
         
         ax[i // 2, i % 2].plot(
             omicron_date_range, 
@@ -1953,10 +1969,10 @@ def plot_and_save_posterior_samples(data_date):
     ]
     var_to_csv = [
         "R_I",
+        "R_I_omicron",
         "R_L",
         "sig",
         "theta_md",
-        # "theta_masks",
         "voc_effect_alpha",
         "voc_effect_delta",
         "voc_effect_omicron",
@@ -1989,7 +2005,7 @@ def main(data_date, run_inference=True):
     """
     Runs the stan model in parts to cut down on memory.
     """
-    # some parameters for HMCn
+    # some parameters for HMC
     if run_inference:     
         num_chains = 2
         num_samples = 1000
