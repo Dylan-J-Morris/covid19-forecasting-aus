@@ -50,7 +50,7 @@ function calculate_bounds(local_cases, τ, state)
     ϵ = 0.0
     
     # multipliers on the n-day average 
-    (ℓ, u) = (0.25, 2.5)
+    (ℓ, u) = (0.5, 2.0)
     
     # observation period 
     T = length(local_cases) - 1
@@ -68,31 +68,23 @@ function calculate_bounds(local_cases, τ, state)
     
     for t in 1:T
         
-        if state == "NSW"  
-            if t < 30
-                (ℓ, u) = (0, 10)
-            elseif t < T - 7
-                (ℓ, u) = (0.25, 2.5)
-            else
-                (ℓ, u) = (0.5, 2.0)
-            end
-        elseif state == "NT"
-            if t < 30
-                (ℓ, u) = (0, 4.0)
-            elseif t < T - 7
-                (ℓ, u) = (0.25, 4.0)
-            else
-                (ℓ, u) = (0.5, 3.0)
-            end
-        else
-            if t < 7
-                (ℓ, u) = (0, 4.0)
-            elseif t < T - 7
-                (ℓ, u) = (0.25, 3.0)
-            else
-                (ℓ, u) = (0.5, 3.0)
-            end
-        end
+        # if state == "NSW"  
+        #     if t < 30
+        #         (ℓ, u) = (0, 10)
+        #     elseif t < T - 7
+        #         (ℓ, u) = (0.5, 2.0)
+        #     else
+        #         (ℓ, u) = (0.5, 2.0)
+        #     end
+        # elseif state == "NT"
+        #     if t < 30
+        #         (ℓ, u) = (0, 4.0)
+        #     elseif t < T - 7
+        #         (ℓ, u) = (0.25, 4.0)
+        #     else
+        #         (ℓ, u) = (0.5, 3.0)
+        #     end
+        # end
         
         # approximate the slope naively 
         if t < T - n
@@ -210,7 +202,7 @@ function get_simulation_limits(
     
     # get the day we want to start using omicron GI and incubation period (+1) as 0 
     # corresponds to the first element of the arrays 
-    omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value + 1
+    omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value
     
     sim_features = Features(
         max_forecast_cases,
@@ -476,7 +468,7 @@ function inject_cases!(
         #     onset_time = day - 2
         # end
         inf_time = onset_time - 
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day) - 1
         Z[map_day_to_index_Z(inf_time), individual_type_map.S, sim] += 1
         D[map_day_to_index_UD(onset_time), individual_type_map.S, sim] += 1 
         counter += 1
@@ -502,8 +494,11 @@ function inject_cases!(
         # elseif counter >= num_asymptomatic_each_day[3]
         #     onset_time = day - 2
         # end
+        
+        # -1 as the sampled onset time is ceiling and so technically the infection day 
+        # would be rounded down 
         inf_time = onset_time - 
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day) - 1
         Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
         D[map_day_to_index_UD(onset_time), individual_type_map.A, sim] += 1 
         counter += 1
@@ -531,7 +526,7 @@ function inject_cases!(
         #     onset_time = day - 2
         # end
         inf_time = onset_time - 
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day) - 1
         Z[map_day_to_index_Z(inf_time), individual_type_map.S, sim] += 1
         U[map_day_to_index_UD(onset_time), individual_type_map.S, sim] += 1 
         counter += 1
@@ -558,7 +553,7 @@ function inject_cases!(
         #     onset_time = day - 2
         # end
         inf_time = onset_time - 
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day) - 1
         Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
         U[map_day_to_index_UD(onset_time), individual_type_map.A, sim] += 1 
         counter += 1

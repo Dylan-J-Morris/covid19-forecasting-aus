@@ -76,15 +76,9 @@ function initialise_population!(
         num_symptomatic_undetected = 0
         
         if D0.S == 0
-            num_symptomatic_undetected = sample_negative_binomial_limit(
-                1, 
-                p_detect_given_symp,
-            )
+            num_symptomatic_undetected = rand(NegativeBinomial(1, p_detect_given_symp))
         else
-            num_symptomatic_undetected = sample_negative_binomial_limit(
-                D0.S, 
-                p_detect_given_symp,
-            )
+            num_symptomatic_undetected = rand(NegativeBinomial(D0.S, p_detect_given_symp))
         end
 
         # infer some initial undetected asymptomatic
@@ -92,12 +86,9 @@ function initialise_population!(
         num_asymptomatic_undetected = 0
         
         if total_symptomatic == 0
-            num_asymptomatic_undetected = sample_negative_binomial_limit(1, p_symp)
+            num_asymptomatic_undetected = rand(NegativeBinomial(1, p_symp))
         else
-            num_asymptomatic_undetected = sample_negative_binomial_limit(
-                total_symptomatic, 
-                p_symp, 
-            )
+            num_asymptomatic_undetected = rand(NegativeBinomial(total_symptomatic, p_symp))
         end
         
         # total initial cases include the undetected
@@ -113,7 +104,7 @@ function initialise_population!(
             # sample negative infection times as these individuals are assumed to occur 
             # before the simulation 
             for i in 1:total_initial_cases_sim
-                inf_times[i] = -sample_onset_time()
+                inf_times[i] = -sample_onset_time() - 1
             end
             
             start_day[sim] = minimum(inf_times)
@@ -317,11 +308,6 @@ end
     num_offspring = zero(Int)
     
     # pointer to the current day's infections 
-    # println(t)
-    # println(map_day_to_index_Z(t))
-    # println(forecast.sim_features.T_end)
-    # println(size(Z))
-    # println(size(D))
     Z_tmp = @view Z[map_day_to_index_Z(t), :, sim]
     
     # if the total number of infected individuals at time t is 0, return immediately
@@ -344,7 +330,7 @@ end
 
         # reset infections on day t (so we can inject new cases)
         # find day based on the indices representing time from forecast origin
-        TP_ind = findfirst(t == ind for ind in TP_indices)
+        TP_ind = findfirst(ind == t for ind in TP_indices)
             
         # take max of 0 and TP to deal with cases of depletion factor giving TP = 0
         TP_local_parent = max(
@@ -357,28 +343,28 @@ end
         )
         
         # total number of infections arising from all parents infected at time t 
-        # (sum of M NB(r,p) is NB(r*M,p))
+        # (sum of M NB(μ, ϕ) is NB(μ * M, ϕ * M))
         if S_parents > 0 && TP_local_parent > 0
-            s = k * S_parents
-            p = 1 - α_s * TP_local_parent / (k + α_s * TP_local_parent)
-            num_offspring += sample_negative_binomial_limit(s, p)
+            ϕ = k * S_parents 
+            μ = α_s * TP_local_parent * S_parents
+            num_offspring += sample_negative_binomial_limit(μ, ϕ)
         end
         
         if A_parents > 0 && TP_local_parent > 0
-            s = k * A_parents
-            p = 1 - α_a * TP_local_parent / (k + α_a * TP_local_parent)            
-            num_offspring += sample_negative_binomial_limit(s, p)
+            ϕ = k * A_parents 
+            μ = α_a * TP_local_parent * A_parents
+            num_offspring += sample_negative_binomial_limit(μ, ϕ)
         end
         
         if I_parents > 0 && TP_import_parent > 0
-            s = k * I_parents
             # p_{v,h} is the proportion of hotel quarantine workers vaccinated
             p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
             # v_{e,h} is the overall vaccine effectiveness
             v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
             TP_import_parent *= (1 - p_vh * v_eh) * 1.39 * 1.3
-            p = 1 - TP_import_parent / (k + TP_import_parent)
-            num_offspring += sample_negative_binomial_limit(s, p)
+            ϕ = k * I_parents
+            μ = TP_import_parent * I_parents
+            num_offspring += sample_negative_binomial_limit(μ, ϕ)
         end
     
         # we dont ever get import offspring 
@@ -447,26 +433,25 @@ end
     
     # sampling detected cases 
     for _ in 1:num_symptomatic_detected
-        inf_time = day + sample_inf_time(omicron = day >= omicron_dominant_day)
+        
+        (inf_time, onset_time) = sample_times(day, omicron = day >= omicron_dominant_day)
+        
         if inf_time < T_end 
             Z[map_day_to_index_Z(inf_time), individual_type_map.S, sim] += 1
         end
-        
-        onset_time = inf_time + 
-            sample_onset_time(omicron = inf_time >= omicron_dominant_day)
+    
         if onset_time < T_end
             D[map_day_to_index_UD(onset_time), individual_type_map.S, sim] += 1
         end
     end
     
     for _ in 1:num_asymptomatic_detected
-        inf_time = day + sample_inf_time(omicron = day >= omicron_dominant_day)
+        (inf_time, onset_time) = sample_times(day, omicron = day >= omicron_dominant_day)
+        
         if inf_time < T_end 
             Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
         end
         
-        onset_time = inf_time + 
-            sample_onset_time(omicron = inf_time >= omicron_dominant_day)
         if onset_time < T_end
             # time+1 as first index is day 0
             D[map_day_to_index_UD(onset_time), individual_type_map.A, sim] += 1
@@ -475,13 +460,12 @@ end
     
     # sampling undetected cases 
     for _ in 1:num_symptomatic_undetected
-        inf_time = day + sample_inf_time(omicron = day >= omicron_dominant_day)
+        (inf_time, onset_time) = sample_times(day, omicron = day >= omicron_dominant_day)
+        
         if inf_time < T_end 
             Z[map_day_to_index_Z(inf_time), individual_type_map.S, sim] += 1
         end
         
-        onset_time = inf_time + 
-            sample_onset_time(omicron = inf_time >= omicron_dominant_day)
         if onset_time < T_end
             # time+1 as first index is day 0
             U[map_day_to_index_UD(onset_time), individual_type_map.S, sim] += 1
@@ -489,13 +473,12 @@ end
     end
     
     for _ in 1:num_asymptomatic_undetected
-        inf_time = day + sample_inf_time(omicron = day >= omicron_dominant_day)
+        (inf_time, onset_time) = sample_times(day, omicron = day >= omicron_dominant_day)
+        
         if inf_time < T_end 
             Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
         end
         
-        onset_time = inf_time + 
-            sample_onset_time(omicron = inf_time >= omicron_dominant_day)
         if onset_time < T_end
             # time+1 as first index is day 0
             U[map_day_to_index_UD(onset_time), individual_type_map.A, sim] += 1
@@ -547,7 +530,8 @@ function simulate_branching_process(
     forecast_start_date, 
     date, 
     omicron_dominant_date,
-    state,
+    state; 
+    adjust_TP = false,
 )
     """
     Simulate branching process nsims times conditional on the cumulative observed cases, 
@@ -559,6 +543,7 @@ function simulate_branching_process(
         forecast_start_date, 
         date, 
         state,
+        adjust_TP = adjust_TP,
     )
     # read in susceptible_depletion parameters 
     susceptible_depletion = read_in_susceptible_depletion(date)
@@ -677,19 +662,12 @@ function simulate_branching_process(
             if !injected_cases 
                 day += 1
             else 
-                # reinitialise_allowed && println("============") 
-                # reinitialise_allowed && println("sim: ", sim) 
-                # reinitialise_allowed && println("current time: ", day) 
-                # reinitialise_allowed && println("time since last inject: ", day - last_injection)
-                # reinitialise_allowed && println("============") 
-                
                 last_injection = day
                 day = start_day[sim]
                 n_restarts += 1
                 injected_cases = false
                 if n_restarts > max_restarts 
                     bad_sim = true
-                    # bad_sim && println("sim ", sim " had too many restarts")
                 end
             end
             
@@ -710,9 +688,6 @@ function simulate_branching_process(
                 max_cases,
                 reinitialise_allowed,
             )
-            
-            # bad_sim && println("sim: ", sim, " didn't pass final check")
-            
         end
         
         if bad_sim 
@@ -764,6 +739,5 @@ function simulate_branching_process(
     return (D_good, U_good, TP_local_sims)
     
 end
-
 
 

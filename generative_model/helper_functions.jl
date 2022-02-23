@@ -31,8 +31,8 @@ function NegativeBinomial2(μ, ϕ)
     Function for parameterisation of the negative Binomial in terms of mean and variance.
     NOTE THAT THIS IS CURRENTLY NOT IN USE.
     """    
-    p = 1 / (1 + μ / ϕ)
     r = ϕ
+    p = 1 / (1 + μ / ϕ)
 
     return NegativeBinomial(r, p)
     
@@ -49,6 +49,8 @@ function sample_inf_time(; omicron=false)
     
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
+    # shape = shape_gen_omicron
+    # scale = scale_gen_omicron
     
     infection_time = ceil(Int, rand(Gamma(shape, scale)))
     
@@ -69,9 +71,42 @@ function sample_onset_time(; omicron=false)
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
     
+    # shape = shape_inc_omicron
+    # scale = scale_inc_omicron
+    
     onset_time = ceil(Int, rand(Gamma(shape, scale)))
     
     return onset_time
+    
+end
+
+function sample_times(t; omicron = false)
+    """
+    Assuming an initial time t, sample the time until infection and onset for an individual 
+    and only take the ceiling once we have assigned them. This helps reduce the effect of 
+    rounding errors induced by adding ceil numbers. 
+    """
+    
+    (shape_gen, scale_gen) = (2.75, 1.00)
+    (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
+    
+    shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
+    scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
+    
+    infection_time = t + rand(Gamma(shape, scale))
+    
+    (shape_inc, scale_inc) = (5.807, 0.948)
+    (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
+    
+    shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
+    scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
+    
+    onset_time = infection_time + rand(Gamma(shape, scale))
+    
+    infection_time = ceil(Int, infection_time)
+    onset_time = ceil(Int, onset_time)
+    
+    return (infection_time, onset_time)
     
 end
 
@@ -102,7 +137,7 @@ function set_simulation_constants(state)
 end
 
 
-function sample_negative_binomial_limit(s, p; approx_limit = 1000)
+function sample_negative_binomial_limit(μ, ϕ; approx_limit = 1000)
     """
     Samples from a NegBin(s, p) distribution. This uses a normal approximation 
     when mu is large (i.e. s > approx_limit) to get a 10x runtime improvement.
@@ -110,7 +145,6 @@ function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     X = zero(Int)
     
     # mean of NegBin(s, p) => this will boil down to N*TP
-    μ = s/p - s
     
     # if μ <= approx_limit
     #     X = rand(NegativeBinomial(s, p))
@@ -119,7 +153,7 @@ function sample_negative_binomial_limit(s, p; approx_limit = 1000)
     #     X = ceil(Int, rand(Normal(μ, σ)))
     # end
     
-    X = rand(NegativeBinomial(s, p))
+    X = rand(NegativeBinomial2(μ, ϕ))
     
     return X 
     
@@ -149,12 +183,17 @@ function sample_binomial_limit(n, p; approx_limit = 1000)
 end
 
 
-function read_in_TP(date, state)
+function read_in_TP(date, state; adjust_TP = false)
     
     # read in the reff file
-    TP_file_name = "results/soc_mob_R"*date*".csv"
+    if adjust_TP 
+        TP_file_name = "results/soc_mob_R_adjusted" * date * ".csv"        
+    else
+        TP_file_name = "results/soc_mob_R" * date * ".csv"
+    end
+    
     # drop the first column 
-    df = CSV.read(TP_file_name, DataFrame, drop=[1])
+    df = CSV.read(TP_file_name, DataFrame, drop = [1])
     # extract the unique states
     unique_states = unique(df[!, "state"])
 
@@ -200,7 +239,12 @@ function read_in_TP(date, state)
 end
 
 
-function create_state_TP_matrices(forecast_start_date, date, state)
+function create_state_TP_matrices(
+    forecast_start_date, 
+    date, 
+    state; 
+    adjust_TP = false,
+)
     """
     Read in the TP for a given state from csv with filedate, date. Adjust the indices 
     according to the forecast_start_date and then create matrices of local and import TP's. 
@@ -208,7 +252,7 @@ function create_state_TP_matrices(forecast_start_date, date, state)
     """
     
     # read in the TP 
-    (TP_dict_local, TP_dict_import) = read_in_TP(date, state)
+    (TP_dict_local, TP_dict_import) = read_in_TP(date, state, adjust_TP = adjust_TP)
     # adjust the indices so that the forecast start date is t = 0
     TP_indices = convert.(Int, Dates.value.(TP_dict_local["date"] - forecast_start_date))
     # make a matrix for a given state 
