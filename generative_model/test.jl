@@ -48,7 +48,7 @@ onset_dates = latest_start_date:Dates.Day(1):forecast_end_date
 truncation_days = 7
 
 # states to simulate
-state = "TAS"
+state = "NSW"
 nsims = 1000
 
 forecast_start_date = Dates.Date(
@@ -102,13 +102,27 @@ local_cases = local_cases[begin:end-truncation_days]
 D_local = D[:, 1, :] + D[:, 2, :]
 D_local_median = median(D_local, dims = 2)
 D_local_mean = mean(D_local, dims = 2)
-(Lₜ1, Uₜ1) = calculate_bounds(local_cases, 3, state)
-# (Lₜ2, Uₜ2) = calculate_bounds(local_cases, 5, state)
+# (Lₜ, Uₜ, Cₜ) = calculate_bounds(local_cases, 7, state)
+# # (Lₜ2, Uₜ2) = calculate_bounds(local_cases, 5, state)
+
+# let
+#     plot(Cₜ, legend = false, linealpha = 1, lc = 1)
+#     plot!(Lₜ, legend = false, lc = 1, ls = :dash)
+#     plot!(Uₜ, legend = false, lc = 1, ls = :dash)
+#     # xlims!(0, length(local_cases) + 35)
+#     # xlims!(length(local_cases) - 60, length(local_cases) + 35)
+#     ylims!(0, 2000)
+#     # ylims!(0, 50000)
+#     # ylims!(0, 30000)
+#     # ylims!(0, 50000)
+#     # ylims!(0, 3000)
+#     # ylims!(0, 15000)
+# end
 
 let
     plot(local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(Lₜ1, legend = false, lc = 1, ls = :dash)
-    plot!(Uₜ1, legend = false, lc = 1, ls = :dash)
+    # plot!(Lₜ1, legend = false, lc = 1, ls = :dash)
+    # plot!(Uₜ1, legend = false, lc = 1, ls = :dash)
     # plot!(Lₜ2, legend = false, lc = 2, ls = :dash)
     # plot!(Uₜ2, legend = false, lc = 2, ls = :dash)
     # plot!(D_med, legend = false, linealpha = 1)
@@ -116,13 +130,13 @@ let
     plot!(D_local, legend = false, lc = 2, linealpha = 0.5)
     # vline!([length(local_cases)], lc = "black", ls = :dash)
     plot!(local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(D_local_median, legend = false, lc = 3)
-    plot!(D_local_mean, legend = false, lc = 3)
+    # plot!(D_local_median, legend = false, lc = 3)
+    # plot!(D_local_mean, legend = false, lc = 3)
     xlims!(0, length(local_cases) + 35)
     # xlims!(length(local_cases) - 60, length(local_cases) + 35)
-    ylims!(0, 2000)
-    # ylims!(0, 30000)
     ylims!(0, 5000)
+    ylims!(0, 50000)
+    # ylims!(0, 30000)
     # ylims!(0, 50000)
     # ylims!(0, 3000)
     # ylims!(0, 15000)

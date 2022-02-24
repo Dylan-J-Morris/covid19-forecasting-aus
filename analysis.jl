@@ -46,7 +46,7 @@ samples = CSV.read(
     DataFrame, 
 )
 
-plot_kde = true
+plot_kde = false
 plot_traceplots = false
 
 # filter by divergent samples
@@ -164,7 +164,7 @@ end
 # estimates. More of a sanity check than anything else and just helps to see that the
 # posterior sampled μ(t) and recombined/forecasted estimates align. 
 
-state = "ACT"
+state = "TAS"
 
 # mu_hat_filtered_old = CSV.read(
 #     "results/UoA_forecast_output/2022-02-15/" * state * "_2022-02-15_TP.csv",
@@ -178,7 +178,7 @@ mu_hat_local = CSV.read(
 )
 
 mu_hat_all = CSV.read(
-    "results/soc_mob_R2022-02-15.csv", 
+    "results/soc_mob_R2022-02-22.csv", 
     DataFrame,
     drop = [1],
 )
@@ -191,12 +191,12 @@ mu_hat_forecast = @chain mu_hat_all begin
 end
 
 mu_hat_filtered = CSV.read(
-    "results/UoA_forecast_output/2022-02-15/" * state * "_2022-02-15_TP.csv",
+    "results/UoA_forecast_output/2022-02-22/" * state * "_2022-02-22_TP.csv",
     DataFrame,
 )
 
 Reff = CSV.read(
-    "results/EpyReff/Reff2022-02-15tau_5.csv", 
+    "results/EpyReff/Reff2022-02-22tau_5.csv", 
     DataFrame
 )
 

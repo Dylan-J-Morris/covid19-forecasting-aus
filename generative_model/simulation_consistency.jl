@@ -44,116 +44,185 @@ function final_check(D_good, local_cases; p = 0.1, metric = "absolute")
 end
 
 
+# function calculate_bounds(local_cases, τ, state)
+    
+#     # tolerance for when we consider cases to be stable
+#     ϵ = 0.0
+    
+#     # multipliers on the n-day average 
+#     (ℓ, u) = (0.5, 2.0)
+    
+#     # observation period 
+#     T = length(local_cases) - 1
+#     # the slope over the n-day period 
+#     m = 0.0
+#     Mₜ = zeros(Float64, T)
+    
+#     Lₜ = zeros(Float64, T)
+#     Uₜ = zeros(Float64, T) 
+    
+#     # consider τ = 3 and t = (0, 1, 2), clearly n = 2 - 0 = 2
+#     n = τ - 1
+    
+#     n2 = 7
+    
+#     for t in 1:T
+        
+#         # if state == "NSW"  
+#         #     if t < 30
+#         #         (ℓ, u) = (0, 10)
+#         #     elseif t < T - 7
+#         #         (ℓ, u) = (0.5, 2.0)
+#         #     else
+#         #         (ℓ, u) = (0.5, 2.0)
+#         #     end
+#         # elseif state == "NT"
+#         #     if t < 30
+#         #         (ℓ, u) = (0, 4.0)
+#         #     elseif t < T - 7
+#         #         (ℓ, u) = (0.25, 4.0)
+#         #     else
+#         #         (ℓ, u) = (0.5, 3.0)
+#         #     end
+#         # end
+        
+#         # approximate the slope naively 
+#         if t < T - n
+#             m = 1 / n * (
+#                 local_cases[map_day_to_index_UD(t) + n] - 
+#                 local_cases[map_day_to_index_UD(t)]
+#             )
+#         else
+#             m = 1 / n * (
+#                 local_cases[map_day_to_index_UD(t)] - 
+#                 local_cases[map_day_to_index_UD(t) - n]
+#             ) 
+#         end
+        
+#         Mₜ[t] = m
+        
+#         # depending on the sign of the slope, take average of future or past cases 
+#         if m < -ϵ
+#             Lₜ[t] = ℓ * mean(
+#                 local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]
+#             ) 
+#             Uₜ[t] = u * mean(
+#                 local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]
+#             ) 
+#             # Lₜ[t] = mean(local_cases[t:min(T, t + n)]) 
+#             # Uₜ[t] = mean(local_cases[max(1, t - n):t]) 
+#         elseif m > ϵ
+#             Lₜ[t] = ℓ * mean(
+#                 local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]
+#             ) 
+#             Uₜ[t] = u * mean(
+#                 local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]
+#             ) 
+#             # Lₜ[t] = mean(local_cases[max(1, t - 2):t]) 
+#             # Uₜ[t] = mean(local_cases[t:min(T, t + 2)]) 
+#         else
+#             n2 = n ÷ 2
+#             Lₜ[t] = ℓ * mean(
+#                 local_cases[
+#                     max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)
+#                 ]
+#             ) 
+#             Uₜ[t] = u * mean(
+#                 local_cases[
+#                     max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)
+#                 ]
+#             ) 
+#             # Lₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
+#             # Uₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
+#         end
+        
+#         # adjust the bounds for periods with low cases
+#         if Lₜ[t] < 50
+#             Lₜ[t] = 0
+#         end
+        
+#         if Uₜ[t] < 50
+#             Uₜ[t] = 50
+#         end
+        
+#         if isnan(Lₜ[t])
+#             Lₜ[t] = Lₜ[t-1]
+#         end
+        
+#         if isnan(Uₜ[t])
+#             Uₜ[t] = Uₜ[t-1]
+#         end
+#     end
+    
+#     return (Lₜ, Uₜ) 
+    
+# end
+
+
 function calculate_bounds(local_cases, τ, state)
     
     # tolerance for when we consider cases to be stable
     ϵ = 0.0
     
-    # multipliers on the n-day average 
-    (ℓ, u) = (0.5, 2.0)
+    # multipliers on the n-day average
+    (ℓ, u) = (0.0, 2.5)
+    # (ℓ, u) = (1.0, 1.0)
     
     # observation period 
     T = length(local_cases) - 1
     # the slope over the n-day period 
     m = 0.0
-    Mₜ = zeros(Float64, T)
     
-    Lₜ = zeros(Float64, T)
-    Uₜ = zeros(Float64, T) 
+    L = (T ÷ 7) + 1
+    Mₜ = zeros(Float64, L)
+    Cₜ = zeros(Float64, L)
+    
+    Lₜ = zeros(Float64, L)
+    Uₜ = zeros(Float64, L) 
     
     # consider τ = 3 and t = (0, 1, 2), clearly n = 2 - 0 = 2
     n = τ - 1
     
     n2 = 7
     
+    # indexer for the bound arrays 
+    s = 1
+    
     for t in 1:T
         
-        # if state == "NSW"  
-        #     if t < 30
-        #         (ℓ, u) = (0, 10)
-        #     elseif t < T - 7
-        #         (ℓ, u) = (0.5, 2.0)
-        #     else
-        #         (ℓ, u) = (0.5, 2.0)
-        #     end
-        # elseif state == "NT"
-        #     if t < 30
-        #         (ℓ, u) = (0, 4.0)
-        #     elseif t < T - 7
-        #         (ℓ, u) = (0.25, 4.0)
-        #     else
-        #         (ℓ, u) = (0.5, 3.0)
-        #     end
-        # end
-        
-        # approximate the slope naively 
-        if t < T - n
-            m = 1 / n * (
-                local_cases[map_day_to_index_UD(t) + n] - 
-                local_cases[map_day_to_index_UD(t)]
-            )
-        else
-            m = 1 / n * (
-                local_cases[map_day_to_index_UD(t)] - 
-                local_cases[map_day_to_index_UD(t) - n]
+        if mod(t - 1, 7) == 0 
+            
+            Cₜ[s] = sum(
+                local_cases[t:min(T, t + n)]
             ) 
+            
+            Lₜ[s] = ℓ * Cₜ[s]
+            Uₜ[s] = u * Cₜ[s]
+            
+            # adjust the bounds for periods with low cases
+            if Lₜ[s] < 100
+                Lₜ[s] = 0
+            end
+            
+            if Uₜ[s] < 100
+                Uₜ[s] = 100
+            end
+            
+            if isnan(Lₜ[s])
+                Lₜ[s] = Lₜ[s - 1]
+            end
+            
+            if isnan(Uₜ[s])
+                Uₜ[s] = Uₜ[s - 1]
+            end
+            
+            s += 1
+            
         end
         
-        Mₜ[t] = m
-        
-        # depending on the sign of the slope, take average of future or past cases 
-        if m < -ϵ
-            Lₜ[t] = ℓ * mean(
-                local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]
-            ) 
-            Uₜ[t] = u * mean(
-                local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]
-            ) 
-            # Lₜ[t] = mean(local_cases[t:min(T, t + n)]) 
-            # Uₜ[t] = mean(local_cases[max(1, t - n):t]) 
-        elseif m > ϵ
-            Lₜ[t] = ℓ * mean(
-                local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]
-            ) 
-            Uₜ[t] = u * mean(
-                local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]
-            ) 
-            # Lₜ[t] = mean(local_cases[max(1, t - 2):t]) 
-            # Uₜ[t] = mean(local_cases[t:min(T, t + 2)]) 
-        else
-            n2 = n ÷ 2
-            Lₜ[t] = ℓ * mean(
-                local_cases[
-                    max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)
-                ]
-            ) 
-            Uₜ[t] = u * mean(
-                local_cases[
-                    max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)
-                ]
-            ) 
-            # Lₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
-            # Uₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
-        end
-        
-        # adjust the bounds for periods with low cases
-        if Lₜ[t] < 50
-            Lₜ[t] = 0
-        end
-        
-        if Uₜ[t] < 50
-            Uₜ[t] = 50
-        end
-        
-        if isnan(Lₜ[t])
-            Lₜ[t] = Lₜ[t-1]
-        end
-        
-        if isnan(Uₜ[t])
-            Uₜ[t] = Uₜ[t-1]
-        end
     end
     
+    # return (Lₜ, Uₜ, Cₜ) 
     return (Lₜ, Uₜ) 
     
 end
@@ -183,7 +252,7 @@ function get_simulation_limits(
     days_delta = (Dates.Date(omicron_dominant_date) - 
         Dates.Date(forecast_start_date)).value
         
-    (min_cases, max_cases) = calculate_bounds(local_cases, 3, state)
+    (min_cases, max_cases) = calculate_bounds(local_cases, 7, state)
     
     # cases_each_period = [
     #     sum(local_cases[begin:days_delta]),
@@ -221,6 +290,31 @@ function get_simulation_limits(
     
 end
 
+# function count_cases!(
+#     case_counts, 
+#     forecast::Forecast, 
+#     sim,
+# )
+
+#     D = forecast.sim_realisations.D
+    
+#     # case_counts_tmp = deepcopy(case_counts)
+#     day = 1
+#     tmp = 0
+    
+#     for i in 1:length(case_counts)
+#         case_counts[day] = D[map_day_to_index_UD(i), 1, sim] + 
+#             D[map_day_to_index_UD(i), 2, sim]
+#         day += 1
+#     end
+    
+#     # moving_average!(case_counts, case_counts_tmp, 3)
+#     # case_counts .= case_counts_tmp
+    
+#     return nothing
+# end
+
+
 function count_cases!(
     case_counts, 
     forecast::Forecast, 
@@ -228,22 +322,31 @@ function count_cases!(
 )
 
     D = forecast.sim_realisations.D
+    T_observed = forecast.sim_features.T_observed
     
     # case_counts_tmp = deepcopy(case_counts)
-    day = 1
+    day_index = 1
+    i = 1
     tmp = 0
+    case_counts .= 0
     
-    for i in 1:length(case_counts)
-        case_counts[day] = D[map_day_to_index_UD(i), 1, sim] + 
-            D[map_day_to_index_UD(i), 2, sim]
-        day += 1
+    for t in 1:T_observed
+        tmp += D[t, 1, sim] + D[t, 2, sim]
+        if mod(t, 7) == 0
+            case_counts[i] = tmp
+            i += 1
+            tmp = 0;
+        end
+        i > length(case_counts) && break
     end
     
     # moving_average!(case_counts, case_counts_tmp, 3)
     # case_counts .= case_counts_tmp
     
     return nothing
+    
 end
+
 
 function check_sim!(
     forecast::Forecast, 
@@ -308,6 +411,7 @@ function check_sim!(
         if any(case_counts .> max_cases) 
             bad_sim = true 
         end
+        
         # for (i, (c, m)) in enumerate(
         #     zip(case_counts, max_cases)
         # )
@@ -353,12 +457,12 @@ function check_sim!(
         threshold = max(1, ceil(Int, consistency_multiplier * sim_3_day_cases))
         
         if (observed_3_day_cases > threshold)
-            print_status && println(
-                " sim: ", sim,  
-                " sim cases: ", sim_3_day_cases,
-                " actual cases: ", observed_3_day_cases, 
-                " day added: ", day,
-            )
+            # print_status && println(
+            #     " sim: ", sim,  
+            #     " sim cases: ", sim_3_day_cases,
+            #     " actual cases: ", observed_3_day_cases, 
+            #     " day added: ", day,
+            # )
             # uniformly sample a number of missing detections to add in
             missing_detections = ceil(
                 Int, 
