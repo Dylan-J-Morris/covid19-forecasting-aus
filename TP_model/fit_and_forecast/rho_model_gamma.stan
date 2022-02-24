@@ -190,6 +190,7 @@ parameters {
     
     // baseline and hierearchical RL parameters 
     real<lower=0> R_I;
+    real<lower=0> R_I_omicron;
     real<lower=0> R_L;
     vector<lower=0>[j_total] R_Li;
     real<lower=0> sig;
@@ -211,10 +212,10 @@ parameters {
     real<lower=0,upper=1> susceptible_depletion_factor;
     
     // parameters for the transition from Delta to Omicron 
-    vector<lower=15,upper=45>[j_third_wave] tau; 
+    vector[j_third_wave] tau_raw; 
     vector<lower=0>[j_third_wave] r;
-    vector<lower=0,upper=0.1>[j_third_wave] m0; 
-    vector<lower=0.9,upper=1>[j_third_wave] m1; 
+    vector<lower=0,upper=1>[j_third_wave] m0; 
+    vector<lower=0,upper=1>[j_third_wave] m1; 
     
 }
 
@@ -294,6 +295,8 @@ transformed parameters {
     // matrix[N,j_first_wave] masks;
     // vector[total_N_p_sec] masks_sec_wave;
     // vector[total_N_p_third] masks_third_wave;
+    
+    vector[j_third_wave] tau = 30 + 0.5 * tau_raw; 
 
     // first wave model
     for (i in 1:j_first_wave) {
@@ -359,6 +362,7 @@ transformed parameters {
         real susceptible_depletion_term;
         real prop_omicron_to_delta; 
         int n_omicron; 
+        real R_I_tmp; 
         
         if (i == 1){
             pos = 1;
@@ -379,11 +383,17 @@ transformed parameters {
 
                 if (n <= omicron_start_day){
                     voc_vacc_product = voc_effect_delta * ve_delta[pos];
+                    R_I_tmp = R_I; 
                 } else {
+                    R_I_tmp = R_I_omicron; 
                     // number of days into omicron period 
                     n_omicron = n - omicron_start_day;
                     // proportion of omicron
-                    if (i == 3 || i == 6 || i == 8) {
+                    if (
+                        map_to_state_index_third[i] == 3 || 
+                        map_to_state_index_third[i] == 6 || 
+                        map_to_state_index_third[i] == 8
+                    ) {
                         prop_omicron_to_delta = m1[map_to_state_index_third[i]];
                     } else {
                         prop_omicron_to_delta = sigmoid(
@@ -419,7 +429,7 @@ transformed parameters {
                     * social_measures;
                     
                 mu_hat_third_wave[pos] = (
-                    brho_third_wave[pos] * R_I 
+                    brho_third_wave[pos] * R_I_tmp 
                     + (1 - brho_third_wave[pos]) * TP_local
                 ) * susceptible_depletion_term;
                 
@@ -456,7 +466,7 @@ model {
 
     // priors
     // mobility, micro
-    bet ~ normal(0, 1.0);
+    bet ~ std_normal();
     theta_md ~ exponential(5);
     // theta_masks ~ exponential(5);
     
@@ -464,13 +474,11 @@ model {
     // m0 ~ uniform(0, 0.1);     // initial Omicron proportion is low 
     // m1 ~ uniform(0.90, 1);     // long term Omicron proportion 
     // r ~ gamma(3*5, 3*20);       // median of 0.2
-    r ~ gamma(4 * 5, 4 * 20);       // median of 0.2
+    r ~ gamma(20, 40);       // median of 0.2
     
-    for (i in 1:j_third_wave) {
-        tau[i] ~ normal(30, 2) T[15, 45];     // mean of 20 days 
-        m0[i] ~ normal(0.05, 0.05) T[0, 0.1];
-        m1[i] ~ normal(0.95, 0.05) T[0.9, 1.0];     // long term Omicron proportion 
-    }
+    tau_raw ~ std_normal();
+    m0 ~ beta(5, 95);
+    m1 ~ beta(3 * 95, 3 * 5);
     
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(square(0.4) / 0.05, 0.4 / 0.05);
@@ -484,6 +492,7 @@ model {
     // hierarchical model for the baseline RL
     R_L ~ gamma(square(1.7) / 0.005, 1.7 / 0.005);
     R_I ~ gamma(square(0.5) / 0.2, 0.5 / 0.2);
+    R_I_omicron ~ gamma(square(0.5) / 0.2, 0.5 / 0.2);
     sig ~ exponential(250);
     R_Li ~ gamma(square(R_L) / sig, R_L / sig);
 

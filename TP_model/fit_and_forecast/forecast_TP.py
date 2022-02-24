@@ -1711,6 +1711,7 @@ for typ in forecast_type:
 
     typ_state_R[typ] = state_R
 
+# generate a summary for the R_I
 for state in states:
     # R_I
     R_I = samples["R_I"].values[: df_state.shape[0]]
@@ -1725,6 +1726,19 @@ for state in states:
     state_Rs["bottom"].extend(np.repeat(np.percentile(R_I, 5), df_state.shape[0]))
     state_Rs["mean"].extend(np.repeat(np.mean(R_I), df_state.shape[0]))
     state_Rs["std"].extend(np.repeat(np.std(R_I), df_state.shape[0]))
+    
+    R_I_omicron = samples["R_I_omicron"].values[: df_state.shape[0]]
+    state_Rs["state"].extend([state] * df_state.shape[0])
+    state_Rs["type"].extend(["R_I_omicron"] * df_state.shape[0])
+    state_Rs["date"].extend(dd.values)
+    state_Rs["lower"].extend(np.repeat(np.percentile(R_I_omicron, 25), df_state.shape[0]))
+    state_Rs["median"].extend(np.repeat(np.median(R_I_omicron), df_state.shape[0]))
+    state_Rs["upper"].extend(np.repeat(np.percentile(R_I_omicron, 75), df_state.shape[0]))
+    state_Rs["top"].extend(np.repeat(np.percentile(R_I_omicron, 95), df_state.shape[0]))
+    state_Rs["bottom"].extend(np.repeat(np.percentile(R_I_omicron, 5), df_state.shape[0]))
+    state_Rs["mean"].extend(np.repeat(np.mean(R_I_omicron), df_state.shape[0]))
+    state_Rs["std"].extend(np.repeat(np.std(R_I_omicron), df_state.shape[0]))
+    
 
 df_Rhats = pd.DataFrame().from_dict(state_Rs)
 df_Rhats = df_Rhats.set_index(["state", "date", "type"])
@@ -1744,7 +1758,14 @@ for state in states:
             temp["type"] = typ
             t = t.append(temp)
     # R_I
-    i = pd.DataFrame(np.tile(samples["R_I"].values, (len(dd.values), 100)))
+    i1 = pd.DataFrame(np.tile(samples["R_I"].values, (len(dd.values), 100)))
+    i2 = pd.DataFrame(np.tile(samples["R_I_omicron"].values, (len(dd.values), 100)))
+    # use the Omicron import reproduction number after Omicron starts
+    i = i1
+    i.iloc[dd.values >= pd.to_datetime(omicron_start_date), :] = i2.iloc[
+        dd.values >= pd.to_datetime(omicron_start_date), :
+    ]
+    
     i["date"] = dd.values
     i["type"] = "R_I"
     i["state"] = state
