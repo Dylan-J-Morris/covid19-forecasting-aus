@@ -24,7 +24,9 @@ ncores = 4  # number of cores to use (this is relevant for the simulation)
 ##### Usually unchanged parameters, contains some dates and number of forecast
 
 p_detect_delta = 0.695
-p_detect_omicron = 0.5602
+# p_detect_omicron = 0.5602
+p_detect_omicron = 0.375
+# p_detect_omicron = 0.25
 
 third_start_date = "2021-06-25"
 start_date = "2021-06-25"
