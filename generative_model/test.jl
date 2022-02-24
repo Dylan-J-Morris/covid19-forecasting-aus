@@ -48,8 +48,8 @@ onset_dates = latest_start_date:Dates.Day(1):forecast_end_date
 truncation_days = 7
 
 # states to simulate
-state = "NSW"
-nsims = 1000
+state = "VIC"
+nsims = 10000
 
 forecast_start_date = Dates.Date(
     jurisdiction_assumptions.simulation_start_dates[state]
@@ -95,47 +95,39 @@ save_simulations(
     rng,
 )
 
-forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
-local_cases = local_case_dict[state][dates .>= forecast_start_date]
-local_cases = local_cases[begin:end-truncation_days]
-
-D_local = D[:, 1, :] + D[:, 2, :]
-D_local_median = median(D_local, dims = 2)
-D_local_mean = mean(D_local, dims = 2)
-# (Lₜ, Uₜ, Cₜ) = calculate_bounds(local_cases, 7, state)
-# # (Lₜ2, Uₜ2) = calculate_bounds(local_cases, 5, state)
-
-# let
-#     plot(Cₜ, legend = false, linealpha = 1, lc = 1)
-#     plot!(Lₜ, legend = false, lc = 1, ls = :dash)
-#     plot!(Uₜ, legend = false, lc = 1, ls = :dash)
-#     # xlims!(0, length(local_cases) + 35)
-#     # xlims!(length(local_cases) - 60, length(local_cases) + 35)
-#     ylims!(0, 2000)
-#     # ylims!(0, 50000)
-#     # ylims!(0, 30000)
-#     # ylims!(0, 50000)
-#     # ylims!(0, 3000)
-#     # ylims!(0, 15000)
-# end
-
 let
-    plot(local_cases, legend = false, linealpha = 1, lc = 1)
-    # plot!(Lₜ1, legend = false, lc = 1, ls = :dash)
-    # plot!(Uₜ1, legend = false, lc = 1, ls = :dash)
-    # plot!(Lₜ2, legend = false, lc = 2, ls = :dash)
-    # plot!(Uₜ2, legend = false, lc = 2, ls = :dash)
-    # plot!(D_med, legend = false, linealpha = 1)
-    # plot!(D_local_tmp, legend = false, lc = :grey, linealpha = 0.5)
-    plot!(D_local, legend = false, lc = 2, linealpha = 0.5)
-    # vline!([length(local_cases)], lc = "black", ls = :dash)
-    plot!(local_cases, legend = false, linealpha = 1, lc = 1)
-    # plot!(D_local_median, legend = false, lc = 3)
-    # plot!(D_local_mean, legend = false, lc = 3)
-    xlims!(0, length(local_cases) + 35)
+    forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
+    local_cases = local_case_dict[state][dates .>= forecast_start_date]
+    local_cases = local_cases[begin:end-truncation_days]
+    
+    D_local = D[:, 1, :] + D[:, 2, :]
+    D_local_median = median(D_local, dims = 2)
+    D_local_mean = mean(D_local, dims = 2)
+    import_cases = import_case_dict[state][dates .>= forecast_start_date]
+    import_cases = import_cases[begin:end-truncation_days]
+    D_import = D[:, 3, :]
+    D_import_median = median(D_import, dims = 2)
+    D_import_mean = mean(D_import, dims = 2)
+    f = plot(layout = (2, 1))
+    plot!(f, subplot = 1, local_cases, legend = false, linealpha = 1, lc = 1)
+    plot!(f, subplot = 1, D_local, legend = false, lc = 2, linealpha = 0.5)
+    plot!(f, subplot = 1, local_cases, legend = false, linealpha = 1, lc = 1)
+    plot!(f, subplot = 1, D_local_median, legend = false, lc = 3)
+    xlims!(f, subplot = 1, 0, length(local_cases) + 35)
+    ylims!(f, subplot = 1, 0, 50000)
+    # ylims!(f, subplot = 1, 0, 50000)
+    # ylims!(0, 30000)
+    # ylims!(0, 50000)
+    # ylims!(0, 3000)
+    # ylims!(0, 15000)
+    plot!(f, subplot = 2, import_cases, legend = false, linealpha = 1, lc = 1)
+    plot!(f, subplot = 2, D_import, legend = false, lc = 2, linealpha = 0.5)
+    plot!(f, subplot = 2, import_cases, legend = false, linealpha = 1, lc = 1)
+    plot!(f, subplot = 2, D_import_median, legend = false, lc = 3)
+    # plot!(D_import_mean, legend = false, lc = 3)
+    xlims!(f, subplot = 2, 0, length(import_cases) + 35)
     # xlims!(length(local_cases) - 60, length(local_cases) + 35)
-    ylims!(0, 5000)
-    ylims!(0, 50000)
+    ylims!(f, subplot = 2, 0, 50)
     # ylims!(0, 30000)
     # ylims!(0, 50000)
     # ylims!(0, 3000)
@@ -152,7 +144,9 @@ end
 D_observed = D_local[begin:length(local_cases), :]
 local_cases_mat = repeat(local_cases, 1, size(D_observed, 2))
 error = vec(sum(abs.(local_cases_mat - D_observed), dims = 1))
-idx = error .< quantile(error, 0.10)
+idx = error .< quantile(error, 0.20)
+
+D_local_median = median(D_local[:, idx], dims = 2)
 
 let
     plot(local_cases, legend = false, linealpha = 1, lc = 1)
@@ -161,11 +155,12 @@ let
     # plot!(D_med, legend = false, linealpha = 1)
     # plot!(D_local_tmp, legend = false, lc = :grey, linealpha = 0.5)
     plot!(D_local[:, idx], legend = false, lc = 2, linealpha = 0.5)
+    plot!(D_local_median, legend = false, lc = 3, linealpha = 0.5)
     # vline!([length(local_cases)], lc = "black", ls = :dash)
     plot!(local_cases, legend = false, linealpha = 1, lc = 1)
     # plot!(D_local_med, legend = false, lc = 2)
-    xlims!(0, length(local_cases) + 35)
-    ylims!(0, 5000)
+    xlims!(length(local_cases) - 45, length(local_cases) + 35)
+    ylims!(0, 50000)
 end
 
 dir_name = joinpath("tmp_plots", "case_forecasts")

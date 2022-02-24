@@ -50,7 +50,7 @@ end
 #     ϵ = 0.0
     
 #     # multipliers on the n-day average 
-#     (ℓ, u) = (0.5, 2.0)
+#     (ℓ, u) = (0.5, 1.75)
     
 #     # observation period 
 #     T = length(local_cases) - 1
@@ -190,7 +190,7 @@ function calculate_bounds(local_cases, τ, state)
     
     for t in 1:T
         
-        if mod(t - 1, 7) == 0 
+        if mod(t - 1, τ) == 0 
             
             Cₜ[s] = sum(
                 local_cases[t:min(T, t + n)]
@@ -226,6 +226,19 @@ function calculate_bounds(local_cases, τ, state)
     return (Lₜ, Uₜ) 
     
 end
+
+# function calculate_bounds_choice(local_cases, τ, state; type = 1)
+    
+#     Lₜ = []
+#     Uₜ = []
+    
+#     if type == 1
+#         (Lₜ, Uₜ) = calculate_bounds_weekly(local_cases, τ, state)
+#     elseif type == 2
+        
+#     end
+    
+# end
 
 
 function get_simulation_limits(
@@ -290,6 +303,7 @@ function get_simulation_limits(
     
 end
 
+
 # function count_cases!(
 #     case_counts, 
 #     forecast::Forecast, 
@@ -312,6 +326,7 @@ end
 #     # case_counts .= case_counts_tmp
     
 #     return nothing
+    
 # end
 
 

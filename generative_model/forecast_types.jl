@@ -173,7 +173,7 @@ struct Constants{S, T}
         prior_alpha = 0.5
         prior_beta = 0.2
         # ema smoothing factor 
-        ϕ = 0.1
+        ϕ = 0.5
         
         S = typeof(α_s)
         T = typeof(prior_alpha)
@@ -212,6 +212,7 @@ struct IndividualTypeMap
         I = 3
         
         return new(S, A, I)
+        
     end
 end
 
@@ -286,5 +287,6 @@ struct JurisdictionAssumptions
             initial_conditions,
             omicron_dominant_date,
         )
+        
     end
 end

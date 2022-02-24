@@ -179,21 +179,30 @@ function import_cases_model!(
 	days_into_forecast = Day(Date(forecast_start_date) - Date("2020-03-01")).value
 	
 	# the number of days the simulation is run for 
-	forecast_days_plus_padding = -10:T_end-5
+	forecast_days_plus_padding = -10:T_end
 	# posterior a, b for sampling number of imports on day t 
 	a_post = MVector{length(forecast_days_plus_padding)}(
         zeros(Float64, length(forecast_days_plus_padding))
     )
 	
+    # TODO: Check this calculation makes sense. 
+    # A quick comment: 
+    # I think that the +7 deals with the truncation of the data at the end of the fitting 
+    # period and then the +4 ensures that we are considering the infection dates of those 
+    # individuals that have later onsets. I.e. individual is detected at time t, they are 
+    # infected at time t - 4, and so we want the count at time t. Bit roundabout to get 
+    # there but saves us writing more code. 
+    
 	# current ema is taken 11 days before the forecast start date
 	current_ema = zero(Float64)
-    current_ema += import_cases[days_into_forecast-11]
+    current_ema += import_cases[days_into_forecast - 11 + 7 + 4]
     
 	for (i, t) in enumerate(forecast_days_plus_padding)	
 		# if within observation period, update the posterior. Otherwise use the last 
 		# available measurement 
-		if t <= T_observed
-			count_on_day = import_cases[days_into_forecast + t]
+		if t <= T_observed - 7 - 4
+            # assume 4 day time till appearing in the dataset 
+			count_on_day = import_cases[days_into_forecast + t + 7 + 4]
 			current_ema = forecast.sim_constants.ϕ * count_on_day + 
                 (1 - forecast.sim_constants.ϕ) * current_ema
 			a_post[i] = forecast.sim_constants.prior_alpha + current_ema
@@ -503,11 +512,11 @@ end
     
     for _ in 1:num_imports_undetected
         inf_time = day
-        if inf_time <= T_end 
+        if inf_time < T_end 
             Z[map_day_to_index_Z(inf_time), individual_type_map.I, sim] += 1
         end
         
-        onset_time = inf_time + 
+        onset_time = inf_time +
             sample_onset_time(omicron = inf_time >= omicron_dominant_day)
         if onset_time < T_end
             # time+1 as first index is day 0
@@ -594,6 +603,8 @@ function simulate_branching_process(
         import_cases, 
         forecast_start_date, 
     )
+    
+    # return (forecast.sim_realisations.D, forecast.sim_realisations.U, [])
     
     good_TPs_inds = SharedArray(zeros(Int, nsims))
     
