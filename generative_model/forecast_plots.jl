@@ -90,7 +90,7 @@ function plot_all_forecasts(
         case_dates_ind = [d ∈ onset_dates ? true : false for d in case_dates]
 
         onset_dates_lims = Dates.value.(
-            [onset_dates[end] - Dates.Day(120), onset_dates[end]]
+            [onset_dates[1], onset_dates[end]]
         )
         
         if confidence_level == "50" || confidence_level == "both"
