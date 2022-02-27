@@ -4,6 +4,7 @@ using CSV
 using DataFrames
 using Pipe
 using Dates 
+using DataStructures
 
 function map_day_to_index_Z(day)
     """
@@ -49,8 +50,9 @@ function sample_inf_time(; omicron=false)
     
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
-    # shape = shape_gen_omicron
-    # scale = scale_gen_omicron
+    
+    # shape = shape_gen
+    # scale = scale_gen
     
     infection_time = ceil(Int, rand(Gamma(shape, scale)))
     
@@ -71,8 +73,8 @@ function sample_onset_time(; omicron=false)
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
     
-    # shape = shape_inc_omicron
-    # scale = scale_inc_omicron
+    # shape = shape_inc
+    # scale = scale_inc
     
     onset_time = ceil(Int, rand(Gamma(shape, scale)))
     
@@ -93,6 +95,9 @@ function sample_times(t; omicron = false)
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
+    # shape = shape_gen
+    # scale = scale_gen
+    
     infection_time = t + rand(Gamma(shape, scale))
     
     (shape_inc, scale_inc) = (5.807, 0.948)
@@ -100,6 +105,9 @@ function sample_times(t; omicron = false)
     
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
+    
+    # shape = shape_inc
+    # scale = scale_inc
     
     onset_time = infection_time + rand(Gamma(shape, scale))
     
@@ -111,7 +119,7 @@ function sample_times(t; omicron = false)
 end
 
 
-function set_simulation_constants(state)
+function set_simulation_constants(state; p_detect_omicron = 0.5)
     """
     Contains the assumptions for simulation parameters. This includes all the dynamical
     constants: 
@@ -128,7 +136,7 @@ function set_simulation_constants(state)
     parameter name and ultimately stored on the stack in a SimulationParameters object. 
     """
     # get the simulation constants
-    simulation_constants = Constants(state)
+    simulation_constants = Constants(state, p_detect_omicron = p_detect_omicron)
     # mapping between types 
     individual_type_map = IndividualTypeMap()
 
@@ -183,13 +191,25 @@ function sample_binomial_limit(n, p; approx_limit = 1000)
 end
 
 
-function read_in_TP(date, state; adjust_TP = false)
+function read_in_TP(
+    date, 
+    state; 
+    p_detect_omicron = 0.5, 
+    adjust_TP = false,
+)
     
     # read in the reff file
+    TP_file_name = "results/" * 
+        date * 
+        "/" * 
+        string(round(Int, p_detect_omicron * 100)) * 
+        "_case_ascertainment" *
+        "/"
+    
     if adjust_TP 
-        TP_file_name = "results/soc_mob_R_adjusted" * date * ".csv"        
+        TP_file_name = TP_file_name * "soc_mob_R_adjusted" * date * ".csv"        
     else
-        TP_file_name = "results/soc_mob_R" * date * ".csv"
+        TP_file_name = TP_file_name * "soc_mob_R" * date * ".csv"
     end
     
     # drop the first column 
@@ -243,6 +263,7 @@ function create_state_TP_matrices(
     forecast_start_date, 
     date, 
     state; 
+    p_detect_omicron = p_detect_omicron,
     adjust_TP = false,
 )
     """
@@ -252,7 +273,12 @@ function create_state_TP_matrices(
     """
     
     # read in the TP 
-    (TP_dict_local, TP_dict_import) = read_in_TP(date, state, adjust_TP = adjust_TP)
+    (TP_dict_local, TP_dict_import) = read_in_TP(
+        date, 
+        state, 
+        p_detect_omicron = p_detect_omicron,
+        adjust_TP = adjust_TP
+    )
     # adjust the indices so that the forecast start date is t = 0
     TP_indices = convert.(Int, Dates.value.(TP_dict_local["date"] - forecast_start_date))
     # make a matrix for a given state 
@@ -264,20 +290,25 @@ function create_state_TP_matrices(
 end
 
 
-function read_in_susceptible_depletion(file_date)
+function read_in_susceptible_depletion(file_date; p_detect_omicron = 0.5)
     """
     Read in the posterior drawn susceptible_depletion factors. This will be sorted/sampled 
     in the same order as the posterior predictive TP's to ensure we use the appropriate
     posterior draws. 
     """
     
-    susceptible_depletion = Vector(
-        CSV.read(
-            "results/forecasting/sampled_susceptible_depletion_" * file_date * ".csv", 
-            DataFrame, 
-            drop = [1],
-        )[:, 1]
-    )
+    # read in the reff file
+    file_name = "results/" * 
+        file_date * 
+        "/" * 
+        string(round(Int, p_detect_omicron * 100)) *
+        "_case_ascertainment" * 
+        "/" * 
+        "sampled_susceptible_depletion_" * 
+        file_date * 
+        ".csv"
+    
+    susceptible_depletion = Vector(CSV.read(file_name, DataFrame, drop = [1],)[:, 1])
     
     return susceptible_depletion
     
@@ -288,6 +319,7 @@ function read_in_cases(
 	rng; 
 	apply_inc = false, 
 	omicron_dominant_date = nothing,
+    use_mean = false,
 )
     
 	# read in the reff file
@@ -303,7 +335,12 @@ function read_in_cases(
 	shape_rd = 1.28
 	scale_rd = 2.31
 	# sample from delay distribtuion
-	rd = rand(rng, Gamma(shape_rd, scale_rd), length(confirm_dates))
+    rd = zeros(length(confirm_dates))
+    if use_mean
+        rd .= mean(Gamma(shape_rd, scale_rd))
+    else
+        rd = rand(rng, Gamma(shape_rd, scale_rd), length(confirm_dates))
+    end
 	confirm_dates = confirm_dates - ceil.(rd) * Day(1)
 	# adjust confirmation dates to get to onset 
 	# rd = ceil(Int, mean(Gamma(shape_rd, scale_rd)))
@@ -321,7 +358,13 @@ function read_in_cases(
 	if apply_inc
 		shape_inc = 5.807  # taken from Lauer et al. 2020 #1.62/0.418
 		scale_inc = 0.948  # 0.418
-		inc = rand(rng, Gamma(shape_inc, scale_inc), length(complete_dates))
+        inc = zeros(length(complete_dates))
+        
+        if use_mean 
+            inc .= mean(Gamma(shape_inc, scale_inc))
+        else
+		    inc = rand(rng, Gamma(shape_inc, scale_inc), length(complete_dates))
+        end
 		
 		# now apply different incubation period for Omicron 
 		apply_omicron = !isnothing(omicron_dominant_date) ? true : false
@@ -329,11 +372,17 @@ function read_in_cases(
 			is_omicron = complete_dates .>= Dates.Date(omicron_dominant_date)
 			shape_inc_omicron = 3.33
 			scale_inc_omicron = 1.34
-			inc_omicron = rand(
-				rng, 
-				Gamma(shape_inc_omicron, scale_inc_omicron), 
-				length(complete_dates),
-			)
+            
+            inc = zeros(length(complete_dates))
+            if use_mean 
+                inc_omicron .= mean(Gamma(shape_inc_omicron, scale_inc_omicron))
+            else
+                inc_omicron = rand(
+                    rng, 
+                    Gamma(shape_inc_omicron, scale_inc_omicron), 
+                    length(complete_dates),
+                )
+            end
 			# add the incubation for omicron dates in 
 			inc = (1 - is_omicron) * inc + is_omicron * inc_omicron
 		end
