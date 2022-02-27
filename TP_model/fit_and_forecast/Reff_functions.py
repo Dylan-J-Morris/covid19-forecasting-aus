@@ -11,19 +11,22 @@ plt.style.use("seaborn-poster")
 sys.path.insert(0, "model")
 from helper_functions import read_in_NNDSS
 from Reff_constants import *
-from params import (
-    alpha_start_date,
-    delta_start_date,
-    omicron_start_date,
-    vaccination_start_date,
-)
 
-
-def read_in_posterior(date):
+def read_in_posterior(date, custom_file_name=""):
     """
     read in samples from posterior from inference
     """
-    df = pd.read_hdf("results/soc_mob_posterior" + date + ".h5", key="samples")
+    df = pd.read_hdf(
+        "results/"
+        + date 
+        + "/" 
+        + custom_file_name
+        + "/"
+        + "soc_mob_posterior" 
+        + date 
+        + ".h5", 
+        key="samples"
+    )
 
     return df
 
@@ -249,8 +252,9 @@ def plot_adjusted_ve(
     third_date_range,
     ve_samples,
     ve_idx_ranges,
-    results_dir,
+    figs_dir,
     strain,
+    custom_file_name="",
 ):
 
     """
@@ -360,7 +364,12 @@ def plot_adjusted_ve(
     ax[1, 0].set_ylabel("reduction in TP from vaccination")
 
     df_vacc_ts_adjusted.to_csv(
-        "results/adjusted_vaccine_ts_"
+        "results/" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "/"
+        + custom_file_name 
+        + "/"
+        + "adjusted_vaccine_ts_"
         + strain
         + data_date.strftime("%Y-%m-%d")
         + ".csv",
@@ -368,7 +377,7 @@ def plot_adjusted_ve(
     )
 
     plt.savefig(
-        results_dir
+        figs_dir
         + data_date.strftime("%Y-%m-%d")
         + "_"
         + strain

@@ -201,7 +201,7 @@ def read_in_NNDSS(
         return df
 
 
-def read_in_Reff_file(file_date, adjust_TP_forecast=False):
+def read_in_Reff_file(file_date, results_dir="results/", adjust_TP_forecast=False):
     """
     Read in Reff h5 file produced by generate_RL_forecast.
     """
@@ -213,9 +213,11 @@ def read_in_Reff_file(file_date, adjust_TP_forecast=False):
 
     if adjust_TP_forecast:
         df_forecast = pd.read_hdf(
-            "results/soc_mob_R_adjusted" + file_date + ".h5", key="Reff"
+            results_dir + "soc_mob_R_adjusted" + file_date + ".h5", key="Reff"
         )
     else:
-        df_forecast = pd.read_hdf("results/soc_mob_R" + file_date + ".h5", key="Reff")
+        df_forecast = pd.read_hdf(
+            results_dir + "soc_mob_R" + file_date + ".h5", key="Reff"
+        )
 
     return df_forecast

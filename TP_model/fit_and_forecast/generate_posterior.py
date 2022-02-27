@@ -26,6 +26,7 @@ from params import (
     truncation_days,
     download_google_automatically,
     third_start_date,
+    alpha_start_date, 
     omicron_start_date,
     omicron_dominance_date,
     pop_sizes,
@@ -33,7 +34,6 @@ from params import (
     p_detect_delta, 
     p_detect_omicron, 
 )
-
 
 def process_vax_data_array(
     data_date, 
@@ -696,7 +696,13 @@ def get_data_for_posterior(data_date):
     return None
 
 
-def run_stan(data_date, num_chains=4, num_samples=1000, num_warmup_samples=500):
+def run_stan(
+    data_date, 
+    num_chains=4, 
+    num_samples=1000, 
+    num_warmup_samples=500, 
+    custom_file_name="",
+):
     """
     Read the input_data.json in and run the stan model.
     """
@@ -708,8 +714,24 @@ def run_stan(data_date, num_chains=4, num_samples=1000, num_warmup_samples=500):
     input_data = pickle.load(a_file)
     a_file.close()
 
-    # make results dir
-    results_dir = "figs/stan_fit/" + data_date.strftime("%Y-%m-%d") + "/"
+    # make results and figs dir
+    figs_dir = (
+        "figs/stan_fit/" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "/"
+        + custom_file_name 
+        + "/"
+    )
+    
+    results_dir = (
+        "results/" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "/" 
+        + custom_file_name 
+        + "/"
+    )
+    
+    os.makedirs(figs_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
 
     # to run the inference set run_inference to True in params
@@ -726,14 +748,17 @@ def run_stan(data_date, num_chains=4, num_samples=1000, num_warmup_samples=500):
             num_samples=num_samples,
             num_warmup=num_warmup_samples,
         )
-
+        
         df_fit = fit.to_frame()
         df_fit.to_csv(
-            "results/posterior_sample_" + data_date.strftime("%Y-%m-%d") + ".csv"
+            results_dir
+            + "posterior_sample_" 
+            + data_date.strftime("%Y-%m-%d") 
+            + ".csv"
         )
         
         filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
-        with open(results_dir + filename, "w") as f:
+        with open(figs_dir + filename, "w") as f:
             print(
                 az.summary(
                     fit,
@@ -757,17 +782,30 @@ def run_stan(data_date, num_chains=4, num_samples=1000, num_warmup_samples=500):
     return None
 
 
-def plot_and_save_posterior_samples(data_date):
+def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     """
     Runs the full suite of plotting.
     """
 
     data_date = pd.to_datetime(data_date)  # Define data date
-    results_dir = "figs/stan_fit/" + data_date.strftime("%Y-%m-%d") + "/"
+    figs_dir = (
+        "figs/stan_fit/" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "/"
+        + custom_file_name 
+        + "/"
+    )
 
     # read in the posterior sample
     samples_mov_gamma = pd.read_csv(
-        "results/posterior_sample_" + data_date.strftime("%Y-%m-%d") + ".csv"
+        "results/"
+        + data_date.strftime("%Y-%m-%d") 
+        + "/"
+        + custom_file_name 
+        + "/"
+        + "posterior_sample_" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
     )
 
     # * Note: 2020-09-09 won't work (for some reason)
@@ -1296,7 +1334,7 @@ def plot_and_save_posterior_samples(data_date):
     ax[0].set_ylabel("Proportion of imported cases")
     plt.legend()
     plt.savefig(
-        results_dir + data_date.strftime("%Y-%m-%d") + "rho_first_phase.png", dpi=144
+        figs_dir + data_date.strftime("%Y-%m-%d") + "rho_first_phase.png", dpi=144
     )
 
     # Second phase
@@ -1384,7 +1422,7 @@ def plot_and_save_posterior_samples(data_date):
         ax[0, 0].set_ylabel("Proportion of imported cases")
         plt.legend()
         plt.savefig(
-            results_dir + data_date.strftime("%Y-%m-%d") + "rho_sec_phase.png", dpi=144
+            figs_dir + data_date.strftime("%Y-%m-%d") + "rho_sec_phase.png", dpi=144
         )
 
     df_rho_third_all_states = pd.DataFrame()
@@ -1480,12 +1518,18 @@ def plot_and_save_posterior_samples(data_date):
         ax[0, 0].set_ylabel("Proportion of imported cases")
         plt.legend()
         plt.savefig(
-            results_dir + data_date.strftime("%Y-%m-%d") + "rho_third_phase.png",
-            dpi=144,
+            figs_dir + data_date.strftime("%Y-%m-%d") + "rho_third_phase.png", dpi=144,
         )
 
     df_rho_third_all_states.to_csv(
-        "results/rho_samples" + data_date.strftime("%Y-%m-%d") + ".csv"
+        "results/" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "/"
+        + custom_file_name 
+        + "/"
+        + "rho_samples" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
     )
 
     # plotting 
@@ -1545,7 +1589,7 @@ def plot_and_save_posterior_samples(data_date):
     ax.tick_params("x", rotation=90)
     ax.yaxis.grid(which="minor", linestyle="--", color="black", linewidth=2)
     plt.tight_layout()
-    plt.savefig(results_dir + data_date.strftime("%Y-%m-%d") + "R_priors.png", dpi=144)
+    plt.savefig(figs_dir + data_date.strftime("%Y-%m-%d") + "R_priors.png", dpi=144)
 
     # Making a new figure that doesn't include the priors
     fig, ax = plt.subplots(figsize=(12, 9))
@@ -1587,7 +1631,7 @@ def plot_and_save_posterior_samples(data_date):
     ax.yaxis.grid(which="minor", linestyle="--", color="black", linewidth=2)
     plt.tight_layout()
     plt.savefig(
-        results_dir + data_date.strftime("%Y-%m-%d") + "R_priors_(without_priors).png",
+        figs_dir + data_date.strftime("%Y-%m-%d") + "R_priors_(without_priors).png",
         dpi=288,
     )
 
@@ -1622,7 +1666,7 @@ def plot_and_save_posterior_samples(data_date):
     ax.yaxis.grid(which="minor", linestyle="--", color="black", linewidth=2)
     plt.tight_layout()
     plt.savefig(
-        results_dir + data_date.strftime("%Y-%m-%d") + "voc_effect_posteriors.png",
+        figs_dir + data_date.strftime("%Y-%m-%d") + "voc_effect_posteriors.png",
         dpi=288,
     )
 
@@ -1657,7 +1701,7 @@ def plot_and_save_posterior_samples(data_date):
     plt.tight_layout()
 
     plt.savefig(
-        results_dir + data_date.strftime("%Y-%m-%d") + "mobility_posteriors.png",
+        figs_dir + data_date.strftime("%Y-%m-%d") + "mobility_posteriors.png",
         dpi=288,
     )
 
@@ -1679,7 +1723,7 @@ def plot_and_save_posterior_samples(data_date):
             a.set_xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
 
     plt.savefig(
-        results_dir + data_date.strftime("%Y-%m-%d") + "Reff_first_phase.png",
+        figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_first_phase.png",
         dpi=144,
     )
 
@@ -1706,7 +1750,7 @@ def plot_and_save_posterior_samples(data_date):
                 a.set_ylim((0, 2.5))
 
         plt.savefig(
-            results_dir + data_date.strftime("%Y-%m-%d") + "Reff_sec_phase.png", dpi=144
+            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_sec_phase.png", dpi=144
         )
 
         # remove plots from memory
@@ -1814,8 +1858,9 @@ def plot_and_save_posterior_samples(data_date):
         third_date_range,
         delta_ve_samples,
         delta_ve_idx_ranges,
-        results_dir,
+        figs_dir,
         "delta",
+        custom_file_name=custom_file_name, 
     )
 
     plot_adjusted_ve(
@@ -1827,8 +1872,9 @@ def plot_and_save_posterior_samples(data_date):
         third_omicron_date_range,
         omicron_ve_samples,
         omicron_ve_idx_ranges,
-        results_dir,
+        figs_dir,
         "omicron",
+        custom_file_name=custom_file_name, 
     )
 
     # extract the prop of omicron to delta and save
@@ -1868,7 +1914,7 @@ def plot_and_save_posterior_samples(data_date):
                 # a.set_xlim((start_date,end_date))
 
         plt.savefig(
-            results_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase.png",
+            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase.png",
             dpi=144,
         )
 
@@ -1945,7 +1991,7 @@ def plot_and_save_posterior_samples(data_date):
     fig.tight_layout()
     
     plt.savefig(
-        results_dir + data_date.strftime("%Y-%m-%d") + "omicron_proportion.png", dpi=144
+        figs_dir + data_date.strftime("%Y-%m-%d") + "omicron_proportion.png", dpi=144
     )
     
     # need to rotate to put into a good format
@@ -1959,7 +2005,14 @@ def plot_and_save_posterior_samples(data_date):
     )
 
     df_prop_omicron_to_delta.to_csv(
-        "results/prop_omicron_to_delta" + data_date.strftime("%Y-%m-%d") + ".csv"
+        "results/" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "/"
+        + custom_file_name 
+        + "/"
+        + "prop_omicron_to_delta" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
     )
 
     # saving the final processed posterior samples to h5 for generate_RL_forecasts.py
@@ -1994,7 +2047,14 @@ def plot_and_save_posterior_samples(data_date):
 
     # save the posterior
     samples_mov_gamma[var_to_csv].to_hdf(
-        "results/soc_mob_posterior" + data_date.strftime("%Y-%m-%d") + ".h5",
+        "results/" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "/"
+        + custom_file_name 
+        + "/"
+        + "soc_mob_posterior" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".h5",
         key="samples",
     )
 
@@ -2006,19 +2066,26 @@ def main(data_date, run_inference=True):
     Runs the stan model in parts to cut down on memory.
     """
     # some parameters for HMC
+    custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
+        
     if run_inference:     
-        num_chains = 4
-        num_samples = 1500
+        num_chains = 2
+        num_samples = 1000
         num_warmup_samples = 1000
         get_data_for_posterior(data_date=data_date)
+        
         run_stan(
             data_date=data_date,
             num_chains=num_chains,
             num_samples=num_samples,
             num_warmup_samples=num_warmup_samples,
+            custom_file_name=custom_file_name,
         )
         
-    plot_and_save_posterior_samples(data_date=data_date)
+    plot_and_save_posterior_samples(
+        data_date=data_date, 
+        custom_file_name=custom_file_name
+    )
 
     return None
 
