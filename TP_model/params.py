@@ -74,3 +74,16 @@ offset_rd = 0
 # and using MLE to fit a Gamma distribution
 (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
 offset_gen = 0
+
+# pulled from
+# https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/latest-release
+pop_sizes = {
+    "ACT": 432266,
+    "NSW": 8189266,
+    "NT": 246338,
+    "QLD": 5221170,
+    "SA": 1773243,
+    "TAS": 541479,
+    "VIC": 6649159,
+    "WA": 2681633,
+}
