@@ -2069,8 +2069,8 @@ def main(data_date, run_inference=True):
     custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
         
     if run_inference:     
-        num_chains = 2
-        num_samples = 1000
+        num_chains = 4
+        num_samples = 1500
         num_warmup_samples = 1000
         get_data_for_posterior(data_date=data_date)
         

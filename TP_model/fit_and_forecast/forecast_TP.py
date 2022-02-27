@@ -12,12 +12,14 @@ from params import (
     num_forecast_days,
     alpha_start_date,
     delta_start_date,
+    omicron_start_date,
     truncation_days,
     third_start_date,
     start_date,
     use_TP_adjustment,
     n_days_nowcast_TP_adjustment,
     num_TP_samples,
+    p_detect_omicron, 
 )
 from scenarios import scenarios, scenario_dates
 from sys import argv
@@ -66,12 +68,23 @@ third_date_range = {
 
 # Get Google Data - Don't use the smoothed data?
 df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
-
 third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
+
+# dir to read and write from is the detection probability for omicron as a percentage (rounded) 
+# with the full path specified
+custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
+results_dir = (
+    "results"
+    + "/"
+    + data_date.strftime("%Y-%m-%d")
+    + "/"
+    + custom_file_name 
+    + "/"
+)
 # Load in vaccination data by state and date which should have the same date as the 
 # NNDSS/linelist data use the inferred VE
 vaccination_by_state_delta = pd.read_csv(
-    "results/adjusted_vaccine_ts_delta" + data_date.strftime("%Y-%m-%d") + ".csv",
+    results_dir + "adjusted_vaccine_ts_delta" + data_date.strftime("%Y-%m-%d") + ".csv",
     parse_dates=["date"],
 )
 vaccination_by_state_delta = vaccination_by_state_delta[["state", "date", "effect"]]
@@ -82,7 +95,7 @@ vaccination_by_state_delta = vaccination_by_state_delta.pivot(
 vaccination_by_state_delta_array = vaccination_by_state_delta.to_numpy()
 
 vaccination_by_state_omicron = pd.read_csv(
-    "results/adjusted_vaccine_ts_omicron" + data_date.strftime("%Y-%m-%d") + ".csv",
+    results_dir + "adjusted_vaccine_ts_omicron" + data_date.strftime("%Y-%m-%d") + ".csv",
     parse_dates=["date"],
 )
 vaccination_by_state_omicron = vaccination_by_state_omicron[["state", "date", "effect"]]
@@ -175,7 +188,10 @@ mask_wearing_X = pd.pivot_table(
 mask_wearing_all = mask_wearing_X
 
 # Get posterior
-df_samples = read_in_posterior(date=data_date.strftime("%Y-%m-%d"))
+df_samples = read_in_posterior(
+    date=data_date.strftime("%Y-%m-%d"),
+    custom_file_name=custom_file_name,
+)
 
 states = sorted(["NSW", "QLD", "SA", "VIC", "TAS", "WA", "ACT", "NT"])
 plot_states = states.copy()
@@ -904,7 +920,13 @@ for i, state in enumerate(states):
     state_Rmed[state] = Rmed_array
     state_sims[state] = sims
 
-os.makedirs("figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d"), exist_ok=True)
+os.makedirs(
+    "figs/mobility_forecasts/" 
+    + custom_file_name 
+    + "/"
+    + data_date.strftime("%Y-%m-%d"), 
+    exist_ok=True,
+)
 
 for i, fig in enumerate(figs):
     fig.text(0.5, 0.02, "Date", ha="center", va="center", fontsize=15)
@@ -913,6 +935,8 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
+            + custom_file_name 
+            + "/"
             + data_date.strftime("%Y-%m-%d")
             + "/"
             + str(predictors[i])
@@ -924,6 +948,8 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
+            + custom_file_name 
+            + "/"
             + data_date.strftime("%Y-%m-%d")
             + "/micro_dist.png",
             dpi=400,
@@ -933,6 +959,8 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
+            + custom_file_name 
+            + "/"
             + data_date.strftime("%Y-%m-%d")
             + "/mask_wearing.png",
             dpi=400,
@@ -942,6 +970,8 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
+            + custom_file_name 
+            + "/"
             + data_date.strftime("%Y-%m-%d")
             + "/delta_vaccination.png",
             dpi=400,
@@ -950,6 +980,8 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
+            + custom_file_name 
+            + "/"
             + data_date.strftime("%Y-%m-%d")
             + "/omicron_vaccination.png",
             dpi=400,
@@ -1028,7 +1060,7 @@ df_masks = pd.concat([masks, df_forecast_masks.set_index("date")])
 # now we read in the ve time series and create an adjusted timeseries from March 1st
 # that includes no effect prior
 vaccination_by_state = pd.read_csv(
-    "results/adjusted_vaccine_ts_delta" + data_date.strftime("%Y-%m-%d") + ".csv",
+    results_dir + "adjusted_vaccine_ts_delta" + data_date.strftime("%Y-%m-%d") + ".csv",
     parse_dates=["date"],
 )
 # there are a couple NA's early on in the time series but is likely due to slightly different start dates
@@ -1065,15 +1097,18 @@ df_ve_delta = df_ve_delta[
 ]
 
 # save the forecasted vaccination line
-os.makedirs("results/forecasting/", exist_ok=True)
 df_ve_delta.to_csv(
-    "results/forecasting/forecasted_vaccination_delta"
+    results_dir
+    + "forecasted_vaccination_delta"
     + data_date.strftime("%Y-%m-%d")
     + ".csv"
 )
 
 vaccination_by_state = pd.read_csv(
-    "results/adjusted_vaccine_ts_omicron" + data_date.strftime("%Y-%m-%d") + ".csv",
+    results_dir 
+    + "adjusted_vaccine_ts_omicron" 
+    + data_date.strftime("%Y-%m-%d") 
+    + ".csv",
     parse_dates=["date"],
 )
 # there are a couple NA's early on in the time series but is likely due to slightly different start dates
@@ -1113,9 +1148,9 @@ df_ve_omicron = df_ve_omicron[
     df_ve_omicron.index <= pd.to_datetime(today) + timedelta(days=num_forecast_days)
 ]
 # save the forecasted vaccination line
-os.makedirs("results/forecasting/", exist_ok=True)
 df_ve_omicron.to_csv(
-    "results/forecasting/forecasted_vaccination_omicron"
+    results_dir
+    + "forecasted_vaccination_omicron"
     + data_date.strftime("%Y-%m-%d")
     + ".csv"
 )
@@ -1182,7 +1217,12 @@ fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
 plt.tight_layout(rect=[0.05, 0.04, 1, 1])
 
 fig.savefig(
-    "figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d") + "/md_factor.png",
+    "figs/"
+    + "mobility_forecasts/" 
+    + custom_file_name 
+    + "/"
+    + data_date.strftime("%Y-%m-%d") 
+    + "/md_factor.png",
     dpi=144,
 )
 
@@ -1327,7 +1367,6 @@ print("============")
 
 def sigmoid(t, r, tau, m0, m1):
     y = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
-    
     return y.T
 
 for typ in forecast_type:
@@ -1866,10 +1905,10 @@ fig.text(
 fig.text(0.525, 0.02, "Date", va="center", ha="center", fontsize=20)
 plt.tight_layout(rect=[0.04, 0.04, 1, 1])
 
-os.makedirs("figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d"), exist_ok=True)
-
 plt.savefig(
     "figs/mobility_forecasts/"
+    + custom_file_name 
+    + "/"
     + data_date.strftime("%Y-%m-%d")
     + "/TP_6_month_"
     + data_date.strftime("%Y-%m-%d")
@@ -1965,10 +2004,10 @@ print("============")
 print("Saving results")
 print("============")
 
-os.makedirs("figs/mobility_forecasts/" + data_date.strftime("%Y-%m-%d"), exist_ok=True)
-
 plt.savefig(
     "figs/mobility_forecasts/"
+    + custom_file_name 
+    + "/"
     + data_date.strftime("%Y-%m-%d")
     + "/TP_12_month_"
     + data_date.strftime("%Y-%m-%d")
@@ -1984,7 +2023,8 @@ TPs_to_keep = np.sort(
 
 # convert the appropriate sampled susceptible depletion factors to a csv and save them for simulation
 pd.DataFrame(susceptible_depletion_factor[0, TPs_to_keep]).to_csv(
-    "./results/forecasting/sampled_susceptible_depletion_"
+    results_dir
+    + "sampled_susceptible_depletion_"
     + data_date.strftime("%Y-%m-%d")
     + ".csv"
 )
@@ -1999,7 +2039,12 @@ df_Rhats = df_Rhats[
 # df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
 # df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
 # save the file as a csv
-df_Rhats.to_csv("results/soc_mob_R" + data_date.strftime("%Y-%m-%d") + ".csv")
+df_Rhats.to_csv(
+    results_dir 
+    + "soc_mob_R" 
+    + data_date.strftime("%Y-%m-%d") 
+    + ".csv"
+)
 # df_hdf.to_hdf('results/soc_mob_R' + data_date.strftime('%Y-%m-%d') + '.h5', key='Reff')
 
 if use_TP_adjustment:
@@ -2015,7 +2060,12 @@ if use_TP_adjustment:
     from helper_functions import read_in_Reff_file
 
     # df_forecast = read_in_Reff_file(data_date)
-    df_forecast = pd.read_csv("results/soc_mob_R" + data_date.strftime("%Y-%m-%d") + ".csv")
+    df_forecast = pd.read_csv(
+        results_dir 
+        + "soc_mob_R" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
     # read in Reff samples
     df_Reff = pd.read_csv(
         "results/EpyReff/Reff_samples" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
@@ -2023,7 +2073,10 @@ if use_TP_adjustment:
     )
 
     inferred_prop_imports = pd.read_csv(
-        "results/rho_samples" + data_date.strftime("%Y-%m-%d") + ".csv", 
+        results_dir
+        + "rho_samples" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv", 
         parse_dates=["date"],
     )
 
@@ -2039,7 +2092,12 @@ if use_TP_adjustment:
     states_to_adjust = ["NSW", "QLD", "SA", "VIC", "TAS", "WA", "ACT", "NT"]
 
     # read in the samples for weighting between TP and Reff.
-    samples = pd.read_csv("results/samples_mov_gamma.csv")
+    samples = pd.read_csv(
+        results_dir 
+        + "posterior_sample_" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
     # extract the import values
     R_I = samples.R_I.to_numpy()
 
@@ -2280,6 +2338,8 @@ if use_TP_adjustment:
     plt.tight_layout(rect=[0.04, 0.04, 1, 1])
     plt.savefig(
         "figs/mobility_forecasts/"
+        + custom_file_name 
+        + "/"
         + data_date.strftime("%Y-%m-%d")
         + "/TP_6_month_adjusted_"
         + data_date.strftime("%Y-%m-%d")
@@ -2310,7 +2370,10 @@ if use_TP_adjustment:
     df_forecast_new["date"] = pd.to_datetime(df_forecast_new["date"])
     
     df_forecast_new.to_csv(
-        "results/soc_mob_R_adjusted" + data_date.strftime("%Y-%m-%d") + ".csv"
+        results_dir 
+        + "soc_mob_R_adjusted" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
     )
     # df_forecast_new.to_csv(
     #     "results/soc_mob_R_adjusted" + data_date.strftime("%Y-%m-%d") + ".csv"
