@@ -68,7 +68,7 @@ struct Constants{S, T}
     # multiplier for the consistency between observed cases 
     consistency_multiplier::T
     
-    function Constants(state)
+    function Constants(state; p_detect_omicron = 0.5)
         ## Delta assumptions
         k_delta = 0.15
         p_symp_delta = 0.7
@@ -105,30 +105,32 @@ struct Constants{S, T}
         ## omicron assumptions 
         k_omicron = 0.6
         p_symp_omicron = 0.4
+        # solve the system:
+        r = 2 / 3
+        p_ds = p_detect_omicron / (p_symp_omicron + (1 - p_symp_omicron) * r) 
+                
         p_detect_given_symp_omicron_dict = Dict{String, Float64}(
-            "NSW" => 0.7,
-            "QLD" => 0.7,
-            "SA" => 0.7,
-            "TAS" => 0.7,
-            "WA" => 0.7,
-            "ACT" => 0.7,
-            "NT" => 0.7,
-            "VIC" => 0.7,
+            "NSW" => p_ds,
+            "QLD" => p_ds,
+            "SA" => p_ds,
+            "TAS" => p_ds,
+            "WA" => p_ds,
+            "ACT" => p_ds,
+            "NT" => p_ds,
+            "VIC" => p_ds,
         )
         p_detect_given_asymp_omicron_dict = Dict{String, Float64}(
-            "NSW" => 0.467,
-            "QLD" => 0.467,
-            "SA" => 0.467,
-            "TAS" => 0.467,
-            "WA" => 0.467,
-            "ACT" => 0.467,
-            "NT" => 0.467,
-            "VIC" => 0.467,
+            "NSW" => r * p_ds,
+            "QLD" => r * p_ds,
+            "SA" => r * p_ds,
+            "TAS" => r * p_ds,
+            "WA" => r * p_ds,
+            "ACT" => r * p_ds,
+            "NT" => r * p_ds,
+            "VIC" => r * p_ds,
         )
         p_detect_given_symp_omicron = p_detect_given_symp_omicron_dict[state]
         p_detect_given_asymp_omicron = p_detect_given_asymp_omicron_dict[state]
-        p_detect_omicron = p_symp_omicron * p_detect_given_symp_omicron + 
-            (1 - p_symp_omicron)* p_detect_given_asymp_omicron 
         p_symp_given_detect_omicron = (
             p_detect_given_symp_omicron * p_symp_omicron / p_detect_omicron 
         )
@@ -171,7 +173,7 @@ struct Constants{S, T}
         consistency_multiplier = 5.0
         # prior parametes for the import model
         prior_alpha = 0.5
-        prior_beta = 0.2
+        prior_beta = 0.1
         # ema smoothing factor 
         ϕ = 0.5
         
@@ -275,7 +277,7 @@ struct JurisdictionAssumptions
             "QLD" => (S = 1, A = 1, I = 0),
             "SA" => (S = 0, A = 0, I = 0),
             "TAS" => (S = 0, A = 0, I = 0),
-            "VIC" => (S = 20, A = 20, I = 0),
+            "VIC" => (S = 5, A = 5, I = 0),
             "WA" => (S = 0, A = 0, I = 0),
             "ACT" => (S = 12, A = 10, I = 0),
             "NT" => (S = 0, A = 0, I = 0),
