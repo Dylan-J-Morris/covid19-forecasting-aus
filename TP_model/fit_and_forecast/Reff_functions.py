@@ -189,9 +189,9 @@ def predict_plot(
             )
             
         
-        df_hat = pd.DataFrame(mu_hat.T)
+        # df_hat = pd.DataFrame(mu_hat.T)
         
-        df_hat.to_csv('mu_hat_' + state + '.csv')
+        # df_hat.to_csv('mu_hat_' + state + '.csv')
 
         if states_initials[state] not in rho:
             if i // 4 == 1:
@@ -392,7 +392,12 @@ def plot_adjusted_ve(
     return None
 
 
-def read_in_cases(case_file_date, apply_delay_at_read=False, apply_inc_at_read=False):
+def read_in_cases(
+    case_file_date, 
+    apply_delay_at_read=False, 
+    apply_inc_at_read=False,
+    apply_case_ascertainment_increase=False,
+):
     """
     Read in NNDSS data and from data, find rho
     """

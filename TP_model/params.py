@@ -20,9 +20,9 @@ num_forecast_days = 35
 
 ##### Usually unchanged parameters, contains some dates and number of forecast #####
 p_detect_delta = 0.695
-# p_detect_omicron = 0.5602
-p_detect_omicron = 0.5
-# p_detect_omicron = 0.375
+# p_detect_omicron = 0.64  # default
+# p_detect_omicron = 0.5  # default
+p_detect_omicron = 0.375
 # p_detect_omicron = 0.25
 
 third_start_date = "2021-06-25"
@@ -58,6 +58,7 @@ assume_local_cases_if_unknown = True
 # omicron incubation period determined by sampling Delta incubation periods and subtracting 1 
 # (then taking those with days > 0.05) and using MLE to fit a Gamma distribution
 (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
+# (shape_inc_omicron, scale_inc_omicron) = (shape_inc, scale_inc)
 offset_inc = 0
 
 ## reporting delay distribution: 
@@ -73,6 +74,7 @@ offset_rd = 0
 # omicron GI determined by sampling Delta GI and subtracting 1 (then taking those with days > 0.05)
 # and using MLE to fit a Gamma distribution
 (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
+# (shape_gen_omicron, scale_gen_omicron) = (shape_gen, scale_gen)
 offset_gen = 0
 
 # pulled from

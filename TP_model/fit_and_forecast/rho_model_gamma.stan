@@ -122,6 +122,8 @@ transformed data {
     // third wave as pre third wave cases were negligible
     vector[N_third_wave] local_third_wave_tmp;
     vector[N_third_wave] cumulative_local_third;
+    // to be used as the accurate number of cases when determining the import fraction
+    matrix[N_third_wave,j_third_wave] local_third_wave_ca_adjusted;
     matrix[N_third_wave,j_third_wave] proportion_infected;
     
     // shape and scale for the likelihood in each wave
@@ -135,14 +137,17 @@ transformed data {
     for (i in 1:j_third_wave){
         local_third_wave_tmp = local_third_wave[:,i];
         for (n in 1:N_third_wave) { 
-            // scale up local case count by assumed ascertainment
-            if (n <= omicron_dominance_day) {
+            // scale up local case count by assumed ascertainment -5 (mean incubation 
+            // period) days as case ascertainment is assumed to scale up on the 15/12/2021
+            // but that relates only to detections of actual cases
+            if (n <= omicron_dominance_day - 5) {
                 local_third_wave_tmp[n] *= 1 / p_detect_delta;
             } else {
                 local_third_wave_tmp[n] *= 1 / p_detect_omicron;
             }
         }
-
+        
+        local_third_wave_ca_adjusted[:,i] = local_third_wave_tmp; 
         cumulative_local_third = cumulative_sum(local_third_wave_tmp);
         
         for (n in 1:N_third_wave) {
@@ -695,7 +700,7 @@ model {
         
         brho_third_wave[pos2_start:pos2_end] ~ beta(
             1 + imported_third_wave[idxs_third[1:pos_idxs-1],i], 
-            1 + local_third_wave[idxs_third[1:pos_idxs-1],i]
+            1 + local_third_wave_ca_adjusted[idxs_third[1:pos_idxs-1],i]
         );
         
         // likelihood
