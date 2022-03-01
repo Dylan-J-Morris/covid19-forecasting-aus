@@ -37,5 +37,14 @@ const nsims = Dict{String, Int}(
     "TAS" => 10000,
 )
 
+const p_detect_omicron = 0.5
+
 # run main 
-simulate_all_states(file_date, states_to_run, nsims, run_simulation)
+simulate_all_states(
+    file_date, 
+    states_to_run, 
+    nsims, 
+    run_simulation,
+    p_detect_omicron = p_detect_omicron, 
+    adjust_TP = true
+)

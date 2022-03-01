@@ -16,6 +16,8 @@ function simulate_single_state(
     nsims, 
     run_simulation; 
     truncation_days = 7,
+    p_detect_omicron = 0.5,
+    adjust_TP = false, 
 )
     """
     This runs the branching process for a single state. 
@@ -71,6 +73,8 @@ function simulate_single_state(
             file_date, 
             jurisdiction_assumptions.omicron_dominant_date, 
             state,
+            p_detect_omicron = p_detect_omicron,
+            adjust_TP = adjust_TP, 
         )
         
         save_simulations(
@@ -94,6 +98,8 @@ function simulate_all_states(
     nsims, 
     run_simulation; 
     truncation_days = 7,
+    p_detect_omicron = 0.5,
+    adjust_TP = false, 
 )
     """
     This runs the branching process for each of the states in states and then 
@@ -156,6 +162,9 @@ function simulate_all_states(
                 file_date, 
                 jurisdiction_assumptions.omicron_dominant_date, 
                 state,
+                p_detect_omicron = p_detect_omicron, 
+                adjust_TP = adjust_TP,
+                parallel = true
             )
             
             save_simulations(

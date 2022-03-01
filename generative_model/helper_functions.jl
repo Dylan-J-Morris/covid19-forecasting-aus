@@ -16,6 +16,7 @@ function map_day_to_index_Z(day)
     
 end
 
+
 function map_day_to_index_UD(day)
     """
     Map the day to the appropriate index for the "detection" arrays U and D.
@@ -26,6 +27,7 @@ function map_day_to_index_UD(day)
     return res
     
 end
+
 
 function NegativeBinomial2(μ, ϕ)
     """
@@ -38,6 +40,7 @@ function NegativeBinomial2(μ, ϕ)
     return NegativeBinomial(r, p)
     
 end
+
 
 function sample_inf_time(; omicron=false)
     """
@@ -54,7 +57,7 @@ function sample_inf_time(; omicron=false)
     # shape = shape_gen
     # scale = scale_gen
     
-    infection_time = ceil(Int, rand(Gamma(shape, scale)))
+    infection_time = round(Int, rand(Gamma(shape, scale)))
     
     return infection_time
     
@@ -76,17 +79,18 @@ function sample_onset_time(; omicron=false)
     # shape = shape_inc
     # scale = scale_inc
     
-    onset_time = ceil(Int, rand(Gamma(shape, scale)))
+    onset_time = round(Int, rand(Gamma(shape, scale)))
     
     return onset_time
     
 end
 
+
 function sample_times(t; omicron = false)
     """
     Assuming an initial time t, sample the time until infection and onset for an individual 
-    and only take the ceiling once we have assigned them. This helps reduce the effect of 
-    rounding errors induced by adding ceil numbers. 
+    and only take the rounding once we have assigned them. This helps reduce the effect of 
+    rounding errors induced by adding round numbers. 
     """
     
     (shape_gen, scale_gen) = (2.75, 1.00)
@@ -111,8 +115,8 @@ function sample_times(t; omicron = false)
     
     onset_time = infection_time + rand(Gamma(shape, scale))
     
-    infection_time = ceil(Int, infection_time)
-    onset_time = ceil(Int, onset_time)
+    infection_time = round(Int, infection_time)
+    onset_time = round(Int, onset_time)
     
     return (infection_time, onset_time)
     
@@ -314,6 +318,7 @@ function read_in_susceptible_depletion(file_date; p_detect_omicron = 0.5)
     
 end
 
+
 function read_in_cases(
 	date, 
 	rng; 
@@ -384,7 +389,7 @@ function read_in_cases(
                 )
             end
 			# add the incubation for omicron dates in 
-			inc = (1 - is_omicron) * inc + is_omicron * inc_omicron
+			inc = (1 .- is_omicron) .* inc + is_omicron .* inc_omicron
 		end
         
 		complete_dates = complete_dates - ceil.(inc) * Day(1)

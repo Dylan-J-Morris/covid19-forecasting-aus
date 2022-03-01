@@ -106,7 +106,7 @@ struct Constants{S, T}
         k_omicron = 0.6
         p_symp_omicron = 0.4
         # solve the system:
-        r = 2 / 3
+        r = 1 / 4
         p_ds = p_detect_omicron / (p_symp_omicron + (1 - p_symp_omicron) * r) 
                 
         p_detect_given_symp_omicron_dict = Dict{String, Float64}(
