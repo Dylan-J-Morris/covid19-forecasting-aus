@@ -189,7 +189,7 @@ def predict_plot(
             )
             
         
-        # df_hat = pd.DataFrame(mu_hat.T)
+        df_hat = pd.DataFrame(mu_hat.T)
         
         # df_hat.to_csv('mu_hat_' + state + '.csv')
 
