@@ -12,7 +12,7 @@ use_TP_adjustment = True
 testing_inference = False
 n_days_nowcast_TP_adjustment = 30
 # number of forecasted TP samples to save
-num_TP_samples = 2000  
+num_TP_samples = 4000  
 # number of days to remove to stop the issues with the right-truncation
 truncation_days = 14
 # Number of days after data date to forecast (usually 35)
@@ -21,8 +21,8 @@ num_forecast_days = 35
 ##### Usually unchanged parameters, contains some dates and number of forecast #####
 p_detect_delta = 0.695
 # p_detect_omicron = 0.64  # default
-# p_detect_omicron = 0.5  # default
-p_detect_omicron = 0.375
+p_detect_omicron = 0.5  # default
+# p_detect_omicron = 0.375
 # p_detect_omicron = 0.25
 
 third_start_date = "2021-06-25"
