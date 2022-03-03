@@ -7,7 +7,8 @@ function save_simulations(
     state,
     file_date,
     onset_dates,
-    rng,
+    rng;
+    truncation_days = 7,
 )
     """
     Saves a CSV in the same format as required for the ensemble forecast. 
@@ -55,19 +56,21 @@ function save_simulations(
         end
     end
     
-    # this adds a column for the date we are supplied the NINDSS file 
-    df_observed[!, "data date"] .= file_date
-    df_TP_local[!, "data date"] .= file_date
+    # This adds a column for the date we are supplied the NINDSS file minus some truncation 
+    # near the most recent data. This is needed for forecast evaluations. 
+    forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
+    df_observed[!, "forecast_origin"] .= forecast_origin
+    df_TP_local[!, "forecast_origin"] .= forecast_origin
     
     # directory path, and check to see whether it's good
-    dir_name = joinpath("results", "UoA_forecast_output", file_date)
+    dir_name = joinpath("results", "UoA_forecast_output", forecast_origin)
     if !ispath(dir_name)
         mkpath(dir_name)
     end
     
     # file name is just the state and file date
-    sim_file_name = state * "_" * file_date * "_sim.csv"
-    TP_file_name = state * "_" * file_date * "_TP.csv"
+    sim_file_name = state * "_" * forecast_origin * "_sim.csv"
+    TP_file_name = state * "_" * forecast_origin * "_TP.csv"
     CSV.write(dir_name * "/" * sim_file_name, df_observed)
     CSV.write(dir_name * "/" * TP_file_name, df_TP_local)
     
@@ -75,7 +78,7 @@ function save_simulations(
     
 end
 
-function merge_simulation_files(file_date)
+function merge_simulation_files(file_date; truncation_days = 7)
     """
     Merge the simulation files into a single file. 
     """
@@ -92,8 +95,9 @@ function merge_simulation_files(file_date)
     end
 
     # now we make sure the filenames are as we want
+    forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
     for (i,f) in enumerate(states)
-        g = f * "_" * file_date * "_sim.csv"
+        g = f * "_" * forecast_origin * "_sim.csv"
         states[i] = g 
     end
     
@@ -106,7 +110,7 @@ function merge_simulation_files(file_date)
         df_merged = [df_merged; df_tmp]
     end
     
-    CSV.write(dir_name * "/" * "UoA_samples_" * file_date * ".csv", df_merged)
+    CSV.write(dir_name * "/" * "UoA_samples_" * forecast_origin * ".csv", df_merged)
     
     return nothing
     

@@ -1,252 +1,36 @@
 include("forecast_types.jl")
 include("helper_functions.jl")
 
-function ρ(X, X_sim; metric = "absolute")
-    """
-    Calculate the sum of the absolute difference at each time point between observed data 
-    X and simulated data X_sim noting that each row of these corresponds to a realisation. 
-    that 
-    """
-    
-    ϵ = zeros(size(X, 2))
-    
-    if metric == "absolute"
-        ϵ .= sum(abs.(X - X_sim), dims = 1)[:]
-    elseif metric == "MSE"
-        ϵ .= sum((X - X_sim) .^ 2, dims = 1)[:]
-    elseif metric == "RMSE"
-        N = size(X, 1)
-        ϵ .= sqrt.(1 / N * sum((X - X_sim) .^ 2, dims = 1)[:])
-    end
-    
-    return ϵ
-    
-end
-
-function final_check(D_good, local_cases; p = 0.1, metric = "absolute")
-    """
-    Determines the top p×100% of simulations based on some metric ρ(X, X_sim) and returns 
-    those indices.  
-    """
-    # get only the observed cases over the period we have cases for
-    D_observed = D_good[begin:length(local_cases), 1, :] + 
-        D_good[begin:length(local_cases), 2, :]
-    # tile local_cases to easily calculate the distance ρ(X, X_sim)
-    local_cases_mat = repeat(local_cases, 1, size(D_observed, 2))
-    
-    # calculate distance between data and the simulations
-    ϵ = ρ(local_cases_mat, D_observed, metric = metric)
-    # determine the sim indices of the top p×100% 
-    good_inds = ϵ .< quantile(ϵ, p)
-    
-    return good_inds 
-    
-end
-
-
-function calculate_bounds2(local_cases, τ, state)
-    
-    # tolerance for when we consider cases to be stable
-    ϵ = 0.0
-    
-    # multipliers on the n-day average 
-    (ℓ, u) = (0.25, 2.5)
-    
-    # observation period 
-    T = length(local_cases) - 1
-    # the slope over the n-day period 
-    m = 0.0
-    Mₜ = zeros(Float64, T)
-    
-    Lₜ = zeros(Float64, T)
-    Uₜ = zeros(Float64, T) 
-    
-    # consider τ = 3 and t = (0, 1, 2), clearly n = 2 - 0 = 2
-    n = τ - 1
-    
-    n2 = 7
-    
-    for t in 1:T
-        
-        # if state == "NSW"  
-        #     if t < 30
-        #         (ℓ, u) = (0, 10)
-        #     elseif t < T - 7
-        #         (ℓ, u) = (0.5, 2.0)
-        #     else
-        #         (ℓ, u) = (0.5, 2.0)
-        #     end
-        # elseif state == "NT"
-        #     if t < 30
-        #         (ℓ, u) = (0, 4.0)
-        #     elseif t < T - 7
-        #         (ℓ, u) = (0.25, 4.0)
-        #     else
-        #         (ℓ, u) = (0.5, 3.0)
-        #     end
-        # end
-        
-        # approximate the slope naively 
-        if t < T - n
-            m = 1 / n * (
-                local_cases[map_day_to_index_UD(t) + n] - 
-                local_cases[map_day_to_index_UD(t)]
-            )
-        else
-            m = 1 / n * (
-                local_cases[map_day_to_index_UD(t)] - 
-                local_cases[map_day_to_index_UD(t) - n]
-            ) 
-        end
-        
-        Mₜ[t] = m
-        
-        # depending on the sign of the slope, take average of future or past cases 
-        if m < -ϵ
-            Lₜ[t] = ℓ * mean(
-                local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]
-            ) 
-            Uₜ[t] = u * mean(
-                local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]
-            ) 
-            # Lₜ[t] = mean(local_cases[t:min(T, t + n)]) 
-            # Uₜ[t] = mean(local_cases[max(1, t - n):t]) 
-        elseif m > ϵ
-            Lₜ[t] = ℓ * mean(
-                local_cases[max(1, map_day_to_index_UD(t) - n):map_day_to_index_UD(t)]
-            ) 
-            Uₜ[t] = u * mean(
-                local_cases[map_day_to_index_UD(t):min(T, map_day_to_index_UD(t) + n)]
-            ) 
-            # Lₜ[t] = mean(local_cases[max(1, t - 2):t]) 
-            # Uₜ[t] = mean(local_cases[t:min(T, t + 2)]) 
-        else
-            n2 = n ÷ 2
-            Lₜ[t] = ℓ * mean(
-                local_cases[
-                    max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)
-                ]
-            ) 
-            Uₜ[t] = u * mean(
-                local_cases[
-                    max(1, map_day_to_index_UD(t) - n2):min(T, map_day_to_index_UD(t) + n2)
-                ]
-            ) 
-            # Lₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
-            # Uₜ[t] = mean(local_cases[max(1, t - n2):min(T, t + n2)]) 
-        end
-        
-        # adjust the bounds for periods with low cases
-        if Lₜ[t] < 50
-            Lₜ[t] = 0
-        end
-        
-        if Uₜ[t] < 50
-            Uₜ[t] = 50
-        end
-        
-        if isnan(Lₜ[t])
-            Lₜ[t] = Lₜ[t-1]
-        end
-        
-        if isnan(Uₜ[t])
-            Uₜ[t] = Uₜ[t-1]
-        end
-    end
-    
-    return (Lₜ, Uₜ) 
-    
-end
-
-
 function calculate_bounds(local_cases, τ, state)
     
-    # tolerance for when we consider cases to be stable
-    ϵ = 0.0
+    # observation period 
+    T = length(local_cases)
+    
+    # number of periods the local cases array can be split into 
+    L = T ÷ τ
+    
+    # create indices for each of the windows 
+    idxs_limits = [1 + i * τ:(i + 1) * τ for i in 0:L]
+    # adjust last indices to be the length of the remaining number of cases
+    if idxs_limits[end][end] > length(local_cases)
+        idxs_limits[end] = idxs_limits[end][begin]:length(local_cases)
+    end
+    Cₜ = [sum(local_cases[idx]) for idx in idxs_limits]
     
     # multipliers on the n-day average
-    (ℓ, u) = (0.5, 2.5)
-    # (ℓ, u) = (1.0, 1.0)
+    (ℓ, u) = (0.3, 2.5)
+    Lₜ = ceil.(Int, ℓ * Cₜ)
+    Uₜ = ceil.(Int, u * Cₜ)
     
-    # observation period 
-    T = length(local_cases) - 1
-    # the slope over the n-day period 
-    m = 0.0
+    # multipliers on the n-day average
+    (ℓ, u) = (0.3, 2.5)
+    Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
+    Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
     
-    L = (T ÷ 7) + 1
-    Mₜ = zeros(Float64, L)
-    Cₜ = zeros(Float64, L)
+    Lₜ[Lₜ .< 100] .= 0 
+    Uₜ[Uₜ .< 100] .= 100 
     
-    Lₜ = zeros(Float64, L)
-    Uₜ = zeros(Float64, L) 
-    
-    # consider τ = 3 and t = (0, 1, 2), clearly n = 2 - 0 = 2
-    n = (τ - 1)
-    
-    n2 = 7
-    
-    # indexer for the bound arrays 
-    s = 1
-    
-    for t in 1:T
-        
-        if mod(t - 1, τ) == 0 
-            
-            Cₜ[s] = sum(local_cases[max(1, t):min(T, t + n)]) 
-            
-            # if s >= length(Cₜ) - 2
-            #     ℓ = 0.75
-            #     u = 2.0
-            # end
-            
-            Lₜ[s] = ℓ * Cₜ[s]
-            Uₜ[s] = u * Cₜ[s]
-            
-            # adjust the bounds for periods with low cases
-            if Lₜ[s] < 500
-                Lₜ[s] = 0
-            end
-            
-            if Uₜ[s] < 500
-                Uₜ[s] = 500
-            end
-            
-            if isnan(Lₜ[s])
-                Lₜ[s] = Lₜ[s - 1]
-            end
-            
-            if isnan(Uₜ[s])
-                Uₜ[s] = Uₜ[s - 1]
-            end
-            
-            s += 1
-            
-        end
-        
-    end
-    
-    return (Lₜ, Uₜ) 
-    
-end
-
-function count_cases2!(
-    case_counts, 
-    forecast::Forecast, 
-    sim,
-)
-
-    D = forecast.sim_realisations.D
-    
-    day = 1
-    tmp = 0
-    
-    for i in 1:length(case_counts)
-        case_counts[day] = D[map_day_to_index_UD(i), 1, sim] + 
-            D[map_day_to_index_UD(i), 2, sim]
-        day += 1
-    end
-    
-    return nothing
+    return (Lₜ, Uₜ, idxs_limits) 
     
 end
 
@@ -254,24 +38,14 @@ end
 function count_cases!(
     case_counts, 
     forecast::Forecast, 
-    sim,
 )
 
-    D = forecast.sim_realisations.D
-    T_observed = forecast.sim_features.T_observed
-    day_index = 1
-    i = 1
-    tmp = 0
+    idxs_limits = forecast.sim_features.idxs_limits
+    D = forecast.sim_realisation.D
     case_counts .= 0
-    n = 6
     
-    for t in 1:T_observed
-        tmp += D[map_day_to_index_UD(t), 1, sim] + D[map_day_to_index_UD(t), 2, sim]
-        if mod(t - 1, 7) == 0 
-            idx = max(1, t):min(T_observed, t + n)
-            case_counts[i] = sum(@view D[idx, 1:2, sim])
-            i += 1
-        end
+    for (i, idx) in enumerate(idxs_limits)
+        case_counts[i] = sum(@view D[idx, 1:2])
     end
     
     return nothing
@@ -286,7 +60,8 @@ function get_simulation_limits(
     cases_pre_forecast, 
     TP_indices, 
     N, 
-    state, 
+    state; 
+    τ = 7,
 )
     """
     Using the observed cases, determine the limits of cases over the backcast and 
@@ -303,10 +78,10 @@ function get_simulation_limits(
     days_delta = (Dates.Date(omicron_dominant_date) - 
         Dates.Date(forecast_start_date)).value
         
-    (min_cases, max_cases) = calculate_bounds(local_cases, 7, state)
+    (min_cases, max_cases, idxs_limits) = calculate_bounds(local_cases, τ, state)
     
     # the maximum allowable cases over the forecast period is the population size
-    max_forecast_cases = cases_pre_forecast + sum(local_cases)
+    max_forecast_cases = N ÷ 2
     
     # get the day we want to start using omicron GI and incubation period (+1) as 0 
     # corresponds to the first element of the arrays 
@@ -319,13 +94,13 @@ function get_simulation_limits(
         T_observed, 
         T_end, 
         omicron_dominant_day, 
+        τ,
+        min_cases, 
+        max_cases, 
+        idxs_limits,
     )
     
-    return (
-        sim_features,
-        min_cases, 
-        max_cases,
-    )
+    return sim_features
     
 end
 
@@ -335,10 +110,7 @@ function check_sim!(
     forecast_start_date,
     omicron_dominant_date,
     case_counts, 
-    sim,
     local_cases,
-    min_cases, 
-    max_cases, 
     reinitialise_allowed;
     day = 0,
 )
@@ -350,195 +122,87 @@ function check_sim!(
     
     print_status = false
     
-    Z = forecast.sim_realisations.Z
-    D = forecast.sim_realisations.D
-    U = forecast.sim_realisations.U
+    Z = forecast.sim_realisation.Z
+    D = forecast.sim_realisation.D
+    U = forecast.sim_realisation.U
     
     # days forecast observed for 
     T_observed = forecast.sim_features.T_observed
     T_end = forecast.sim_features.T_end
+    τ = forecast.sim_features.τ
     max_forecast_cases = forecast.sim_features.max_forecast_cases
     consistency_multiplier = forecast.sim_constants.consistency_multiplier
     
-    # initialise the bad sim
+    min_cases = forecast.sim_features.min_cases
+    max_cases = forecast.sim_features.max_cases
+    idxs_limits = forecast.sim_features.idxs_limits
+    
+    # initialise as bad sim
     bad_sim = false
     injected_cases = false 
     
-    days_delta = (
-        Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)
-    ).value
+    if day == 0
+        # count how many cases each day 0
+        count_cases!(case_counts, forecast)
+        if any(case_counts .< min_cases)
+            bad_sim = true
+            return (bad_sim, injected_cases)
+        end
+    end
     
-    # if reinitialise_allowed
-    #     # calculate the number of detections missed over the 5 day period 
-    #     # X_day_index = map_day_to_index_UD(day-6):map_day_to_index_UD(day)
-    #     X_day_range = day:day
-    #     actual_X_day_cases = sum(
-    #         @view local_cases[map_day_to_index_UD.(X_day_range)]
-    #     )
-    #     # calculate total number of cases over week 
-    #     sim_X_day_cases = sum(@view D[map_day_to_index_UD.(X_day_range), 1:2, sim])
-    #     missing_detections = 0
-    #     threshold = ceil(Int, consistency_multiplier * max(1, sim_X_day_cases))
-        
-    #     if (actual_X_day_cases > threshold)
-    #         # println(
-    #         #     "======\n", 
-    #         #     "injected cases...\n",
-    #         #     " sim: ", sim, "\n",  
-    #         #     " actual cases: ", actual_X_day_cases, "\n", 
-    #         #     " sim cases: ", sim_X_day_cases, "\n",
-    #         #     " day added: ", day, "\n",
-    #         #     "======"
-    #         # )
-            
-    #         # uniformly sample a number of missing detections to add in
-    #         missing_detections = ceil(
-    #             Int, 
-    #             actual_X_day_cases - sim_X_day_cases,
-    #         )
-            
-    #         injected_cases = true 
-    #         inject_cases!(
-    #             forecast::Forecast, 
-    #             missing_detections, 
-    #             X_day_range, 
-    #             sim, 
-    #         )
-    #     end
-    # end
     
-    # if !injected_cases
-    #     # this is just the total cases over the forecast horizon 
-    #     D_forecast = sum(@view D[T_observed + 1:end, 1:2, sim])
-    #     # count how many cases each day 
-    #     count_cases!(case_counts, forecast, sim)
+    # only check for consistency if we don't inject cases.
+    ζ = ceil(map_day_to_index_cases(day) ÷ τ)
         
-    #     # if we've exceeded the max cases over a given period
-    #     if D_forecast > max_forecast_cases
-    #         bad_sim = true
-    #         # bad_sim && println("sim: ", sim, " had too many forecast cases")
-    #         print_status && println("sim: ", sim, " had too many forecast cases")
-    #     end
+    if 1 <= ζ <= length(case_counts)
+        # count how many cases each day 0
+        count_cases!(case_counts, forecast)
+        if any(case_counts[1:ζ] .> max_cases[1:ζ])
+            bad_sim = true 
+        end
         
-    #     if !bad_sim 
-    #         # if any(case_counts .> max_cases) 
-    #         #     bad_sim = true 
-    #         #     print_status && println("sim: ", sim, " too many cases in backcast")
-    #         # end
+        if !bad_sim && reinitialise_allowed
+            # calculate the number of detections missed over the τ day period 
+            X_day_range = min(T_observed - 1, day - 2):min(T_observed - 1, day)
+            actual_X_day_cases = sum(
+                @view local_cases[map_day_to_index_cases.(X_day_range)]
+            )
+            # calculate total number of cases over week 
+            sim_X_day_cases = sum(@view D[map_day_to_index_UD.(X_day_range), 1:2])
+            missing_detections = 0
+            threshold = ceil(Int, consistency_multiplier * max(1, sim_X_day_cases))
             
-    #         for (i, (c, m)) in enumerate(
-    #             zip(case_counts, max_cases)
-    #         )
-    #             if c > m 
-    #                 bad_sim = true 
-    #                 # bad_sim && println("sim: ", sim, " had too many cases: ", c, " > ", m)
-    #                 print_status && println("sim: ", sim, " too many cases: ", c, " > ", m, " day: ", day)
-    #                 break
-    #             end
-    #         end
-            
-    #         if day == 0 
-    #             # if any(case_counts .< min_cases)
-    #             #     bad_sim = true
-    #             #     print_status && println("sim: ", sim, " too few cases in backcast")
-    #             # end
+            if (actual_X_day_cases > threshold)
+                # println(
+                #     "======\n", 
+                #     "injected cases...\n",
+                #     " sim: ", sim, "\n",  
+                #     " actual cases: ", actual_X_day_cases, "\n", 
+                #     " sim cases: ", sim_X_day_cases, "\n",
+                #     " day added: ", day, "\n",
+                #     "======"
+                # )
                 
-    #             for (i, (c, m)) in enumerate(
-    #                 zip(case_counts, min_cases)
-    #             )
-    #                 if c < m 
-    #                     bad_sim = true 
-    #                     print_status && println("sim: ", sim, " too few cases: ", c, " < ", m)
-    #                     break
-    #                 end
-    #             end
-    #         end
-    #     end
-    # end
-    
-    # this is just the total cases over the forecast horizon 
-    D_forecast = sum(@view D[T_observed + 1:end, 1:2, sim])
-    # count how many cases each day 
-    count_cases!(case_counts, forecast, sim)
-    
-    # if we've exceeded the max cases over a given period
-    if D_forecast > max_forecast_cases
-        bad_sim = true
-        # bad_sim && println("sim: ", sim, " had too many forecast cases")
-        print_status && println("sim: ", sim, " had too many forecast cases")
-    end
-    
-    if !bad_sim 
-        # if any(case_counts .> max_cases) 
-        #     bad_sim = true 
-        #     print_status && println("sim: ", sim, " too many cases in backcast")
-        # end
-        
-        for (i, (c, m)) in enumerate(
-            zip(case_counts, max_cases)
-        )
-            if c > m 
-                bad_sim = true 
-                # bad_sim && println("sim: ", sim, " had too many cases: ", c, " > ", m)
-                print_status && println("sim: ", sim, " too many cases: ", c, " > ", m, " element: ", i)
-                break
+                # uniformly sample a number of missing detections to add in
+                missing_detections = ceil(
+                    Int, 
+                    actual_X_day_cases - sim_X_day_cases,
+                )
+                
+                injected_cases = true 
+                inject_cases!(
+                    forecast::Forecast, 
+                    missing_detections, 
+                    X_day_range, 
+                )
             end
         end
-        
-        if day == 0 
-            # if any(case_counts .< min_cases)
-            #     bad_sim = true
-            #     print_status && println("sim: ", sim, " too few cases in backcast")
-            # end
-            
-            for (i, (c, m)) in enumerate(
-                zip(case_counts, min_cases)
-            )
-                if c < m 
-                    bad_sim = true 
-                    print_status && println("sim: ", sim, " too few cases: ", c, " < ", m)
-                    break
-                end
-            end
-        end
-    end
-    
-    if reinitialise_allowed
-        # calculate the number of detections missed over the 5 day period 
-        # X_day_index = map_day_to_index_UD(day-6):map_day_to_index_UD(day)
-        X_day_range = min(T_observed, day):min(T_observed, day)
-        actual_X_day_cases = sum(
-            @view local_cases[map_day_to_index_UD.(X_day_range)]
-        )
-        # calculate total number of cases over week 
-        sim_X_day_cases = sum(@view D[map_day_to_index_UD.(X_day_range), 1:2, sim])
-        missing_detections = 0
-        threshold = ceil(Int, consistency_multiplier * max(1, sim_X_day_cases))
-        
-        if (actual_X_day_cases > threshold)
-            # println(
-            #     "======\n", 
-            #     "injected cases...\n",
-            #     " sim: ", sim, "\n",  
-            #     " actual cases: ", actual_X_day_cases, "\n", 
-            #     " sim cases: ", sim_X_day_cases, "\n",
-            #     " day added: ", day, "\n",
-            #     "======"
-            # )
-            
-            # uniformly sample a number of missing detections to add in
-            missing_detections = ceil(
-                Int, 
-                actual_X_day_cases - sim_X_day_cases,
-            )
-            
-            injected_cases = true 
-            inject_cases!(
-                forecast::Forecast, 
-                missing_detections, 
-                X_day_range, 
-                sim, 
-            )
+    elseif ζ > length(case_counts)
+        # this is just the total cases over the forecast horizon 
+        D_forecast = sum(@view D[T_observed + 1:end, 1:2])
+        # if we've exceeded the max cases over a given period
+        if D_forecast > max_forecast_cases
+            bad_sim = true
         end
     end
     
@@ -550,17 +214,16 @@ end
 function inject_cases!(
     forecast::Forecast,
     missing_detections, 
-    day_range, 
-    sim,
+    X_day_range, 
 )
     """
     A model for injecting cases into the simulation following long periods of low 
     incidence. 
     """
     
-    Z = forecast.sim_realisations.Z
-    D = forecast.sim_realisations.D
-    U = forecast.sim_realisations.U
+    Z = forecast.sim_realisation.Z
+    D = forecast.sim_realisation.D
+    U = forecast.sim_realisation.U
     individual_type_map = forecast.individual_type_map
     
     total_injected = 0
@@ -573,7 +236,7 @@ function inject_cases!(
     p_symp_given_detect = 0.0 
     
     # grab the correct parameters for the particular dominant strain 
-    if day_range[end] < omicron_dominant_day 
+    if X_day_range[end] < omicron_dominant_day 
         p_symp = forecast.sim_constants.p_symp.delta 
         p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.delta 
         p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.delta 
@@ -611,44 +274,44 @@ function inject_cases!(
     # infection time is then 1 generation interval earlier
     for _ in 1:num_symptomatic_detected
         total_injected += 1
-        onset_time = rand(day_range)
+        onset_time = rand(X_day_range)
         inf_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[map_day_to_index_Z(inf_time), individual_type_map.S, sim] += 1
-        D[map_day_to_index_UD(onset_time), individual_type_map.S, sim] += 1 
+        Z[map_day_to_index_Z(inf_time), individual_type_map.S] += 1
+        D[map_day_to_index_UD(onset_time), individual_type_map.S] += 1 
     end
     
     # infection time is then 1 generation interval earlier
     for _ in 1:num_asymptomatic_detected
         total_injected += 1
-        onset_time = rand(day_range)
+        onset_time = rand(X_day_range)
         # -1 as the sampled onset time is ceiling and so technically the infection day 
         # would be rounded down 
         inf_time = onset_time - 
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day) 
-        Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
-        D[map_day_to_index_UD(onset_time), individual_type_map.A, sim] += 1 
+            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        Z[map_day_to_index_Z(inf_time), individual_type_map.A] += 1
+        D[map_day_to_index_UD(onset_time), individual_type_map.A] += 1 
     end
     
     # now add in the inferred undetected cases in the same way. Note that the 
     # onset times are kinda irrelevant here, but just help with consistent 
     for _ in 1:num_symptomatic_undetected
         total_injected += 1
-        onset_time = rand(day_range)
-        inf_time = onset_time - 
+        onset_time = rand(X_day_range)
+        inf_time = onset_time -
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[map_day_to_index_Z(inf_time), individual_type_map.S, sim] += 1
-        U[map_day_to_index_UD(onset_time), individual_type_map.S, sim] += 1 
+        Z[map_day_to_index_Z(inf_time), individual_type_map.S] += 1
+        U[map_day_to_index_UD(onset_time), individual_type_map.S] += 1 
     end
     
     # now add in the inferred undetected cases 
     for _ in 1:num_asymptomatic_undetected
         total_injected += 1
-        onset_time = rand(day_range)
+        onset_time = rand(X_day_range)
         inf_time = onset_time - 
             sample_onset_time(omicron = onset_time >= omicron_dominant_day)
-        Z[map_day_to_index_Z(inf_time), individual_type_map.A, sim] += 1
-        U[map_day_to_index_UD(onset_time), individual_type_map.A, sim] += 1 
+        Z[map_day_to_index_Z(inf_time), individual_type_map.A] += 1
+        U[map_day_to_index_UD(onset_time), individual_type_map.A] += 1 
     end
     
     return nothing 

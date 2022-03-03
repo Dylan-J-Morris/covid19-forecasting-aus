@@ -12,21 +12,56 @@ struct Features
     T_observed::Int
     T_end::Int
     omicron_dominant_day::Int
+    # number of days for each consistency check 
+    τ::Int
+    min_cases::Vector{Int}
+    max_cases::Vector{Int}
+    idxs_limits::Vector{UnitRange{Int64}}
 end
 
 
-mutable struct Realisations
+mutable struct Realisation
     """
     A type for holding the realisations of the simulations. This is a cleaner way of 
     holding the information for the three different matrices used. Z is for infections 
     D is for observed cases and U is for undetected cases. 
     """
-    Z::SharedArray{Int}
-    Z_historical::SharedArray{Int}
-    D::SharedArray{Int}
-    U::SharedArray{Int}
+    Z::Array{Int}
+    Z_historical::Array{Int}
+    D::Array{Int}
+    U::Array{Int}
     
-    function Realisations(
+    function Realisation(
+        sim_duration,  
+    )
+        """
+        Initialising a state array object with arrays of zeros. 
+        We pad the infection array Z with 35 days to account for 
+        infections occuring prior to the simulation period. We do this
+        separately (and not in a struct) as the arrays are large. 
+        """
+        
+        Z = zeros(Int, sim_duration + 35, 3)
+        Z_historical = zeros(Int, sim_duration + 35)
+        D = zeros(Int, sim_duration, 3)
+        U = zeros(Int, sim_duration, 3)
+        
+        return new(Z, Z_historical, D, U) 
+    end
+end
+
+mutable struct Results
+    """
+    A type for holding the realisations of the simulations. This is a cleaner way of 
+    holding the information for the three different matrices used. Z is for infections 
+    D is for observed cases and U is for undetected cases. 
+    """
+    Z::Array{Int}
+    Z_historical::Array{Int}
+    D::Array{Int}
+    U::Array{Int}
+    
+    function Results(
         sim_duration,  
         nsims,
     )
@@ -37,10 +72,10 @@ mutable struct Realisations
         separately (and not in a struct) as the arrays are large. 
         """
         
-        Z = SharedArray(zeros(Int, sim_duration + 35, 3, nsims))
-        Z_historical = SharedArray(zeros(Int, sim_duration + 35, nsims))
-        D = SharedArray(zeros(Int, sim_duration, 3, nsims))
-        U = SharedArray(zeros(Int, sim_duration, 3, nsims))
+        Z = zeros(Int, sim_duration + 35, 3, nsims)
+        Z_historical = zeros(Int, sim_duration + 35, nsims)
+        D = zeros(Int, sim_duration, 3, nsims)
+        U = zeros(Int, sim_duration, 3, nsims)
         
         return new(Z, Z_historical, D, U) 
     end
@@ -106,7 +141,7 @@ struct Constants{S, T}
         k_omicron = 0.6
         p_symp_omicron = 0.4
         # solve the system:
-        r = 1 / 4
+        r = 0.4
         p_ds = p_detect_omicron / (p_symp_omicron + (1 - p_symp_omicron) * r) 
                 
         p_detect_given_symp_omicron_dict = Dict{String, Float64}(
@@ -225,7 +260,8 @@ struct Forecast
     object. This drastically simplifies the layout of the code at no performance hit. 
     """
     sim_features::Features
-    sim_realisations::Realisations
+    sim_realisation::Realisation
+    sim_results::Results
     sim_constants::Constants
     individual_type_map::IndividualTypeMap
 end

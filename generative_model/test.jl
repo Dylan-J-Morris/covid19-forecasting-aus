@@ -6,15 +6,8 @@ observation of correctness.
 
 using Revise
 using Distributed
-
-parallel = true
-
-if parallel 
-    # add number of cores 
-    if nprocs() == 1
-        addprocs(6)
-    end
-end
+# using CairoMakie
+using Plots
 
 include("simulate_states.jl")
 
@@ -23,7 +16,7 @@ U = []
 TP_local = []
 
 # parameters to pass to the main function
-file_date = "2022-02-22"
+file_date = "2022-03-01"
 
 # set seed for consistent plots (NOTE: this is not useful when multithreading 
 # enabled as we use separate seeds but the simulation pool should handle that)
@@ -41,18 +34,14 @@ omicron_dominant_date = "2021-12-15"
 dates = local_case_dict["date"]
 last_date_in_data = dates[end]
 forecast_end_date = last_date_in_data + Dates.Day(35)
-
 # create vector for dates
 onset_dates = latest_start_date:Dates.Day(1):forecast_end_date
-
 # add a small truncation to the simulations as we don't trust the most recent data
 truncation_days = 7
-
 # states to simulate
-state = "SA"
+state = "QLD"
 nsims = 1000
-p_detect_omicron = 0.25
-
+p_detect_omicron = 0.5
 forecast_start_date = Dates.Date(
     jurisdiction_assumptions.simulation_start_dates[state]
 )
@@ -74,6 +63,8 @@ import_cases = import_cases[begin:end-truncation_days]
 
 include("simulate_states.jl")
 
+using ProfileView
+
 (D, U, TP_local, scale_factor, Z_historical) = simulate_branching_process(
     D0,
     N,
@@ -87,8 +78,6 @@ include("simulate_states.jl")
     state,
     p_detect_omicron = p_detect_omicron,
     adjust_TP = false,
-    filter_results = true,
-    parallel = true,
 )
 
 save_simulations(
@@ -98,63 +87,14 @@ save_simulations(
     file_date,
     onset_dates,
     rng,
+    truncation_days = truncation_days,
 )
 
-Z_historical_cumsum = cumsum(Z_historical, dims = 1)
-s = (N .- Z_historical_cumsum) ./ N
-
-
-# D_50 = deepcopy(D)
-# D_38 = deepcopy(D)
-D_25 = deepcopy(D)
-
 let 
-    forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
-    local_cases = local_case_dict[state][dates .>= forecast_start_date]
-    local_cases = local_cases[begin:end-truncation_days]
-    
-    D_50_local = D_50[:, 1, :] + D_50[:, 2, :]
-    D_50_local_median = median(D_50_local, dims = 2)
-    D_38_local = D_38[:, 1, :] + D_38[:, 2, :]
-    D_38_local_median = median(D_38_local, dims = 2)
-    D_25_local = D_25[:, 1, :] + D_25[:, 2, :]
-    D_25_local_median = median(D_25_local, dims = 2)
-    
-    f = plot(layout = (3, 1))
-    plot!(f, subplot = 1, local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(f, subplot = 1, D_50_local, legend = false, lc = 2, linealpha = 0.5)
-    plot!(f, subplot = 1, scale_factor[36:end, :], legend = false, lc = 4, linealpha = 0.5)
-    plot!(f, subplot = 1, local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(f, subplot = 1, D_50_local_median, legend = false, lc = 3)
-    vline!(f, subplot = 1, [19], lc = :black)
-    xlims!(f, subplot = 1, 0, length(local_cases) + 35)
-    ylims!(f, subplot = 1, 0, 5000)
-    plot!(f, subplot = 2, local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(f, subplot = 2, D_38_local, legend = false, lc = 2, linealpha = 0.5)
-    plot!(f, subplot = 2, scale_factor[36:end, :], legend = false, lc = 4, linealpha = 0.5)
-    plot!(f, subplot = 2, local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(f, subplot = 2, D_38_local_median, legend = false, lc = 3)
-    vline!(f, subplot = 2, [19], lc = :black)
-    xlims!(f, subplot = 2, 0, length(local_cases) + 35)
-    ylims!(f, subplot = 2, 0, 5000)
-    plot!(f, subplot = 3, local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(f, subplot = 3, D_25_local, legend = false, lc = 2, linealpha = 0.5)
-    plot!(f, subplot = 3, scale_factor[36:end, :], legend = false, lc = 4, linealpha = 0.5)
-    plot!(f, subplot = 3, local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(f, subplot = 3, D_25_local_median, legend = false, lc = 3)
-    vline!(f, subplot = 3, [19], lc = :black)
-    xlims!(f, subplot = 3, 0, length(local_cases) + 35)
-    ylims!(f, subplot = 3, 0, 5000)
+    plot(scale_factor, lc = 1, alpha = 0.05, legend = false)
 end
 
-let 
-    plot(s, lc = 1, legend = false, alpha = 0.2)
-end
-    
-let 
-    plot(scale_factor, lc = 1, alpha = 0.2, legend = false)
-end
-
+# plot for assessing the overall forecast fits
 let
     forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
     local_cases = local_case_dict[state][dates .>= forecast_start_date]
@@ -171,12 +111,12 @@ let
     f = plot(layout = (3, 1))
     plot!(f, subplot = 1, local_cases, legend = false, linealpha = 1, lc = 1)
     plot!(f, subplot = 1, D_local, legend = false, lc = 2, linealpha = 0.5)
-    plot!(f, subplot = 1, scale_factor[36:end, :], legend = false, lc = 4, linealpha = 0.5)
+    # plot!(f, subplot = 1, scale_factor[36:end, :], legend = false, lc = 4, linealpha = 0.5)
     plot!(f, subplot = 1, local_cases, legend = false, linealpha = 1, lc = 1)
     plot!(f, subplot = 1, D_local_median, legend = false, lc = 3)
     vline!(f, subplot = 1, [19], lc = :black)
     xlims!(f, subplot = 1, 0, length(local_cases) + 35)
-    ylims!(f, subplot = 1, 0, 50000)
+    ylims!(f, subplot = 1, 0, maximum(local_cases) * 3)
     # ylims!(f, subplot = 1, 0, 5000)
     # ylims!(f, subplot = 1, 0, 50000)
     # ylims!(0, 30000)
@@ -190,7 +130,7 @@ let
     # plot!(D_import_mean, legend = false, lc = 3)
     xlims!(f, subplot = 2, 0, length(import_cases) + 35)
     # xlims!(length(local_cases) - 60, length(local_cases) + 35)
-    ylims!(f, subplot = 2, 0, 60)
+    ylims!(f, subplot = 2, 0, maximum(import_cases) * 1.5)
     # ylims!(f, subplot = 2, 0, 10)
     # ylims!(0, 30000)
     # ylims!(0, 50000)
@@ -202,81 +142,119 @@ let
     ylims!(f, subplot = 3, 0, 3)
 end
 
+# plots for assessing the local case forecast specifically
 let
     forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
     local_cases = local_case_dict[state][dates .>= forecast_start_date]
     local_cases = local_cases[begin:end-truncation_days]
-    
     D_local = D[:, 1, :] + D[:, 2, :]
     D_local_median = median(D_local, dims = 2)
     D_local_mean = mean(D_local, dims = 2)
-    import_cases = import_case_dict[state][dates .>= forecast_start_date]
-    import_cases = import_cases[begin:end-truncation_days]
-    D_import = D[:, 3, :]
-    D_import_median = median(D_import, dims = 2)
-    D_import_mean = mean(D_import, dims = 2)
+    
     f = plot()
-    # plot!(f, median(D_local, dims = 1), legend = false, lc = 2, linealpha = 0.5)
     plot!(f, local_cases, legend = false, linealpha = 1, lc = 1)
-    plot!(f, median(Z_historical[36:end, :], dims = 2)[:], legend = false, lc = 4)
-    # plot!(f, (1:length(local_cases)) .+ 7, local_cases, legend = false, linealpha = 1, lc = 1)
+    plot!(f, D_local, legend = false, lc = 2, linealpha = 0.5)
+    plot!(f, scale_factor[36:end, :], legend = false, lc = 4, linealpha = 0.5)
+    plot!(f, local_cases, legend = false, linealpha = 1, lc = 1)
     plot!(f, D_local_median, legend = false, lc = 3)
-    vline!(f, [19], lc = :black)
     xlims!(f, 0, length(local_cases) + 35)
-    ylims!(f, 0, 200)
-    ylims!(f, 0, 6000)
-    # ylims!(f, 0, 50000)
-    # ylims!(0, 30000)
-    # ylims!(0, 50000)
-    # ylims!(0, 3000)
-    # ylims!(0, 15000)
-    display(f)
+    ylims!(f, 0, 50000)
 end
 
-let
-    forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
-    local_cases = local_case_dict[state]
-    # local_cases = local_cases[begin:end-truncation_days]
+forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
+local_cases = local_case_dict[state]
+# local_cases = local_cases[begin:end-truncation_days]
+
+D_local = D[:, 1, :] + D[:, 2, :]
+D_local_median = median(D_local, dims = 2)
+D_local_low = quantile.(eachrow(D_local), 0.25)
+D_local_high = quantile.(eachrow(D_local), 0.75)
+D_local_bottom = quantile.(eachrow(D_local), 0.05)
+D_local_top = quantile.(eachrow(D_local), 0.95)
+D_local_mean = mean(D_local, dims = 2)
+
+let 
+    fig = Figure(size = (800, 1200))  
+
+    axs = [
+        Axis(fig[i, j])
+        for i in 1:4, j in 1:2
+    ]
     
-    D_local = D[:, 1, :] + D[:, 2, :]
-    D_local_median = median(D_local, dims = 2)
-    D_local_mean = mean(D_local, dims = 2)
-    f = plot()
-    plot!(
-        f, 
-        forecast_start_date:Dates.Day(1):forecast_start_date + Dates.Day(size(D, 1)-1),
-        D_local, 
-        legend = false, 
-        lc = 2, 
-        linealpha = 0.5
-    )
-    plot!(
-        f, 
-        forecast_start_date:Dates.Day(1):forecast_start_date + Dates.Day(size(D, 1)-1),
-        D_local_median, 
-        legend = false, 
-        lc = 3, 
-        linealpha = 0.5
-    )
-    plot!(
-        f, 
-        Dates.Date("2020-03-01"):Dates.Day(1):Dates.Date("2020-03-01") + Dates.Day(length(local_cases)-1),
-        local_cases, 
-        legend = false, 
-        linealpha = 1, 
-        lc = 1
-    )
+    for i in 1:4
+        linkyaxes!(axs[i, 1], axs[i, 2])
+        linkxaxes!(axs[i, 1], axs[i, 2])
+    end
     
-    x1 = forecast_start_date
-    x2 = forecast_start_date + Dates.Day(size(D, 1)-1)
+    x = 0:length(forecast_start_date:Dates.Day(1):forecast_start_date + Dates.Day(size(D, 1)-1)) - 1
     
-    # plot!(f, (1:length(local_cases)) .+ 7, local_cases, legend = false, linealpha = 1, lc = 1)
-    # plot!(f, D_local_median, legend = false, lc = 3)
-    vline!(f, [Dates.Date("2021-12-01")], lc = :black)
-    xlims!((x1, x2))
-    ylims!(f, 0, 200)
-    ylims!(f, 0, 5000)
+    for ax in axs
+        ax.xticks = (
+            0:21:length(forecast_start_date:Dates.Day(1):forecast_start_date + Dates.Day(size(D, 1)-1)) - 1,
+            string.(forecast_start_date:Dates.Day(21):forecast_start_date + Dates.Day(size(D, 1)-1))
+        )
+        ax.xticklabelrotation = π/4
+        lines!(
+            ax,
+            # forecast_start_date:Dates.Day(1):forecast_start_date + Dates.Day(size(D, 1)-1),
+            x,
+            vec(D_local_median), 
+            color = :blue,
+        )
+        band!(
+            ax,
+            # forecast_start_date:Dates.Day(1):forecast_start_date + Dates.Day(size(D, 1)-1),
+            x,
+            D_local_low,
+            D_local_high, 
+            color = (:skyblue, 0.5),
+        )
+        band!(
+            ax,
+            # forecast_start_date:Dates.Day(1):forecast_start_date + Dates.Day(size(D, 1)-1),
+            x,
+            D_local_bottom,
+            D_local_top, 
+            color = (:skyblue, 0.3),
+        )
+        lines!(
+            ax,
+            # Dates.Date("2020-03-01"):Dates.Day(1):Dates.Date("2020-03-01") + Dates.Day(length(local_cases)-1),
+            x[1:length(local_cases)],
+            local_cases, 
+            color = :black,
+        )
+    end
+
+    fig
 end
+# plot!(
+#     f, 
+#     D_local, 
+#     forecast_start_date:Dates.Day(1):forecast_start_date + Dates.Day(size(D, 1)-1),
+#     legend = false, 
+#     lc = 3, 
+#     linealpha = 0.5
+# )
+# plot!(
+#     f, 
+#     legend = false, 
+#     linealpha = 1, 
+#     lc = 1
+# )
+
+# x1 = forecast_start_date
+# x2 = forecast_start_date + Dates.Day(size(D, 1)-1)
+
+# # plot!(f, (1:length(local_cases)) .+ 7, local_cases, legend = false, linealpha = 1, lc = 1)
+# # plot!(f, D_local_median, legend = false, lc = 3)
+# vline!(f, [Dates.Date("2021-12-01")], lc = :black)
+# xlims!((x1, x2))
+# ylims!(f, 0, 200)
+# ylims!(f, 0, 5000)
+forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
+local_cases = local_case_dict[state][dates .>= forecast_start_date]
+local_cases = local_cases[begin:end-truncation_days]
 
 D_local = D[:, 1, :] + D[:, 2, :]
 D_observed = D_local[begin:length(local_cases), :]
@@ -298,7 +276,7 @@ let
     plot!(local_cases, legend = false, linealpha = 1, lc = 1)
     # plot!(D_local_med, legend = false, lc = 2)
     xlims!(1, length(local_cases) + 35)
-    ylims!(0, 40000)
+    ylims!(0, 6000)
 end
 
 dir_name = joinpath("tmp_plots", "case_forecasts")
@@ -497,3 +475,20 @@ ylims!((0.5, 3.0))
 display(f)
 
 savefig(f, "local_TP_differing_CA.pdf")
+
+#####
+
+# df1 = CSV.read("results/2022-03-01/50_case_ascertainment/soc_mob_R2022-03-01.csv", DataFrame) 
+df1 = CSV.read("results/2022-03-01/50_case_ascertainment/soc_mob_R_adjusted2022-03-01.csv", DataFrame) 
+df2 = CSV.read("data/r_eff_12_local_samples.csv", DataFrame)
+# df2 = CSV.read("data/r_eff_1_local_samples.csv", DataFrame)
+df3 = CSV.read("results/EpyReff/Reff2022-03-01tau_5.csv", DataFrame)
+
+df1 = filter(:type => ==("R_L"), df1)
+
+fig = plot(layout = (4, 2), size = (800, 800))
+plot!(fig, df1.date, df1.median, group = df1.state)
+plot!(fig, df2.date, median(Matrix(df2[:, 4:end]), dims = 2)[:], group = df2.state)
+plot!(fig, df3.INFECTION_DATES, df3.median, group = df3.STATE)
+xlims!(Dates.Date.(("2021-11-01", df1.date[end])))
+ylims!(0, 3)
