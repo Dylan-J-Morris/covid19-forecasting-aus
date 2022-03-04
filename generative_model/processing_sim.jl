@@ -83,7 +83,9 @@ function merge_simulation_files(file_date; truncation_days = 7)
     Merge the simulation files into a single file. 
     """
     # set the dir name and read in the state files for merging
-    dir_name = joinpath("results", "UoA_forecast_output", file_date)
+    # now we make sure the filenames are as we want
+    forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
+    dir_name = joinpath("results", "UoA_forecast_output", forecast_origin)
     state_file_names = readdir(dir_name)
     # need to remove the non-output files
     states = []
@@ -94,8 +96,6 @@ function merge_simulation_files(file_date; truncation_days = 7)
         end
     end
 
-    # now we make sure the filenames are as we want
-    forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
     for (i,f) in enumerate(states)
         g = f * "_" * forecast_origin * "_sim.csv"
         states[i] = g 
@@ -116,12 +116,14 @@ function merge_simulation_files(file_date; truncation_days = 7)
     
 end
 
-function merge_TP_files(file_date)
+function merge_TP_files(file_date; truncation_days = 7)
     """
     Merge the TP files in a similar format to the overall simulation file.
     """
     # set the dir name and read in the state files for merging
-    dir_name = joinpath("results", "UoA_forecast_output", file_date)
+    # now we make sure the filenames are as we want
+    forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
+    dir_name = joinpath("results", "UoA_forecast_output", forecast_origin)
     state_file_names = readdir(dir_name)
     # need to remove the non-output files
     states = []
@@ -134,7 +136,7 @@ function merge_TP_files(file_date)
 
     # now we make sure the filenames are as we want
     for (i,f) in enumerate(states)
-        g = f * "_" * file_date * "_TP.csv"
+        g = f * "_" * forecast_origin * "_TP.csv"
         states[i] = g 
     end
     
@@ -147,7 +149,7 @@ function merge_TP_files(file_date)
         df_merged = [df_merged; df_tmp]
     end
     
-    CSV.write(dir_name * "/" * "UoA_TP_" * file_date * ".csv", df_merged)
+    CSV.write(dir_name * "/" * "UoA_TP_" * forecast_origin * ".csv", df_merged)
     
     return nothing
     

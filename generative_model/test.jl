@@ -4,7 +4,7 @@ so will be a little less optimal than when directly run but should enable an eas
 observation of correctness. 
 """
 
-using Revise
+using Revise    
 using Distributed
 # using CairoMakie
 using Plots
@@ -39,8 +39,8 @@ onset_dates = latest_start_date:Dates.Day(1):forecast_end_date
 # add a small truncation to the simulations as we don't trust the most recent data
 truncation_days = 7
 # states to simulate
-state = "QLD"
-nsims = 1000
+state = "SA"
+nsims = 100000
 p_detect_omicron = 0.5
 forecast_start_date = Dates.Date(
     jurisdiction_assumptions.simulation_start_dates[state]
@@ -153,12 +153,13 @@ let
     
     f = plot()
     plot!(f, local_cases, legend = false, linealpha = 1, lc = 1)
+    # plot!(f, Z_historical[36:end, :], legend = false, lc = 3, linealpha = 0.5)
     plot!(f, D_local, legend = false, lc = 2, linealpha = 0.5)
     plot!(f, scale_factor[36:end, :], legend = false, lc = 4, linealpha = 0.5)
     plot!(f, local_cases, legend = false, linealpha = 1, lc = 1)
     plot!(f, D_local_median, legend = false, lc = 3)
     xlims!(f, 0, length(local_cases) + 35)
-    ylims!(f, 0, 50000)
+    ylims!(f, 0, 5000)
 end
 
 forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
@@ -492,3 +493,27 @@ plot!(fig, df2.date, median(Matrix(df2[:, 4:end]), dims = 2)[:], group = df2.sta
 plot!(fig, df3.INFECTION_DATES, df3.median, group = df3.STATE)
 xlims!(Dates.Date.(("2021-11-01", df1.date[end])))
 ylims!(0, 3)
+
+#####
+
+nsims = 100000
+t1 = [sample_times(0, omicron = true) for _ in 1:nsims]
+t1_inf = [t1[i][1] for i in eachindex(t1)]
+t1_ons = [t1[i][2] - t1[i][1] for i in eachindex(t1)]
+t2_inf = rand(Gamma(1.58, 1.32), nsims)
+t2_ons = rand(Gamma(3.33, 1.34), nsims)
+t2_inf = ceil.(Int, t2_inf)
+t2_ons = ceil.(Int, t2_ons)
+
+using KernelDensity
+using StatsPlots 
+histogram(t1_inf, alpha = 0.2, normalize = :probability)
+histogram!(t2_inf, alpha = 0.2, normalize = :probability)
+plot!(truncated(Gamma(1.58, 1.32), 1, 21), alpha = 0.2)
+histogram(t1_ons .- 1, alpha = 0.2, normalize = :probability)
+histogram!(t2_ons .- 1, alpha = 0.2, normalize = :probability)
+plot!(truncated(Gamma(3.33, 1.34), 1, 21), alpha = 0.2)
+
+p = [cdf(Truncated(Gamma(1.58, 1.32), 0, 21), x) for x in 1:21]
+
+

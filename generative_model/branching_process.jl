@@ -205,7 +205,7 @@ function import_cases_model!(
 		# if within observation period, update the posterior. Otherwise use the last 
 		# available measurement 
 		if t <= T_observed - inc_period_shift
-			count_on_day = import_infections[inc_period_shift + days_into_forecast + t]
+			count_on_day = import_cases[inc_period_shift + days_into_forecast + t]
 			current_ema = forecast.sim_constants.ϕ * count_on_day + 
                 (1 - forecast.sim_constants.ϕ) * current_ema
 			a_post[i] = forecast.sim_constants.prior_alpha + current_ema
@@ -799,11 +799,11 @@ function simulate_branching_process(
     end
     
     return (
-        D_results, 
-        U_results, 
-        TP_local_sims, 
-        scale_factor, 
-        Z_historical_results,
+        D_results[:, :, 1:good_sims - 1], 
+        U_results[:, :, 1:good_sims - 1], 
+        TP_local_sims[:, 1:good_sims - 1], 
+        scale_factor[:, 1:good_sims - 1], 
+        Z_historical_results[:, 1:good_sims - 1],
     )
     
 end

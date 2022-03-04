@@ -23,13 +23,15 @@ function plot_all_forecasts(
     Plots all the forecasts and saves the result as a pdf. 
     """
     
+    forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
+    
     # read in the sim results and kept TP's
     sim_all_states = CSV.read(
-        "results/UoA_forecast_output/" * file_date * "/UoA_samples_" * file_date * ".csv", 
+        "results/UoA_forecast_output/" * forecast_origin * "/UoA_samples_" * forecast_origin * ".csv", 
         DataFrame,
     )
     TP_all_states = CSV.read(
-        "results/UoA_forecast_output/" * file_date * "/UoA_TP_" * file_date * ".csv", 
+        "results/UoA_forecast_output/" * forecast_origin * "/UoA_TP_" * forecast_origin * ".csv", 
         DataFrame,
     )
     
@@ -256,7 +258,7 @@ function plot_all_forecasts(
         
     end
 
-    dir_name = joinpath("figs", "case_forecasts", file_date)
+    dir_name = joinpath("figs", "case_forecasts", forecast_origin)
     if !ispath(dir_name)
         mkpath(dir_name)
     end
@@ -266,7 +268,7 @@ function plot_all_forecasts(
             fig, 
             dir_name *
             "/UoA_forecast_" *
-            file_date *
+            forecast_origin *
             "_" *
             "zoomed_" *
             confidence_level *
@@ -277,7 +279,7 @@ function plot_all_forecasts(
             fig, 
             dir_name *
             "/UoA_forecast_" *
-            file_date *
+            forecast_origin *
             "_" *
             confidence_level *
             "_intervals.pdf"
@@ -289,7 +291,7 @@ function plot_all_forecasts(
 end
 
 
-function plot_all_forecast_intervals(file_date, states, local_case_dict)
+function plot_all_forecast_intervals(file_date, states, local_case_dict; truncation_days = 7)
     """
     Simple wrapper function to plot the forecasts with various zoom and confidence levels. 
     """
@@ -320,18 +322,19 @@ function plot_all_forecast_intervals(file_date, states, local_case_dict)
         confidence_level = "95",
     )
     
-    dir_name = "figs/case_forecasts/" * file_date * "/"
+    forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
+    dir_name = "figs/case_forecasts/" * forecast_origin * "/"
     file_name_tmp = "UoA_forecast_"
-
+    
     pdf_filenames = [
-        dir_name * file_name_tmp * file_date * "_zoomed_both_intervals.pdf",
-        dir_name * file_name_tmp * file_date * "_both_intervals.pdf",
-        dir_name * file_name_tmp * file_date * "_50_intervals.pdf",
+        dir_name * file_name_tmp * forecast_origin * "_zoomed_both_intervals.pdf",
+        dir_name * file_name_tmp * forecast_origin * "_both_intervals.pdf",
+        dir_name * file_name_tmp * forecast_origin * "_50_intervals.pdf",
     ]
     # merge the pdfs and delete the files
     merge_pdfs(
         pdf_filenames, 
-        dir_name * file_name_tmp * file_date * ".pdf", 
+        dir_name * file_name_tmp * forecast_origin * ".pdf", 
         cleanup=true,
     )
 

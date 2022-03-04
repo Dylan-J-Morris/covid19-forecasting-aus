@@ -6,12 +6,12 @@ const file_date = ARGS[1]
 
 states = [
     "ACT",
-    "NSW",
+    # "NSW",
     "NT",
     "QLD",
     "SA",
     "TAS",
-    "VIC",
+    # "VIC",
     "WA",
 ]
 
