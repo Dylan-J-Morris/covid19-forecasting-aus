@@ -301,7 +301,7 @@ transformed parameters {
     // vector[total_N_p_sec] masks_sec_wave;
     // vector[total_N_p_third] masks_third_wave;
     
-    vector[j_third_wave] tau = 30 + 0.5 * tau_raw; 
+    vector[j_third_wave] tau = 25 + 2 * tau_raw; 
 
     // first wave model
     for (i in 1:j_first_wave) {
@@ -700,7 +700,7 @@ model {
         
         brho_third_wave[pos2_start:pos2_end] ~ beta(
             1 + imported_third_wave[idxs_third[1:pos_idxs-1],i], 
-            1 + local_third_wave_ca_adjusted[idxs_third[1:pos_idxs-1],i]
+            1 + local_third_wave[idxs_third[1:pos_idxs-1],i]
         );
         
         // likelihood
