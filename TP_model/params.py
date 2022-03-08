@@ -8,18 +8,19 @@ assumptions.
 
 ##### Key parameters #####
 use_linelist = True
+use_local_cases_input = True
 use_TP_adjustment = True
 testing_inference = False
 n_days_nowcast_TP_adjustment = 30
 # number of forecasted TP samples to save
-num_TP_samples = 4000  
+num_TP_samples = 2000  
 # number of days to remove to stop the issues with the right-truncation
 truncation_days = 14
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35
 
 ##### Usually unchanged parameters, contains some dates and number of forecast #####
-p_detect_delta = 0.695
+p_detect_delta = 0.725  # increased slightly due to comparisons between Delta and Omicron waves
 # p_detect_omicron = 0.64  # default
 p_detect_omicron = 0.5  # default
 # p_detect_omicron = 0.375
@@ -58,6 +59,7 @@ assume_local_cases_if_unknown = True
 # omicron incubation period determined by sampling Delta incubation periods and subtracting 1 
 # (then taking those with days > 0.05) and using MLE to fit a Gamma distribution
 (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
+# (shape_inc_omicron, scale_inc_omicron) = (5.807, 0.948)
 # (shape_inc_omicron, scale_inc_omicron) = (shape_inc, scale_inc)
 offset_inc = 0
 
@@ -66,6 +68,7 @@ offset_inc = 0
 # and cofnirmation for cases where this was feasible and truncated this to be between 0 and 30 
 # (plenty of retropsective cases with negatives etc)
 (shape_rd, scale_rd) = (1.28, 2.31)
+(shape_rd, scale_rd) = (2.33, 1.35)
 offset_rd = 0
 
 ## generation interval:
@@ -74,6 +77,7 @@ offset_rd = 0
 # omicron GI determined by sampling Delta GI and subtracting 1 (then taking those with days > 0.05)
 # and using MLE to fit a Gamma distribution
 (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
+# (shape_gen_omicron, scale_gen_omicron) = (2.75, 1.00)
 # (shape_gen_omicron, scale_gen_omicron) = (shape_gen, scale_gen)
 offset_gen = 0
 
