@@ -1311,6 +1311,19 @@ state_Rs = {
     "mean": [],
     "std": [],
 }
+
+state_Rs_strain = {
+    "state": [],
+    "date": [],
+    "type": [],
+    "median": [],
+    "lower": [],
+    "upper": [],
+    "bottom": [],
+    "top": [],
+    "mean": [],
+    "std": [],
+}
 ban = "2020-03-20"
 # VIC and NSW allow gatherings of up to 20 people, other jurisdictions allow for
 new_pol = "2020-06-01"
@@ -1374,7 +1387,9 @@ def sigmoid(t, r, tau, m0, m1):
 # if we want to consider a R0 style scenario, then we can uncomment this, but it should be noted 
 # that no work has been done to ensure this works since prior to 08/2021
 # forecast_type = ["R_L", "R_L0"]
+forecast_type = ["R_L", "R_L_delta", "R_L_omicron"]
 forecast_type = ["R_L"]
+
 for typ in forecast_type:
     state_R = {}
     for (kk, state) in enumerate(states):
@@ -1669,52 +1684,98 @@ for typ in forecast_type:
             # 1. Wildtype
             # 2. Alpha
             # 3. Delta
-            if ii < omicron_start_day_tmp:
-                if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
-                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]
-                elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
-                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
-                elif ii < df_state.loc[df_state.date < omicron_start_date_tmp].shape[0]:
-                    voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
-                    
-            else:
-                if ii < omicron_start_day_tmp + days_of_omicron:
-                    jj = ii - omicron_start_day_tmp
-                    # if state is one of the late starters, we assume that almost all cases are 
-                    # Omicron, i.e. assume a fixed level as the transition point for 
-                    # most other jurisdictions is around December and we can assume that the import 
-                    # risk is almost completely omicron
-                    if state in {'NT', 'TAS', 'WA'}:
-                        m = m1[ii]
-                    else:
-                        m = sigmoid(jj, r[ii], tau[ii], m0[ii], m1[ii])
+            if typ == "R_L_delta":
+                # this is the Delta TP 
+                if ii < omicron_start_day_tmp:
+                    if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]
+                    elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
+                    elif ii < df_state.loc[df_state.date < omicron_start_date_tmp].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
                         
-                    # this is just the vaccination model for delta
-                    vacc_delta_tmp = vacc_ts_delta[ii, :]
-                    vacc_omicron_tmp = vacc_ts_omicron[ii, :]
-                    # this is the simplified form of the mixture model of the vaccination effects
-                    voc_vacc_product[ii] = (
-                        m * vacc_omicron_tmp * voc_multiplier_omicron[ii] 
-                        + (1 - m) * vacc_delta_tmp * voc_multiplier_delta[ii]
-                    )
-                
                 else:
-                    if tt == 0:
-                        m_last = m
+                    if ii < omicron_start_day_tmp + days_of_omicron:
+                        # this is just the vaccination model for delta
+                        vacc_delta_tmp = vacc_ts_delta[ii, :]
+                        # this is the simplified form of the mixture model of the vaccination effects
+                        voc_vacc_product[ii] = vacc_delta_tmp * voc_multiplier_delta[ii]
+                    else:
+                        # this is just the vaccination model for delta
+                        vacc_delta_tmp = vacc_ts_delta[ii, :]
+                        vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                        # this is the simplified form of the mixture model of the vaccination effects
+                        voc_vacc_product[ii] = vacc_delta_tmp * voc_multiplier_delta[ii]
+                
+            elif typ == "R_L_omicron":
+                # this is the Omicron TP 
+                if ii < omicron_start_day_tmp:
+                    if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]
+                    elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
+                    elif ii < df_state.loc[df_state.date < omicron_start_date_tmp].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
+                else:
+                    if ii < omicron_start_day_tmp + days_of_omicron:
+                        vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                        # this is the simplified form of the mixture model of the vaccination effects
+                        voc_vacc_product[ii] = vacc_omicron_tmp * voc_multiplier_omicron[ii] 
+                    
+                    else:
+                        # this is just the vaccination model for delta
+                        vacc_delta_tmp = vacc_ts_delta[ii, :]
+                        vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                        # this is the simplified form of the mixture model of the vaccination effects
+                        voc_vacc_product[ii] = vacc_omicron_tmp * voc_multiplier_omicron[ii]
+                        
+            else:
+                # this is the overall TP
+                if ii < omicron_start_day_tmp:
+                    if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]
+                    elif ii < df_state.loc[df_state.date < delta_start_date].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
+                    elif ii < df_state.loc[df_state.date < omicron_start_date_tmp].shape[0]:
+                        voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]   
+                else:
+                    if ii < omicron_start_day_tmp + days_of_omicron:
+                        jj = ii - omicron_start_day_tmp
+                        # if state is one of the late starters, we assume that almost all cases are 
+                        # Omicron, i.e. assume a fixed level as the transition point for 
+                        # most other jurisdictions is around December and we can assume that the import 
+                        # risk is almost completely omicron
+                        if state in {'NT', 'TAS', 'WA'}:
+                            m = m1[ii]
+                        else:
+                            m = sigmoid(jj, r[ii], tau[ii], m0[ii], m1[ii])
+                            
+                        # this is just the vaccination model for delta
+                        vacc_delta_tmp = vacc_ts_delta[ii, :]
+                        vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                        # this is the simplified form of the mixture model of the vaccination effects
+                        voc_vacc_product[ii] = (
+                            m * vacc_omicron_tmp * voc_multiplier_omicron[ii] 
+                            + (1 - m) * vacc_delta_tmp * voc_multiplier_delta[ii]
+                        )
+                    
+                    else:
+                        if tt == 0:
+                            m_last = m
 
-                    # number of days after the start of omicron
-                    jj = ii - omicron_start_day
-                    # this is just the vaccination model for delta
-                    vacc_delta_tmp = vacc_ts_delta[ii, :]
-                    vacc_omicron_tmp = vacc_ts_omicron[ii, :]
-                    # this is the simplified form of the mixture model of the vaccination effects
-                    voc_vacc_product[ii] = (
-                        m_last * vacc_omicron_tmp * voc_multiplier_omicron[ii] + 
-                        (1 - m_last) * vacc_delta_tmp * voc_multiplier_delta[ii]
-                    )
+                        # number of days after the start of omicron
+                        jj = ii - omicron_start_day
+                        # this is just the vaccination model for delta
+                        vacc_delta_tmp = vacc_ts_delta[ii, :]
+                        vacc_omicron_tmp = vacc_ts_omicron[ii, :]
+                        # this is the simplified form of the mixture model of the vaccination effects
+                        voc_vacc_product[ii] = (
+                            m_last * vacc_omicron_tmp * voc_multiplier_omicron[ii] + 
+                            (1 - m_last) * vacc_delta_tmp * voc_multiplier_delta[ii]
+                        )
 
-                    # increment days into omicron forecast
-                    tt += 1
+                        # increment days into omicron forecast
+                        tt += 1
         
         # calculate TP
         R_L = (
@@ -1740,19 +1801,32 @@ for typ in forecast_type:
         R_L_bottom = np.percentile(R_L, 5, axis=1)
         R_L_top = np.percentile(R_L, 95, axis=1)
 
-        # R_L
-        state_Rs["state"].extend([state] * df_state.shape[0])
-        state_Rs["type"].extend([typ] * df_state.shape[0])
-        state_Rs["date"].extend(dd.values)  # repeat n_samples times?
-        state_Rs["lower"].extend(R_L_lower)
-        state_Rs["median"].extend(R_L_med)
-        state_Rs["upper"].extend(R_L_upper)
-        state_Rs["top"].extend(R_L_top)
-        state_Rs["bottom"].extend(R_L_bottom)
-        state_Rs["mean"].extend(np.mean(R_L, axis=1))
-        state_Rs["std"].extend(np.std(R_L, axis=1))
+        if typ in {"R_L_delta", "R_L_omicron"}:
+            # R_L
+            state_Rs["state"].extend([state] * df_state.shape[0])
+            state_Rs["type"].extend([typ] * df_state.shape[0])
+            state_Rs["date"].extend(dd.values)  # repeat n_samples times?
+            state_Rs["lower"].extend(R_L_lower)
+            state_Rs["median"].extend(R_L_med)
+            state_Rs["upper"].extend(R_L_upper)
+            state_Rs["top"].extend(R_L_top)
+            state_Rs["bottom"].extend(R_L_bottom)
+            state_Rs["mean"].extend(np.mean(R_L, axis=1))
+            state_Rs["std"].extend(np.std(R_L, axis=1))
+        else:
+            # R_L
+            state_Rs["state"].extend([state] * df_state.shape[0])
+            state_Rs["type"].extend([typ] * df_state.shape[0])
+            state_Rs["date"].extend(dd.values)  # repeat n_samples times?
+            state_Rs["lower"].extend(R_L_lower)
+            state_Rs["median"].extend(R_L_med)
+            state_Rs["upper"].extend(R_L_upper)
+            state_Rs["top"].extend(R_L_top)
+            state_Rs["bottom"].extend(R_L_bottom)
+            state_Rs["mean"].extend(np.mean(R_L, axis=1))
+            state_Rs["std"].extend(np.std(R_L, axis=1))
 
-        state_R[state] = R_L
+            state_R[state] = R_L
 
     typ_state_R[typ] = state_R
 
