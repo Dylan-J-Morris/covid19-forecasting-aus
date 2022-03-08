@@ -107,25 +107,27 @@ struct Constants{S, T}
         ## Delta assumptions
         k_delta = 0.15
         p_symp_delta = 0.7
+        p_ds = 0.95
+        p_da = 0.2
         p_detect_given_symp_delta_dict = Dict{String, Float64}(
-            "NSW" => 0.95,
-            "QLD" => 0.95,
-            "SA" => 0.95,
-            "TAS" => 0.95,
-            "WA" => 0.95,
-            "ACT" => 0.95,
-            "NT" => 0.95,
-            "VIC" => 0.95,
+            "NSW" => p_ds,
+            "QLD" => p_ds,
+            "SA" => p_ds,
+            "TAS" => p_ds,
+            "WA" => p_ds,
+            "ACT" => p_ds,
+            "NT" => p_ds,
+            "VIC" => p_ds,
         )
         p_detect_given_asymp_delta_dict = Dict{String, Float64}(
-            "NSW" => 0.1,
-            "QLD" => 0.1,
-            "SA" => 0.1,
-            "TAS" => 0.1,
-            "WA" => 0.1,
-            "ACT" => 0.1,
-            "NT" => 0.1,
-            "VIC" => 0.1,
+            "NSW" => p_da,
+            "QLD" => p_da,
+            "SA" => p_da,
+            "TAS" => p_da,
+            "WA" => p_da,
+            "ACT" => p_da,
+            "NT" => p_da,
+            "VIC" => p_da,
         )
         p_detect_given_symp_delta = p_detect_given_symp_delta_dict[state]
         p_detect_given_asymp_delta = p_detect_given_asymp_delta_dict[state]
@@ -141,7 +143,7 @@ struct Constants{S, T}
         k_omicron = 0.6
         p_symp_omicron = 0.4
         # solve the system:
-        r = 0.4
+        r = 0.3
         p_ds = p_detect_omicron / (p_symp_omicron + (1 - p_symp_omicron) * r) 
                 
         p_detect_given_symp_omicron_dict = Dict{String, Float64}(
@@ -293,7 +295,9 @@ struct JurisdictionAssumptions
         )
         
         # date we want to apply increase in cases due to Omicron 
-        omicron_dominant_date = Dates.Date("2021-12-15")
+        # put a small delay on this as we use the infection dates to index things but in 
+        # the fitting we used the confirmation dates 
+        omicron_dominant_date = Dates.Date("2021-12-15") - Dates.Day(5)
         
         pop_sizes = Dict{String, Int}(
             "NSW" => 8189266,

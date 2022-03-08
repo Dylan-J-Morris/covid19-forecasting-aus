@@ -91,46 +91,61 @@ function sample_onset_time(; omicron=false)
 end
 
 
-# function sample_times(t; omicron = false)
-#     """
-#     Assuming an initial time t, sample the time until infection and onset for an individual 
-#     and only take the ceiling once we have assigned them. This helps reduce the effect of 
-#     ceiling errors induced by adding ceil numbers. 
-#     """
-    
-#     (shape_gen, scale_gen) = (2.75, 1.00)
-#     (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
-    
-#     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
-#     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
-    
-#     # add some noise to the actual time the parent individual was infected which improves 
-#     # consistency of the simulations overall. 
-#     # t_parent = t - 1 + rand()
-#     # t_parent = t
-#     infection_time = t + rand(Gamma(shape, scale))
-    
-#     (shape_inc, scale_inc) = (5.807, 0.948)
-#     (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
-    
-#     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
-#     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
-    
-#     onset_time = infection_time + rand(Gamma(shape, scale))
-    
-#     infection_time = ceil(Int, infection_time)
-#     onset_time = ceil(Int, onset_time)
-    
-#     return (infection_time, onset_time)
-    
-# end
-
-
 function sample_times(t; omicron = false)
     """
     Assuming an initial time t, sample the time until infection and onset for an individual 
     and only take the ceiling once we have assigned them. This helps reduce the effect of 
     ceiling errors induced by adding ceil numbers. 
+    """
+    
+    (shape_gen, scale_gen) = (2.75, 1.00)
+    (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
+    
+    shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
+    scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
+    
+    # add some noise to the actual time the parent individual was infected which improves 
+    # consistency of the simulations overall. 
+    # t_parent = t - 1 + rand()
+    # t_parent = t
+    
+    infection_time = t + rand(Gamma(shape, scale))
+    
+    # infection_time = ceil(Int, rand(Gamma(shape, scale)))
+    
+    (shape_inc, scale_inc) = (5.807, 0.948)
+    (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
+    
+    shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
+    scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
+    
+    onset_time = infection_time + rand(Gamma(shape, scale))
+    # onset_time = ceil(Int, rand(Gamma(shape, scale)))
+    
+    infection_time = ceil(Int, infection_time)
+    onset_time = ceil(Int, onset_time)
+    
+    return (infection_time, onset_time)
+    
+end
+
+
+function sample_times2(t; omicron = false)
+    """
+    Assuming an initial time t, sample the time until infection and onset for an 
+    individual. We assume that the time until infection, 
+    i ~ Gamma(a_inf, b_inf) 
+    with
+    (a_inf, b_inf) = (2.75, 1.00) prior to 15/12/2021
+    (a_inf, b_inf) = (1.58, 1.32) after 15/12/2021.
+    We assume that the time until onset/detection,
+    d ~ Gamma(a_inc, b_inc) 
+    with 
+    (a_inc, b_inc) = (5.807, 0.948) prior to 15/12/2021
+    (a_inc, b_inc) = (3.33, 1.34) after 15/12/2021.
+    This function is written to use the distributions truncated to (0, 21) with the time 
+    distributions discretised. The probabilities Pr(t-1 <= X < t) are calculated using the 
+    CDF values. 
     """
     # These are the CDF values for a Gamma(a_inf, b_inf) truncated to (0, 25). The values 
     # are obtained by evaluating the CDF for intervals (t-1, t) for t in 1:25. We store 
@@ -156,11 +171,11 @@ function sample_times(t; omicron = false)
     onset_time = 0
     
     if !omicron
-        infection_time = t + findfirst(r1 <= p_i for p_i in p) 
-        onset_time = infection_time + findfirst(r2 <= q_i for q_i in q) 
+        infection_time = t + findfirst(r1 <= p_i for p_i in p) - 1
+        onset_time = infection_time + findfirst(r2 <= q_i for q_i in q) - 1
     else 
-        infection_time = t + findfirst(r1 <= p_i for p_i in p2)
-        onset_time = infection_time + findfirst(r2 <= q_i for q_i in q2)
+        infection_time = t + findfirst(r1 <= p_i for p_i in p2) - 1
+        onset_time = infection_time + findfirst(r2 <= q_i for q_i in q2) - 1
     end
     
     return (infection_time, onset_time)
@@ -201,14 +216,15 @@ function sample_negative_binomial_limit(μ, ϕ; approx_limit = 1000)
     """
     X = zero(Int)
     
-    # mean of NegBin(s, p) => this will boil down to N*TP
-    if μ <= approx_limit
-        X = rand(NegativeBinomial2(μ, ϕ))
-    else
-        σ = sqrt(ϕ)
-        # use the standard normal transform X = μ + σZ 
-        X = ceil(Int, μ + σ * randn())
-    end
+    X = rand(NegativeBinomial2(μ, ϕ))
+    # # mean of NegBin(s, p) => this will boil down to N*TP
+    # if μ <= approx_limit
+    #     X = rand(NegativeBinomial2(μ, ϕ))
+    # else
+    #     σ = sqrt(ϕ)
+    #     # use the standard normal transform X = μ + σZ 
+    #     X = ceil(Int, μ + σ * randn())
+    # end
     
     return X 
     
@@ -223,14 +239,15 @@ function sample_binomial_limit(n, p; approx_limit = 1000)
     """
     X = zero(Int)
     
-    if n*p <= approx_limit || n*(1-p) <= approx_limit
-        X = rand(Binomial(n, p))
-    else
-        μ = n*p
-        σ = sqrt(n*p*(1-p))
-        # use standard normal transform 
-        X = ceil(Int, μ + σ * randn())
-    end
+    X = rand(Binomial(n, p))
+    # if n*p <= approx_limit || n*(1-p) <= approx_limit
+    #     X = rand(Binomial(n, p))
+    # else
+    #     μ = n*p
+    #     σ = sqrt(n*p*(1-p))
+    #     # use standard normal transform 
+    #     X = ceil(Int, μ + σ * randn())
+    # end
     
     return X 
     
@@ -326,12 +343,15 @@ function create_state_TP_matrices(
         adjust_TP = adjust_TP
     )
     # adjust the indices so that the forecast start date is t = 0
-    TP_indices = convert.(Int, Dates.value.(TP_dict_local["date"] - forecast_start_date))
+    TP_dates = TP_dict_local["date"]
+    TP_indices = convert.(
+        Int, Dates.value.(TP_dict_local["date"] - forecast_start_date)
+    ) 
     # make a matrix for a given state 
     TP_local = TP_dict_local[state]
     TP_import = TP_dict_import[state]
     
-    return (TP_indices, TP_local, TP_import)
+    return (TP_dates, TP_indices, TP_local, TP_import)
     
 end
 
@@ -381,6 +401,8 @@ function read_in_cases(
 	# shift them appropriately
 	shape_rd = 1.28
 	scale_rd = 2.31
+	shape_rd = 2.33
+	scale_rd = 1.35
 	# sample from delay distribtuion
     rd = zeros(length(confirm_dates))
     if use_mean
@@ -445,7 +467,7 @@ function read_in_cases(
 	# construct the full timeseries of counts
 	dates_since_start = range(
 		Date("2020-03-01"), 
-		maximum(complete_dates),
+		Dates.Date(date),
 		step = Day(1),
 	)
 

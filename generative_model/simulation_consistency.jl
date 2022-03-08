@@ -10,22 +10,38 @@ function calculate_bounds(local_cases, τ, state)
     L = T ÷ τ
     
     # create indices for each of the windows 
-    idxs_limits = [1 + i * τ:(i + 1) * τ for i in 0:L]
+    idxs_limits = [1 + i * τ:(i + 1) * τ for i in 0:L-1]
     # adjust last indices to be the length of the remaining number of cases
     if idxs_limits[end][end] > length(local_cases)
         idxs_limits[end] = idxs_limits[end][begin]:length(local_cases)
     end
+    
     Cₜ = [sum(local_cases[idx]) for idx in idxs_limits]
     
     # multipliers on the n-day average
-    (ℓ, u) = (0.5, 2.0)
+    (ℓ, u) = (0.25, 2.0)
     Lₜ = ceil.(Int, ℓ * Cₜ)
     Uₜ = ceil.(Int, u * Cₜ)
     
-    # multipliers on the n-day average
-    (ℓ, u) = (0.5, 2.0)
+    # remove restrictions over last τ * 2 days 
+    (ℓ, u) = (0.5, 5.0)
     Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
     Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
+    
+    # for t in 2:length(Cₜ) - 1
+    #     if Cₜ[t] < Cₜ[t + 1]
+    #         Lₜ[t] = ceil(Int, ℓ * Cₜ[t + 1])
+    #         Uₜ[t] = ceil(Int, u * Cₜ[t + 1])
+    #     elseif Cₜ[t] > Cₜ[t + 1]
+    #         Lₜ[t] = ceil(Int, ℓ * Cₜ[t - 1])
+    #         Uₜ[t] = ceil(Int, u * Cₜ[t - 1])
+    #     end    
+    # end
+    
+    # # multipliers on the n-day average
+    # (ℓ, u) = (0.25, 2.0)
+    # Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
+    # Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
     
     Lₜ[Lₜ .< 100] .= 0 
     Uₜ[Uₜ .< 100] .= 100 
@@ -73,10 +89,6 @@ function get_simulation_limits(
     T_observed = length(local_cases)
     # duration of forecast simulation including initial day
     T_end = sum(ind >= 0 for ind in TP_indices)
-    
-    # this is the number of days into the forecast simulation that dominant begins 
-    days_delta = (Dates.Date(omicron_dominant_date) - 
-        Dates.Date(forecast_start_date)).value
         
     (min_cases, max_cases, idxs_limits) = calculate_bounds(local_cases, τ, state)
     
@@ -84,7 +96,8 @@ function get_simulation_limits(
     max_forecast_cases = N ÷ 2
     
     # get the day we want to start using omicron GI and incubation period (+1) as 0 
-    # corresponds to the first element of the arrays 
+    # corresponds to the first element of the arrays. We based this off the onset dates in 
+    # the fitting and so we need to adjust for that here also. 
     omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value
     
     sim_features = Features(
@@ -113,12 +126,16 @@ function check_sim!(
     local_cases,
     reinitialise_allowed;
     day = 0,
+    sim = 0, 
 )
     """
     Check for consistency of the simulations against the data. This will also 
     check for instances of superspreading events and will insert cases if conditions
     are met.
     """
+    
+    # guard clause for if we shouldn't check the simulation
+    day < 0 && return (false, false)
     
     print_status = false
     
@@ -141,14 +158,14 @@ function check_sim!(
     bad_sim = false
     injected_cases = false 
     
-    if day == 0
-        # count how many cases each day 0
-        count_cases!(case_counts, forecast)
-        if any(case_counts .< min_cases)
-            bad_sim = true
-            return (bad_sim, injected_cases)
-        end
-    end
+    # if day == 0
+    #     # count how many cases each day 0
+    #     count_cases!(case_counts, forecast)
+    #     if any(case_counts .< min_cases)
+    #         bad_sim = true
+    #         return (bad_sim, injected_cases)
+    #     end
+    # end
     
     
     # only check for consistency if we don't inject cases.
@@ -158,6 +175,15 @@ function check_sim!(
         # count how many cases each day 0
         count_cases!(case_counts, forecast)
         if any(case_counts[1:ζ] .> max_cases[1:ζ])
+            if print_status 
+                bad_id = case_counts[1:ζ] .> max_cases[1:ζ]
+                println(
+                    "Sim: ", sim, "\n",
+                    "Too many cases: ", case_counts[1:ζ][bad_id], "\n", 
+                    " ", max_cases[1:ζ][bad_id], "\n", 
+                    "Window: ", bad_id, "\n",
+                )                
+            end
             bad_sim = true 
         end
         
@@ -173,15 +199,17 @@ function check_sim!(
             threshold = ceil(Int, consistency_multiplier * max(1, sim_X_day_cases))
             
             if (actual_X_day_cases > threshold)
-                # println(
-                #     "======\n", 
-                #     "injected cases...\n",
-                #     " sim: ", sim, "\n",  
-                #     " actual cases: ", actual_X_day_cases, "\n", 
-                #     " sim cases: ", sim_X_day_cases, "\n",
-                #     " day added: ", day, "\n",
-                #     "======"
-                # )
+                if print_status
+                    println(
+                        "======\n", 
+                        "Sim: ", sim, "\n",
+                        "injected cases...\n",
+                        " actual cases: ", actual_X_day_cases, "\n", 
+                        " sim cases: ", sim_X_day_cases, "\n",
+                        " day added: ", day, "\n",
+                        "======",
+                    )
+                end
                 
                 # uniformly sample a number of missing detections to add in
                 missing_detections = ceil(
@@ -201,6 +229,15 @@ function check_sim!(
         # count updated cases
         count_cases!(case_counts, forecast)
         if any(case_counts[1:ζ] .< min_cases[1:ζ])
+            if print_status 
+                bad_id = case_counts[1:ζ] .< min_cases[1:ζ]
+                println(
+                    "Sim: ", sim, "\n",
+                    "Too few cases: ", case_counts[1:ζ][bad_id], "\n",
+                    " ", min_cases[1:ζ][bad_id], "\n",
+                    "Window: ", bad_id, "\n",
+                )                
+            end
             bad_sim = true 
         end
         

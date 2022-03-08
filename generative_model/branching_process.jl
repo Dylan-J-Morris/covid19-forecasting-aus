@@ -223,7 +223,7 @@ function import_cases_model!(
         # see whether they're observed 
         unobserved_I = D_I == 0 ? 1 : D_I
         # based on the switch to omicron (in terms of infections so -5 days)
-        if t < omicron_dominant_day - inc_period_shift
+        if t < omicron_dominant_day
             qi = forecast.sim_constants.qi.delta 
         else
             qi = forecast.sim_constants.qi.omicron 
@@ -245,7 +245,7 @@ function import_cases_model!(
 	
 end
 
-function calculate_proportion_infected(
+function calculate_historical_infected(
     forecast, 
     local_cases,
     day, 
@@ -265,7 +265,7 @@ function calculate_proportion_infected(
     cases_after_omicron = 0
     
     if adjust_TP  
-        τ = map_day_to_index_cases(day)
+        τ = map_day_to_index_cases(day - 1)
         # if adjusting the TP then use the raw daily cases in the calculation of the 
         # depletion factor. We need to also scale the daily cases by the assumed 
         # CAR.
@@ -286,15 +286,15 @@ function calculate_proportion_infected(
         cases += cases_pre_omicron + cases_after_omicron
         
         if τ > length(local_cases)
-            τ2 = min(map_day_to_index_Z(day), size(Z_historical, 1))
+            τ2 = min(map_day_to_index_Z(day - 1), size(Z_historical, 1))
             cases += sum(@view Z_historical[map_day_to_index_Z(T_observed + 1):τ2])
         end
     else    
-        τ = min(map_day_to_index_Z(day), size(Z_historical, 1))
+        τ = min(map_day_to_index_Z(day - 1), size(Z_historical, 1))
         cases = sum(@view Z_historical[begin:τ])
     end
     
-    return min(1, cases / N)
+    return cases 
 
 end
 
@@ -302,9 +302,8 @@ end
 function sample_offspring!(
     forecast::Forecast, 
     t,  
-    TP_local_sim, 
-    TP_import_sim, 
-    TP_indices, 
+    TP_local_parent, 
+    TP_import_parent, 
     susceptible_depletion_sim,
     local_cases;
     adjust_TP = false,
@@ -358,99 +357,103 @@ function sample_offspring!(
     # pointer to the current day's infections 
     Z_tmp = @view Z[map_day_to_index_Z(t), :]
     
+    # if we are adjusting the TP, we use the Reff up until the last 30 days and then we
+    # need to scale the TP afterwards. The Reff inherently features the depletion of 
+    # susceptibles in its calculation (of sorts) and so can be considered the "true" 
+    # factor 
+    total_infected = calculate_historical_infected(
+        forecast, 
+        local_cases, 
+        t,  
+        N; 
+        adjust_TP = adjust_TP,
+    )
+    
     # if the total number of infected individuals is 0, return immediately
-    if sum(Z_tmp) > 0 
-        
+    total_parents = sum(Z_tmp)
+    (S_parents, A_parents, I_parents) = Z_tmp
+    
+    # generate uniform times of infection for each parent and sort them 
+    inf_times = t .+ sort!(rand(total_parents))
+    # generate an ordering for the parents
+    parent_type = sample(
+        [ones(S_parents); 2 * ones(A_parents); 3 * ones(I_parents)], 
+        total_parents, 
+        replace = false
+    )
+    
+    if total_parents > 0
         (S_parents, A_parents, I_parents) = Z_tmp
         
         # sum up the number local infections on the current day
         # Z_tmp gets emptied at the end of sampling so we won't be double counting 
         Z_historical[map_day_to_index_Z(t)] += S_parents + A_parents
+        # zero out infections on day t so we can restart sim and keep the progress 
+        Z_tmp .= 0    
         
-        proportion_infected = calculate_proportion_infected(
-            forecast, 
-            local_cases, 
-            t,  
-            N; 
-            adjust_TP = adjust_TP,
-        )
-
-        # find day based on the indices representing time from forecast origin
-        TP_ind = findfirst(ind == t for ind in TP_indices)
+        for c in 1:total_parents
             
-        TP_local_parent = TP_local_sim[TP_ind]
-        TP_import_parent = TP_import_sim[TP_ind]
-        
-        # if we are adjusting the TP, we use the Reff up until the last 30 days and then we
-        # need to scale the TP afterwards. The Reff inherently features the depletion of 
-        # susceptibles in its calculation (of sorts) and so can be considered the "true" 
-        # factor 
-        if (adjust_TP && t >= T_observed - 29) || (!adjust_TP)
-            scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
-            TP_local_parent *= scale_factor
-            TP_import_parent *= scale_factor    
-        end
-        
-        # Use old model's import scaling pre-Omicron wave and then 
-        # just use the inferred R_I for omicron after it's introduction. This latter 
-        # estimate will implicitly include a vaccination effect as well as changes to the 
-        # import restrictions. The simplified model assumes this is relatively fixed across 
-        # the omicron wave.
-        if t < omicron_dominant_day - 30
-            # p_{v,h} is the proportion of hotel quarantine workers vaccinated
-            p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
-            # v_{e,h} is the overall vaccine effectiveness
-            v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
-            TP_import_parent *= (1 - p_vh * v_eh) * 1.39 * 1.3
-        end
-        
-        # total number of infections arising from all parents infected at time t 
-        # (sum of M NB(μ, ϕ) is NB(μ * M, ϕ * M))
-        if S_parents > 0 && TP_local_parent > 0
-            ϕ = k * S_parents 
-            μ = α_s * TP_local_parent * S_parents
-            num_offspring += sample_negative_binomial_limit(μ, ϕ)
-        end
-        
-        if A_parents > 0 && TP_local_parent > 0
-            ϕ = k * A_parents 
-            μ = α_a * TP_local_parent * A_parents
-            num_offspring += sample_negative_binomial_limit(μ, ϕ)
-        end
-        
-        if I_parents > 0 && TP_import_parent > 0
-            ϕ = k * I_parents
-            μ = TP_import_parent * I_parents
-            num_offspring += sample_negative_binomial_limit(μ, ϕ)
-        end
-    
-        if num_offspring > 0
-            num_symptomatic_offspring = sample_binomial_limit(num_offspring, p_symp)
-            num_asymptomatic_offspring = num_offspring - num_symptomatic_offspring
+            TP_parent = 0.0
             
-            num_symptomatic_offspring_detected = sample_binomial_limit(
-                num_symptomatic_offspring, p_detect_given_symp
-            )
-            num_asymptomatic_offspring_detected = sample_binomial_limit(
-                num_asymptomatic_offspring, p_detect_given_asymp
-            )
+            if parent_type[c] == 1
+                TP_parent = TP_local_parent * α_s
+            elseif parent_type[c] == 2
+                TP_parent = TP_local_parent * α_a
+            else
+                TP_parent = TP_import_parent
+                # Use old model's import scaling pre-Omicron wave and then 
+                # just use the inferred R_I for omicron after it's introduction. This latter 
+                # estimate will implicitly include a vaccination effect as well as changes to the 
+                # import restrictions. The simplified model assumes this is relatively fixed across 
+                # the omicron wave.
+                if t < omicron_dominant_day - 30
+                    # p_{v,h} is the proportion of hotel quarantine workers vaccinated
+                    p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
+                    # v_{e,h} is the overall vaccine effectiveness
+                    v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
+                    TP_parent *= (1 - p_vh * v_eh)
+                    TP_parent *= 1.39 * 1.3
+                end
+            end
             
-            num_symptomatic_offspring_undetected = num_symptomatic_offspring - 
-                num_symptomatic_offspring_detected
-            num_asymptomatic_offspring_undetected = num_asymptomatic_offspring - 
-                num_asymptomatic_offspring_detected
+            proportion_infected = min(1, total_infected / N)
+            total_infected += 1
             
-            assign_to_arrays_and_times!(
-                forecast, 
-                t, 
-                num_symptomatic_detected = num_symptomatic_offspring_detected, 
-                num_symptomatic_undetected = num_symptomatic_offspring_undetected, 
-                num_asymptomatic_detected = num_asymptomatic_offspring_detected, 
-                num_asymptomatic_undetected = num_asymptomatic_offspring_undetected, 
-            )
+            if (adjust_TP && t >= T_observed - 29) || (!adjust_TP)
+                scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
+                TP_parent *= scale_factor
+            end
             
-            # zero out infections on day t so we can restart sim and keep the progress 
-            Z_tmp .= 0    
+            num_offspring = sample_negative_binomial_limit(TP_parent, k)
+        
+            if num_offspring > 0
+                num_symptomatic_offspring = sample_binomial_limit(num_offspring, p_symp)
+                num_asymptomatic_offspring = num_offspring - num_symptomatic_offspring
+                
+                num_symptomatic_offspring_detected = sample_binomial_limit(
+                    num_symptomatic_offspring, p_detect_given_symp
+                )
+                num_asymptomatic_offspring_detected = sample_binomial_limit(
+                    num_asymptomatic_offspring, p_detect_given_asymp
+                )
+                
+                num_symptomatic_offspring_undetected = num_symptomatic_offspring - 
+                    num_symptomatic_offspring_detected
+                num_asymptomatic_offspring_undetected = num_asymptomatic_offspring - 
+                    num_asymptomatic_offspring_detected
+                
+                assign_to_arrays_and_times!(
+                    forecast, 
+                    inf_times[c], 
+                    num_symptomatic_detected = num_symptomatic_offspring_detected, 
+                    num_symptomatic_undetected = num_symptomatic_offspring_undetected, 
+                    num_asymptomatic_detected = num_asymptomatic_offspring_detected, 
+                    num_asymptomatic_undetected = num_asymptomatic_offspring_undetected, 
+                )
+                
+                # println("Day ", t, " with ", sum(D), " cases.")
+                
+            end
         end
     end
 
@@ -567,6 +570,57 @@ function assign_to_arrays_and_times!(
 end
 
 
+function clean_up_sim_results(
+    D_results,
+    U_results, 
+    Z_historical_results, 
+    TP_local,
+    good_TPs_inds,
+    susceptible_depletion, 
+    forecast::Forecast, 
+    good_sims;
+    adjust_TP = false,
+)
+    # truncate the TP to the same period as per D and U
+    TP_local_truncated = TP_local[(end - forecast.sim_features.T_end):end, :]
+    # calculate the cumulative number of infections by day t
+    Z_historical_cumulative = cumsum(Z_historical_results, dims = 1)
+    
+    Z_historical_cumulative = Z_historical_cumulative[
+        end - size(TP_local_truncated, 1) + 1:end, 
+        :,
+    ]
+    
+    prop_infected = Z_historical_cumulative ./ N
+    
+    # new array to hold the correctly sampled TP samples 
+    TP_local_sims = zeros(Float64, size(TP_local_truncated, 1), good_sims - 1)
+    # factor for adjusting the local TP by accounting for susceptible depletion
+    scale_factor = ones(Float64, size(TP_local_sims))
+    
+    for (i, TP_ind) in enumerate(good_TPs_inds[1:good_sims - 1])
+        scale_factor[:, i] = max.(
+            0, 1 .- susceptible_depletion[TP_ind] * prop_infected[:, i]
+        )
+        if adjust_TP
+            # if we're adjusting the TP, then we should use the actual reduction factor
+            # before the switch over to the TP model 
+            scale_factor[1:forecast.sim_features.T_observed - 30, i] .= 1
+        end
+        # TP_local_sims[:, i] = TP_local_truncated[:, TP_ind] .* scale_factor[:, i]
+        TP_local_sims[:, i] = TP_local_truncated[:, TP_ind]
+    end
+    
+    return (
+        D_results[:, :, 1:good_sims - 1], 
+        U_results[:, :, 1:good_sims - 1], 
+        TP_local_sims, 
+        scale_factor, 
+        Z_historical_results[:, 1:good_sims - 1],
+    )
+end
+
+
 function simulate_branching_process(
     D0, 
     N, 
@@ -587,7 +641,7 @@ function simulate_branching_process(
     and N is the population size which is currently unused. 
     """
     # read in the TP for a given state and date
-    (TP_indices, TP_local, TP_import) = create_state_TP_matrices(
+    (TP_dates, TP_indices, TP_local, TP_import) = create_state_TP_matrices(
         forecast_start_date, 
         date, 
         state,
@@ -601,7 +655,7 @@ function simulate_branching_process(
         p_detect_omicron = p_detect_omicron,
     )
      
-    max_restarts = 10
+    max_restarts = 25
     good_sims = ones(Bool, nsims)
     good_TPs = zeros(Bool, size(TP_local, 2))
     
@@ -653,11 +707,11 @@ function simulate_branching_process(
     # number of TP samples saved 
     num_TP = size(TP_local, 2)
     
-    # counts in each window are the same size as the comparison arrays
+    # counts in each window are the same size as the limit arrays
     max_cases = forecast.sim_features.max_cases
     case_counts = zero(similar(max_cases))
     
-    # a counter for the good sims, will terminate if good_sim_counter > 2000
+    # a counter for the good sims, will terminate if good_sims > 2000
     good_sims = 1
     
     D_results = forecast.sim_results.D
@@ -689,50 +743,66 @@ function simulate_branching_process(
         # initialise counter to first day, when earliest infection occured based on 
         # initialisation
         day = start_day
+        start_date = Dates.Date(forecast_start_date) - Dates.Day(start_day) 
+        curr_date = start_date
+        end_date = TP_dates[end]
         last_injection = 0
         n_restarts = 0
 
-        while day <= day_range[end]
+        # while day <= day_range[end]
+        while curr_date <= end_date
+            
+            # find day based on the indices representing time from forecast origin
+            TP_day_ind = findfirst(curr_date == d for d in TP_dates)
+                
+            TP_local_parent = TP_local_sim[TP_day_ind]
+            TP_import_parent = TP_import_sim[TP_day_ind]
+            
+            day = Dates.value(curr_date - Dates.Date(forecast_start_date))
             
             sample_offspring!(
                 forecast,
                 day, 
-                TP_local_sim, 
-                TP_import_sim, 
-                TP_indices,
+                TP_local_parent, 
+                TP_import_parent, 
                 susceptible_depletion_sim,
                 local_cases; 
                 adjust_TP = adjust_TP
             )
             
-            if day > 0
-                reinitialise_allowed =  day >= 3 && 
-                    day < forecast.sim_features.T_observed && 
-                    n_restarts < max_restarts && 
-                    day - last_injection >= 3
+            # reinitialise_allowed =  day >= 3 && 
+            #     day < forecast.sim_features.T_observed && 
+            #     n_restarts < max_restarts && 
+            #     day - last_injection >= 3
+            reinitialise_allowed = day >= 3 && 
+                day < forecast.sim_features.T_observed && 
+                n_restarts < max_restarts 
                 
-                (bad_sim, injected_cases) = check_sim!(
-                    forecast,
-                    forecast_start_date,
-                    omicron_dominant_date,
-                    case_counts, 
-                    local_cases, 
-                    reinitialise_allowed;
-                    day = day,
-                )
-            end
+            (bad_sim, injected_cases) = check_sim!(
+                forecast,
+                forecast_start_date,
+                omicron_dominant_date,
+                case_counts, 
+                local_cases, 
+                reinitialise_allowed;
+                day = day,
+                sim = sim,
+            )
             
             if !injected_cases 
                 day += 1
+                curr_date += Dates.Day(1)
             else 
-                last_injection = day
-                day = start_day
                 n_restarts += 1
-                injected_cases = false
                 
                 if n_restarts > max_restarts 
                     bad_sim = true
                 end
+                
+                last_injection = day
+                day = start_day
+                curr_date = start_date
+                injected_cases = false
             end
             
             bad_sim && break
@@ -769,41 +839,18 @@ function simulate_branching_process(
     println(state, " finished with ", good_sims - 1, " good simulations.")
     println("##########")    
     
-    # truncate the TP to the same period as per D and U
-    TP_local_truncated = TP_local[(end - forecast.sim_features.T_end):end, :]
-    # calculate the cumulative number of infections by day t
-    Z_historical_cumulative = cumsum(Z_historical_results, dims = 1)
-    
-    Z_historical_cumulative = Z_historical_cumulative[
-        end - size(TP_local_truncated, 1) + 1:end, 
-        :,
-    ]
-    
-    prop_infected = Z_historical_cumulative ./ N
-    
-    # new array to hold the correctly sampled TP samples 
-    TP_local_sims = zeros(Float64, size(TP_local_truncated, 1), length(good_TPs_inds))
-    # factor for adjusting the local TP by accounting for susceptible depletion
-    scale_factor = ones(Float64, size(TP_local_sims))
-    
-    for (i, TP_ind) in enumerate(good_TPs_inds[1:good_sims - 1])
-        scale_factor[:, i] = max.(
-            0, 1 .- susceptible_depletion[TP_ind] * prop_infected[:, i]
-        )
-        if adjust_TP
-            # if we're adjusting the TP, then we should use the actual reduction factor
-            # before the switch over to the TP model 
-            scale_factor[1:forecast.sim_features.T_observed - 30, i] .= 1
-        end
-        TP_local_sims[:, i] = TP_local_truncated[:, TP_ind] .* scale_factor[:, i]
-    end
-    
-    return (
-        D_results[:, :, 1:good_sims - 1], 
-        U_results[:, :, 1:good_sims - 1], 
-        TP_local_sims[:, 1:good_sims - 1], 
-        scale_factor[:, 1:good_sims - 1], 
-        Z_historical_results[:, 1:good_sims - 1],
+    results = clean_up_sim_results(
+        D_results,
+        U_results, 
+        Z_historical_results, 
+        TP_local,
+        good_TPs_inds,
+        susceptible_depletion,
+        forecast, 
+        good_sims;
+        adjust_TP = adjust_TP
     )
+    
+    return results
     
 end
