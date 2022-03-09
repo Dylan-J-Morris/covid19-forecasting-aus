@@ -28,7 +28,13 @@ p_detect_omicron = 0.5  # default
 
 third_start_date = "2021-06-25"
 start_date = "2021-06-25"
+# Date from which to apply the VoC Reff increase from particular strains (based on Reff model)
+alpha_start_date = "2020-12-01"  
+delta_start_date = "2021-05-01"  
+omicron_start_date = "2021-11-15"  
 omicron_dominance_date = "2021-12-15"
+# vaccination program began mid Feb 2021
+vaccination_start_date = "2021-02-21"
 
 start_dates = {
     "NSW": start_date,
@@ -41,11 +47,6 @@ start_dates = {
     "VIC": "2021-08-01",
 }
 
-# Date from which to apply the VoC Reff increase from particular strains (based on Reff model)
-alpha_start_date = "2020-12-01"  
-delta_start_date = "2021-05-01"  
-omicron_start_date = "2021-11-15"  
-vaccination_start_date = "2021-02-21"
 
 # Will download Google data automatically on run. Set to False for repeated runs. 
 # False is the preferable setting.
@@ -54,22 +55,22 @@ download_google_automatically = False
 assume_local_cases_if_unknown = True
 
 ##### Simulation parameters/transmission parameters #####
+## reporting delay distribution: 
+# empirically estimated from the case data using MLE looked at duration between symptom onset 
+# and cofnirmation for cases where this was feasible and truncated this to be between 0 and 30 
+# (plenty of retropsective cases with negatives etc)
+# (shape_rd, scale_rd) = (1.28, 2.31)
+(shape_rd, scale_rd) = (2.33, 1.35)
+offset_rd = 0
+
+
 # incubation period: taken from Lauer et al. 2020
 (shape_inc, scale_inc) = (5.807, 0.948)
 # omicron incubation period determined by sampling Delta incubation periods and subtracting 1 
 # (then taking those with days > 0.05) and using MLE to fit a Gamma distribution
 (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
-# (shape_inc_omicron, scale_inc_omicron) = (5.807, 0.948)
 # (shape_inc_omicron, scale_inc_omicron) = (shape_inc, scale_inc)
 offset_inc = 0
-
-## reporting delay distribution: 
-# empirically estimated from the case data using MLE looked at duration between symptom onset 
-# and cofnirmation for cases where this was feasible and truncated this to be between 0 and 30 
-# (plenty of retropsective cases with negatives etc)
-(shape_rd, scale_rd) = (1.28, 2.31)
-(shape_rd, scale_rd) = (2.33, 1.35)
-offset_rd = 0
 
 ## generation interval:
 # generation inteval changed Oct 5 2021
@@ -77,7 +78,6 @@ offset_rd = 0
 # omicron GI determined by sampling Delta GI and subtracting 1 (then taking those with days > 0.05)
 # and using MLE to fit a Gamma distribution
 (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
-# (shape_gen_omicron, scale_gen_omicron) = (2.75, 1.00)
 # (shape_gen_omicron, scale_gen_omicron) = (shape_gen, scale_gen)
 offset_gen = 0
 

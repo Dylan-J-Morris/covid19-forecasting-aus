@@ -30,8 +30,6 @@ def read_in_NNDSS(
         shape_inc,
         scale_rd,
         shape_rd,
-        offset_rd,
-        offset_inc,
         omicron_dominance_date,
     )
 
@@ -157,9 +155,7 @@ def read_in_NNDSS(
             # sample that number of delays from the distribution and take the ceiling.
             # This was fitted to the third and second wave data, looking at the common differences
             # between onsets and confirmations
-            rd = offset_rd + np.random.gamma(
-                shape=shape_rd, scale=scale_rd, size=n_delays
-            )
+            rd = np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays)
             rd = np.ceil(rd) * timedelta(days=1)
 
             # fill missing days with the confirmation date, noting that this is adjusted when used

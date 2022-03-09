@@ -69,15 +69,13 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 def draw_inf_dates(
     df_linelist,
+    omicron_Reff=False,
     shape_inc=5.807,
     scale_inc=0.948,
-    offset_inc=0,
     shape_rd=2,
     scale_rd=1,
-    offset_rd=1,
     shape_inc_omicron=5.807,
     scale_inc_omicron=0.948,
-    omicron_dominance_date=None,
     nreplicates=1,
 ):
 
@@ -88,11 +86,15 @@ def draw_inf_dates(
     nsamples = notification_dates.shape[0]
 
     # Draw from incubation distribution
-    inc_period = offset_inc + np.random.gamma(
-        shape_inc, scale_inc, size=(nsamples * nreplicates)
-    )
-    inc_period_omicron = offset_inc + np.random.gamma(
-        shape_inc_omicron, scale_inc_omicron, size=(nsamples * nreplicates)
+    if omicron_Reff:
+        shape_inc_actual = shape_inc_omicron
+        scale_inc_actual = scale_inc_omicron
+    else:
+        shape_inc_actual = shape_inc
+        scale_inc_actual = scale_inc
+        
+    inc_period = np.random.gamma(
+        shape_inc_actual, scale_inc_actual, size=(nsamples * nreplicates)
     )
 
     if use_linelist:
@@ -103,18 +105,19 @@ def draw_inf_dates(
         # first construct an array to set the notification delays to 0 when we have the true onset date
         is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
         rd_period = (
-            offset_rd
-            + np.random.gamma(shape_rd, scale_rd, size=(nsamples * nreplicates))
+            np.random.gamma(shape_rd, scale_rd, size=(nsamples * nreplicates))
         ) * is_confirmation_date_rep
 
-        is_omicron = (
-            notification_dates >= pd.to_datetime(omicron_dominance_date)
-        ).to_numpy()
+        # is_omicron = (
+        #     notification_dates >= pd.to_datetime(omicron_dominance_date)
+        # ).to_numpy()
 
         # infection date is id_nd_diff days before notification date. This is also a long vector.
-        id_nd_diff = (
-            (1 - is_omicron) * inc_period + is_omicron * inc_period_omicron + rd_period
-        )
+        # id_nd_diff = (
+        #     (1 - is_omicron) * inc_period + is_omicron * inc_period_omicron + rd_period
+        # )
+        
+        id_nd_diff = inc_period + rd_period
 
     else:
         id_nd_diff = inc_period
@@ -222,16 +225,12 @@ def index_by_infection_date(infections_wide):
 
 def generate_lambda(
     infections,
-    infection_dates,
-    omicron_dominance_date=None,
+    omicron_Reff=False,
     shape_gen=3.64 / 3.07,
     scale_gen=3.07,
-    offset_gen=0,
     shape_gen_omicron=3.64 / 3.07,
     scale_gen_omicron=3.07,
     trunc_days=21,
-    shift=0,
-    offset=1,
 ):
     """
     Given array of infection_dates (N_dates by N_samples), where values are possible
@@ -241,44 +240,24 @@ def generate_lambda(
     """
     from scipy.stats import gamma
 
+    # take particular parameters for the Gamma distribution based on the period of interest
+    if omicron_Reff:
+        shape_gen_actual = shape_gen_omicron 
+        scale_gen_actual = scale_gen_omicron 
+    else: 
+        shape_gen_actual = shape_gen 
+        scale_gen_actual = scale_gen 
+        
     # Find midpoints for discretisation
-    xmids = [x + shift for x in range(trunc_days + 1)]
+    xmids = [x for x in range(trunc_days + 1)]
     # double check parameterisation of scipy
-    gamma_vals = offset_gen + gamma.pdf(xmids, a=shape_gen, scale=scale_gen)
+    gamma_vals = gamma.pdf(xmids, a=shape_gen_actual, scale=scale_gen_actual)
     # renormalise the pdf
     disc_gamma = gamma_vals / sum(gamma_vals)
 
     ws = disc_gamma[:trunc_days]
-    # offset
-    ws[offset:] = disc_gamma[: trunc_days - offset]
-    ws[:offset] = 0
-
-    # now get a separate generation time for omicron
-    # double check parameterisation of scipy
-    gamma_vals = offset_gen + gamma.pdf(
-        xmids, a=shape_gen_omicron, scale=scale_gen_omicron
-    )
-    # renormalise the pdf
-    disc_gamma = gamma_vals / sum(gamma_vals)
-
-    ws_omicron = disc_gamma[:trunc_days]
-    # offset
-    ws_omicron[offset:] = disc_gamma[: trunc_days - offset]
-    ws_omicron[:offset] = 0
-
-    lambda_t = np.zeros(
-        shape=(infections.shape[0] - trunc_days + 1, infections.shape[1])
-    )
-
-    infections_before_delta_dominance = sum(
-        infection_dates < pd.to_datetime(omicron_dominance_date)
-    )
-
-    for n in range(infections.shape[1]):
-        if n < infections_before_delta_dominance:
-            lambda_t[:, n] = np.convolve(infections[:, n], ws, mode="valid")
-        else:
-            lambda_t[:, n] = np.convolve(infections[:, n], ws_omicron, mode="valid")
+    lambda_t = np.zeros(shape=(infections.shape[0] - trunc_days + 1, infections.shape[1]))
+    lambda_t[:, 0] = np.convolve(infections[:, 0], ws, mode="valid")
 
     return lambda_t
 
@@ -294,7 +273,6 @@ def lambda_all_states(df_infection, trunc_days=21, **kwargs):
         df_total_infections = df_infection.groupby(["STATE", "INFECTION_DATE"]).agg(sum)
         lambda_dict[state] = generate_lambda(
             df_total_infections.loc[state].values,
-            df_total_infections.loc[state].index,
             trunc_days=trunc_days,
             **kwargs
         )
@@ -434,6 +412,7 @@ def plot_all_states(
     date=None,
     tau=7,
     nowcast_truncation=-10,
+    omicron_Reff=False,
 ):
     """
     Plot results over time for all jurisdictions.
@@ -529,5 +508,8 @@ def plot_all_states(
         import os
 
         os.makedirs("figs/EpyReff/", exist_ok=True)
-        plt.savefig("figs/EpyReff/Reff_tau_" + str(tau) + "_" + date + ".png", dpi=300)
+        if omicron_Reff:
+            plt.savefig("figs/EpyReff/Reff_omicron_tau_" + str(tau) + "_" + date + ".png", dpi=300)
+        else:
+            plt.savefig("figs/EpyReff/Reff_delta_tau_" + str(tau) + "_" + date + ".png", dpi=300)
     return fig, ax

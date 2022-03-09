@@ -11,7 +11,6 @@ sys.path.insert(0, "TP_model/EpyReff")
 # this is not used in the estimation routine, it just lets the plot know what we ignore
 from params import (
     truncation_days,
-    third_start_date,
     start_date,
     use_TP_adjustment,
     scale_gen,
@@ -26,15 +25,12 @@ from params import (
     shape_inc_omicron,
     offset_rd,
     offset_inc,
-    offset_gen,
-    omicron_dominance_date,
 )
 from epyreff import *
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from pandas._libs.tslibs.timedeltas import Timedelta
 from tqdm import tqdm
 import matplotlib
 
@@ -47,7 +43,6 @@ tau = 5
 prior_a = 1
 prior_b = 3
 trunc_days = 21
-offset = 0
 shift = 0
 
 date = argv[1]
@@ -55,11 +50,13 @@ dt_date = pd.to_datetime(date, format="%Y-%m-%d")
 file_date = dt_date.strftime("%Y-%m-%d")
 
 try:
-    plot_time = argv[2]
-except:
-    plot_time = False
+    omicron_Reff = argv[2] 
+    omicron_Reff = True if omicron_Reff != "False" else False
+except: 
+    omicron_Reff = False
 
-# Read in the data
+# uncomment this if you wanna see the time distributions    
+plot_time = False
 
 # read in case file data
 print(dt_date.strftime("%d%b%Y"))
@@ -87,13 +84,11 @@ for rep in tqdm(range(samples)):
         nreplicates=1,
         shape_inc=shape_inc,
         scale_inc=scale_inc,
-        offset_inc=offset_inc,
-        shape_rd=shape_rd,
-        scale_rd=scale_rd,
-        offset_rd=offset_rd,
         shape_inc_omicron=shape_inc_omicron,
         scale_inc_omicron=scale_inc_omicron,
-        omicron_dominance_date=omicron_dominance_date,
+        shape_rd=shape_rd,
+        scale_rd=scale_rd,
+        omicron_Reff=omicron_Reff,
     )
 
     # reindex dataframe to include all dates,
@@ -107,9 +102,6 @@ for rep in tqdm(range(samples)):
         scale_gen=scale_gen,
         shape_gen_omicron=shape_gen_omicron,
         scale_gen_omicron=scale_gen_omicron,
-        omicron_dominance_date=omicron_dominance_date,
-        offset=offset,
-        offset_gen=offset_gen,
         trunc_days=trunc_days,
     )
 
@@ -197,9 +189,6 @@ if plot_time:
     # renormalise the pdf
     disc_gamma = gamma_vals / sum(gamma_vals)
     ws = disc_gamma[:trunc_days]
-    # offset
-    ws[offset:] = disc_gamma[: trunc_days - offset]
-    ws[:offset] = 0
 
     fig, ax = plt.subplots(figsize=(12, 18), nrows=3, sharex=True)
 
@@ -215,9 +204,14 @@ if plot_time:
     )
 
 # saving files
-df.to_csv("results/EpyReff/Reff" + file_date + "tau_" + str(tau) + ".csv", index=False)
+if omicron_Reff:
+    file_name_start = "results/EpyReff/Reff_omicron"
+else:
+    file_name_start = "results/EpyReff/Reff_delta"
+    
+df.to_csv(file_name_start + file_date + "tau_" + str(tau) + ".csv", index=False)
 df_R_samples.to_csv(
-    "results/EpyReff/Reff_samples" + file_date + "tau_" + str(tau) + ".csv", index=False
+    file_name_start + "_samples" + file_date + "tau_" + str(tau) + ".csv", index=False
 )
 
 # plot all the estimates
@@ -239,5 +233,6 @@ fig, ax = plot_all_states(
     tau=tau,
     date=date,
     nowcast_truncation=-truncation_days,
+    omicron_Reff=omicron_Reff,
 )
 plt.close()
