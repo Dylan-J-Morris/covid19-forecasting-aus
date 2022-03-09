@@ -1430,7 +1430,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     # Third  phase
     if df3X.shape[0] > 0:
         fig, ax = plt.subplots(
-            figsize=(24, 9), ncols=len(third_states), sharey=True, squeeze=False
+            figsize=(9, 24), nrows=len(third_states), sharex=True, squeeze=False
         )
         states_to_fitd = {state: i + 1 for i, state in enumerate(third_states)}
         pos = 0
@@ -1455,8 +1455,8 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             
             df_rho_third_all_states = pd.concat([df_rho_third_all_states, df_rho_third_tmp])
 
-            ax[0, i].plot(dates, rho_samples.median(), label="fit", color="C0")
-            ax[0, i].fill_between(
+            ax[i, 0].plot(dates, rho_samples.median(), label="fit", color="C0")
+            ax[i, 0].fill_between(
                 dates,
                 rho_samples.quantile(0.25),
                 rho_samples.quantile(0.75),
@@ -1464,7 +1464,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 alpha=0.4,
             )
 
-            ax[0, i].fill_between(
+            ax[i, 0].fill_between(
                 dates,
                 rho_samples.quantile(0.05),
                 rho_samples.quantile(0.95),
@@ -1480,7 +1480,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                     & (df_state.STATE == state)
                     & (df_state.date_inferred <= third_end_date)
                 ],
-                ax=ax[0, i],
+                ax=ax[i, 0],
                 color="C1",
                 label="data",
             )
@@ -1492,7 +1492,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                     & (df_Reff.state == state)
                     & (df_Reff.date <= third_end_date)
                 ],
-                ax=ax[0, i],
+                ax=ax[i, 0],
                 color="C1",
                 label="data",
             )
@@ -1504,18 +1504,18 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                     & (df_Reff.state == state)
                     & (df_Reff.date <= third_end_date)
                 ],
-                ax=ax[0, i],
+                ax=ax[i, 0],
                 color="C2",
                 label="moving",
             )
 
             dates = dfX.loc[dfX.state == third_states[0]].date
 
-            ax[0, i].tick_params("x", rotation=90)
-            ax[0, i].xaxis.set_major_locator(plt.MaxNLocator(4))
-            ax[0, i].set_title(state)
+            ax[i, 0].tick_params("x", rotation=90)
+            ax[i, 0].xaxis.set_major_locator(plt.MaxNLocator(4))
+            ax[i, 0].set_title(state)
+            ax[i, 0].set_ylabel("Proportion of imported cases")
 
-        ax[0, 0].set_ylabel("Proportion of imported cases")
         plt.legend()
         plt.savefig(
             figs_dir + data_date.strftime("%Y-%m-%d") + "rho_third_phase.png", dpi=144,
