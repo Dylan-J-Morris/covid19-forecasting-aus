@@ -67,28 +67,26 @@ function initialise_population!(
     total_initial_cases = sum(D0)
 
     # infer some initial undetected symptomatic
-    num_symptomatic_undetected = 0
+    num_S_undetected = 0
     
     if D0.S == 0
-        num_symptomatic_undetected = rand(NegativeBinomial(1, p_detect_given_symp))
+        num_S_undetected = rand(NegativeBinomial(1, p_detect_given_symp))
     else
-        num_symptomatic_undetected = rand(NegativeBinomial(D0.S, p_detect_given_symp))
+        num_S_undetected = rand(NegativeBinomial(D0.S, p_detect_given_symp))
     end
 
     # infer some initial undetected asymptomatic
-    total_symptomatic = D0.S + num_symptomatic_undetected
-    num_asymptomatic_undetected = 0
+    total_S = D0.S + num_S_undetected
+    num_S_undetected = 0
     
-    if total_symptomatic == 0
-        num_asymptomatic_undetected = rand(NegativeBinomial(1, p_symp))
+    if total_S == 0
+        num_A_undetected = rand(NegativeBinomial(1, p_symp))
     else
-        num_asymptomatic_undetected = rand(NegativeBinomial(total_symptomatic, p_symp))
+        num_A_undetected = rand(NegativeBinomial(total_S, p_symp))
     end
     
     # total initial cases include the undetected
-    total_initial_cases_sim = total_initial_cases + 
-        num_symptomatic_undetected + 
-        num_asymptomatic_undetected
+    total_initial_cases += num_S_undetected + num_A_undetected
     
     start_day = 0
     
@@ -98,14 +96,14 @@ function initialise_population!(
     Z .= 0
     Z_historical .= 0
         
-    if total_initial_cases_sim > 0  
-        inf_times = MVector{total_initial_cases_sim}(
-            zeros(Int, total_initial_cases_sim)
+    if total_initial_cases > 0  
+        inf_times = MVector{total_initial_cases}(
+            zeros(Int, total_initial_cases)
         )
         
         # sample negative infection times as these individuals are assumed to occur 
         # before the simulation 
-        for i in 1:total_initial_cases_sim
+        for i in 1:total_initial_cases
             inf_times[i] = -sample_onset_time()
         end
         
@@ -124,13 +122,13 @@ function initialise_population!(
             D[1, individual_type_map.A] += 1
         end
         
-        for _ in 1:num_symptomatic_undetected
+        for _ in 1:num_S_undetected
             Z[map_day_to_index_Z(inf_times[idx]), individual_type_map.S] += 1
             idx += 1
             U[1, individual_type_map.S] += 1
         end
         
-        for _ in 1:num_asymptomatic_undetected
+        for _ in 1:num_A_undetected
             Z[map_day_to_index_Z(inf_times[idx]), individual_type_map.A] += 1
             idx += 1
             U[1, individual_type_map.A] += 1
@@ -235,8 +233,8 @@ function import_cases_model!(
             assign_to_arrays_and_times!(
                 forecast, 
                 t, 
-                num_imports_detected = D_I, 
-                num_imports_undetected = U_I, 
+                num_I_detected = D_I, 
+                num_I_undetected = U_I, 
             )
         end
     end
@@ -369,13 +367,14 @@ function sample_offspring!(
         adjust_TP = adjust_TP,
     )
     
-    # if the total number of infected individuals is 0, return immediately
     total_parents = sum(Z_tmp)
     (S_parents, A_parents, I_parents) = Z_tmp
     
-    # generate uniform times of infection for each parent and sort them 
-    inf_times = t .+ sort!(rand(total_parents))
-    # generate an ordering for the parents
+    # Generate uniform times of infection for each person infected over the course of 
+    # (t-1, t]. We sort them as we are going to also randomly sample the types of the  
+    # parents as well. 
+    inf_times = (t - 1) .+ sort!(rand(total_parents))
+    # Generate an ordering of the parent types. 
     parent_type = sample(
         [ones(S_parents); 2 * ones(A_parents); 3 * ones(I_parents)], 
         total_parents, 
@@ -392,7 +391,8 @@ function sample_offspring!(
         Z_tmp .= 0    
         
         for c in 1:total_parents
-            
+            # Reset the TP for the parent. This allows it to be updated inside the 
+            # conditional statements below. 
             TP_parent = 0.0
             
             if parent_type[c] == 1
@@ -402,10 +402,10 @@ function sample_offspring!(
             else
                 TP_parent = TP_import_parent
                 # Use old model's import scaling pre-Omicron wave and then 
-                # just use the inferred R_I for omicron after it's introduction. This latter 
-                # estimate will implicitly include a vaccination effect as well as changes to the 
-                # import restrictions. The simplified model assumes this is relatively fixed across 
-                # the omicron wave.
+                # just use the inferred R_I for omicron after it's introduction. This 
+                # latter estimate will implicitly include a vaccination effect as well 
+                # as changes to the import restrictions. The simplified model assumes 
+                # this is fixed across the omicron wave.
                 if t < omicron_dominant_day - 30
                     # p_{v,h} is the proportion of hotel quarantine workers vaccinated
                     p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
@@ -416,10 +416,11 @@ function sample_offspring!(
                 end
             end
             
-            proportion_infected = min(1, total_infected / N)
-            total_infected += 1
-            
             if (adjust_TP && t >= T_observed - 29) || (!adjust_TP)
+                # when using the Reff, we do not adjust the TP through susceptible 
+                # depletion as this is already implicit in the calculation. 
+                total_infected += 1
+                proportion_infected = min(1, total_infected / N)
                 scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
                 TP_parent *= scale_factor
             end
@@ -427,28 +428,26 @@ function sample_offspring!(
             num_offspring = sample_negative_binomial_limit(TP_parent, k)
         
             if num_offspring > 0
-                num_symptomatic_offspring = sample_binomial_limit(num_offspring, p_symp)
-                num_asymptomatic_offspring = num_offspring - num_symptomatic_offspring
+                num_S_offspring = sample_binomial_limit(num_offspring, p_symp)
+                num_A_offspring = num_offspring - num_S_offspring
                 
-                num_symptomatic_offspring_detected = sample_binomial_limit(
-                    num_symptomatic_offspring, p_detect_given_symp
+                num_S_offspring_detected = sample_binomial_limit(
+                    num_S_offspring, p_detect_given_symp
                 )
-                num_asymptomatic_offspring_detected = sample_binomial_limit(
-                    num_asymptomatic_offspring, p_detect_given_asymp
+                num_A_offspring_detected = sample_binomial_limit(
+                    num_A_offspring, p_detect_given_asymp
                 )
                 
-                num_symptomatic_offspring_undetected = num_symptomatic_offspring - 
-                    num_symptomatic_offspring_detected
-                num_asymptomatic_offspring_undetected = num_asymptomatic_offspring - 
-                    num_asymptomatic_offspring_detected
+                num_S_offspring_undetected = num_S_offspring - num_S_offspring_detected
+                num_A_offspring_undetected = num_A_offspring - num_A_offspring_detected
                 
                 assign_to_arrays_and_times!(
                     forecast, 
                     inf_times[c], 
-                    num_symptomatic_detected = num_symptomatic_offspring_detected, 
-                    num_symptomatic_undetected = num_symptomatic_offspring_undetected, 
-                    num_asymptomatic_detected = num_asymptomatic_offspring_detected, 
-                    num_asymptomatic_undetected = num_asymptomatic_offspring_undetected, 
+                    num_S_detected = num_S_offspring_detected, 
+                    num_S_undetected = num_S_offspring_undetected, 
+                    num_A_detected = num_A_offspring_detected, 
+                    num_A_undetected = num_A_offspring_undetected, 
                 )
                 
                 # println("Day ", t, " with ", sum(D), " cases.")
@@ -465,12 +464,12 @@ end
 function assign_to_arrays_and_times!(
     forecast::Forecast, 
     day;
-    num_symptomatic_detected = 0,
-    num_symptomatic_undetected = 0,
-    num_asymptomatic_detected = 0,
-    num_asymptomatic_undetected = 0,
-    num_imports_detected = 0, 
-    num_imports_undetected = 0,       
+    num_S_detected = 0,
+    num_S_undetected = 0,
+    num_A_detected = 0,
+    num_A_undetected = 0,
+    num_I_detected = 0, 
+    num_I_undetected = 0,       
 )
     """
     Increment the arrays D and U based on sampled offsrping counts. The number of 
@@ -486,7 +485,7 @@ function assign_to_arrays_and_times!(
     T_end = forecast.sim_features.T_end
     
     # sampling detected cases 
-    for _ in 1:num_symptomatic_detected
+    for _ in 1:num_S_detected
         (inf_time, onset_time) = sample_times(day, omicron = day >= omicron_dominant_day)
         
         if inf_time < T_end 
@@ -498,7 +497,7 @@ function assign_to_arrays_and_times!(
         end
     end
     
-    for _ in 1:num_asymptomatic_detected
+    for _ in 1:num_A_detected
         (inf_time, onset_time) = sample_times(day, omicron = day >= omicron_dominant_day)
         
         if inf_time < T_end 
@@ -511,7 +510,7 @@ function assign_to_arrays_and_times!(
     end
     
     # sampling undetected cases 
-    for _ in 1:num_symptomatic_undetected
+    for _ in 1:num_S_undetected
         (inf_time, onset_time) = sample_times(day, omicron = day >= omicron_dominant_day)
         
         if inf_time < T_end 
@@ -523,7 +522,7 @@ function assign_to_arrays_and_times!(
         end
     end
     
-    for _ in 1:num_asymptomatic_undetected
+    for _ in 1:num_A_undetected
         (inf_time, onset_time) = sample_times(day, omicron = day >= omicron_dominant_day)
         
         if inf_time < T_end 
@@ -537,7 +536,7 @@ function assign_to_arrays_and_times!(
     
     # Sampling imports. These are treated slightly differently as the infection 
     # time is inferred through the import model during initialisation 
-    for _ in 1:num_imports_detected
+    for _ in 1:num_I_detected
         inf_time = day
         if inf_time < T_end 
             Z[map_day_to_index_Z(inf_time), individual_type_map.I] += 1
@@ -551,7 +550,7 @@ function assign_to_arrays_and_times!(
         end
     end
     
-    for _ in 1:num_imports_undetected
+    for _ in 1:num_I_undetected
         inf_time = day
         if inf_time < T_end 
             Z[map_day_to_index_Z(inf_time), individual_type_map.I] += 1

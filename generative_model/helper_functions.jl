@@ -100,18 +100,11 @@ function sample_times(t; omicron = false)
     
     (shape_gen, scale_gen) = (2.75, 1.00)
     (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
-    
+
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
-    # add some noise to the actual time the parent individual was infected which improves 
-    # consistency of the simulations overall. 
-    # t_parent = t - 1 + rand()
-    # t_parent = t
-    
     infection_time = t + rand(Gamma(shape, scale))
-    
-    # infection_time = ceil(Int, rand(Gamma(shape, scale)))
     
     (shape_inc, scale_inc) = (5.807, 0.948)
     (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
@@ -120,7 +113,6 @@ function sample_times(t; omicron = false)
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
     
     onset_time = infection_time + rand(Gamma(shape, scale))
-    # onset_time = ceil(Int, rand(Gamma(shape, scale)))
     
     infection_time = ceil(Int, infection_time)
     onset_time = ceil(Int, onset_time)
@@ -128,60 +120,6 @@ function sample_times(t; omicron = false)
     return (infection_time, onset_time)
     
 end
-
-
-function sample_times2(t; omicron = false)
-    """
-    Assuming an initial time t, sample the time until infection and onset for an 
-    individual. We assume that the time until infection, 
-    i ~ Gamma(a_inf, b_inf) 
-    with
-    (a_inf, b_inf) = (2.75, 1.00) prior to 15/12/2021
-    (a_inf, b_inf) = (1.58, 1.32) after 15/12/2021.
-    We assume that the time until onset/detection,
-    d ~ Gamma(a_inc, b_inc) 
-    with 
-    (a_inc, b_inc) = (5.807, 0.948) prior to 15/12/2021
-    (a_inc, b_inc) = (3.33, 1.34) after 15/12/2021.
-    This function is written to use the distributions truncated to (0, 21) with the time 
-    distributions discretised. The probabilities Pr(t-1 <= X < t) are calculated using the 
-    CDF values. 
-    """
-    # These are the CDF values for a Gamma(a_inf, b_inf) truncated to (0, 25). The values 
-    # are obtained by evaluating the CDF for intervals (t-1, t) for t in 1:25. We store 
-    # these in a tuple so that they are stack allocated. 
-    p = (0.11097358423347901, 0.3842657810428617, 0.6358730284300507, 0.8047485333425299, 0.9019209022193846, 0.9529636930580179, 0.9782072240326418, 0.9901682949799407, 0.9956573470763342, 0.9981146047738312, 0.9991930657957536, 0.9996587965688517, 0.9998572329910214, 0.9999408258189942, 0.9999756986983271, 0.9999901246639937, 0.9999960484653596, 0.9999984652233249, 0.9999994455212305, 0.9999998411067721, 1.0)
-    p2 = (0.29356856364715944, 0.5856927846570195, 0.772299770706503, 0.879172524199872, 0.9372917804634001, 0.9679518367758677, 0.9838054377393999, 0.9918873581999208, 0.9959639504471511, 0.9980033930179962, 0.9990170202316142, 0.9995181151452186, 0.9997647345665772, 0.9998856550387405, 0.9999447530292046, 0.9999735557580522, 0.9999875592038908, 0.9999943528331284, 0.99999764239995, 0.9999992325323372, 1.0)
-    
-    # add some noise to the actual time the parent individual was infected which improves 
-    # consistency of the simulations overall. 
-    # t_parent = t - 1 + rand()
-    # t_parent = t
-    
-    # These are the CDF values for a Gamma(a_ons, b_ons) truncated to (0, 25). The values 
-    # are obtained by evaluating the CDF for intervals (t-1, t) for t in 1:25. 
-    q = (0.0011126455742711094, 0.026116991461661552, 0.11824587401267343, 0.27809969531679885, 0.46482203092494384, 0.6362195700960732, 0.7700815557085184, 0.8632128683875399, 0.9226212826917933, 0.9580443974654881, 0.9780559065263849, 0.9888726542165662, 0.9945082482752502, 0.997354490869053, 0.9987541688542113, 0.9994267670941491, 0.999743513366851, 0.9998900445836665, 0.9999567672780683, 0.9999867221419954, 1.0)
-    q2 = (0.023282126357252533, 0.13598764401235056, 0.3119205229509645, 0.4957857769263166, 0.6531454297226608, 0.772676858190242, 0.8565570965606688, 0.9121890960260457, 0.9475597976774577, 0.9693227117427066, 0.9823666592123969, 0.9900190857502591, 0.9944291490729489, 0.9969326199811301, 0.9983355354310856, 0.9991129672664402, 0.9995395904355897, 0.9997716926984794, 0.9998970024337281, 0.9999641936166813, 1.0)
-    
-    # sample two U(0, 1) numbers for determining which day bin we fall into 
-    r1 = rand()
-    r2 = rand()
-    
-    infection_time = 0
-    onset_time = 0
-    
-    if !omicron
-        infection_time = t + findfirst(r1 <= p_i for p_i in p) - 1
-        onset_time = infection_time + findfirst(r2 <= q_i for q_i in q) - 1
-    else 
-        infection_time = t + findfirst(r1 <= p_i for p_i in p2) - 1
-        onset_time = infection_time + findfirst(r2 <= q_i for q_i in q2) - 1
-    end
-    
-    return (infection_time, onset_time)
-    
-end
-
 
 function set_simulation_constants(state; p_detect_omicron = 0.5)
     """
@@ -385,6 +323,7 @@ function read_in_cases(
 	date, 
 	rng; 
 	apply_inc = false, 
+    apply_delay = true,
 	omicron_dominant_date = nothing,
     use_mean = false,
 )
@@ -398,19 +337,22 @@ function read_in_cases(
 	# get the confirmation dates 
 	confirm_dates = convert(Vector, df.date_confirmation)
 	confirm_dates = Date.(confirm_dates)
-	# shift them appropriately
-	shape_rd = 1.28
-	scale_rd = 2.31
-	shape_rd = 2.33
-	scale_rd = 1.35
-	# sample from delay distribtuion
-    rd = zeros(length(confirm_dates))
-    if use_mean
-        rd .= mean(Gamma(shape_rd, scale_rd))
-    else
-        rd = rand(rng, Gamma(shape_rd, scale_rd), length(confirm_dates))
+	if apply_delay
+        # shift them appropriately
+        shape_rd = 1.28
+        scale_rd = 2.31
+        shape_rd = 2.33
+        scale_rd = 1.35
+        # sample from delay distribtuion
+        rd = zeros(length(confirm_dates))
+        if use_mean
+            rd .= mean(Gamma(shape_rd, scale_rd))
+        else
+            rd = rand(rng, Gamma(shape_rd, scale_rd), length(confirm_dates))
+        end
+        
+        confirm_dates = confirm_dates - ceil.(rd) * Day(1)
     end
-	confirm_dates = confirm_dates - ceil.(rd) * Day(1)
 	# adjust confirmation dates to get to onset 
 	# rd = ceil(Int, mean(Gamma(shape_rd, scale_rd)))
 	# confirm_dates = confirm_dates .- rd * Day(1)
@@ -464,10 +406,14 @@ function read_in_cases(
 	state = df.state
 	import_status = convert.(Int, df.import_status .== "imported")
 
-	# construct the full timeseries of counts
+	# create vector of all dates from the first (good) reported data in 2020 to the most
+    # recent data in the linelist. 
+    # Note that in previous weeks, this was an issue as the data being provided 
+    # had onset dates which were imputed (and shouldn't have been)
 	dates_since_start = range(
 		Date("2020-03-01"), 
-		Dates.Date(date),
+		# Dates.Date(date),
+		maximum(complete_dates),
 		step = Day(1),
 	)
 

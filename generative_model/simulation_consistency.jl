@@ -19,12 +19,12 @@ function calculate_bounds(local_cases, τ, state)
     Cₜ = [sum(local_cases[idx]) for idx in idxs_limits]
     
     # multipliers on the n-day average
-    (ℓ, u) = (0.25, 2.0)
+    (ℓ, u) = (0.5, 3.0)
     Lₜ = ceil.(Int, ℓ * Cₜ)
     Uₜ = ceil.(Int, u * Cₜ)
     
     # remove restrictions over last τ * 2 days 
-    (ℓ, u) = (0.5, 5.0)
+    (ℓ, u) = (0.5, 4.0)
     Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
     Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
     
@@ -98,7 +98,9 @@ function get_simulation_limits(
     # get the day we want to start using omicron GI and incubation period (+1) as 0 
     # corresponds to the first element of the arrays. We based this off the onset dates in 
     # the fitting and so we need to adjust for that here also. 
-    omicron_dominant_day = (omicron_dominant_date - forecast_start_date).value
+    omicron_dominant_day = (
+        Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)
+    ).value
     
     sim_features = Features(
         max_forecast_cases,
