@@ -1295,7 +1295,7 @@ fig.savefig(
 #     dpi=144,
 # )
 
-n_samples = 200
+n_samples = 100
 df_R = df_R.sort_values("date")
 samples = df_samples.sample(n_samples)  # test on sample of 2
 # samples = df_samples
@@ -1844,19 +1844,6 @@ for state in states:
     state_Rs["bottom"].extend(np.repeat(np.percentile(R_I, 5), df_state.shape[0]))
     state_Rs["mean"].extend(np.repeat(np.mean(R_I), df_state.shape[0]))
     state_Rs["std"].extend(np.repeat(np.std(R_I), df_state.shape[0]))
-    
-#     R_I_omicron = samples["R_I_omicron"].values[: df_state.shape[0]]
-#     state_Rs["state"].extend([state] * df_state.shape[0])
-#     state_Rs["type"].extend(["R_I_omicron"] * df_state.shape[0])
-#     state_Rs["date"].extend(dd.values)
-#     state_Rs["lower"].extend(np.repeat(np.percentile(R_I_omicron, 25), df_state.shape[0]))
-#     state_Rs["median"].extend(np.repeat(np.median(R_I_omicron), df_state.shape[0]))
-#     state_Rs["upper"].extend(np.repeat(np.percentile(R_I_omicron, 75), df_state.shape[0]))
-#     state_Rs["top"].extend(np.repeat(np.percentile(R_I_omicron, 95), df_state.shape[0]))
-#     state_Rs["bottom"].extend(np.repeat(np.percentile(R_I_omicron, 5), df_state.shape[0]))
-#     state_Rs["mean"].extend(np.repeat(np.mean(R_I_omicron), df_state.shape[0]))
-#     state_Rs["std"].extend(np.repeat(np.std(R_I_omicron), df_state.shape[0]))
-    
 
 df_Rhats = pd.DataFrame().from_dict(state_Rs)
 df_Rhats = df_Rhats.set_index(["state", "date", "type"])
@@ -2108,24 +2095,20 @@ pd.DataFrame(susceptible_depletion_factor[0, TPs_to_keep]).to_csv(
 # now we save the sampled TP paths
 # convert the appropriate sampled susceptible depletion factors to a csv and save them for simulation
 # NOTE: this will not save an updated median, mean etc for the R_I's. We don't use it so it's not 
-# really important but it should be noted if we are comparing things. The step function 
-# R_I -> R_I_omicron, is noticeable and shouldn't be underlooked. 
+# really important but it should be noted for later if we are comparing things. The step function 
+# R_I -> R_I_omicron, is noticeable and shouldn't be overlooked.
 df_Rhats = df_Rhats[
     ["state", "date", "type", "median", "bottom", "lower", "upper", "top"]
     + [TPs_to_keep[i] for i in range(num_TP_samples)]
 ]
 
-# df_hdf = df_Rhats.loc[df_Rhats.type == 'R_L']
-# df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_I') & (df_Rhats.date == '2020-03-01')])
-# df_hdf = df_hdf.append(df_Rhats.loc[(df_Rhats.type == 'R_L0') & (df_Rhats.date == '2020-03-01')])
-# save the file as a csv
+# save the file as a csv (easier to handle in Julia for now)
 df_Rhats.to_csv(
     results_dir 
     + "soc_mob_R" 
     + data_date.strftime("%Y-%m-%d") 
     + ".csv"
 )
-# df_hdf.to_hdf('results/soc_mob_R' + data_date.strftime('%Y-%m-%d') + '.h5', key='Reff')
 
 if use_TP_adjustment:
     """
