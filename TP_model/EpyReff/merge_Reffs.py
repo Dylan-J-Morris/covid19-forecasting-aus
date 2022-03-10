@@ -25,7 +25,7 @@ R_merge = pd.concat(
     ]
 )
 
-R_merge.to_csv("results/EpyReff/Reff" + file_date + "tau_5.csv")
+R_merge.to_csv("results/EpyReff/Reff" + file_date + "tau_5.csv", index=False)
 
 # read in and process the Reff samples (same code, just different files)
 R = pd.read_csv("results/EpyReff/Reff_delta_samples" + file_date + "tau_5.csv")
@@ -38,7 +38,7 @@ R_merge = pd.concat(
     ]
 )
 
-R_merge.to_csv("results/EpyReff/Reff_samples" + file_date + "tau_5.csv")
+R_merge.to_csv("results/EpyReff/Reff_samples" + file_date + "tau_5.csv", index=False)
 
 
 
