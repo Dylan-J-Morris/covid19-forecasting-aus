@@ -17,14 +17,14 @@ end
 # const nsims = parse(Int, ARGS[2])
 
 const nsims = Dict{String, Int}(
-    "NSW" => 1000,
-    "QLD" => 1000,
-    "SA" => 1000,
-    "VIC" => 1000,
-    "WA" => 1000,
-    "ACT" => 1000,
-    "NT" => 1000,
-    "TAS" => 1000,
+    "NSW" => 10000,
+    "QLD" => 10000,
+    "SA" => 10000,
+    "VIC" => 10000,
+    "WA" => 10000,
+    "ACT" => 10000,
+    "NT" => 10000,
+    "TAS" => 10000,
 )
 
 # run main 

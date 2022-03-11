@@ -21,7 +21,7 @@ function calculate_bounds(local_cases, τ, state)
     Cₜ = [sum(local_cases[idx]) for idx in idxs_limits]
     
     # multipliers on the n-day average
-    (ℓ, u) = (0.3, 4.0)
+    (ℓ, u) = (0.3, 3.0)
     Lₜ = ceil.(Int, ℓ * Cₜ)
     Uₜ = ceil.(Int, u * Cₜ)
     
