@@ -77,7 +77,7 @@ function initialise_population!(
 
     # infer some initial undetected asymptomatic
     total_S = D0.S + num_S_undetected
-    num_S_undetected = 0
+    num_A_undetected = 0
     
     if total_S == 0
         num_A_undetected = rand(NegativeBinomial(1, p_symp))
@@ -292,14 +292,37 @@ function calculate_historical_infected(
         cases = sum(@view Z_historical[begin:τ])
     end
     
+    # τ = min(map_day_to_index_Z(day - 1), size(Z_historical, 1))
+    # cases = sum(@view Z_historical[begin:τ])
+    
     return cases 
 
 end
 
 
+function sample_uniform_ordered(n)
+    # generate sorted array of event times and add in order to a vector
+    ac = 0
+    t_out = zeros(Float64, n)
+    for i in 1:n
+        ac -= log(rand())
+        t_out[i] = ac
+    end
+
+    ac -= log(rand())
+
+    # normalise the elements st they are U(0, 1)
+    for i = 1:n
+        t_out[i] = t_out[i] / ac;
+    end
+    
+    return t_out
+end
+
+
 function sample_offspring!(
     forecast::Forecast, 
-    t,  
+    day,  
     TP_local_parent, 
     TP_import_parent, 
     susceptible_depletion_sim,
@@ -311,6 +334,7 @@ function sample_offspring!(
     N NB(s, p) is NB(N*s, p) and hence we can sample ALL offspring for a particular type 
     of adults. 
     """
+    
     Z = forecast.sim_realisation.Z
     Z_historical = forecast.sim_realisation.Z_historical
     D = forecast.sim_realisation.D
@@ -329,7 +353,7 @@ function sample_offspring!(
     # grab the correct parameters for the particular dominant strain. The -5 is as we use
     # the infection dates in the simulation and onsets are considered when discussing 
     # case ascertainment
-    if t < omicron_dominant_day
+    if day < omicron_dominant_day
         α_s = forecast.sim_constants.α_s.delta
         α_a = forecast.sim_constants.α_a.delta
         p_symp = forecast.sim_constants.p_symp.delta 
@@ -353,70 +377,78 @@ function sample_offspring!(
     num_offspring = zero(Int)
     
     # pointer to the current day's infections 
-    Z_tmp = @view Z[map_day_to_index_Z(t), :]
-    
-    # if we are adjusting the TP, we use the Reff up until the last 30 days and then we
-    # need to scale the TP afterwards. The Reff inherently features the depletion of 
-    # susceptibles in its calculation (of sorts) and so can be considered the "true" 
-    # factor 
-    total_infected = calculate_historical_infected(
-        forecast, 
-        local_cases, 
-        t,  
-        N; 
-        adjust_TP = adjust_TP,
-    )
+    Z_tmp = @view Z[map_day_to_index_Z(day), :]
     
     total_parents = sum(Z_tmp)
-    (S_parents, A_parents, I_parents) = Z_tmp
-    
-    # Generate uniform times of infection for each person infected over the course of 
-    # (t-1, t]. We sort them as we are going to also randomly sample the types of the  
-    # parents as well. 
-    inf_times = (t - 1) .+ sort!(rand(total_parents))
-    # Generate an ordering of the parent types. 
-    parent_type = sample(
-        [ones(S_parents); 2 * ones(A_parents); 3 * ones(I_parents)], 
-        total_parents, 
-        replace = false
-    )
     
     if total_parents > 0
+        # if we are adjusting the TP, we use the Reff up until the last 30 days and then we
+        # need to scale the TP afterwards. The Reff inherently features the depletion of 
+        # susceptibles in its calculation (of sorts) and so can be considered the "true" 
+        # factor 
+        total_infected = calculate_historical_infected(
+            forecast, 
+            local_cases, 
+            day,  
+            N; 
+            adjust_TP = adjust_TP,
+        )
+        
         (S_parents, A_parents, I_parents) = Z_tmp
         
+        # Generate uniform times of infection for each person infected over the course of 
+        # (t-1, t]. We sort them as we are going to also randomly sample the types of the  
+        # parents as well. 
+        inf_times = (day - 1) .+ sample_uniform_ordered(total_parents)
+        
+        # # Generate an ordering of the parent types. 
+        # parent_type = sample(
+        #     [
+        #         ones(Int, S_parents); 
+        #         2 * ones(Int, A_parents); 
+        #         3 * ones(Int, I_parents)
+        #     ],
+        #     total_parents, 
+        #     replace = false,
+        # )
+        
+        import_multiplier = 1.0
+        
+        if day < omicron_dominant_day - 30
+            # p_{v,h} is the proportion of hotel quarantine workers vaccinated
+            p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
+            # v_{e,h} is the overall vaccine effectiveness
+            v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
+            import_multiplier = (1 - p_vh * v_eh)
+        end
         # sum up the number local infections on the current day
         # Z_tmp gets emptied at the end of sampling so we won't be double counting 
-        Z_historical[map_day_to_index_Z(t)] += S_parents + A_parents
+        Z_historical[map_day_to_index_Z(day)] += S_parents + A_parents
         # zero out infections on day t so we can restart sim and keep the progress 
         Z_tmp .= 0    
         
         for c in 1:total_parents
-            # Reset the TP for the parent. This allows it to be updated inside the 
-            # conditional statements below. 
-            TP_parent = 0.0
             
-            if parent_type[c] == 1
-                TP_parent = TP_local_parent * α_s
-            elseif parent_type[c] == 2
-                TP_parent = TP_local_parent * α_a
-            else
-                TP_parent = TP_import_parent
-                # Use old model's import scaling pre-Omicron wave and then 
-                # just use the inferred R_I for omicron after it's introduction. This 
-                # latter estimate will implicitly include a vaccination effect as well 
-                # as changes to the import restrictions. The simplified model assumes 
-                # this is fixed across the omicron wave.
-                if t < omicron_dominant_day - 30
-                    # p_{v,h} is the proportion of hotel quarantine workers vaccinated
-                    p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
-                    # v_{e,h} is the overall vaccine effectiveness
-                    v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
-                    TP_parent *= (1 - p_vh * v_eh)
-                    TP_parent *= 1.39 * 1.3
+            TP_parent = 0.0 
+            
+            while true
+                parent_type = rand(1:3)
+                if parent_type == 1 && S_parents > 0 
+                    S_parents -= 1
+                    TP_parent = TP_local_parent * α_s
+                    break
+                elseif parent_type == 2 && A_parents > 0 
+                    A_parents -= 1
+                    TP_parent = TP_local_parent * α_a
+                    break
+                elseif parent_type == 3 && I_parents > 0 
+                    I_parents -= 1
+                    TP_parent = TP_import_parent * import_multiplier
+                    break
                 end
             end
             
-            if (adjust_TP && t >= T_observed - 29) || (!adjust_TP)
+            if (adjust_TP && day >= T_observed - 29) || (!adjust_TP)
                 # when using the Reff, we do not adjust the TP through susceptible 
                 # depletion as this is already implicit in the calculation. 
                 total_infected += 1
@@ -449,9 +481,6 @@ function sample_offspring!(
                     num_A_detected = num_A_offspring_detected, 
                     num_A_undetected = num_A_offspring_undetected, 
                 )
-                
-                # println("Day ", t, " with ", sum(D), " cases.")
-                
             end
         end
     end
@@ -574,6 +603,7 @@ function clean_up_sim_results(
     U_results, 
     Z_historical_results, 
     TP_local,
+    N,
     good_TPs_inds,
     susceptible_depletion, 
     forecast::Forecast, 
@@ -654,7 +684,7 @@ function simulate_branching_process(
         p_detect_omicron = p_detect_omicron,
     )
      
-    max_restarts = 25
+    max_restarts = 10
     good_sims = ones(Bool, nsims)
     good_TPs = zeros(Bool, size(TP_local, 2))
     
@@ -769,13 +799,13 @@ function simulate_branching_process(
                 adjust_TP = adjust_TP
             )
             
-            # reinitialise_allowed =  day >= 3 && 
-            #     day < forecast.sim_features.T_observed && 
-            #     n_restarts < max_restarts && 
-            #     day - last_injection >= 3
             reinitialise_allowed = day >= 3 && 
-                day < forecast.sim_features.T_observed && 
-                n_restarts < max_restarts 
+                day < forecast.sim_features.T_observed - 3 && 
+                n_restarts < max_restarts && 
+                day - last_injection >= 3
+            # reinitialise_allowed = day >= 7 && 
+            #     day < forecast.sim_features.T_observed - 7 && 
+            #     n_restarts < max_restarts 
                 
             (bad_sim, injected_cases) = check_sim!(
                 forecast,
@@ -808,17 +838,17 @@ function simulate_branching_process(
             
         end
         
-        if !bad_sim
-            reinitialise_allowed = false
-            (bad_sim, injected_cases) = check_sim!(
-                forecast,
-                forecast_start_date,
-                omicron_dominant_date,
-                case_counts, 
-                local_cases, 
-                reinitialise_allowed,
-            )
-        end
+        # if !bad_sim
+        #     reinitialise_allowed = false
+        #     (bad_sim, injected_cases) = check_sim!(
+        #         forecast,
+        #         forecast_start_date,
+        #         omicron_dominant_date,
+        #         case_counts, 
+        #         local_cases, 
+        #         reinitialise_allowed,
+        #     )
+        # end
         
         if !bad_sim 
             good_TPs_inds[good_sims] = TP_ind
@@ -843,6 +873,7 @@ function simulate_branching_process(
         U_results, 
         Z_historical_results, 
         TP_local,
+        N,
         good_TPs_inds,
         susceptible_depletion,
         forecast, 

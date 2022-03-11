@@ -59,8 +59,8 @@ function simulate_single_state(
         local_cases = local_case_dict[state][dates .>= forecast_start_date]
         import_cases = import_case_dict[state]
         # cutoff the last bit of the local cases
-        local_cases = local_cases[begin:end-truncation_days]
-        import_cases = import_cases[begin:end-truncation_days]
+        local_cases = local_cases[begin:end - truncation_days + 1]
+        import_cases = import_cases[begin:end - truncation_days + 1]
         
         (D, U, TP_local) = simulate_branching_process(
             D0, 
@@ -148,8 +148,8 @@ function simulate_all_states(
             local_cases = local_case_dict[state][dates .>= forecast_start_date]
             # cutoff the last bit of the local cases
             import_cases = import_case_dict[state]
-            local_cases = local_cases[begin:end-truncation_days]
-            import_cases = import_cases[begin:end-truncation_days]
+            local_cases = local_cases[begin:end - truncation_days + 1]
+            import_cases = import_cases[begin:end - truncation_days + 1]
             
             (D, U, TP_local) = simulate_branching_process(
                 D0, 

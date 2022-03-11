@@ -60,8 +60,8 @@ function sample_inf_time(; omicron=false)
     """
 
     (shape_gen, scale_gen) = (2.75, 1.00)
-    (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
-    
+    (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
+    omicron = false
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
@@ -79,8 +79,8 @@ function sample_onset_time(; omicron=false)
     """
     
     (shape_inc, scale_inc) = (5.807, 0.948)
-    (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
-    
+    (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
+    omicron = false
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
     
@@ -99,15 +99,15 @@ function sample_times(t; omicron = false)
     """
     
     (shape_gen, scale_gen) = (2.75, 1.00)
-    (shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
-
+    (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
+    omicron = false
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
     infection_time = t + rand(Gamma(shape, scale))
     
     (shape_inc, scale_inc) = (5.807, 0.948)
-    (shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
+    (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
     
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
@@ -155,7 +155,7 @@ function sample_negative_binomial_limit(μ, ϕ; approx_limit = 1000)
     X = zero(Int)
     
     X = rand(NegativeBinomial2(μ, ϕ))
-    # # mean of NegBin(s, p) => this will boil down to N*TP
+    # mean of NegBin(s, p) => this will boil down to N*TP
     # if μ <= approx_limit
     #     X = rand(NegativeBinomial2(μ, ϕ))
     # else
@@ -322,8 +322,8 @@ end
 function read_in_cases(
 	date, 
 	rng; 
-	apply_inc = false, 
     apply_delay = true,
+	apply_inc = false, 
 	omicron_dominant_date = nothing,
     use_mean = false,
 )
@@ -339,8 +339,6 @@ function read_in_cases(
 	confirm_dates = Date.(confirm_dates)
 	if apply_delay
         # shift them appropriately
-        shape_rd = 1.28
-        scale_rd = 2.31
         shape_rd = 2.33
         scale_rd = 1.35
         # sample from delay distribtuion
@@ -422,29 +420,24 @@ function read_in_cases(
 	state_local = state[import_status .== 0]
 	state_import = state[import_status .== 1]
 
-	# vectors to hold the number of cases each day
-	local_cases = zeros(Int, length(dates_since_start))
-	import_cases = zeros(Int, length(dates_since_start))
-
 	# construct df to hold all the linelists	
 	new_df = DataFrame("date" => dates_since_start)
 
 	# construct df to hold all the linelists	
-	local_case_dict = Dict()
-	import_case_dict = Dict()
-	local_case_dict["date"] = dates_since_start
-	import_case_dict["date"] = dates_since_start
+    date_vec = dates_since_start
+	local_case_dict = Dict{String, Vector{Int}}()
+	import_case_dict = Dict{String, Vector{Int}}()
 	
 	# initialise arrays in the dictionary to copy into 
 	for s in unique(state) 
 		# filter by state	
-		local_case_dict[s] = zeros(length(dates_since_start))
-		import_case_dict[s] = zeros(length(dates_since_start))
+		local_case_dict[s] = zeros(Int, length(dates_since_start))
+		import_case_dict[s] = zeros(Int, length(dates_since_start))
 	end
     
 	# initialise arrays to hold daily cases in 
-	local_cases = zeros(length(dates_since_start))
-	import_cases = zeros(length(dates_since_start))
+	local_cases = zeros(Int, length(dates_since_start))
+	import_cases = zeros(Int, length(dates_since_start))
 	
 	# loop over states and then sum the number of cases on that day
 	for s in unique(state)
@@ -459,14 +452,14 @@ function read_in_cases(
 			@views complete_dates_import_tmp .== dss for dss in dates_since_start
 		)
 		# append to the df with a deepcopy to avoid a 0 d
-		local_case_dict[s] .= local_cases
-		import_case_dict[s] .= import_cases
+		local_case_dict[s] .= Int.(local_cases)
+		import_case_dict[s] .= Int.(import_cases)
 		# reset the case vectors
 		local_cases .= 0
 		import_cases .= 0
 	end
 
-    return (local_case_dict, import_case_dict)
+    return (date_vec, local_case_dict, import_case_dict)
     
 end
 

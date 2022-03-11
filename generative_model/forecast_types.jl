@@ -142,7 +142,7 @@ struct Constants{S, T}
         ## omicron assumptions 
         k_omicron = 0.6
         p_symp_omicron = 0.4
-        # solve the system:
+        # solve the system
         r = 0.3
         p_ds = p_detect_omicron / (p_symp_omicron + (1 - p_symp_omicron) * r) 
                 
@@ -278,7 +278,8 @@ struct JurisdictionAssumptions
     simulation_start_dates::Dict{String, String}
     pop_sizes::Dict{String, Int}
     initial_conditions::Dict{
-        String, NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}}
+        String, 
+        NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}},
     }
     omicron_dominant_date::Date
 

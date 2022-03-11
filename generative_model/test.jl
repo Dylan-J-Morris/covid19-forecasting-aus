@@ -13,12 +13,8 @@ using ProfileView
 
 include("simulate_states.jl")
 
-D = []
-U = []
-TP_local = []
-
 # parameters to pass to the main function
-file_date = "2022-03-01"
+file_date = "2022-03-08"
 
 # set seed for consistent plots (NOTE: this is not useful when multithreading 
 # enabled as we use separate seeds but the simulation pool should handle that)
@@ -32,8 +28,7 @@ latest_start_date = Dates.Date(
 )
 
 omicron_dominant_date = "2021-12-15"
-(local_case_dict, import_case_dict) = read_in_cases(file_date, rng)
-dates = local_case_dict["date"]
+(dates, local_case_dict, import_case_dict) = read_in_cases(file_date, rng)
 last_date_in_data = dates[end]
 forecast_end_date = last_date_in_data + Dates.Day(35)
 # create vector for dates
@@ -57,10 +52,8 @@ cases_pre_forecast = sum(local_case_dict[state][dates .< forecast_start_date])
 local_cases = local_case_dict[state][dates .>= forecast_start_date]
 # cutoff the last bit of the local cases
 import_cases = import_case_dict[state]
-local_cases = Int.(local_cases)
+local_cases = Int.(local_cases[begin:end-truncation_days+1])
 import_cases = Int.(import_cases)
-
-include("simulate_states.jl")
 
 (D, U, TP_local, scale_factor, Z_historical) = simulate_branching_process(
     D0,
@@ -74,7 +67,72 @@ include("simulate_states.jl")
     jurisdiction_assumptions.omicron_dominant_date,
     state,
     p_detect_omicron = p_detect_omicron,
-    adjust_TP = false,
+    adjust_TP = true,
+)
+
+##### PROFILING CODE 
+
+include("simulate_states.jl")
+
+D = []
+U = []
+TP_local = []
+
+# parameters to pass to the main function
+file_date = "2022-03-08"
+
+# set seed for consistent plots (NOTE: this is not useful when multithreading 
+# enabled as we use separate seeds but the simulation pool should handle that)
+rng = Random.Xoshiro(2022)
+
+jurisdiction_assumptions = JurisdictionAssumptions()
+    
+# get the latest onset date
+latest_start_date = Dates.Date(
+    maximum(v for v in values(jurisdiction_assumptions.simulation_start_dates))
+)
+
+omicron_dominant_date = "2021-12-15"
+(dates, local_case_dict, import_case_dict) = read_in_cases(file_date, rng)
+last_date_in_data = dates[end]
+forecast_end_date = last_date_in_data + Dates.Day(35)
+# create vector for dates
+onset_dates = latest_start_date:Dates.Day(1):forecast_end_date
+# add a small truncation to the simulations as we don't trust the most recent data
+truncation_days = 7
+# states to simulate
+state = "SA"
+nsims = 100
+p_detect_omicron = 0.5
+forecast_start_date = Dates.Date(
+    jurisdiction_assumptions.simulation_start_dates[state]
+)
+
+# named tuple for initial conditions
+D0 = jurisdiction_assumptions.initial_conditions[state]
+N = jurisdiction_assumptions.pop_sizes[state]
+
+# get the observed cases
+cases_pre_forecast = sum(local_case_dict[state][dates .< forecast_start_date])
+local_cases = local_case_dict[state][dates .>= forecast_start_date]
+# cutoff the last bit of the local cases
+import_cases = import_case_dict[state]
+local_cases = Int.(local_cases[begin:end-truncation_days+1])
+import_cases = Int.(import_cases)
+
+ProfileView.@profview (D, U, TP_local, scale_factor, Z_historical) = simulate_branching_process(
+    D0,
+    N,
+    nsims,
+    local_cases,
+    import_cases,
+    cases_pre_forecast,
+    forecast_start_date,
+    file_date,
+    jurisdiction_assumptions.omicron_dominant_date,
+    state,
+    p_detect_omicron = p_detect_omicron,
+    adjust_TP = true,
 )
 
 save_simulations(
@@ -166,7 +224,7 @@ let
     plot!(f, local_cases, legend = false, linealpha = 1, lc = 1)
     plot!(f, D_local_median, legend = false, lc = 3)
     xlims!(f, 0, length(local_cases) + 35)
-    ylims!(f, 0, 10000)
+    ylims!(f, 0, 15000)
 end
 
 let
@@ -186,13 +244,14 @@ let
     plot!(f, dates[dates .>= forecast_start_date], local_cases, legend = false, linealpha = 1, lc = 1)
     # plot!(f, Z_historical[36:end, :], legend = false, lc = 3, linealpha = 0.5)
     plot!(f, D_local_dates, D_local, legend = false, lc = 2, linealpha = 0.5)
-    plot!(f, dates[dates .>= forecast_start_date], local_cases, legend = false, linealpha = 1, lc = 1)
+    plot!(f, dates[dates .>= forecast_start_date][begin:end-truncation_days+1], local_cases[begin:end-truncation_days+1], legend = false, linealpha = 1, lc = 1)
+    # plot!(f, local_cases2.date_onset, local_cases2.count, legend = false, linealpha = 1, lc = 1)
     plot!(f, D_local_dates, D_local_median, legend = false, lc = 3)
     vline!(f, [Dates.Date("2021-12-15")], ls = :dash, lc = :black)
     # xlims!(f, 0, length(local_cases) + 35)
-    ylims!(f, 0, 5000)
-    xlims!(f, Dates.value(Dates.Date("2021-11-01")), Dates.value(Dates.Date("2022-01-01")))
-    ylims!(f, 0, 500)
+    ylims!(f, 0, 10000)
+    # xlims!(f, Dates.value(Dates.Date("2021-12-15")), Dates.value(Dates.Date("2022-03-31")))
+    # ylims!(f, 0, 500)
 end
 
 forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
@@ -565,27 +624,26 @@ p = [cdf(Truncated(Gamma(1.58, 1.32), 0, 21), x) for x in 1:21]
 forecast_end_date = Dates.Date(forecast_start_date) + Dates.Day(size(TP_local, 1) - 1)
 date_range = Dates.Date(forecast_start_date):Dates.Day(1):Dates.Date(forecast_end_date)
 
-df1 = CSV.read("results/2022-03-01/50_case_ascertainment/soc_mob_R2022-03-01.csv", DataFrame) 
+df1 = CSV.read("results/2022-03-08/50_case_ascertainment/soc_mob_R_adjusted2022-03-08.csv", DataFrame) 
 df1 = @chain df1 begin 
     filter(:type => ==("R_L"), _)
     filter(:state => ==("SA"), _)
 end
 
-df_TP = Dict(
-    "date" => date_range, 
-    "median" => median.(eachrow(TP_local)), 
-    "bottom" => quantile.(eachrow(TP_local), 0.05),
-    "top" => quantile.(eachrow(TP_local), 0.95),
-)
+df2 = CSV.read("results/2022-03-08/50_case_ascertainment_delta/soc_mob_R_adjusted2022-03-08.csv", DataFrame) 
+df2 = @chain df2 begin 
+    filter(:type => ==("R_L"), _)
+    filter(:state => ==("SA"), _)
+end
 
 fig = plot(legend = false)
-plot!(fig, df_TP["date"], df_TP["median"], lc = 1)
-plot!(fig, df_TP["date"], df_TP["bottom"], lc = 1)
-plot!(fig, df_TP["date"], df_TP["top"], lc = 1)
-plot!(fig, df1.date, df1.median, lc = 2)
-plot!(fig, df1.date, df1.bottom, lc = 2)
-plot!(fig, df1.date, df1.top, lc = 2)
-xlims!((date_range[1], date_range[end]))
+plot!(fig, df1.date, df1.median, lc = 1)
+plot!(fig, df1.date, df1.bottom, lc = 1)
+plot!(fig, df1.date, df1.top, lc = 1)
+plot!(fig, df2.date, df2.median, lc = 2)
+plot!(fig, df2.date, df2.bottom, lc = 2)
+plot!(fig, df2.date, df2.top, lc = 2)
+xlims!((Dates.Date("2021-12-01"), Dates.Date("2022-01-01")))
 ylims!(0.5,2.5)
 
 #####
@@ -618,3 +676,64 @@ xlims!(0, 25)
 
 plot(Gamma(1.28, 2.31))
 plot!(Gamma(2.33, 1.35))
+
+
+df1 = CSV.read("results/EpyReff/Reff_delta_samples2022-03-08tau_5.csv", DataFrame)
+df2 = CSV.read("results/EpyReff/Reff_omicron_samples2022-03-08tau_5.csv", DataFrame)
+df3 = CSV.read("results/EpyReff/Reff_samples2022-03-08tau_5.csv", DataFrame)
+
+df1_SA = @chain df1 begin
+    subset(
+        :STATE => (ByRow(==("SA"))), 
+    )
+end
+
+df2_SA = @chain df2 begin
+    subset(
+        :STATE => (ByRow(==("SA"))), 
+    )
+end
+
+df3_SA = @chain df3 begin
+    subset(
+        :STATE => (ByRow(==("SA"))), 
+    )
+end
+
+# df3_SA = vcat(
+#     df1_SA[df1_SA.INFECTION_DATES .<= Dates.Date("2021-12-15"), :], 
+#     df2_SA[df2_SA.INFECTION_DATES .> Dates.Date("2021-12-15"), :], 
+# )
+
+fig = plot(legend = true)
+plot!(fig, df1_SA.INFECTION_DATES, median(Matrix(df1_SA[:, begin:end-2]), dims = 2), lc = 1, label = "Delta")
+plot!(fig, df2_SA.INFECTION_DATES, median(Matrix(df2_SA[:, begin:end-2]), dims = 2), lc = 2, label = "Omicron")
+# plot!(fig, df3_SA.INFECTION_DATES, median(Matrix(df3_SA[:, begin:end-2]), dims = 2), lc = 2, label = "Omicron")
+vline!(fig, [Dates.Date("2021-12-15")], lc = :black, ls = :dash, label = "changeover point \n 15/12/2021")
+xlims!((Dates.Date("2021-11-01"), Dates.Date("2022-03-01")))
+ylims!((0.5, 2.5))
+
+using StatsPlots
+GI_delta = Truncated(Gamma(2.7, 1.0), 0, 21)
+GI_omicron = Truncated(Gamma(1.58, 1.32), 0, 21)
+IP_delta = Truncated(Gamma(5.807, 0.948), 0, 21)
+IP_omicron = Truncated(Gamma(3.33, 1.34), 0, 21)
+
+fig = plot(layout = (2, 1))
+plot!(fig, subplot = 1, GI_delta)
+plot!(fig, subplot = 1, GI_omicron)
+plot!(fig, subplot = 2, IP_delta)
+plot!(fig, subplot = 2, IP_omicron)
+xlims!(0, 10)
+
+a = zeros(100000)
+for i in eachindex(a)
+    x = rand(GI_delta) - 1
+    while x < 0
+        x = rand(GI_delta) - 1
+    end
+    
+    a[i] = x    
+end
+
+

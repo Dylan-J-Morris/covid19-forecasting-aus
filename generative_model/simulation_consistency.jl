@@ -6,45 +6,34 @@ function calculate_bounds(local_cases, τ, state)
     # observation period 
     T = length(local_cases)
     
-    # number of periods the local cases array can be split into 
-    L = T ÷ τ
+    idxs_limits =  Vector{UnitRange{Int64}}()
     
-    # create indices for each of the windows 
-    idxs_limits = [1 + i * τ:(i + 1) * τ for i in 0:L-1]
-    # adjust last indices to be the length of the remaining number of cases
-    if idxs_limits[end][end] > length(local_cases)
-        idxs_limits[end] = idxs_limits[end][begin]:length(local_cases)
+    idxs_start = 1
+    while idxs_start - 1 != length(local_cases)
+        idxs_end = idxs_start + τ - 1 
+        if length(local_cases) - idxs_end < τ
+            idxs_end = length(local_cases)
+        end
+        push!(idxs_limits, idxs_start:idxs_end)
+        idxs_start = idxs_end + 1
     end
     
     Cₜ = [sum(local_cases[idx]) for idx in idxs_limits]
     
     # multipliers on the n-day average
-    (ℓ, u) = (0.5, 3.0)
+    (ℓ, u) = (0.3, 4.0)
     Lₜ = ceil.(Int, ℓ * Cₜ)
     Uₜ = ceil.(Int, u * Cₜ)
     
     # remove restrictions over last τ * 2 days 
-    (ℓ, u) = (0.5, 4.0)
-    Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
-    Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
+    (ℓ, u) = (0.6, 3.0)
+    Lₜ[end] = ceil.(Int, ℓ * Cₜ[end])
+    Uₜ[end] = ceil.(Int, u * Cₜ[end])
     
-    # for t in 2:length(Cₜ) - 1
-    #     if Cₜ[t] < Cₜ[t + 1]
-    #         Lₜ[t] = ceil(Int, ℓ * Cₜ[t + 1])
-    #         Uₜ[t] = ceil(Int, u * Cₜ[t + 1])
-    #     elseif Cₜ[t] > Cₜ[t + 1]
-    #         Lₜ[t] = ceil(Int, ℓ * Cₜ[t - 1])
-    #         Uₜ[t] = ceil(Int, u * Cₜ[t - 1])
-    #     end    
-    # end
+    min_limit = τ * 50
     
-    # # multipliers on the n-day average
-    # (ℓ, u) = (0.25, 2.0)
-    # Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
-    # Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
-    
-    Lₜ[Lₜ .< 100] .= 0 
-    Uₜ[Uₜ .< 100] .= 100 
+    Lₜ[Lₜ .< min_limit] .= 0 
+    Uₜ[Uₜ .< min_limit] .= min_limit 
     
     return (Lₜ, Uₜ, idxs_limits) 
     
@@ -140,6 +129,7 @@ function check_sim!(
     day < 0 && return (false, false)
     
     print_status = false
+    print_inject_status = false
     
     Z = forecast.sim_realisation.Z
     D = forecast.sim_realisation.D
@@ -169,7 +159,6 @@ function check_sim!(
     #     end
     # end
     
-    
     # only check for consistency if we don't inject cases.
     ζ = ceil(map_day_to_index_cases(day) ÷ τ)
         
@@ -182,8 +171,8 @@ function check_sim!(
                 println(
                     "Sim: ", sim, "\n",
                     "Too many cases: ", case_counts[1:ζ][bad_id], "\n", 
-                    " ", max_cases[1:ζ][bad_id], "\n", 
-                    "Window: ", bad_id, "\n",
+                    "Maximum: ", max_cases[1:ζ][bad_id], "\n", 
+                    "Window: ", findfirst(bad_id), "\n",
                 )                
             end
             bad_sim = true 
@@ -191,7 +180,7 @@ function check_sim!(
         
         if !bad_sim && reinitialise_allowed
             # calculate the number of detections missed over the τ day period 
-            X_day_range = min(T_observed - 1, day - 2):min(T_observed - 1, day)
+            X_day_range = min(T_observed - 1, day - τ + 1):min(T_observed - 1, day)
             actual_X_day_cases = sum(
                 @view local_cases[map_day_to_index_cases.(X_day_range)]
             )
@@ -201,14 +190,14 @@ function check_sim!(
             threshold = ceil(Int, consistency_multiplier * max(1, sim_X_day_cases))
             
             if (actual_X_day_cases > threshold)
-                if print_status
+                if print_status && print_inject_status 
                     println(
                         "======\n", 
                         "Sim: ", sim, "\n",
-                        "injected cases...\n",
-                        " actual cases: ", actual_X_day_cases, "\n", 
-                        " sim cases: ", sim_X_day_cases, "\n",
-                        " day added: ", day, "\n",
+                        "Injected cases...\n",
+                        "Actual cases: ", actual_X_day_cases, "\n", 
+                        "Sim cases: ", sim_X_day_cases, "\n",
+                        "Day added: ", day, "\n",
                         "======",
                     )
                 end
@@ -220,6 +209,7 @@ function check_sim!(
                 )
                 
                 injected_cases = true 
+                
                 inject_cases!(
                     forecast::Forecast, 
                     missing_detections, 
@@ -230,14 +220,15 @@ function check_sim!(
         
         # count updated cases
         count_cases!(case_counts, forecast)
+        
         if any(case_counts[1:ζ] .< min_cases[1:ζ])
             if print_status 
                 bad_id = case_counts[1:ζ] .< min_cases[1:ζ]
                 println(
                     "Sim: ", sim, "\n",
                     "Too few cases: ", case_counts[1:ζ][bad_id], "\n",
-                    " ", min_cases[1:ζ][bad_id], "\n",
-                    "Window: ", bad_id, "\n",
+                    "Minimum:  ", min_cases[1:ζ][bad_id], "\n",
+                    "Window: ", findfirst(bad_id), "\n",
                 )                
             end
             bad_sim = true 
