@@ -212,11 +212,30 @@ def get_data_for_posterior(data_date):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
+    
+    df_Reff_omicron = pd.read_csv(
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        parse_dates=["INFECTION_DATES"],
+    )
+    df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
+    df_Reff_omicron["state"] = df_Reff_omicron.STATE
+    
+    # relabel some of the columns to avoid replication in the merged dataframe 
+    col_names_replace = {
+        "mean": "mean_omicron",
+        "lower": "lower_omicron",
+        "upper": "upper_omicron",
+        "top": "top_omicron",
+        "bottom": "bottom_omicron",
+        "std": "std_omicron",
+    }
+
+    df_Reff_omicron.rename(col_names_replace, axis=1, inplace=True)
 
     # read in NNDSS/linelist data
     # If this errors it may be missing a leading zero on the date.
@@ -232,6 +251,15 @@ def get_data_for_posterior(data_date):
         left_on=["state", "date"],
         right_on=["STATE", "date_inferred"],
     )  # how = left to use Reff days, NNDSS missing dates
+
+    # merge in the omicron stuff 
+    df_Reff = df_Reff.merge(
+        df_Reff_omicron, 
+        how="left", 
+        left_on=["state", "date"],
+        right_on=["state", "date"],
+    )
+    
     df_Reff["rho_moving"] = df_Reff.groupby(["state"])["rho"].transform(
         lambda x: x.rolling(7, 1).mean()
     )  # minimum number of 1
@@ -258,6 +286,12 @@ def get_data_for_posterior(data_date):
                 "top",
                 "bottom",
                 "std",
+                "mean_omicron",
+                "lower_omicron",
+                "upper_omicron",
+                "top_omicron",
+                "bottom_omicron",
+                "std_omicron",
                 "rho",
                 "rho_moving",
                 "local",
@@ -427,6 +461,22 @@ def get_data_for_posterior(data_date):
                 columns="state",
                 values=value,
             ).sort_index(axis="columns")
+            
+    # now add in the summary stats for Omicron Reff 
+    for value in ["mean_omicron", "std_omicron"]:
+        if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
+            print("making empty")
+            third_data_by_state[value] = pd.DataFrame(columns=third_states).astype(
+                float
+            )
+        else:
+            third_data_by_state[value] = pd.pivot(
+                df3X[["state", value, "date"]],
+                index="date",
+                columns="state",
+                values=value,
+            ).sort_index(axis="columns")
+        
 
     # FIRST PHASE
     mobility_by_state = []
@@ -618,9 +668,11 @@ def get_data_for_posterior(data_date):
         "N_third_wave": df3X.loc[df3X.state == third_states[0]].shape[0],
         "j_third_wave": len(third_states),
         "Reff_third_wave": third_data_by_state["mean"].values,
+        "Reff_omicron_wave": third_data_by_state["mean_omicron"].values,
         "Mob_third_wave": third_mobility_by_state,
         "Mob_third_wave_std": third_mobility_std_by_state,
         "sigma2_third_wave": third_data_by_state["std"].values ** 2,
+        "sigma2_omicron_wave": third_data_by_state["std_omicron"].values ** 2,
         "policy_third_wave": policy_third_wave,
         "local_third_wave": third_data_by_state["local"].values,
         "imported_third_wave": third_data_by_state["imported"].values,
@@ -910,13 +962,32 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
+    
+    df_Reff_omicron = pd.read_csv(
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        parse_dates=["INFECTION_DATES"],
+    )
+    df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
+    df_Reff_omicron["state"] = df_Reff_omicron.STATE
+    
+    # relabel some of the columns to avoid replication in the merged dataframe 
+    col_names_replace = {
+        "mean": "mean_omicron",
+        "lower": "lower_omicron",
+        "upper": "upper_omicron",
+        "top": "top_omicron",
+        "bottom": "bottom_omicron",
+        "std": "std_omicron",
+    }
 
-    ######### Read in NNDSS/linelist data #########
+    df_Reff_omicron.rename(col_names_replace, axis=1, inplace=True)
+
+    # read in NNDSS/linelist data
     # If this errors it may be missing a leading zero on the date.
     df_state = read_in_cases(
         case_file_date=data_date.strftime("%d%b%Y"),
@@ -930,6 +1001,15 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         left_on=["state", "date"],
         right_on=["STATE", "date_inferred"],
     )  # how = left to use Reff days, NNDSS missing dates
+
+    # merge in the omicron stuff 
+    df_Reff = df_Reff.merge(
+        df_Reff_omicron, 
+        how="left", 
+        left_on=["state", "date"],
+        right_on=["state", "date"],
+    )
+    
     df_Reff["rho_moving"] = df_Reff.groupby(["state"])["rho"].transform(
         lambda x: x.rolling(7, 1).mean()
     )  # minimum number of 1
@@ -956,6 +1036,12 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 "top",
                 "bottom",
                 "std",
+                "mean_omicron",
+                "lower_omicron",
+                "upper_omicron",
+                "top_omicron",
+                "bottom_omicron",
+                "std_omicron",
                 "rho",
                 "rho_moving",
                 "local",
@@ -1113,6 +1199,22 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 values=value,
             ).sort_index(axis="columns")
         # account for dates pre pre third wave
+        if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
+            print("making empty")
+            third_data_by_state[value] = pd.DataFrame(columns=third_states).astype(
+                float
+            )
+        else:
+            third_data_by_state[value] = pd.pivot(
+                df3X[["state", value, "date"]],
+                index="date",
+                columns="state",
+                values=value,
+            ).sort_index(axis="columns")
+            
+            
+    # now add in the summary stats for Omicron Reff 
+    for value in ["mean_omicron", "std_omicron"]:
         if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
             print("making empty")
             third_data_by_state[value] = pd.DataFrame(columns=third_states).astype(
@@ -2072,6 +2174,8 @@ def main(data_date, run_inference=True):
         num_chains = 4
         num_samples = 1500
         num_warmup_samples = 1000
+        # num_samples = 200
+        # num_warmup_samples = 200
         get_data_for_posterior(data_date=data_date)
         
         run_stan(

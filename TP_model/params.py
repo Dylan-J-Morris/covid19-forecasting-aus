@@ -6,6 +6,8 @@ assumptions used in the fitting and should be referred to when checking the
 assumptions. 
 """
 
+from scipy.stats import gamma
+
 ##### Key parameters #####
 use_linelist = True
 use_local_cases_input = True
@@ -60,26 +62,30 @@ assume_local_cases_if_unknown = True
 # and cofnirmation for cases where this was feasible and truncated this to be between 0 and 30 
 # (plenty of retropsective cases with negatives etc)
 # (shape_rd, scale_rd) = (1.28, 2.31)
+# range(22) = 0:21 
 (shape_rd, scale_rd) = (2.33, 1.35)
-offset_rd = 0
-
+rd_disc_pmf = [gamma.pdf(x, a=shape_rd, scale=scale_rd) for x in range(22)]
 
 # incubation period: taken from Lauer et al. 2020
 (shape_inc, scale_inc) = (5.807, 0.948)
+inc_disc_pmf = [gamma.pdf(x, a=shape_inc, scale=scale_inc) for x in range(22)]
 # omicron incubation period determined by sampling Delta incubation periods and subtracting 1 
 # (then taking those with days > 0.05) and using MLE to fit a Gamma distribution
 (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
-# (shape_inc_omicron, scale_inc_omicron) = (shape_inc, scale_inc)
-offset_inc = 0
+inc_omicron_disc_pmf = [
+    gamma.pdf(x, a=shape_inc_omicron, scale=scale_inc_omicron) for x in range(22)
+]
 
 ## generation interval:
 # generation inteval changed Oct 5 2021
 (shape_gen, scale_gen) = (2.75, 1.00)
+gen_disc_pmf = [gamma.pdf(x, a=shape_gen, scale=scale_gen) for x in range(22)]
 # omicron GI determined by sampling Delta GI and subtracting 1 (then taking those with days > 0.05)
 # and using MLE to fit a Gamma distribution
 (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
-# (shape_gen_omicron, scale_gen_omicron) = (shape_gen, scale_gen)
-offset_gen = 0
+gen_omicron_disc_pmf = [
+    gamma.pdf(x, a=shape_gen_omicron, scale=scale_gen_omicron) for x in range(22)
+]
 
 # pulled from
 # https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/latest-release

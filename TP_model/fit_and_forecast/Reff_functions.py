@@ -198,16 +198,37 @@ def predict_plot(
                 ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
             continue
         
-        # plot actual R_eff
-        ax[i // 4, i % 4].plot(
-            df_state.date, df_state["mean"], label="$R_{eff}$", color="C1"
-        )
-        ax[i // 4, i % 4].fill_between(
-            df_state.date, df_state["bottom"], df_state["top"], color="C1", alpha=0.3
-        )
-        ax[i // 4, i % 4].fill_between(
-            df_state.date, df_state["lower"], df_state["upper"], color="C1", alpha=0.3
-        )
+        if not third_phase: 
+            # plot actual R_eff
+            ax[i // 4, i % 4].plot(
+                df_state.date, df_state["mean"], label="$R_{eff}$", color="C1"
+            )
+            ax[i // 4, i % 4].fill_between(
+                df_state.date, df_state["bottom"], df_state["top"], color="C1", alpha=0.3
+            )
+            ax[i // 4, i % 4].fill_between(
+                df_state.date, df_state["lower"], df_state["upper"], color="C1", alpha=0.3
+            )
+        elif third_phase:
+            # plot actual R_eff
+            ax[i // 4, i % 4].plot(
+                df_state.date, df_state["mean_omicron"], label="$R_{eff}$", color="C1"
+            )
+            ax[i // 4, i % 4].fill_between(
+                df_state.date, 
+                df_state["bottom_omicron"], 
+                df_state["top_omicron"], 
+                color="C1", 
+                alpha=0.3
+            )
+            ax[i // 4, i % 4].fill_between(
+                df_state.date, 
+                df_state["lower_omicron"], 
+                df_state["upper_omicron"], 
+                color="C1", 
+                alpha=0.3
+            )
+            
         ax[i // 4, i % 4].plot(
             df_state.date, df_hat.quantile(0.5, axis=0), label="$\hat{\mu}$", color="C0"
         )

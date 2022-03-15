@@ -2,7 +2,7 @@ import sys
 
 # I hate this too but it allows everything to use the same helper functions.
 sys.path.insert(0, "TP_model")
-from helper_functions import read_in_NNDSS
+from helper_functions import read_in_NNDSS, sample_discrete_dist
 from scipy.stats import gamma
 import glob
 from datetime import timedelta
@@ -37,7 +37,6 @@ def read_cases_lambda(case_file_date):
 
 
 def tidy_cases_lambda(interim_data, remove_territories=True):
-
     # Remove non-existent notification dates
     interim_data = interim_data[~np.isnat(interim_data.date_inferred)]
 
@@ -69,12 +68,9 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 def draw_inf_dates(
     df_linelist,
-    shape_inc=5.807,
-    scale_inc=0.948,
-    shape_rd=2,
-    scale_rd=1,
+    inc_disc_pmf=[], 
+    rd_disc_pmf=[], 
 ):
-
     # these aren't really notification dates, they are a combination of onset and confirmation dates
     notification_dates = df_linelist["date_inferred"]
 
@@ -84,25 +80,14 @@ def draw_inf_dates(
     # Draw from incubation distribution
     # inc_period = np.random.gamma(shape_inc, scale_inc, size=(nsamples))
 
-    if use_linelist:
-        # apply the delay at the point of applying the incubation
-        # as we are taking a posterior sample
-        # extract boolean indicator of when the confirmation date was used
-        is_confirmation_date = df_linelist["is_confirmation"].to_numpy()
-        # rd_period = (
-        #     np.random.gamma(shape_rd, scale_rd, size=nsamples)
-        # ) * is_confirmation_date
-        
-        # id_nd_diff = inc_period + rd_period
-        id_nd_diff = (
-            np.random.gamma(shape_inc, scale_inc, size=nsamples) 
-            + np.random.gamma(shape_rd, scale_rd, size=nsamples) * is_confirmation_date
-        )
-            
-
-    # else:
-        # id_nd_diff = inc_period
-
+    # apply the delay at the point of applying the incubation
+    # as we are taking a posterior sample
+    # extract boolean indicator of when the confirmation date was used
+    is_confirmation_date = df_linelist["is_confirmation"].to_numpy()
+    id_nd_diff = (
+        sample_discrete_dist(inc_disc_pmf, nsamples) 
+        + sample_discrete_dist(rd_disc_pmf, nsamples) * is_confirmation_date
+    )
     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
     whole_day_diff = np.ceil(id_nd_diff)
     time_day_diffmat = whole_day_diff.astype("timedelta64[D]").reshape(nsamples)
@@ -197,8 +182,7 @@ def index_by_infection_date(infections_wide):
 
 def generate_lambda(
     infections,
-    shape_gen=3.64 / 3.07,
-    scale_gen=3.07,
+    gen_disc_pmf=[],
     trunc_days=21,
 ):
     """
@@ -207,15 +191,7 @@ def generate_lambda(
     a N_dates-tau by N_samples array.
     Default generation interval parameters taken from Ganyani et al 2020.
     """
-    from scipy.stats import gamma
-        
-    # Find midpoints for discretisation
-    xmids = [x for x in range(trunc_days + 1)]
-    # double check parameterisation of scipy
-    gamma_vals = gamma.pdf(xmids, a=shape_gen, scale=scale_gen)
-    # renormalise the pdf
-    disc_gamma = gamma_vals / sum(gamma_vals)
-
+    disc_gamma = gen_disc_pmf / sum(gen_disc_pmf)
     ws = disc_gamma[:trunc_days]
     lambda_t = np.zeros(shape=(infections.shape[0] - trunc_days + 1, infections.shape[1]))
     lambda_t[:, 0] = np.convolve(infections[:, 0], ws, mode="valid")

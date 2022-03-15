@@ -19,10 +19,11 @@ from params import (
     shape_gen,
     scale_inc,
     shape_inc,
-    scale_gen_omicron,
-    shape_gen_omicron,
-    scale_inc_omicron,
-    shape_inc_omicron,
+    rd_disc_pmf,
+    inc_disc_pmf,
+    inc_omicron_disc_pmf,
+    gen_disc_pmf,
+    gen_omicron_disc_pmf,
 )
 from epyreff import *
 import os
@@ -82,23 +83,17 @@ R_store = {}
 # we haven't modified the previous code too much outside of treating things as vectors.
 for rep in tqdm(range(samples)):
     if omicron_Reff:
-        shape_inc_actual = shape_inc_omicron
-        scale_inc_actual = scale_inc_omicron
-        shape_gen_actual = shape_gen_omicron
-        scale_gen_actual = scale_gen_omicron
+        inc_disc_actual_pmf = inc_omicron_disc_pmf
+        gen_disc_actual_pmf = gen_omicron_disc_pmf
     else:
-        shape_inc_actual = shape_inc
-        scale_inc_actual = scale_inc
-        shape_gen_actual = shape_gen
-        scale_gen_actual = scale_gen
+        inc_disc_actual_pmf = inc_disc_pmf
+        gen_disc_actual_pmf = gen_disc_pmf
         
     # generate realisation of infection dates from notification dates
     df_inf = draw_inf_dates(
         df_linel,
-        shape_inc=shape_inc_actual,
-        scale_inc=scale_inc_actual,
-        shape_rd=shape_rd,
-        scale_rd=scale_rd,
+        inc_disc_pmf=inc_disc_pmf, 
+        rd_disc_pmf=rd_disc_pmf,
     )
 
     # reindex dataframe to include all dates,
@@ -108,8 +103,7 @@ for rep in tqdm(range(samples)):
     # get all lambdas
     lambda_dict = lambda_all_states(
         df_inc_zeros,
-        shape_gen=shape_gen_actual,
-        scale_gen=scale_gen_actual,
+        gen_disc_pmf=gen_disc_actual_pmf,
         trunc_days=trunc_days,
     )
 
