@@ -1,4 +1,5 @@
 functions {
+    
    real sigmoid(int t, real tau, real r, real m0, real m1) {
        /*
        Calculate a translated and adjusted sigmoid function that approximates the 
@@ -14,6 +15,7 @@ functions {
        
        return y; 
    }
+   
 }
 
 data {
@@ -308,7 +310,8 @@ transformed parameters {
     // vector[total_N_p_sec] masks_sec_wave;
     // vector[total_N_p_third] masks_third_wave;
     
-    vector[j_third_wave] tau = 25 + 2 * tau_raw; 
+    // reduce this to be the 5/12/2021 as the midpoint (i.e. 50% Omicron proportion).
+    vector[j_third_wave] tau = 20 + 2 * tau_raw; 
 
     // first wave model
     for (i in 1:j_first_wave) {
@@ -731,7 +734,7 @@ model {
                     # increment target by the log-likelihood of third wave only Gamma
                     target += gamma_lpdf(
                         mu_hat_third_wave[pos] | 
-                        a_mu_hat_third_wave[i,n], b_mu_hat_third_wave[i,n]
+                        a_mu_hat_third_wave[n,i], b_mu_hat_third_wave[n,i]
                     );
                 } else {
                     // number of days into omicron period 
@@ -771,14 +774,14 @@ model {
                             log_prop_omicron_to_delta 
                             + gamma_lpdf(
                                 mu_hat_third_wave[pos] | 
-                                a_mu_hat_omicron_wave[i,n], 
-                                b_mu_hat_omicron_wave[i,n]
+                                a_mu_hat_omicron_wave[n,i], 
+                                b_mu_hat_omicron_wave[n,i]
                             ), 
                             log_prop_delta_to_omicron
                             + gamma_lpdf(
                                 mu_hat_third_wave[pos] | 
-                                a_mu_hat_third_wave[i,n], 
-                                b_mu_hat_third_wave[i,n]
+                                a_mu_hat_third_wave[n,i], 
+                                b_mu_hat_third_wave[n,i]
                             )
                         );
                     }
