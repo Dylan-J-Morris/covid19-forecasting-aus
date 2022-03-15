@@ -69,14 +69,10 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 def draw_inf_dates(
     df_linelist,
-    omicron_Reff=False,
     shape_inc=5.807,
     scale_inc=0.948,
     shape_rd=2,
     scale_rd=1,
-    shape_inc_omicron=5.807,
-    scale_inc_omicron=0.948,
-    nreplicates=1,
 ):
 
     # these aren't really notification dates, they are a combination of onset and confirmation dates
@@ -86,64 +82,40 @@ def draw_inf_dates(
     nsamples = notification_dates.shape[0]
 
     # Draw from incubation distribution
-    if omicron_Reff:
-        shape_inc_actual = shape_inc_omicron
-        scale_inc_actual = scale_inc_omicron
-    else:
-        shape_inc_actual = shape_inc
-        scale_inc_actual = scale_inc
-        
-    inc_period = np.random.gamma(
-        shape_inc_actual, scale_inc_actual, size=(nsamples * nreplicates)
-    )
+    # inc_period = np.random.gamma(shape_inc, scale_inc, size=(nsamples))
 
     if use_linelist:
         # apply the delay at the point of applying the incubation
         # as we are taking a posterior sample
         # extract boolean indicator of when the confirmation date was used
         is_confirmation_date = df_linelist["is_confirmation"].to_numpy()
-        # first construct an array to set the notification delays to 0 when we have the true onset date
-        is_confirmation_date_rep = np.repeat(is_confirmation_date, nreplicates)
-        rd_period = (
-            np.random.gamma(shape_rd, scale_rd, size=(nsamples * nreplicates))
-        ) * is_confirmation_date_rep
-
-        # is_omicron = (
-        #     notification_dates >= pd.to_datetime(omicron_dominance_date)
-        # ).to_numpy()
-
-        # infection date is id_nd_diff days before notification date. This is also a long vector.
-        # id_nd_diff = (
-        #     (1 - is_omicron) * inc_period + is_omicron * inc_period_omicron + rd_period
-        # )
+        # rd_period = (
+        #     np.random.gamma(shape_rd, scale_rd, size=nsamples)
+        # ) * is_confirmation_date
         
-        id_nd_diff = inc_period + rd_period
+        # id_nd_diff = inc_period + rd_period
+        id_nd_diff = (
+            np.random.gamma(shape_inc, scale_inc, size=nsamples) 
+            + np.random.gamma(shape_rd, scale_rd, size=nsamples) * is_confirmation_date
+        )
+            
 
-    else:
-        id_nd_diff = inc_period
+    # else:
+        # id_nd_diff = inc_period
 
     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
     whole_day_diff = np.ceil(id_nd_diff)
-    time_day_diffmat = whole_day_diff.astype("timedelta64[D]").reshape(
-        (nsamples, nreplicates)
-    )
-
-    # notification_dates is repeated as a column nreplicates times.
-    notification_mat = np.tile(notification_dates, (nreplicates, 1)).T
+    time_day_diffmat = whole_day_diff.astype("timedelta64[D]").reshape(nsamples)
 
     # infection dates are just the difference
-    infection_dates = notification_mat - time_day_diffmat
-
-    # Make infection dates into a dataframe
-    datecolnames = [*map(str, range(nreplicates))]
-    infdates_df = pd.DataFrame(infection_dates, columns=datecolnames)
+    infection_dates = notification_dates - time_day_diffmat
 
     # need to remove the confirmation boolean variable from the df to ensure that the
     # rest of epyreff runs as per normal
     df_linelist = df_linelist.loc[:, df_linelist.columns != "is_confirmation"]
-
-    # Combine infection dates and original dataframe
-    df_inf = pd.concat([df_linelist, infdates_df], axis=1, verify_integrity=True)
+    
+    df_inf = df_linelist 
+    df_inf["infection_date_inferred"] = infection_dates
 
     return df_inf
 
@@ -225,11 +197,8 @@ def index_by_infection_date(infections_wide):
 
 def generate_lambda(
     infections,
-    omicron_Reff=False,
     shape_gen=3.64 / 3.07,
     scale_gen=3.07,
-    shape_gen_omicron=3.64 / 3.07,
-    scale_gen_omicron=3.07,
     trunc_days=21,
 ):
     """
@@ -239,19 +208,11 @@ def generate_lambda(
     Default generation interval parameters taken from Ganyani et al 2020.
     """
     from scipy.stats import gamma
-
-    # take particular parameters for the Gamma distribution based on the period of interest
-    if omicron_Reff:
-        shape_gen_actual = shape_gen_omicron 
-        scale_gen_actual = scale_gen_omicron 
-    else: 
-        shape_gen_actual = shape_gen 
-        scale_gen_actual = scale_gen 
         
     # Find midpoints for discretisation
     xmids = [x for x in range(trunc_days + 1)]
     # double check parameterisation of scipy
-    gamma_vals = gamma.pdf(xmids, a=shape_gen_actual, scale=scale_gen_actual)
+    gamma_vals = gamma.pdf(xmids, a=shape_gen, scale=scale_gen)
     # renormalise the pdf
     disc_gamma = gamma_vals / sum(gamma_vals)
 

@@ -68,7 +68,7 @@ offset_rd = 0
 (shape_inc, scale_inc) = (5.807, 0.948)
 # omicron incubation period determined by sampling Delta incubation periods and subtracting 1 
 # (then taking those with days > 0.05) and using MLE to fit a Gamma distribution
-(shape_inc_omicron, scale_inc_omicron) = (3.33, 1.34)
+(shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
 # (shape_inc_omicron, scale_inc_omicron) = (shape_inc, scale_inc)
 offset_inc = 0
 
@@ -77,7 +77,7 @@ offset_inc = 0
 (shape_gen, scale_gen) = (2.75, 1.00)
 # omicron GI determined by sampling Delta GI and subtracting 1 (then taking those with days > 0.05)
 # and using MLE to fit a Gamma distribution
-(shape_gen_omicron, scale_gen_omicron) = (1.58, 1.32)
+(shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
 # (shape_gen_omicron, scale_gen_omicron) = (shape_gen, scale_gen)
 offset_gen = 0
 

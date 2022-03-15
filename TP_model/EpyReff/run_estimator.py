@@ -13,18 +13,16 @@ from params import (
     truncation_days,
     start_date,
     use_TP_adjustment,
+    scale_rd,
+    shape_rd,
     scale_gen,
     shape_gen,
     scale_inc,
     shape_inc,
-    scale_rd,
-    shape_rd,
     scale_gen_omicron,
     shape_gen_omicron,
     scale_inc_omicron,
     shape_inc_omicron,
-    offset_rd,
-    offset_inc,
 )
 from epyreff import *
 import os
@@ -45,7 +43,8 @@ prior_b = 3
 trunc_days = 21
 shift = 0
 
-date = argv[1]
+# date = argv[1]
+date = "2022-03-08"
 dt_date = pd.to_datetime(date, format="%Y-%m-%d")
 file_date = dt_date.strftime("%Y-%m-%d")
 
@@ -54,6 +53,11 @@ try:
     omicron_Reff = True if omicron_Reff != "False" else False
 except: 
     omicron_Reff = False
+    
+if omicron_Reff:
+    print("Running Omicron Reff estimation.")
+else:
+    print("Running Delta Reff estimation.")
 
 # uncomment this if you wanna see the time distributions    
 plot_time = False
@@ -77,18 +81,24 @@ R_store = {}
 # NOTE: this is by far not optimal but since it's such a small part of the procedure
 # we haven't modified the previous code too much outside of treating things as vectors.
 for rep in tqdm(range(samples)):
-
+    if omicron_Reff:
+        shape_inc_actual = shape_inc_omicron
+        scale_inc_actual = scale_inc_omicron
+        shape_gen_actual = shape_gen_omicron
+        scale_gen_actual = scale_gen_omicron
+    else:
+        shape_inc_actual = shape_inc
+        scale_inc_actual = scale_inc
+        shape_gen_actual = shape_gen
+        scale_gen_actual = scale_gen
+        
     # generate realisation of infection dates from notification dates
     df_inf = draw_inf_dates(
         df_linel,
-        nreplicates=1,
-        shape_inc=shape_inc,
-        scale_inc=scale_inc,
-        shape_inc_omicron=shape_inc_omicron,
-        scale_inc_omicron=scale_inc_omicron,
+        shape_inc=shape_inc_actual,
+        scale_inc=scale_inc_actual,
         shape_rd=shape_rd,
         scale_rd=scale_rd,
-        omicron_Reff=omicron_Reff,
     )
 
     # reindex dataframe to include all dates,
@@ -98,10 +108,8 @@ for rep in tqdm(range(samples)):
     # get all lambdas
     lambda_dict = lambda_all_states(
         df_inc_zeros,
-        shape_gen=shape_gen,
-        scale_gen=scale_gen,
-        shape_gen_omicron=shape_gen_omicron,
-        scale_gen_omicron=scale_gen_omicron,
+        shape_gen=shape_gen_actual,
+        scale_gen=scale_gen_actual,
         trunc_days=trunc_days,
     )
 
@@ -178,8 +186,8 @@ os.makedirs("results/EpyReff/", exist_ok=True)
 
 if plot_time:
     # plot assumed distributions
-    inc_period = offset_inc + np.random.gamma(shape_inc, scale_inc, size=1000)
-    rep_delay = offset_rd + np.random.gamma(shape_rd, scale_rd, size=1000)
+    inc_period = np.random.gamma(shape_inc, scale_inc, size=1000)
+    rep_delay = np.random.gamma(shape_rd, scale_rd, size=1000)
 
     # generation interval discretised
     # Find midpoints for discretisation
