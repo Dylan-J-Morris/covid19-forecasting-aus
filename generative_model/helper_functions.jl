@@ -8,7 +8,8 @@ using DataStructures
 
 function map_day_to_index_Z(day)
     """
-    Map the day to the appropriate index for the infection array Z.
+    Map the day to the appropriate index for the infection array Z noting the 35 day
+    padding at the start. 
     """
     res = day + 36
     
@@ -19,7 +20,8 @@ end
 
 function map_day_to_index_UD(day)
     """
-    Map the day to the appropriate index for the "detection" arrays U and D.
+    Map the day to the appropriate index for the "detection" arrays U and D. This accounts 
+    for the fact that the first index corresponds to day 0. 
     """
     # a branchless if statement for mapping between day and index 
     res = (day <= 0) * 1 + (day > 0) * (day + 1)
@@ -32,7 +34,7 @@ end
 function map_day_to_index_cases(day)
     """
     Map the day to the appropriate index for the actual case data. This just wraps the UD 
-    map for clarity in the code. 
+    mapping for clarity in the code. 
     """
     res = map_day_to_index_UD(day)
     
@@ -41,19 +43,18 @@ function map_day_to_index_cases(day)
 end
 
 
-function NegativeBinomial2(μ, ϕ)
+function NegativeBinomial2(μ, k)
     """
     Function for parameterisation of the negative Binomial in terms of mean and dispersion.
     """    
-    r = ϕ
-    p = 1 / (1 + μ / ϕ)
+    p = 1 / (1 + μ / k)
 
-    return NegativeBinomial(r, p)
+    return NegativeBinomial(k, p)
     
 end
 
 
-function sample_inf_time(; omicron=false)
+function sample_inf_time(omicron = false)
     """
     Sample infection times for num individuals based on the generation 
     interval distribution, Gamma(shape_gen, scale_gen). 
@@ -61,18 +62,21 @@ function sample_inf_time(; omicron=false)
 
     (shape_gen, scale_gen) = (2.75, 1.00)
     (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
-    omicron = false
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
     infection_time = ceil(Int, rand(Gamma(shape, scale)))
+    
+    # p = (0.23123495324177792, 0.5173637000503444, 0.7313700767804615, 0.8616192638327465, 0.9324257531818554, 0.968263917871601, 0.9855305708537918, 0.9935547309702418, 0.9971823528990054, 0.9987870872347043, 0.9994845898851373, 0.9997833904140334, 0.9999098409183975, 0.9999628010773516, 0.9999847842534525, 0.9999938383729761, 0.9999975420011928, 0.999999047825051, 0.9999996567609942, 0.9999999018144428, 1.0000000000000002)
+    # r = rand()
+    # infection_time = findfirst(r <= p_i for p_i in p)
     
     return infection_time
     
 end
 
 
-function sample_onset_time(; omicron=false)
+function sample_onset_time(omicron = false)
     """
     Sample incubation times for num individuals based on incubation period 
     distribution, Gamma(shape_inc, scale_inc). 
@@ -80,11 +84,14 @@ function sample_onset_time(; omicron=false)
     
     (shape_inc, scale_inc) = (5.807, 0.948)
     (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
-    omicron = false
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
-    
+
     onset_time = ceil(Int, rand(Gamma(shape, scale)))
+    
+    # q = (0.005481604976502295, 0.058918643630252246, 0.18959485142323212, 0.37100454410185607, 0.5556720050758871, 0.7101611913610963, 0.8230354111406564, 0.8977224959544793, 0.9435387039488634, 0.9700150992568369, 0.98459373725705, 0.9923072112983735, 0.9962539186531401, 0.998216511248062, 0.9991687521425704, 0.9996209873403942, 0.9998317584234413, 0.9999283682832782, 0.9999719976126707, 0.99999143977769, 1.0)
+    # r = rand()
+    # onset_time = findfirst(r <= q_i for q_i in q)
     
     return onset_time
     
@@ -93,29 +100,32 @@ end
 
 function sample_times(t; omicron = false)
     """
-    Assuming an initial time t, sample the time until infection and onset for an individual 
+    Assuming an initial day t, sample the time until infection and onset for an individual 
     and only take the ceiling once we have assigned them. This helps reduce the effect of 
     ceiling errors induced by adding ceil numbers. 
     """
     
     (shape_gen, scale_gen) = (2.75, 1.00)
     (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
-    omicron = false
     shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
     scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
     
-    infection_time = t + rand(Gamma(shape, scale))
+    # sample a random time of infection for the parent ((t - 1) + rand()) over (t - 1, t)
+    # infection_time = (t - 1) + rand() + rand(Gamma(shape, scale))
+    infection_time = t + ceilrand(Gamma(shape, scale)))
     
     (shape_inc, scale_inc) = (5.807, 0.948)
     (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
-    
     shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
     scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
     
-    onset_time = infection_time + rand(Gamma(shape, scale))
+    onset_time = infection_time + ceil(rand(Gamma(shape, scale)))
     
-    infection_time = ceil(Int, infection_time)
-    onset_time = ceil(Int, onset_time)
+    # infection_time = ceil(Int, infection_time)
+    # onset_time = ceil(Int, onset_time)
+    
+    # infection_time = t + sample_inf_time(omicron = omicron)
+    # onset_time = infection_time + sample_onset_time(omicron = omicron)
     
     return (infection_time, onset_time)
     
@@ -123,23 +133,19 @@ end
 
 function set_simulation_constants(state; p_detect_omicron = 0.5)
     """
-    Contains the assumptions for simulation parameters. This includes all the dynamical
+    Creates structures of the constants and type mappings. . This includes all the dynamical
     constants: 
-        - k = heterogeneity parameter
-        - p_symp = probability of symptoms 
-        - γ = relative infectiousness of asymptomatic individuals 
-        - p_symp_given_detect = probability of symptoms given detection
-        - p_asymp_given_detect = probability of being asymptomatic given detection
-        - consistency_multiplier = chosen such that sim_cases < 
-            consistency_multiplier*actual cases 
-            results in cases being injected into the simulation. This is used to account 
-            for superspreading events after periods of low incidence. 
-    These values are stored in sim_constants which is a dictionary indexed by the 
-    parameter name and ultimately stored on the stack in a SimulationParameters object. 
+    - k = heterogeneity parameter
+    - p_symp = probability of symptoms 
+    - γ = relative infectiousness of asymptomatic individuals 
+    - p_symp_given_detect = probability of symptoms given detection
+    - p_asymp_given_detect = probability of being asymptomatic given detection
+    - consistency_multiplier = chosen such that 
+        sim_cases < consistency_multiplier * actual cases 
+        results in cases being injected into the simulation. This is used to account 
+        for superspreading events after periods of low incidence. 
     """
-    # get the simulation constants
     simulation_constants = Constants(state, p_detect_omicron = p_detect_omicron)
-    # mapping between types 
     individual_type_map = IndividualTypeMap()
 
     return (simulation_constants, individual_type_map)
@@ -155,7 +161,7 @@ function sample_negative_binomial_limit(μ, ϕ; approx_limit = 1000)
     X = zero(Int)
     
     X = rand(NegativeBinomial2(μ, ϕ))
-    # mean of NegBin(s, p) => this will boil down to N*TP
+    # mean of NegBin(s, p) => this will boil down to TP
     # if μ <= approx_limit
     #     X = rand(NegativeBinomial2(μ, ϕ))
     # else

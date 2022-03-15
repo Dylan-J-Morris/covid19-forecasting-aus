@@ -21,14 +21,14 @@ function calculate_bounds(local_cases, τ, state)
     Cₜ = [sum(local_cases[idx]) for idx in idxs_limits]
     
     # multipliers on the n-day average
-    (ℓ, u) = (0.3, 3.0)
+    (ℓ, u) = (0.5, 3.0)
     Lₜ = ceil.(Int, ℓ * Cₜ)
     Uₜ = ceil.(Int, u * Cₜ)
     
     # remove restrictions over last τ * 2 days 
-    (ℓ, u) = (0.6, 3.0)
-    Lₜ[end] = ceil.(Int, ℓ * Cₜ[end])
-    Uₜ[end] = ceil.(Int, u * Cₜ[end])
+    (ℓ, u) = (0.25, 1.5)
+    Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
+    Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
     
     min_limit = τ * 50
     
