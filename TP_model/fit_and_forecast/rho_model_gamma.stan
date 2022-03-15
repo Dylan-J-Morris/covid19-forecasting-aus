@@ -49,9 +49,11 @@ data {
     int N_third_wave;
     int j_third_wave;
     matrix[N_third_wave,j_third_wave] Reff_third_wave;
+    matrix[N_third_wave,j_third_wave] Reff_omicron_wave;
     matrix[N_third_wave,K] Mob_third_wave[j_third_wave];
     matrix[N_third_wave,K] Mob_third_wave_std[j_third_wave];
     matrix[N_third_wave,j_third_wave] sigma2_third_wave;
+    matrix[N_third_wave,j_third_wave] sigma2_omicron_wave;
     vector[N_third_wave] policy_third_wave;
     matrix[N_third_wave,j_third_wave] local_third_wave;
     matrix[N_third_wave,j_third_wave] imported_third_wave;
@@ -133,6 +135,8 @@ transformed data {
     matrix[N_sec_wave,j_sec_wave] b_mu_hat_sec_wave;
     matrix[N_third_wave,j_third_wave] a_mu_hat_third_wave;
     matrix[N_third_wave,j_third_wave] b_mu_hat_third_wave;
+    matrix[N_third_wave,j_third_wave] a_mu_hat_omicron_wave;
+    matrix[N_third_wave,j_third_wave] b_mu_hat_omicron_wave;
     
     for (i in 1:j_third_wave){
         local_third_wave_tmp = local_third_wave[:,i];
@@ -174,6 +178,9 @@ transformed data {
     for (i in 1:j_third_wave) {
         a_mu_hat_third_wave[:,i] = square(Reff_third_wave[:,i]) ./ sigma2_third_wave[:,i];
         b_mu_hat_third_wave[:,i] = Reff_third_wave[:,i] ./ sigma2_third_wave[:,i];
+        a_mu_hat_omicron_wave[:,i] = square(Reff_omicron_wave[:,i]) ./ 
+            sigma2_omicron_wave[:,i];
+        b_mu_hat_omicron_wave[:,i] = Reff_omicron_wave[:,i] ./ sigma2_omicron_wave[:,i];
     }
 }
 
@@ -454,13 +461,18 @@ model {
     real pos_omicron_counter;   
     int pos_omicron2_start;
     int pos_omicron2_end;
+    
+    // define these within the scope of the loop only
+    int pos;
+    int pos_omicron2;
+    real log_prop_omicron_to_delta; 
+    real log_prop_delta_to_omicron; 
+    int n_omicron; 
 
     // variables for vax effects (reused for Delta and Omicron VEs)
     real mean_vax;
     real var_vax_delta = 0.00005;     
     real var_vax_omicron = 0.00005;
-    // real var_vax_delta = 0.0005;     
-    // real var_vax_omicron = 0.0005;
     real a_vax_scalar;
     real b_vax_scalar;
     
@@ -702,13 +714,80 @@ model {
             1 + imported_third_wave[idxs_third[1:pos_idxs-1],i], 
             1 + local_third_wave[idxs_third[1:pos_idxs-1],i]
         );
-        
-        // likelihood
-        mu_hat_third_wave[pos2_start:pos2_end] ~ gamma(
-            a_mu_hat_third_wave[idxs_third[1:pos_idxs-1],i], 
-            b_mu_hat_third_wave[idxs_third[1:pos_idxs-1],i]
-        );
     }
+    
+    for (i in 1:j_third_wave){
+        if (i == 1){
+            pos = 1;
+            pos_omicron2 = 1;
+        } else {
+            pos = pos_starts_third[i-1] + 1;
+            pos_omicron2 = pos_starts_third_omicron[i-1] + 1;
+        }
+        
+        for (n in 1:N_third_wave){
+            if (include_in_third_wave[i][n] == 1){
+                if (n <= omicron_start_day){
+                    # increment target by the log-likelihood of third wave only Gamma
+                    target += gamma_lpdf(
+                        mu_hat_third_wave[pos] | 
+                        a_mu_hat_third_wave[i,n], b_mu_hat_third_wave[i,n]
+                    );
+                } else {
+                    // number of days into omicron period 
+                    n_omicron = n - omicron_start_day;
+                    // proportion of omicron
+                    if (
+                        map_to_state_index_third[i] == 3 || 
+                        map_to_state_index_third[i] == 6 || 
+                        map_to_state_index_third[i] == 8
+                    ) {
+                        log_prop_omicron_to_delta = log(m1[map_to_state_index_third[i]]);
+                        log_prop_delta_to_omicron = log(1 - m1[map_to_state_index_third[i]]);
+                    } else {
+                        log_prop_omicron_to_delta = log(
+                            sigmoid(
+                                n_omicron, 
+                                tau[map_to_state_index_third[i]], 
+                                r[map_to_state_index_third[i]], 
+                                m0[map_to_state_index_third[i]], 
+                                m1[map_to_state_index_third[i]]
+                            )
+                        );
+                        
+                        log_prop_delta_to_omicron = log(
+                            1 - sigmoid(
+                                n_omicron, 
+                                tau[map_to_state_index_third[i]], 
+                                r[map_to_state_index_third[i]], 
+                                m0[map_to_state_index_third[i]], 
+                                m1[map_to_state_index_third[i]]
+                            )
+                        );
+                        
+                        pos_omicron2 += 1;
+                        # increment target by the mixture log-likelihood of Gammas 
+                        target += log_sum_exp(
+                            log_prop_omicron_to_delta 
+                            + gamma_lpdf(
+                                mu_hat_third_wave[pos] | 
+                                a_mu_hat_omicron_wave[i,n], 
+                                b_mu_hat_omicron_wave[i,n]
+                            ), 
+                            log_prop_delta_to_omicron
+                            + gamma_lpdf(
+                                mu_hat_third_wave[pos] | 
+                                a_mu_hat_third_wave[i,n], 
+                                b_mu_hat_third_wave[i,n]
+                            )
+                        );
+                    }
+                    pos += 1;
+                }
+            }
+        }
+    }
+    
 }
 
 generated quantities {
