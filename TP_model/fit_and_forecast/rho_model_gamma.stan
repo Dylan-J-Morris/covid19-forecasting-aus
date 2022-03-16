@@ -378,6 +378,8 @@ transformed parameters {
         real prop_omicron_to_delta; 
         int n_omicron; 
         real R_I_tmp; 
+        real mu_hat_delta; 
+        real mu_hat_omicron; 
         
         if (i == 1){
             pos = 1;
@@ -392,18 +394,49 @@ transformed parameters {
                 md_third_wave[pos] = pow(
                     1 + theta_md, -1 * prop_md_third_wave[pos]
                 );
-                // masks_third_wave[pos] = pow(
-                //     1 + theta_masks, -1 * prop_masks_third_wave[pos]
-                // );
+                
+                social_measures = 2 * inv_logit(Mob_third_wave[i][n,:] * (bet)) 
+                    * md_third_wave[pos];  
+                    
+                susceptible_depletion_term = 
+                    1 - susceptible_depletion_factor * proportion_infected[n,i];
 
-                if (n <= omicron_start_day){
-                    voc_vacc_product = voc_effect_delta * ve_delta[pos];
-                    R_I_tmp = R_I; 
+                if (n <= omicron_start_day) {
+                    mu_hat_delta = R_Li[map_to_state_index_third[i]]
+                        * social_measures 
+                        * voc_effect_delta
+                        * ve_delta[pos];
+                        
+                    mu_hat_third_wave[pos] = (
+                        brho_third_wave[pos] * R_I 
+                        + (1 - brho_third_wave[pos]) * mu_hat_delta
+                    ) * susceptible_depletion_term;
+                    
+                    pos += 1;
                 } else {
-                    R_I_tmp = R_I_omicron; 
+                    mu_hat_delta = (
+                        brho_third_wave[pos] 
+                        * R_I
+                        + (1 - brho_third_wave[pos])
+                        * R_Li[map_to_state_index_third[i]]
+                        * social_measures 
+                        * voc_effect_delta
+                        * ve_delta[pos]
+                    ) * susceptible_depletion_term;
+                    
+                    mu_hat_omicron = (
+                        brho_third_wave[pos] 
+                        * R_I_omicron
+                        + (1 - brho_third_wave[pos])
+                        * R_Li[map_to_state_index_third[i]]
+                        * social_measures 
+                        * voc_effect_omicron
+                        * ve_omicron[pos_omicron2]
+                    ) * susceptible_depletion_term;
+                        
                     // number of days into omicron period 
                     n_omicron = n - omicron_start_day;
-                    // proportion of omicron
+                    
                     if (
                         map_to_state_index_third[i] == 3 || 
                         map_to_state_index_third[i] == 6 || 
@@ -420,35 +453,14 @@ transformed parameters {
                         );
                     }
                     
-                    voc_vacc_product = prop_omicron_to_delta
-                        * voc_effect_omicron
-                        * ve_omicron[pos_omicron2]
-                        + (1 - prop_omicron_to_delta)
-                        * voc_effect_delta
-                        * ve_delta[pos];
-                        
-                    pos_omicron2 += 1;
+                    mu_hat_third_wave[pos] = (
+                        prop_omicron_to_delta * mu_hat_omicron 
+                        + (1 - prop_omicron_to_delta) * mu_hat_omicron 
+                    );
+                    
+                    pos += 1;
+                    pos_omicron2 += 1;  
                 }
-                
-                // social_measures = 2 * inv_logit(Mob_third_wave[i][n,:] * (bet)) 
-                //     * md_third_wave[pos] 
-                //     * masks_third_wave[pos];
-                social_measures = 2 * inv_logit(Mob_third_wave[i][n,:] * (bet)) 
-                    * md_third_wave[pos];
-                    
-                susceptible_depletion_term = 
-                    1 - susceptible_depletion_factor * proportion_infected[n,i];
-                    
-                TP_local = R_Li[map_to_state_index_third[i]]
-                    * voc_vacc_product
-                    * social_measures;
-                    
-                mu_hat_third_wave[pos] = (
-                    brho_third_wave[pos] * R_I_tmp 
-                    + (1 - brho_third_wave[pos]) * TP_local
-                ) * susceptible_depletion_term;
-                
-                pos += 1;
             }
         }
     }
@@ -774,20 +786,7 @@ model {
                             b_mu_hat_third_wave[n,i]
                         )
                     );
-                    
-                    // target += log_mix(
-                    //     prop_omicron_to_delta, 
-                    //     gamma_lpdf(
-                    //         mu_hat_third_wave[pos] | 
-                    //         a_mu_hat_omicron_wave[n,i], 
-                    //         b_mu_hat_omicron_wave[n,i]
-                    //     ), 
-                    //     gamma_lpdf(
-                    //         mu_hat_third_wave[pos] | 
-                    //         a_mu_hat_third_wave[n,i], 
-                    //         b_mu_hat_third_wave[n,i]
-                    //     )
-                    // );
+
                     pos += 1;
                 }
             }
