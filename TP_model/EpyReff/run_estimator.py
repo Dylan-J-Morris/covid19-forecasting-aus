@@ -44,8 +44,7 @@ prior_b = 3
 trunc_days = 21
 shift = 0
 
-# date = argv[1]
-date = "2022-03-08"
+date = argv[1]
 dt_date = pd.to_datetime(date, format="%Y-%m-%d")
 file_date = dt_date.strftime("%Y-%m-%d")
 

@@ -371,13 +371,10 @@ transformed parameters {
         // define these within the scope of the loop only
         int pos;
         int pos_omicron2;
-        real TP_local;
         real social_measures; 
-        real voc_vacc_product; 
         real susceptible_depletion_term;
         real prop_omicron_to_delta; 
         int n_omicron; 
-        real R_I_tmp; 
         real mu_hat_delta; 
         real mu_hat_omicron; 
         
@@ -797,19 +794,17 @@ model {
 
 generated quantities {
     
-    vector[total_N_p_third] mu_hat_third_wave_local;
+    // generate a TP independently for delta and omicron waves for comparisons against the 
+    // independent estimates
+    vector[total_N_p_third] mu_hat_delta_only;
+    vector[total_N_p_third_omicron] mu_hat_omicron_only;
     
-    // third wave model
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
         int pos;
         int pos_omicron2;
-        real TP_local;
         real social_measures; 
-        real voc_vacc_product; 
         real susceptible_depletion_term;
-        real prop_omicron_to_delta; 
-        int n_omicron; 
         
         if (i == 1){
             pos = 1;
@@ -821,45 +816,50 @@ generated quantities {
         
         for (n in 1:N_third_wave){
             if (include_in_third_wave[i][n] == 1){
-
-                if (n <= omicron_start_day){
-                    voc_vacc_product = voc_effect_delta * ve_delta[pos];
-                } else {
-                    // number of days into omicron period 
-                    n_omicron = n - omicron_start_day;
-                    // proportion of omicron
-                    prop_omicron_to_delta = sigmoid(
-                        n_omicron, tau[i], r[i], m0[i], m1[i]
-                    );
-                    
-                    voc_vacc_product = prop_omicron_to_delta
-                        * voc_effect_omicron
-                        * ve_omicron[pos_omicron2]
-                        + (1 - prop_omicron_to_delta)
-                        * voc_effect_delta
-                        * ve_delta[pos];
-                        
-                    pos_omicron2 += 1;
-                }
-                
-                // social_measures = 2 * inv_logit(Mob_third_wave[i][n,:] * (bet)) 
-                //     * md_third_wave[pos] 
-                //     * masks_third_wave[pos];
                 social_measures = 2 * inv_logit(Mob_third_wave[i][n,:] * (bet)) 
-                    * md_third_wave[pos];
+                    * md_third_wave[pos];  
                     
                 susceptible_depletion_term = 
                     1 - susceptible_depletion_factor * proportion_infected[n,i];
+
+                if (n <= omicron_start_day) {
+                    mu_hat_delta_only[pos] = (
+                        brho_third_wave[pos] 
+                        * R_I
+                        + (1 - brho_third_wave[pos])
+                        * R_Li[map_to_state_index_third[i]]
+                        * social_measures 
+                        * voc_effect_delta
+                        * ve_delta[pos]
+                    ) * susceptible_depletion_term;
                     
-                TP_local = R_Li[map_to_state_index_third[i]]
-                    * voc_vacc_product
-                    * social_measures;
+                    pos += 1;
+                } else {
+                    mu_hat_delta_only[pos] = (
+                        brho_third_wave[pos] 
+                        * R_I
+                        + (1 - brho_third_wave[pos])
+                        * R_Li[map_to_state_index_third[i]]
+                        * social_measures 
+                        * voc_effect_delta
+                        * ve_delta[pos]
+                    ) * susceptible_depletion_term;
                     
-                mu_hat_third_wave_local[pos] = TP_local
-                    * susceptible_depletion_term;
-                
-                pos += 1;
+                    mu_hat_omicron_only[pos_omicron2] = (
+                        brho_third_wave[pos] 
+                        * R_I_omicron
+                        + (1 - brho_third_wave[pos])
+                        * R_Li[map_to_state_index_third[i]]
+                        * social_measures 
+                        * voc_effect_omicron
+                        * ve_omicron[pos_omicron2]
+                    ) * susceptible_depletion_term;
+                    
+                    pos += 1;
+                    pos_omicron2 += 1;  
+                }
             }
         }
     }
+    
 }

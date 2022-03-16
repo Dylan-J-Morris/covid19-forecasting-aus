@@ -96,10 +96,6 @@ def predict_plot(
     regardless of the form of the model as it only requires the mu_hat parameter which is 
     calculated inside stan (the TP model fitted to the Reff). 
     """
-    from scipy.special import expit
-    from params import third_start_date
-
-    os.makedirs("results/third_wave_fit/", exist_ok=True)
 
     value_vars = [
         "retail_and_recreation_percent_change_from_baseline",
