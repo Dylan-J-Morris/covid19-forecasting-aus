@@ -61,6 +61,7 @@ end
 function get_simulation_limits(
     local_cases, 
     forecast_start_date,
+    omicron_start_date,
     omicron_dominant_date,
     cases_pre_forecast, 
     TP_indices, 
@@ -91,17 +92,23 @@ function get_simulation_limits(
         Dates.Date(omicron_dominant_date) - Dates.Date(forecast_start_date)
     ).value
     
+    omicron_start_day = (
+        Dates.Date(omicron_start_date) - Dates.Date(forecast_start_date)
+    ).value
+    
     sim_features = Features(
         max_forecast_cases,
         cases_pre_forecast, 
         N,
         T_observed, 
         T_end, 
+        omicron_start_day, 
         omicron_dominant_day, 
         τ,
         min_cases, 
         max_cases, 
         idxs_limits,
+        state,
     )
     
     return sim_features
@@ -111,8 +118,6 @@ end
 
 function check_sim!(
     forecast::Forecast, 
-    forecast_start_date,
-    omicron_dominant_date,
     case_counts, 
     local_cases,
     reinitialise_allowed;
@@ -303,17 +308,14 @@ function inject_cases!(
     if num_symptomatic_total == 0
         num_asymptomatic_undetected = sample_negative_binomial_limit(1, p_symp)
     else
-        num_asymptomatic_undetected = sample_negative_binomial_limit(
-            num_symptomatic_total, p_symp
-        )
+        num_asymptomatic_undetected = sample_negative_binomial_limit(num_symptomatic_total, p_symp)
     end
     
     # infection time is then 1 generation interval earlier
     for _ in 1:num_symptomatic_detected
         total_injected += 1
         onset_time = rand(X_day_range)
-        inf_time = onset_time - 
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        inf_time = onset_time - sample_onset_time(onset_time >= omicron_dominant_day)
         Z[map_day_to_index_Z(inf_time), individual_type_map.S] += 1
         D[map_day_to_index_UD(onset_time), individual_type_map.S] += 1 
     end
@@ -324,8 +326,7 @@ function inject_cases!(
         onset_time = rand(X_day_range)
         # -1 as the sampled onset time is ceiling and so technically the infection day 
         # would be rounded down 
-        inf_time = onset_time - 
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        inf_time = onset_time - sample_onset_time(onset_time >= omicron_dominant_day)
         Z[map_day_to_index_Z(inf_time), individual_type_map.A] += 1
         D[map_day_to_index_UD(onset_time), individual_type_map.A] += 1 
     end
@@ -335,8 +336,7 @@ function inject_cases!(
     for _ in 1:num_symptomatic_undetected
         total_injected += 1
         onset_time = rand(X_day_range)
-        inf_time = onset_time -
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        inf_time = onset_time - sample_onset_time(onset_time >= omicron_dominant_day)
         Z[map_day_to_index_Z(inf_time), individual_type_map.S] += 1
         U[map_day_to_index_UD(onset_time), individual_type_map.S] += 1 
     end
@@ -345,8 +345,7 @@ function inject_cases!(
     for _ in 1:num_asymptomatic_undetected
         total_injected += 1
         onset_time = rand(X_day_range)
-        inf_time = onset_time - 
-            sample_onset_time(omicron = onset_time >= omicron_dominant_day)
+        inf_time = onset_time - sample_onset_time(onset_time >= omicron_dominant_day)
         Z[map_day_to_index_Z(inf_time), individual_type_map.A] += 1
         U[map_day_to_index_UD(onset_time), individual_type_map.A] += 1 
     end

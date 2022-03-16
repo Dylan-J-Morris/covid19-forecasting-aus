@@ -11,12 +11,14 @@ struct Features
     N::Int
     T_observed::Int
     T_end::Int
+    omicron_start_day::Int
     omicron_dominant_day::Int
     # number of days for each consistency check 
     τ::Int
     min_cases::Vector{Int}
     max_cases::Vector{Int}
     idxs_limits::Vector{UnitRange{Int64}}
+    state::String
 end
 
 

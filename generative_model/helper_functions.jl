@@ -11,9 +11,7 @@ function map_day_to_index_Z(day)
     Map the day to the appropriate index for the infection array Z noting the 35 day
     padding at the start. 
     """
-    res = day + 36
-    
-    return res
+    return day + 36
     
 end
 
@@ -24,9 +22,7 @@ function map_day_to_index_UD(day)
     for the fact that the first index corresponds to day 0. 
     """
     # a branchless if statement for mapping between day and index 
-    res = (day <= 0) * 1 + (day > 0) * (day + 1)
-    
-    return res
+    return (day <= 0) * 1 + (day > 0) * (day + 1)
     
 end
 
@@ -36,9 +32,7 @@ function map_day_to_index_cases(day)
     Map the day to the appropriate index for the actual case data. This just wraps the UD 
     mapping for clarity in the code. 
     """
-    res = map_day_to_index_UD(day)
-    
-    return res
+    return map_day_to_index_UD(day)
     
 end
 
@@ -46,86 +40,88 @@ end
 function NegativeBinomial2(μ, k)
     """
     Function for parameterisation of the negative Binomial in terms of mean and dispersion.
-    """    
+    """
     p = 1 / (1 + μ / k)
-
+    
     return NegativeBinomial(k, p)
+
+end
+
+
+function sample_inf_time_delta()
+    c = (
+        0.0, 0.23123495324177792, 0.5173637000503444, 0.7313700767804615, 0.8616192638327465, 0.9324257531818554, 0.968263917871601, 0.9855305708537918, 0.9935547309702418, 0.9971823528990054, 0.9987870872347043, 0.9994845898851373, 0.9997833904140334, 0.9999098409183975, 0.9999628010773516, 0.9999847842534525, 0.9999938383729761, 0.9999975420011928, 0.999999047825051, 0.9999996567609942, 0.9999999018144428, 1.0
+    )
+    rn = rand()
+    
+    return findfirst(rn <= cᵢ for cᵢ in c) - 1
     
 end
 
 
-function sample_inf_time(omicron = false)
+function sample_inf_time_omicron()
+    c = (
+        0.0, 0.40689440196911647, 0.669715658845875, 0.8215038873109877, 0.90524088112286, 0.9502907431513508, 0.9741453945637667, 0.9866391638086626, 0.9931304454487997, 0.9964824676651625, 0.9982050685138709, 0.999086857187352, 0.9995367845137373, 0.9997657357194057, 0.9998819717796519, 0.9999408662716314, 0.9999706552739388, 0.9999856997137064, 0.9999932874197702, 0.9999971097019844, 0.9999990330876355, 1.0
+    )
+    rn = rand()
+    
+    return findfirst(rn <= cᵢ for cᵢ in c) - 1
+    
+end
+
+
+function sample_det_time_delta()
+    c = (
+        0.0, 0.005481604976502295, 0.058918643630252246, 0.18959485142323212, 0.37100454410185607, 0.5556720050758871, 0.7101611913610963, 0.8230354111406564, 0.8977224959544793, 0.9435387039488634, 0.9700150992568369, 0.98459373725705, 0.9923072112983735, 0.9962539186531401, 0.998216511248062, 0.9991687521425704, 0.9996209873403942, 0.9998317584234413, 0.9999283682832782, 0.9999719976126707, 0.99999143977769, 1.0
+    )
+    rn = rand()
+    
+    return findfirst(rn <= cᵢ for cᵢ in c) - 1
+    
+end
+
+
+function sample_det_time_omicron()
+    c = (
+        0.0, 0.05465972865344886, 0.20227289941119453, 0.39199410142203933, 0.5719151467164512, 0.7163612824630651, 0.8207303835305828, 0.890853438104743, 0.9355256297540415, 0.9628506906875296, 0.9790374698285156, 0.9883806383087265, 0.9936593224349681, 0.9965885012866724, 0.9981892154091149, 0.9990524882440441, 0.999512733615265, 0.9997556426337206, 0.9998827037093614, 0.9999486387768106, 0.9999826099893431, 1.0
+    )
+    rn = rand()
+    
+    return findfirst(rn <= cᵢ for cᵢ in c) - 1
+    
+end
+
+
+function sample_inf_time(omicron)
     """
     Sample infection times for num individuals based on the generation 
     interval distribution, Gamma(shape_gen, scale_gen). 
     """
-
-    (shape_gen, scale_gen) = (2.75, 1.00)
-    (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
-    shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
-    scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
-    
-    infection_time = ceil(Int, rand(Gamma(shape, scale)))
-    
-    # p = (0.23123495324177792, 0.5173637000503444, 0.7313700767804615, 0.8616192638327465, 0.9324257531818554, 0.968263917871601, 0.9855305708537918, 0.9935547309702418, 0.9971823528990054, 0.9987870872347043, 0.9994845898851373, 0.9997833904140334, 0.9999098409183975, 0.9999628010773516, 0.9999847842534525, 0.9999938383729761, 0.9999975420011928, 0.999999047825051, 0.9999996567609942, 0.9999999018144428, 1.0000000000000002)
-    # r = rand()
-    # infection_time = findfirst(r <= p_i for p_i in p)
-    
-    return infection_time
+    omicron == false && return sample_inf_time_delta()
+    omicron == true && return sample_inf_time_omicron()
     
 end
 
 
-function sample_onset_time(omicron = false)
+function sample_onset_time(omicron)
     """
     Sample incubation times for num individuals based on incubation period 
     distribution, Gamma(shape_inc, scale_inc). 
     """
-    
-    (shape_inc, scale_inc) = (5.807, 0.948)
-    (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
-    shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
-    scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
-
-    onset_time = ceil(Int, rand(Gamma(shape, scale)))
-    
-    # q = (0.005481604976502295, 0.058918643630252246, 0.18959485142323212, 0.37100454410185607, 0.5556720050758871, 0.7101611913610963, 0.8230354111406564, 0.8977224959544793, 0.9435387039488634, 0.9700150992568369, 0.98459373725705, 0.9923072112983735, 0.9962539186531401, 0.998216511248062, 0.9991687521425704, 0.9996209873403942, 0.9998317584234413, 0.9999283682832782, 0.9999719976126707, 0.99999143977769, 1.0)
-    # r = rand()
-    # onset_time = findfirst(r <= q_i for q_i in q)
-    
-    return onset_time
+    omicron == false && return sample_det_time_delta()
+    omicron == true && return sample_det_time_omicron()
     
 end
 
 
-function sample_times(t; omicron = false)
+function sample_times(t, omicron)
     """
     Assuming an initial day t, sample the time until infection and onset for an individual 
     and only take the ceiling once we have assigned them. This helps reduce the effect of 
     ceiling errors induced by adding ceil numbers. 
     """
-    
-    (shape_gen, scale_gen) = (2.75, 1.00)
-    (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
-    shape = (1 - omicron) * shape_gen + omicron * shape_gen_omicron
-    scale = (1 - omicron) * scale_gen + omicron * scale_gen_omicron
-    
-    # sample a random time of infection for the parent ((t - 1) + rand()) over (t - 1, t)
-    # infection_time = (t - 1) + rand() + rand(Gamma(shape, scale))
-    infection_time = t + ceilrand(Gamma(shape, scale)))
-    
-    (shape_inc, scale_inc) = (5.807, 0.948)
-    (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
-    shape = (1 - omicron) * shape_inc + omicron * shape_inc_omicron
-    scale = (1 - omicron) * scale_inc + omicron * scale_inc_omicron
-    
-    onset_time = infection_time + ceil(rand(Gamma(shape, scale)))
-    
-    # infection_time = ceil(Int, infection_time)
-    # onset_time = ceil(Int, onset_time)
-    
-    # infection_time = t + sample_inf_time(omicron = omicron)
-    # onset_time = infection_time + sample_onset_time(omicron = omicron)
+    infection_time = t + sample_inf_time(omicron)
+    onset_time = infection_time + sample_onset_time(omicron)
     
     return (infection_time, onset_time)
     
@@ -202,6 +198,7 @@ function read_in_TP(
     date, 
     state; 
     p_detect_omicron = 0.5, 
+    strain = "Delta",
     adjust_TP = false,
 )
     
@@ -214,9 +211,9 @@ function read_in_TP(
         "/"
     
     if adjust_TP 
-        TP_file_name = TP_file_name * "soc_mob_R_adjusted" * date * ".csv"        
+        TP_file_name = TP_file_name * "soc_mob_R_adjusted_" * strain * date * ".csv"        
     else
-        TP_file_name = TP_file_name * "soc_mob_R" * date * ".csv"
+        TP_file_name = TP_file_name * "soc_mob_R_" * strain * date * ".csv"
     end
     
     # drop the first column 
@@ -266,11 +263,12 @@ function read_in_TP(
 end
 
 
-function create_state_TP_matrices(
+function get_single_state_TP(
     forecast_start_date, 
     date, 
     state; 
-    p_detect_omicron = p_detect_omicron,
+    p_detect_omicron = 0.5,
+    strain = "Delta",
     adjust_TP = false,
 )
     """
@@ -284,6 +282,7 @@ function create_state_TP_matrices(
         date, 
         state, 
         p_detect_omicron = p_detect_omicron,
+        strain = strain, 
         adjust_TP = adjust_TP
     )
     # adjust the indices so that the forecast start date is t = 0
@@ -295,7 +294,7 @@ function create_state_TP_matrices(
     TP_local = TP_dict_local[state]
     TP_import = TP_dict_import[state]
     
-    return (TP_dates, TP_indices, TP_local, TP_import)
+    return (TP_indices, TP_local, TP_import)
     
 end
 
@@ -321,6 +320,41 @@ function read_in_susceptible_depletion(file_date; p_detect_omicron = 0.5)
     susceptible_depletion = Vector(CSV.read(file_name, DataFrame, drop = [1],)[:, 1])
     
     return susceptible_depletion
+    
+end
+
+
+function read_in_prop_omicron(file_date, state; p_detect_omicron = 0.5)
+    """
+    Read in the posterior drawn susceptible_depletion factors. This will be sorted/sampled 
+    in the same order as the posterior predictive TP's to ensure we use the appropriate
+    posterior draws. 
+    """
+    
+    # prefix and suffix for the file name
+    file_name_prefix = "results/" * 
+        file_date * 
+        "/" * 
+        string(round(Int, p_detect_omicron * 100)) *
+        "_case_ascertainment" * 
+        "/"  
+    
+    file_name_suffix = "_" *
+        state *  
+        file_date * 
+        ".csv"
+    
+    # these vars are used to calculate the omicron proportion
+    prop_vars = ("m0", "m1", "r", "tau")
+    # create vector of vectors to store the various parameter samples
+    res = Dict{String, Vector{Float64}}()
+    
+    for v in prop_vars
+        file_name = file_name_prefix * v * file_name_suffix
+        res[v] = Vector(CSV.read(file_name, DataFrame, drop = [1],)[:, 1])
+    end
+    
+    return res
     
 end
 
