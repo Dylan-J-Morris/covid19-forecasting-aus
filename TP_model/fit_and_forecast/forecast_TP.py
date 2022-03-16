@@ -31,7 +31,6 @@ import numpy as np
 import pandas as pd
 import matplotlib
 
-print("Generating R_L forecasts using mobility data.")
 matplotlib.use("Agg")
 
 try:
@@ -41,6 +40,10 @@ try:
     strain = argv[2]
 except ValueError:
     print("Need to pass more inputs.")
+
+print("============")
+print("Generating TP forecasts for", strain)
+print("============")
 
 # Define inputs
 sim_start_date = pd.to_datetime(start_date)
@@ -1408,13 +1411,12 @@ for typ in forecast_type:
         vacc_ts_delta = df_ve_delta[state]
         vacc_ts_omicron = df_ve_omicron[state]
 
+        # take right size of md to be N by N
         theta_md = np.tile(samples["theta_md"].values, (df_state.shape[0], n_samples))
         r = np.tile(samples["r." + str(kk + 1)].values, (df_state.shape[0], n_samples))
         tau = np.tile(samples["tau." + str(kk + 1)].values, (df_state.shape[0], n_samples))
         m0 = np.tile(samples["m0." + str(kk + 1)].values, (df_state.shape[0], n_samples))
         m1 = np.tile(samples["m1." + str(kk + 1)].values, (df_state.shape[0], n_samples))
-
-        # take right size of md to be N by N
         susceptible_depletion_factor = np.tile(
             samples["susceptible_depletion_factor"].values,
             (df_state.shape[0], n_samples),
@@ -1851,13 +1853,12 @@ for state in states:
             temp["type"] = typ
             t = t.append(temp)
     # R_I
-    i1 = pd.DataFrame(np.tile(samples["R_I"].values, (len(dd.values), n_samples)))
-    i2 = pd.DataFrame(np.tile(samples["R_I_omicron"].values, (len(dd.values), n_samples)))
-    # use the Omicron import reproduction number after Omicron starts
-    i = i1
-    i.iloc[dd.values >= pd.to_datetime(omicron_start_date), :] = i2.iloc[
-        dd.values >= pd.to_datetime(omicron_start_date), :
-    ]
+    if strain == "Delta": 
+        # use the Omicron import reproduction number after Omicron starts
+        i = pd.DataFrame(np.tile(samples["R_I"].values, (len(dd.values), n_samples)))
+    elif strain == "Omicron":
+        # use the Omicron import reproduction number after Omicron starts
+        i = pd.DataFrame(np.tile(samples["R_I_omicron"].values, (len(dd.values), n_samples)))
     
     i["date"] = dd.values
     i["type"] = "R_I"
@@ -2082,6 +2083,26 @@ pd.DataFrame(susceptible_depletion_factor[0, TPs_to_keep]).to_csv(
     + ".csv"
 )
 
+# save values for the functional omicron related proportions for each state
+prop_omicron_vars = ("r", "tau", "m0", "m1")
+
+for (kk, state) in enumerate(states):
+    # sort df_R by date so that rows are dates. rows are dates, columns are predictors
+    df_state = df_R.loc[df_R.state == state]
+    for v in prop_omicron_vars:
+        # take right size of the values to be N by N
+        y = np.tile(samples[v + "." + str(kk + 1)].values, (df_state.shape[0], n_samples))
+        
+        pd.DataFrame(y[0, TPs_to_keep]).to_csv(
+            results_dir
+            + v
+            + "_"
+            + state
+            + data_date.strftime("%Y-%m-%d")
+            + ".csv"
+        )
+    
+
 # now we save the sampled TP paths
 # convert the appropriate sampled susceptible depletion factors to a csv and save them for simulation
 # NOTE: this will not save an updated median, mean etc for the R_I's. We don't use it so it's not 
@@ -2111,18 +2132,21 @@ if use_TP_adjustment:
     print("Running TP adjustment model...")
     print("=========================")
 
-    from helper_functions import read_in_Reff_file
-
     # df_forecast = read_in_Reff_file(data_date)
     df_forecast = pd.read_csv(
         results_dir 
-        + "soc_mob_R" 
+        + "soc_mob_R_"
+        + strain 
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
     # read in Reff samples
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff_samples" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_" 
+        + strain 
+        + "_samples" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "tau_5.csv",
         parse_dates=["INFECTION_DATES"],
     )
 
@@ -2154,12 +2178,13 @@ if use_TP_adjustment:
     )
     
     # extract the import values
-    R_I = samples.R_I.to_numpy()
-    
-    # extract the import values
-    R_I_omicron = samples.R_I_omicron.to_numpy()
+    if strain == "Delta":
+        R_I = samples.R_I.to_numpy()
+    elif strain == "Omicron":
+        # extract the import values
+        R_I = samples.R_I_omicron.to_numpy()
 
-    def calculate_Reff_local(Reff, R_I, R_I_omicron, is_omicron, prop_import):
+    def calculate_Reff_local(Reff, R_I, prop_import):
         """
         Apply the same mixture model idea as per the TP model to get
         R_eff^L = (R_eff - rho * RI)/(1 - rho)
@@ -2169,10 +2194,7 @@ if use_TP_adjustment:
         # calculate this all in one step. Note that we set the Reff to -1 if
         # the prop_import = 1 as in that instance the relationship breaks due to division by 0.
         Reff_local = [
-            (
-                Reff[t] - prop_import[t] * 
-                (R_I * (t < is_omicron[t]) + R_I_omicron * (t >= is_omicron[t]))
-            ) / (1 - prop_import[t])
+            (Reff[t] - prop_import[t] * R_I) / (1 - prop_import[t])
             if prop_import[t] < 1 else -1 for t in range(Reff.shape[0])
         ]
 
@@ -2268,8 +2290,6 @@ if use_TP_adjustment:
                 Reff_local = calculate_Reff_local(
                     Reff_sample, 
                     R_I[int(col) % n_samples], 
-                    R_I_omicron[int(col) % n_samples], 
-                    is_omicron, 
                     ratio_import_to_local_combined,
                 )
                 Reff_local = np.array(Reff_local)
@@ -2411,6 +2431,7 @@ if use_TP_adjustment:
         + "/"
         + data_date.strftime("%Y-%m-%d")
         + "/TP_6_month_adjusted_"
+        + strain
         + data_date.strftime("%Y-%m-%d")
         + ".png",
         dpi=144,
@@ -2427,11 +2448,9 @@ if use_TP_adjustment:
     
     df_forecast_new.to_csv(
         results_dir 
-        + "soc_mob_R_adjusted" 
+        + "soc_mob_R_adjusted_" 
+        + strain 
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
-    # df_forecast_new.to_csv(
-    #     "results/soc_mob_R_adjusted" + data_date.strftime("%Y-%m-%d") + ".csv"
-    # )
 
