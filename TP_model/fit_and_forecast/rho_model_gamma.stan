@@ -310,8 +310,8 @@ transformed parameters {
     // vector[total_N_p_sec] masks_sec_wave;
     // vector[total_N_p_third] masks_third_wave;
     
-    // reduce this to be the 5/12/2021 as the midpoint (i.e. 50% Omicron proportion).
-    vector[j_third_wave] tau = 20 + 2 * tau_raw; 
+    // reduce this to be the 10/12/2021 as the midpoint (i.e. 50% Omicron proportion).
+    vector[j_third_wave] tau = 25 + 2 * tau_raw; 
 
     // first wave model
     for (i in 1:j_first_wave) {
@@ -468,6 +468,7 @@ model {
     // define these within the scope of the loop only
     int pos;
     int pos_omicron2;
+    real prop_omicron_to_delta; 
     real log_prop_omicron_to_delta; 
     real log_prop_delta_to_omicron; 
     int n_omicron; 
@@ -722,10 +723,8 @@ model {
     for (i in 1:j_third_wave){
         if (i == 1){
             pos = 1;
-            pos_omicron2 = 1;
         } else {
             pos = pos_starts_third[i-1] + 1;
-            pos_omicron2 = pos_starts_third_omicron[i-1] + 1;
         }
         
         for (n in 1:N_third_wave){
@@ -745,46 +744,35 @@ model {
                         map_to_state_index_third[i] == 6 || 
                         map_to_state_index_third[i] == 8
                     ) {
-                        log_prop_omicron_to_delta = log(m1[map_to_state_index_third[i]]);
-                        log_prop_delta_to_omicron = log(1 - m1[map_to_state_index_third[i]]);
+                        prop_omicron_to_delta = m1[map_to_state_index_third[i]];
+                        log_prop_omicron_to_delta = log(prop_omicron_to_delta);
+                        log_prop_delta_to_omicron = log1m(prop_omicron_to_delta);
                     } else {
-                        log_prop_omicron_to_delta = log(
-                            sigmoid(
-                                n_omicron, 
-                                tau[map_to_state_index_third[i]], 
-                                r[map_to_state_index_third[i]], 
-                                m0[map_to_state_index_third[i]], 
-                                m1[map_to_state_index_third[i]]
-                            )
+                        prop_omicron_to_delta = sigmoid(
+                            n_omicron, 
+                            tau[map_to_state_index_third[i]], 
+                            r[map_to_state_index_third[i]], 
+                            m0[map_to_state_index_third[i]], 
+                            m1[map_to_state_index_third[i]]
                         );
-                        
-                        log_prop_delta_to_omicron = log(
-                            1 - sigmoid(
-                                n_omicron, 
-                                tau[map_to_state_index_third[i]], 
-                                r[map_to_state_index_third[i]], 
-                                m0[map_to_state_index_third[i]], 
-                                m1[map_to_state_index_third[i]]
-                            )
-                        );
-                        
-                        pos_omicron2 += 1;
-                        # increment target by the mixture log-likelihood of Gammas 
-                        target += log_sum_exp(
-                            log_prop_omicron_to_delta 
-                            + gamma_lpdf(
-                                mu_hat_third_wave[pos] | 
-                                a_mu_hat_omicron_wave[n,i], 
-                                b_mu_hat_omicron_wave[n,i]
-                            ), 
-                            log_prop_delta_to_omicron
-                            + gamma_lpdf(
-                                mu_hat_third_wave[pos] | 
-                                a_mu_hat_third_wave[n,i], 
-                                b_mu_hat_third_wave[n,i]
-                            )
-                        );
+                        log_prop_omicron_to_delta = log(prop_omicron_to_delta);
+                        log_prop_delta_to_omicron = log1m(prop_omicron_to_delta);
                     }
+                    # increment target by the mixture log-likelihood of Gammas 
+                    target += log_sum_exp(
+                        log_prop_omicron_to_delta 
+                        + gamma_lpdf(
+                            mu_hat_third_wave[pos] | 
+                            a_mu_hat_omicron_wave[n,i], 
+                            b_mu_hat_omicron_wave[n,i]
+                        ), 
+                        log_prop_delta_to_omicron
+                        + gamma_lpdf(
+                            mu_hat_third_wave[pos] | 
+                            a_mu_hat_third_wave[n,i], 
+                            b_mu_hat_third_wave[n,i]
+                        )
+                    );
                     pos += 1;
                 }
             }
