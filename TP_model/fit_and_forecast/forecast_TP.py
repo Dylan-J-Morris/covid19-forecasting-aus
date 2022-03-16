@@ -34,12 +34,19 @@ import matplotlib
 print("Generating R_L forecasts using mobility data.")
 matplotlib.use("Agg")
 
+try:
+    # the file date 
+    data_date = pd.to_datetime(argv[1])
+    # the strain (either Delta (pre-Omicron) or Omicron)
+    strain = argv[2]
+except ValueError:
+    print("Need to pass more inputs.")
+
 # Define inputs
 sim_start_date = pd.to_datetime(start_date)
 
 # Add 3 days buffer to mobility forecast
 num_forecast_days = num_forecast_days + 3
-data_date = pd.to_datetime(argv[1])
 # data_date = pd.to_datetime('2022-01-25')
 print("Using data from", data_date)
 start_date = "2020-03-01"
@@ -1387,7 +1394,6 @@ def sigmoid(t, r, tau, m0, m1):
 # if we want to consider a R0 style scenario, then we can uncomment this, but it should be noted 
 # that no work has been done to ensure this works since prior to 08/2021
 # forecast_type = ["R_L", "R_L0"]
-forecast_type = ["R_L", "R_L_delta", "R_L_omicron"]
 forecast_type = ["R_L"]
 
 for typ in forecast_type:
@@ -1684,7 +1690,7 @@ for typ in forecast_type:
             # 1. Wildtype
             # 2. Alpha
             # 3. Delta
-            if typ == "R_L_delta":
+            if strain == "Delta":
                 # this is the Delta TP 
                 if ii < omicron_start_day_tmp:
                     if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
@@ -1693,7 +1699,6 @@ for typ in forecast_type:
                         voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_alpha[ii]
                     elif ii < df_state.loc[df_state.date < omicron_start_date_tmp].shape[0]:
                         voc_vacc_product[ii] = vacc_ts_delta[ii, :]*voc_multiplier_delta[ii]
-                        
                 else:
                     if ii < omicron_start_day_tmp + days_of_omicron:
                         # this is just the vaccination model for delta
@@ -1707,7 +1712,7 @@ for typ in forecast_type:
                         # this is the simplified form of the mixture model of the vaccination effects
                         voc_vacc_product[ii] = vacc_delta_tmp * voc_multiplier_delta[ii]
                 
-            elif typ == "R_L_omicron":
+            elif strain == "Omicron":
                 # this is the Omicron TP 
                 if ii < omicron_start_day_tmp:
                     if ii < df_state.loc[df_state.date < alpha_start_date].shape[0]:
@@ -1721,10 +1726,7 @@ for typ in forecast_type:
                         vacc_omicron_tmp = vacc_ts_omicron[ii, :]
                         # this is the simplified form of the mixture model of the vaccination effects
                         voc_vacc_product[ii] = vacc_omicron_tmp * voc_multiplier_omicron[ii] 
-                    
                     else:
-                        # this is just the vaccination model for delta
-                        vacc_delta_tmp = vacc_ts_delta[ii, :]
                         vacc_omicron_tmp = vacc_ts_omicron[ii, :]
                         # this is the simplified form of the mixture model of the vaccination effects
                         voc_vacc_product[ii] = vacc_omicron_tmp * voc_multiplier_omicron[ii]
@@ -1758,7 +1760,6 @@ for typ in forecast_type:
                             m * vacc_omicron_tmp * voc_multiplier_omicron[ii] 
                             + (1 - m) * vacc_delta_tmp * voc_multiplier_delta[ii]
                         )
-                    
                     else:
                         if tt == 0:
                             m_last = m
@@ -1800,33 +1801,20 @@ for typ in forecast_type:
         R_L_upper = np.percentile(R_L, 75, axis=1)
         R_L_bottom = np.percentile(R_L, 5, axis=1)
         R_L_top = np.percentile(R_L, 95, axis=1)
+        
+        # R_L
+        state_Rs["state"].extend([state] * df_state.shape[0])
+        state_Rs["type"].extend([typ] * df_state.shape[0])
+        state_Rs["date"].extend(dd.values)  # repeat n_samples times?
+        state_Rs["lower"].extend(R_L_lower)
+        state_Rs["median"].extend(R_L_med)
+        state_Rs["upper"].extend(R_L_upper)
+        state_Rs["top"].extend(R_L_top)
+        state_Rs["bottom"].extend(R_L_bottom)
+        state_Rs["mean"].extend(np.mean(R_L, axis=1))
+        state_Rs["std"].extend(np.std(R_L, axis=1))
 
-        if typ in {"R_L_delta", "R_L_omicron"}:
-            # R_L
-            state_Rs["state"].extend([state] * df_state.shape[0])
-            state_Rs["type"].extend([typ] * df_state.shape[0])
-            state_Rs["date"].extend(dd.values)  # repeat n_samples times?
-            state_Rs["lower"].extend(R_L_lower)
-            state_Rs["median"].extend(R_L_med)
-            state_Rs["upper"].extend(R_L_upper)
-            state_Rs["top"].extend(R_L_top)
-            state_Rs["bottom"].extend(R_L_bottom)
-            state_Rs["mean"].extend(np.mean(R_L, axis=1))
-            state_Rs["std"].extend(np.std(R_L, axis=1))
-        else:
-            # R_L
-            state_Rs["state"].extend([state] * df_state.shape[0])
-            state_Rs["type"].extend([typ] * df_state.shape[0])
-            state_Rs["date"].extend(dd.values)  # repeat n_samples times?
-            state_Rs["lower"].extend(R_L_lower)
-            state_Rs["median"].extend(R_L_med)
-            state_Rs["upper"].extend(R_L_upper)
-            state_Rs["top"].extend(R_L_top)
-            state_Rs["bottom"].extend(R_L_bottom)
-            state_Rs["mean"].extend(np.mean(R_L, axis=1))
-            state_Rs["std"].extend(np.std(R_L, axis=1))
-
-            state_R[state] = R_L
+        state_R[state] = R_L
 
     typ_state_R[typ] = state_R
 
@@ -1976,7 +1964,8 @@ plt.savefig(
     + custom_file_name 
     + "/"
     + data_date.strftime("%Y-%m-%d")
-    + "/TP_6_month_"
+    + "/TP_6_month_" 
+    + strain
     + data_date.strftime("%Y-%m-%d")
     + ".png",
     dpi=144,
@@ -2076,6 +2065,7 @@ plt.savefig(
     + "/"
     + data_date.strftime("%Y-%m-%d")
     + "/TP_12_month_"
+    + strain
     + data_date.strftime("%Y-%m-%d")
     + ".png",
     dpi=144,
@@ -2105,7 +2095,8 @@ df_Rhats = df_Rhats[
 # save the file as a csv (easier to handle in Julia for now)
 df_Rhats.to_csv(
     results_dir 
-    + "soc_mob_R" 
+    + "soc_mob_R_" 
+    + strain 
     + data_date.strftime("%Y-%m-%d") 
     + ".csv"
 )
