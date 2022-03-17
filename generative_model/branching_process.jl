@@ -370,8 +370,8 @@ function sample_offspring!(
         end
         
         # sum up the number local infections on the current day
-        # Z_tmp gets emptied at the end of sampling so we won't be double counting 
         Z_historical[map_day_to_index_Z(day)] += S_parents + A_parents
+        # Z_tmp gets emptied at the end of sampling so we won't be double counting 
         # zero out infections on day t so we can restart sim and keep the progress 
         Z_tmp .= 0    
         
@@ -379,24 +379,20 @@ function sample_offspring!(
         A_parents_omicron = 0
         I_parents_omicron = 0
         
-        if day < omicron_start_day
-            # sample the nimber of parents that are omicron
-            S_parents_omicron = 0
-            A_parents_omicron = 0
-            I_parents_omicron = 0
-        else
+        if day >= omicron_start_day
             # number of days into the omicron wave
             t_omicron = day - omicron_start_day 
             prop_omicron = 0.0
             # if we are in WA, TAS or NT, the outbreak began late enough to suggest omicron 
             # proportion was high, so use the inferred long term proportions. Otherwise use the
             # sigmoidal model. 
-            if state in ("WA", "TAS", "NT")
+            # if state in ("WA", "TAS", "NT")
+            if state == "TAS"
                 prop_omicron = prop_pars[2]
             else
                 prop_omicron = sigmoid(t_omicron, prop_pars)
             end
-            # sample the nimber of parents that are omicron
+            # sample a random number of Omicron parents
             S_parents_omicron = rand(Binomial(S_parents, prop_omicron))
             A_parents_omicron = rand(Binomial(A_parents, prop_omicron))
             I_parents_omicron = rand(Binomial(I_parents, prop_omicron))
@@ -411,14 +407,14 @@ function sample_offspring!(
             A_parents_omicron,
             I_parents_omicron,
         )
-            
-        for (i, n_parents) in enumerate(num_parents) 
-            # guard clause for when we skip a loop 
+        
+        for (i, n_parents) in enumerate(num_parents)  
+            # a guard clause for skipping the current iteration
             n_parents == 0 && continue 
             
             # reset counters
-            TP_parent = 0.0 
             num_offspring = 0
+            TP_parent = 0.0 
             k = 0.0 
             
             # essentially a (gross) switch statement 
@@ -446,7 +442,9 @@ function sample_offspring!(
                 k = forecast.sim_constants.k.omicron
             end
                 
-            if (adjust_TP && day >= T_observed - 29) || (!adjust_TP)
+            # if (adjust_TP && day >= T_observed - 29) || (!adjust_TP)
+            # apply truncation for data, then apply the adjustment based in the forecasting
+            if (adjust_TP && day >= T_observed + 7 - 14 - 30 - 1) || !adjust_TP
                 # when using the Reff, we do not adjust the TP through susceptible 
                 # depletion as this is already implicit in the calculation. 
                 proportion_infected = min(1, total_infected / N)
@@ -456,23 +454,19 @@ function sample_offspring!(
             
             num_offspring += sample_negative_binomial_limit(TP_parent * n_parents, k * n_parents)
             
-            # account for those infected by current parent in the total count 
-            total_infected += num_offspring
-            
             if num_offspring > 0            
                 p_symp = 0.0 
                 p_detect_given_symp = 0.0 
                 p_detect_given_asymp = 0.0 
                 is_omicron = false
                 
-                # set the appropriate detection probabilities based on the point in the 
-                # forecast
-                if i in (1, 2, 3)
+                # set the appropriate detection probabilities based on the point in the forecast
+                if i in 1:3
                     p_symp = forecast.sim_constants.p_symp.delta 
                     p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.delta 
                     p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.delta  
                     is_omicron = false
-                elseif i in (4, 5, 6)
+                elseif i in 4:6
                     p_symp = forecast.sim_constants.p_symp.omicron 
                     p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.omicron 
                     p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.omicron  
@@ -726,7 +720,7 @@ function simulate_branching_process(
     # at the beginning of the third wave so doesn't really influence the results for 
     # Omicron. I DON'T LIKE THIS BUT FOR NOW IT'S CORRECTING SOME ISSUE IN THE TP/REFF 
     # affecting NSW only. 
-    if state == "NSW"
+    if state == "NSW" || state == "VIC"
         TP_ind = findfirst(40 == ind for ind in TP_indices)
         TP_local_delta[1:TP_ind, :] *= 0.5
         TP_local_omicron[1:TP_ind, :] *= 0.5

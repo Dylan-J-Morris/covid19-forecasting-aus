@@ -37,17 +37,6 @@ function map_day_to_index_cases(day)
 end
 
 
-function NegativeBinomial2(μ, k)
-    """
-    Function for parameterisation of the negative Binomial in terms of mean and dispersion.
-    """
-    p = 1 / (1 + μ / k)
-    
-    return NegativeBinomial(k, p)
-
-end
-
-
 function sample_inf_time_delta()
     c = (
         0.0, 0.23123495324177792, 0.5173637000503444, 0.7313700767804615, 0.8616192638327465, 0.9324257531818554, 0.968263917871601, 0.9855305708537918, 0.9935547309702418, 0.9971823528990054, 0.9987870872347043, 0.9994845898851373, 0.9997833904140334, 0.9999098409183975, 0.9999628010773516, 0.9999847842534525, 0.9999938383729761, 0.9999975420011928, 0.999999047825051, 0.9999996567609942, 0.9999999018144428, 1.0
@@ -149,14 +138,25 @@ function set_simulation_constants(state; p_detect_omicron = 0.5)
 end
 
 
-function sample_negative_binomial_limit(μ, ϕ; approx_limit = 1000)
+function NegativeBinomial2(μ, k)
+    """
+    Function for parameterisation of the negative Binomial in terms of mean and dispersion.
+    """
+    p = 1 / (1 + μ / k)
+    
+    return NegativeBinomial(k, p)
+
+end
+
+
+function sample_negative_binomial_limit(μ, k; approx_limit = 1000)
     """
     Samples from a NegBin(s, p) distribution. This uses a normal approximation 
     when mu is large (i.e. s > approx_limit) to get a 10x runtime improvement.
     """
     X = zero(Int)
     
-    X = rand(NegativeBinomial2(μ, ϕ))
+    X = rand(NegativeBinomial2(μ, k))
     # mean of NegBin(s, p) => this will boil down to TP
     # if μ <= approx_limit
     #     X = rand(NegativeBinomial2(μ, ϕ))

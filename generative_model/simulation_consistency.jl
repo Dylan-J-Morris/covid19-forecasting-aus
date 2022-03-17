@@ -21,12 +21,12 @@ function calculate_bounds(local_cases, τ, state)
     Cₜ = [sum(local_cases[idx]) for idx in idxs_limits]
     
     # multipliers on the n-day average
-    (ℓ, u) = (0.5, 3.0)
+    (ℓ, u) = (0.25, 3.0)
     Lₜ = ceil.(Int, ℓ * Cₜ)
     Uₜ = ceil.(Int, u * Cₜ)
     
     # remove restrictions over last τ * 2 days 
-    (ℓ, u) = (0.25, 1.5)
+    (ℓ, u) = (0.5, 2.0)
     Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
     Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
     
@@ -67,7 +67,7 @@ function get_simulation_limits(
     TP_indices, 
     N, 
     state; 
-    τ = 3,
+    τ = 5,
 )
     """
     Using the observed cases, determine the limits of cases over the backcast and 
