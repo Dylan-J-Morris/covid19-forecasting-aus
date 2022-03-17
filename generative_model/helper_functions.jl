@@ -386,10 +386,13 @@ function read_in_cases(
         if use_mean
             rd .= mean(Gamma(shape_rd, scale_rd))
         else
-            rd = rand(rng, Gamma(shape_rd, scale_rd), length(confirm_dates))
+            # use the discretised pmf to sample the reporting delays 
+            p = [pdf(Gamma(shape_rd, scale_rd), x) for x in 0:21]
+            c = cumsum(p / sum(p))
+            rd = [findfirst(rand(rng) <= cᵢ for cᵢ in c) - 1 for _ in 1:length(confirm_dates)]
         end
         
-        confirm_dates = confirm_dates - ceil.(rd) * Day(1)
+        confirm_dates = confirm_dates - ceil.(rd) * Dates.Day(1)
     end
 	# adjust confirmation dates to get to onset 
 	# rd = ceil(Int, mean(Gamma(shape_rd, scale_rd)))
