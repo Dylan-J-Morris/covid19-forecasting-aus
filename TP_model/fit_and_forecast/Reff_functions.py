@@ -90,6 +90,7 @@ def predict_plot(
     rho=None,
     second_phase=False,
     third_phase=False,
+    third_plot_type="combined",
 ):
     """
     Produce posterior predictive plots for all states using the inferred mu_hat. This should run 
@@ -165,24 +166,63 @@ def predict_plot(
                 ].is_sec_wave.sum()
             )
         elif third_phase:
-            mu_hat = samples[
-                [
-                    "mu_hat_third_wave." + str(j + 1)
-                    for j in range(
-                        pos,
-                        pos
-                        + df.loc[
-                            df.state == states_initials[state]
-                        ].is_third_wave.sum(),
-                    )
-                ]
-            ].values.T
-            pos = (
-                pos
-                + df.loc[
-                    df.state == states_initials[state]
-                ].is_third_wave.sum()
-            )
+            if third_plot_type == "combined":
+                mu_hat = samples[
+                    [
+                        "mu_hat_third_wave." + str(j + 1)
+                        for j in range(
+                            pos,
+                            pos
+                            + df.loc[
+                                df.state == states_initials[state]
+                            ].is_third_wave.sum(),
+                        )
+                    ]
+                ].values.T
+                pos = (
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_third_wave.sum()
+                )
+            elif third_plot_type == "delta":
+                mu_hat = samples[
+                    [
+                        "mu_hat_delta_only." + str(j + 1)
+                        for j in range(
+                            pos,
+                            pos
+                            + df.loc[
+                                df.state == states_initials[state]
+                            ].is_third_wave.sum(),
+                        )
+                    ]
+                ].values.T
+                pos = (
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_third_wave.sum()
+                )
+            elif third_plot_type == "omicron":
+                mu_hat = samples[
+                    [
+                        "mu_hat_omicron_only." + str(j + 1)
+                        for j in range(
+                            pos,
+                            pos
+                            + df.loc[
+                                df.state == states_initials[state]
+                            ].is_omicron_wave.sum(),
+                        )
+                    ]
+                ].values.T
+                pos = (
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_omicron_wave.sum()
+                )
             
         
         df_hat = pd.DataFrame(mu_hat.T)
@@ -206,24 +246,45 @@ def predict_plot(
                 df_state.date, df_state["lower"], df_state["upper"], color="C1", alpha=0.3
             )
         elif third_phase:
-            # plot actual R_eff
-            ax[i // 4, i % 4].plot(
-                df_state.date, df_state["mean_omicron"], label="$R_{eff}$", color="C1"
-            )
-            ax[i // 4, i % 4].fill_between(
-                df_state.date, 
-                df_state["bottom_omicron"], 
-                df_state["top_omicron"], 
-                color="C1", 
-                alpha=0.3
-            )
-            ax[i // 4, i % 4].fill_between(
-                df_state.date, 
-                df_state["lower_omicron"], 
-                df_state["upper_omicron"], 
-                color="C1", 
-                alpha=0.3
-            )
+            if third_plot_type in ("combined", "omicron"):
+                # plot actual R_eff
+                ax[i // 4, i % 4].plot(
+                    df_state.date, df_state["mean_omicron"], label="$R_{eff}$", color="C1"
+                )
+                ax[i // 4, i % 4].fill_between(
+                    df_state.date, 
+                    df_state["bottom_omicron"], 
+                    df_state["top_omicron"], 
+                    color="C1", 
+                    alpha=0.3
+                )
+                ax[i // 4, i % 4].fill_between(
+                    df_state.date, 
+                    df_state["lower_omicron"], 
+                    df_state["upper_omicron"], 
+                    color="C1", 
+                    alpha=0.3
+                )
+            else:
+                # plot actual R_eff
+                ax[i // 4, i % 4].plot(
+                    df_state.date, df_state["mean"], label="$R_{eff}$", color="C1"
+                )
+                ax[i // 4, i % 4].fill_between(
+                    df_state.date, 
+                    df_state["bottom"], 
+                    df_state["top"], 
+                    color="C1", 
+                    alpha=0.3
+                )
+                ax[i // 4, i % 4].fill_between(
+                    df_state.date, 
+                    df_state["lower"], 
+                    df_state["upper"], 
+                    color="C1", 
+                    alpha=0.3
+                )
+            
             
         ax[i // 4, i % 4].plot(
             df_state.date, df_hat.quantile(0.5, axis=0), label="$\hat{\mu}$", color="C0"

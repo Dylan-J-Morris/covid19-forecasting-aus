@@ -2016,7 +2016,77 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 # a.set_xlim((start_date,end_date))
 
         plt.savefig(
-            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase.png",
+            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase_combined.png",
+            dpi=144,
+        )
+
+        # remove plots from memory
+        fig.clear()
+        plt.close(fig)
+        
+    if df3X.shape[0] > 0:
+        df["is_third_wave"] = 0
+        for state in third_states:
+            df.loc[df.state == state, "is_third_wave"] = (
+                df.loc[df.state == state]
+                .date.isin(third_date_range[state])
+                .astype(int)
+                .values
+            )
+
+        # plot only if there is third phase data - have to have third_phase=True
+        ax4 = predict_plot(
+            samples_mov_gamma,
+            df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
+            moving=True,
+            grocery=True,
+            rho=third_states,
+            third_phase=True,
+            third_plot_type="delta"
+        )  # by states....
+
+        for ax in ax4:
+            for a in ax:
+                a.set_ylim((0, 2.5))
+                # a.set_xlim((start_date,end_date))
+
+        plt.savefig(
+            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase_delta.png",
+            dpi=144,
+        )
+
+        # remove plots from memory
+        fig.clear()
+        plt.close(fig)
+        
+    if df3X.shape[0] > 0:
+        df["is_omicron_wave"] = 0
+        for state in third_states:
+            df.loc[df.state == state, "is_omicron_wave"] = (
+                df.loc[df.state == state]
+                .date.isin(third_omicron_date_range[state])
+                .astype(int)
+                .values
+            )
+
+        # plot only if there is third phase data - have to have third_phase=True
+        ax4 = predict_plot(
+            samples_mov_gamma,
+            df.loc[(df.date >= omicron_start_date) & (df.date <= third_end_date)],
+            moving=True,
+            grocery=True,
+            rho=third_states,
+            third_phase=True,
+            third_plot_type="omicron"
+        )  # by states....
+
+        for ax in ax4:
+            for a in ax:
+                a.set_ylim((0, 2.5))
+                # a.set_xlim((start_date,end_date))
+
+        plt.savefig(
+            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase_omicron.png",
             dpi=144,
         )
 
@@ -2172,7 +2242,7 @@ def main(data_date, run_inference=True):
         
     if run_inference:     
         num_chains = 4
-        num_samples = 1500
+        num_samples = 2000
         num_warmup_samples = 1000
         # num_samples = 200
         # num_warmup_samples = 200
