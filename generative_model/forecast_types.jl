@@ -283,6 +283,7 @@ struct JurisdictionAssumptions
         String, 
         NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}},
     }
+    omicron_start_date::Date
     omicron_dominant_date::Date
 
     function JurisdictionAssumptions()
@@ -300,6 +301,7 @@ struct JurisdictionAssumptions
         # date we want to apply increase in cases due to Omicron 
         # put a small delay on this as we use the infection dates to index things but in 
         # the fitting we used the confirmation dates 
+        omicron_start_date = Dates.Date("2021-11-15") - Dates.Day(5)
         omicron_dominant_date = Dates.Date("2021-12-15") - Dates.Day(5)
         
         pop_sizes = Dict{String, Int}(
