@@ -451,8 +451,8 @@ transformed parameters {
                     }
                     
                     mu_hat_third_wave[pos] = (
-                        prop_omicron_to_delta * mu_hat_omicron 
-                        + (1 - prop_omicron_to_delta) * mu_hat_omicron 
+                        (1 - prop_omicron_to_delta) * mu_hat_delta
+                        + prop_omicron_to_delta * mu_hat_omicron
                     );
                     
                     pos += 1;
