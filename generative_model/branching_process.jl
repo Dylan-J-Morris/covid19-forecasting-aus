@@ -375,6 +375,10 @@ function sample_offspring!(
         # zero out infections on day t so we can restart sim and keep the progress 
         Z_tmp .= 0    
         
+        S_parents_omicron = 0
+        A_parents_omicron = 0
+        I_parents_omicron = 0
+        
         if day < omicron_start_day
             # sample the nimber of parents that are omicron
             S_parents_omicron = 0
@@ -384,8 +388,11 @@ function sample_offspring!(
             # number of days into the omicron wave
             t_omicron = day - omicron_start_day 
             prop_omicron = 0.0
-            if state in ("WA", "ACT", "NT")
-                prop_omicron = prop_pars["m1"]
+            # if we are in WA, TAS or NT, the outbreak began late enough to suggest omicron 
+            # proportion was high, so use the inferred long term proportions. Otherwise use the
+            # sigmoidal model. 
+            if state in ("WA", "TAS", "NT")
+                prop_omicron = prop_pars[2]
             else
                 prop_omicron = sigmoid(t_omicron, prop_pars)
             end
@@ -721,8 +728,8 @@ function simulate_branching_process(
     # affecting NSW only. 
     if state == "NSW"
         TP_ind = findfirst(40 == ind for ind in TP_indices)
-        TP_local[1:TP_ind, :] *= 0.5
-        TP_import[1:TP_ind, :] *= 0.5
+        TP_local_delta[1:TP_ind, :] *= 0.5
+        TP_local_omicron[1:TP_ind, :] *= 0.5
     end
     
     # number of TP samples saved 
