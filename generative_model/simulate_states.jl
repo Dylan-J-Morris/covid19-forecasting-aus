@@ -36,8 +36,7 @@ function simulate_single_state(
         maximum(v for v in values(jurisdiction_assumptions.simulation_start_dates))
     )
 
-    (local_case_dict, import_case_dict) = read_in_cases(file_date, rng)
-    dates = local_case_dict["date"]
+    (dates, local_case_dict, import_case_dict) = read_in_cases(file_date, rng)
     last_date_in_data = dates[end]
     forecast_end_date = last_date_in_data + Dates.Day(35)
     
@@ -63,7 +62,7 @@ function simulate_single_state(
         local_cases = local_cases[begin:end - truncation_days + 1]
         import_cases = import_cases[begin:end - truncation_days + 1]
         
-        (D, U, TP_local) = simulate_branching_process(
+        (D, U) = simulate_branching_process(
             D0, 
             N, 
             nsims, 
@@ -72,6 +71,7 @@ function simulate_single_state(
             cases_pre_forecast,
             forecast_start_date, 
             file_date, 
+            jurisdiction_assumptions.omicron_start_date, 
             jurisdiction_assumptions.omicron_dominant_date, 
             state,
             p_detect_omicron = p_detect_omicron,
@@ -80,7 +80,6 @@ function simulate_single_state(
         
         save_simulations(
             D,
-            TP_local,
             state,
             file_date,
             onset_dates,
