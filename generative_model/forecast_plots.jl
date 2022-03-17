@@ -39,12 +39,11 @@ function plot_all_forecasts(
     fig = plot( 
         layout = (4, 2), 
         dpi = 200, 
-        size = (750, 1200), 
-        link = :x, 
-        framestyle = :box, 
+        size = (700, 1000), 
         margin = 3mm,
         rightmargin = 4mm,
-        legend = :outerright
+        framestyle = :box, 
+        legend = false
     )
     
     for (sp, state) in enumerate(states)
@@ -73,7 +72,6 @@ function plot_all_forecasts(
                 subplot = sp, 
                 onset_dates, 
                 df_D_summary[!, "median"], 
-                xaxis = nothing,
                 linecolor = 1, 
                 linewidth = 1, 
                 color = 1, 
@@ -100,7 +98,6 @@ function plot_all_forecasts(
                 subplot = sp, 
                 onset_dates, 
                 df_D_summary[!, "median"], 
-                xaxis = nothing,
                 linecolor = 1, 
                 linewidth = 1, 
                 color = 1, 

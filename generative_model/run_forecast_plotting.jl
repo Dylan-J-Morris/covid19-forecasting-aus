@@ -5,14 +5,14 @@ include("forecast_plots.jl")
 const file_date = ARGS[1]
 
 states = [
-    # "ACT",
-    # "NSW",
-    # "NT",
-    # "QLD",
+    "ACT",
+    "NSW",
+    "NT",
+    "QLD",
     "SA",
-    # "TAS",
-    # "VIC",
-    # "WA",
+    "TAS",
+    "VIC",
+    "WA",
 ]
 
 # set seed for consistent plots (NOTE: this is not useful when multithreading 
