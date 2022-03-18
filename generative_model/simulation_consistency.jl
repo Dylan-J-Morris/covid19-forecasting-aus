@@ -26,7 +26,7 @@ function calculate_bounds(local_cases, τ, state)
     Uₜ = ceil.(Int, u * Cₜ)
     
     # remove restrictions over last τ * 2 days 
-    (ℓ, u) = (0.5, 2.0)
+    (ℓ, u) = (0.5, 3.0)
     Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
     Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
     

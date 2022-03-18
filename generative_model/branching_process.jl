@@ -360,14 +360,11 @@ function sample_offspring!(
         (S_parents, A_parents, I_parents) = Z_tmp
         
         import_multiplier = 1.0
-        
-        if day < omicron_dominant_day - 30
-            # p_{v,h} is the proportion of hotel quarantine workers vaccinated
-            p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
-            # v_{e,h} is the overall vaccine effectiveness
-            v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
-            import_multiplier = (1 - p_vh * v_eh)
-        end
+        # p_{v,h} is the proportion of hotel quarantine workers vaccinated
+        p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
+        # v_{e,h} is the overall vaccine effectiveness
+        v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
+        import_multiplier = (1 - p_vh * v_eh)
         
         # sum up the number local infections on the current day
         Z_historical[map_day_to_index_Z(day)] += S_parents + A_parents
@@ -387,11 +384,12 @@ function sample_offspring!(
             # proportion was high, so use the inferred long term proportions. Otherwise use the
             # sigmoidal model. 
             # if state in ("WA", "TAS", "NT")
-            if state == "TAS"
-                prop_omicron = prop_pars[2]
-            else
-                prop_omicron = sigmoid(t_omicron, prop_pars)
-            end
+            # if state == "TAS"
+            #     prop_omicron = prop_pars[2]
+            # else
+            #     prop_omicron = sigmoid(t_omicron, prop_pars)
+            # end
+            prop_omicron = sigmoid(t_omicron, prop_pars)
             # sample a random number of Omicron parents
             S_parents_omicron = rand(Binomial(S_parents, prop_omicron))
             A_parents_omicron = rand(Binomial(A_parents, prop_omicron))
