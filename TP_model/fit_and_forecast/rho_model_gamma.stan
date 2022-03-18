@@ -434,21 +434,28 @@ transformed parameters {
                     // number of days into omicron period 
                     n_omicron = n - omicron_start_day;
                     
-                    if (
-                        map_to_state_index_third[i] == 3 || 
-                        map_to_state_index_third[i] == 6 || 
-                        map_to_state_index_third[i] == 8
-                    ) {
-                        prop_omicron_to_delta = m1[map_to_state_index_third[i]];
-                    } else {
-                        prop_omicron_to_delta = sigmoid(
-                            n_omicron, 
-                            tau[map_to_state_index_third[i]], 
-                            r[map_to_state_index_third[i]], 
-                            m0[map_to_state_index_third[i]], 
-                            m1[map_to_state_index_third[i]]
-                        );
-                    }
+                    // if (
+                    //     map_to_state_index_third[i] == 3 || 
+                    //     map_to_state_index_third[i] == 6 || 
+                    //     map_to_state_index_third[i] == 8
+                    // ) {
+                    //     prop_omicron_to_delta = m1[map_to_state_index_third[i]];
+                    // } else {
+                    //     prop_omicron_to_delta = sigmoid(
+                    //         n_omicron, 
+                    //         tau[map_to_state_index_third[i]], 
+                    //         r[map_to_state_index_third[i]], 
+                    //         m0[map_to_state_index_third[i]], 
+                    //         m1[map_to_state_index_third[i]]
+                    //     );
+                    // }
+                    prop_omicron_to_delta = sigmoid(
+                        n_omicron, 
+                        tau[map_to_state_index_third[i]], 
+                        r[map_to_state_index_third[i]], 
+                        m0[map_to_state_index_third[i]], 
+                        m1[map_to_state_index_third[i]]
+                    );
                     
                     mu_hat_third_wave[pos] = (
                         (1 - prop_omicron_to_delta) * mu_hat_delta
@@ -746,23 +753,32 @@ model {
                     );
                     pos += 1;
                 } else {
-                    if (
-                        map_to_state_index_third[i] == 3 || 
-                        map_to_state_index_third[i] == 6 || 
-                        map_to_state_index_third[i] == 8
-                    ) {
-                        prop_omicron_to_delta = m1[map_to_state_index_third[i]];
-                    } else {
-                        // number of days into omicron period 
-                        n_omicron = n - omicron_start_day;
-                        prop_omicron_to_delta = sigmoid(
-                            n_omicron, 
-                            tau[map_to_state_index_third[i]], 
-                            r[map_to_state_index_third[i]], 
-                            m0[map_to_state_index_third[i]], 
-                            m1[map_to_state_index_third[i]]
-                        );
-                    }
+                    // if (
+                    //     map_to_state_index_third[i] == 3 || 
+                    //     map_to_state_index_third[i] == 6 || 
+                    //     map_to_state_index_third[i] == 8
+                    // ) {
+                    //     prop_omicron_to_delta = m1[map_to_state_index_third[i]];
+                    // } else {
+                    //     // number of days into omicron period 
+                    //     n_omicron = n - omicron_start_day;
+                    //     prop_omicron_to_delta = sigmoid(
+                    //         n_omicron, 
+                    //         tau[map_to_state_index_third[i]], 
+                    //         r[map_to_state_index_third[i]], 
+                    //         m0[map_to_state_index_third[i]], 
+                    //         m1[map_to_state_index_third[i]]
+                    //     );
+                    // }
+                    
+                    n_omicron = n - omicron_start_day;
+                    prop_omicron_to_delta = sigmoid(
+                        n_omicron, 
+                        tau[map_to_state_index_third[i]], 
+                        r[map_to_state_index_third[i]], 
+                        m0[map_to_state_index_third[i]], 
+                        m1[map_to_state_index_third[i]]
+                    );
                     
                     // calculate the mixture coefficients 
                     log_prop_omicron_to_delta = log(prop_omicron_to_delta);
