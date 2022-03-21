@@ -1367,6 +1367,7 @@ for strain in ("Delta", "Omicron"):
         total_N_p_third_omicron += tmp if tmp > 0 else 0
     
     state_R = {}
+    
     for (kk, state) in enumerate(states):
         # sort df_R by date so that rows are dates. rows are dates, columns are predictors
         df_state = df_R.loc[df_R.state == state]
@@ -1397,7 +1398,9 @@ for strain in ("Delta", "Omicron"):
         }
         third_days_tot = sum(v for v in third_days.values())
         # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
-        sampled_vax_effects_all = samples[["ve_delta." + str(j + 1) for j in range(third_days_tot)]].T
+        sampled_vax_effects_all = samples[
+            ["ve_delta." + str(j + 1) for j in range(third_days_tot)]
+        ].T
         vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[state], :]
         # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
         # get before and after fitting and tile them
@@ -1559,8 +1562,6 @@ for strain in ("Delta", "Omicron"):
                 # concatenate to previous
                 logodds = np.vstack((logodds, logodds_sample))
                 
-        # transpose logodds to have same shape as other contributions 
-        logodds_T = logodds.T
         # create an matrix of mob_samples realisations which is an indicator of the voc (delta right now)
         # which will be 1 up until the voc_start_date and then it will be values from the posterior sample
         voc_multiplier_alpha = samples["voc_effect_alpha"].values
@@ -1580,10 +1581,6 @@ for strain in ("Delta", "Omicron"):
         omicron_start_date_tmp = np.maximum(
             pd.to_datetime(omicron_start_date),
             pd.to_datetime(third_date_range[state][0]),
-        )
-        # calculate the number of days with omicron used in the fitting
-        days_of_omicron = np.sum(
-            v >= omicron_start_date_tmp for v in third_date_range[state]
         )
 
         omicron_start_day_tmp = (
@@ -1620,14 +1617,12 @@ for strain in ("Delta", "Omicron"):
         # calculate TP
         R_L = (
             2
-            * expit(logodds_T)
+            * expit(logodds.T)
             * md
             * sim_R
             * voc_vacc_product
         )
-
-        # now we increase TP by 15% based on school reopening (this code can probably be reused 
-            # now we increase TP by 15% based on school reopening (this code can probably be reused 
+    
         # now we increase TP by 15% based on school reopening (this code can probably be reused 
         # but inferring it would be pretty difficult
         # due to lockdowns and various interruptions since March 2020)
@@ -1657,12 +1652,14 @@ for strain in ("Delta", "Omicron"):
 
         state_R[state] = R_L
 
-    typ_state_R[typ] = state_R
-
     # generate a summary for the R_I
     for state in states:
         # R_I
-        R_I = samples["R_I"].values[: df_state.shape[0]]
+        if strain == "Delta":
+            R_I = samples["R_I"].values[:df_state.shape[0]]
+        elif strain == "Omicron":
+            R_I = samples["R_I"].values[:df_state.shape[0]]
+            
         state_Rs["state"].extend([state] * df_state.shape[0])
         state_Rs["type"].extend(["R_I"] * df_state.shape[0])
         state_Rs["date"].extend(dd.values)
@@ -1681,12 +1678,12 @@ for strain in ("Delta", "Omicron"):
     for state in states:
         for i, typ in enumerate(forecast_type):
             if i == 0:
-                t = pd.DataFrame.from_dict(typ_state_R[typ][state])
+                t = pd.DataFrame.from_dict(state_R[state])
                 t["date"] = dd.values
                 t["state"] = state
                 t["type"] = typ
             else:
-                temp = pd.DataFrame.from_dict(typ_state_R[typ][state])
+                temp = pd.DataFrame.from_dict(state_R[state])
                 temp["date"] = dd.values
                 temp["state"] = state
                 temp["type"] = typ
@@ -1694,10 +1691,10 @@ for strain in ("Delta", "Omicron"):
         # R_I
         if strain == "Delta": 
             # use the Omicron import reproduction number after Omicron starts
-            i = pd.DataFrame(np.tile(samples["R_I"].values, (len(dd.values), mob_samples)))
+            i = pd.DataFrame(np.tile(samples["R_I"].values, (len(dd.values), 1)))
         elif strain == "Omicron":
             # use the Omicron import reproduction number after Omicron starts
-            i = pd.DataFrame(np.tile(samples["R_I_omicron"].values, (len(dd.values), mob_samples)))
+            i = pd.DataFrame(np.tile(samples["R_I_omicron"].values, (len(dd.values), 1)))
         
         i["date"] = dd.values
         i["type"] = "R_I"
@@ -1706,8 +1703,6 @@ for strain in ("Delta", "Omicron"):
         t = t.append(i)
 
         d = d.append(t)
-
-        # df_Rhats = df_Rhats.loc[(df_Rhats.state==state)&(df_Rhats.type=='R_L')].join( t)
 
     d = d.set_index(["state", "date", "type"])
     df_Rhats = df_Rhats.join(d)
@@ -1948,7 +1943,7 @@ for strain in ("Delta", "Omicron"):
         + [i for i in range(mob_samples)]
     ]
 
-    # save the file as a csv (easier to handle in Julia for now)
+    # # save the file as a csv (easier to handle in Julia for now)
     df_Rhats.to_csv(
         results_dir 
         + "soc_mob_R_" 
@@ -1958,6 +1953,7 @@ for strain in ("Delta", "Omicron"):
     )
 
     if use_TP_adjustment:
+        
         """
         Run adjustment model for the local TP estimates. This will adjust the local component of the
         TP
