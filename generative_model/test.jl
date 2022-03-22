@@ -20,7 +20,7 @@ U = []
 TP_local = []
 
 # parameters to pass to the main function
-file_date = "2022-03-08"
+file_date = "2022-03-15"
 
 # set seed for consistent plots (NOTE: this is not useful when multithreading 
 # enabled as we use separate seeds but the simulation pool should handle that)
@@ -73,14 +73,22 @@ ProfileView.@profview (D, U, TP_local, scale_factor, Z_historical) = simulate_br
     jurisdiction_assumptions.omicron_dominant_date,
     state,
     p_detect_omicron = p_detect_omicron,
-    adjust_TP = true,
+    adjust_TP = false,
 )
 
 ##### NORMAL RUNNNING
+
+using Revise
+using Distributed
+# using CairoMakie
+using Plots
+using Chain
+using ProfileView
+
 include("simulate_states.jl")
 
 # parameters to pass to the main function
-file_date = "2022-03-08"
+file_date = "2022-03-15"
 
 # set seed for consistent plots (NOTE: this is not useful when multithreading 
 # enabled as we use separate seeds but the simulation pool should handle that)
@@ -93,6 +101,7 @@ latest_start_date = Dates.Date(
     maximum(v for v in values(jurisdiction_assumptions.simulation_start_dates))
 )
 
+omicron_start_date = "2021-11-15"
 omicron_dominant_date = "2021-12-15"
 (dates, local_case_dict, import_case_dict) = read_in_cases(file_date, rng)
 last_date_in_data = dates[end]
@@ -102,8 +111,8 @@ onset_dates = latest_start_date:Dates.Day(1):forecast_end_date
 # add a small truncation to the simulations as we don't trust the most recent data
 truncation_days = 7
 # states to simulate
-state = "SA"
-nsims = 1000
+state = "NT"
+nsims = 10000
 p_detect_omicron = 0.5
 forecast_start_date = Dates.Date(
     jurisdiction_assumptions.simulation_start_dates[state]
@@ -121,7 +130,10 @@ import_cases = import_case_dict[state]
 local_cases = Int.(local_cases[begin:end-truncation_days+1])
 import_cases = Int.(import_cases)
 
-(D, U, TP_local, scale_factor, Z_historical) = simulate_branching_process(
+plot(local_cases)
+ylims!(0, 100)
+
+(D, U) = simulate_branching_process(
     D0,
     N,
     nsims,
@@ -130,15 +142,79 @@ import_cases = Int.(import_cases)
     cases_pre_forecast,
     forecast_start_date,
     file_date,
+    jurisdiction_assumptions.omicron_start_date,
     jurisdiction_assumptions.omicron_dominant_date,
     state,
     p_detect_omicron = p_detect_omicron,
-    adjust_TP = false,
+    adjust_TP = true,
 )
+
+# save_simulations(
+#     D,
+#     state,
+#     file_date,
+#     onset_dates,
+#     rng,
+# )
+
+let
+    forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
+    local_cases = local_case_dict[state][dates .>= forecast_start_date]
+    local_cases = local_cases[begin:end]
+    D_local = D[:, 1, :] + D[:, 2, :]
+    D_local_median = median(D_local, dims = 2)
+    D_local_mean = mean(D_local, dims = 2)
+
+    d_start = Dates.Date(forecast_start_date)
+    Δd = Dates.Day(1)
+    d_end = Dates.Date(forecast_start_date) + Δd * (size(D_local, 1) - 1)
+    D_local_dates = d_start:Δd:d_end
+    
+    f = plot()
+    # plot!(f, dates[dates .>= forecast_start_date], local_cases, legend = false, linealpha = 1, lc = 1)
+    # plot!(f, Z_historical[36:end, :], legend = false, lc = 3, linealpha = 0.5)
+    plot!(f, D_local_dates, D_local, legend = false, lc = 1, linealpha = 0.5)
+    plot!(f, dates[dates .>= forecast_start_date][begin:end-truncation_days+1], local_cases[begin:end-truncation_days+1], legend = false, lc = :black, lw = 2)
+    # plot!(f, local_cases2.date_onset, local_cases2.count, legend = false, linealpha = 1, lc = 1)
+    plot!(f, D_local_dates, D_local_median, legend = false, lc = 2, lw = 2)
+    vline!(f, [Dates.Date("2021-11-15")], ls = :dash, lc = :black)
+    # xlims!(f, 0, length(local_cases) + 35)
+    ylims!(f, 0, 9000)
+    xlims!(f, Dates.value(Dates.Date("2021-12-15")), Dates.value(Dates.Date("2022-03-31")))
+    # ylims!(f, 0, 500)
+end
+
+savefig(state * "_forecast_using_reff.pdf")
+
+let
+    forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
+    import_cases = import_case_dict[state][dates .>= forecast_start_date]
+    import_cases = import_cases[begin:end]
+    D_import = D[:, 3, :]
+    D_import_median = median(D_import, dims = 2)
+    D_import_mean = mean(D_import, dims = 2)
+
+    d_start = Dates.Date(forecast_start_date)
+    Δd = Dates.Day(1)
+    d_end = Dates.Date(forecast_start_date) + Δd * (size(D_import, 1) - 1)
+    D_import_dates = d_start:Δd:d_end
+        
+    f = plot()
+    # plot!(f, dates[dates .>= forecast_start_date], import_cases, legend = false, linealpha = 1, lc = 1)
+    # plot!(f, Z_historical[36:end, :], legend = false, lc = 3, linealpha = 0.5)
+    plot!(f, D_import_dates, D_import, legend = false, lc = 2, linealpha = 0.5)
+    plot!(f, dates[dates .>= forecast_start_date][begin:end-truncation_days+1], import_cases[begin:end-truncation_days+1], legend = false, linealpha = 1, lc = 1)
+    # plot!(f, import_cases2.date_onset, import_cases2.count, legend = false, linealpha = 1, lc = 1)
+    plot!(f, D_import_dates, D_import_median, legend = false, lc = 3)
+    vline!(f, [Dates.Date("2021-12-15")], ls = :dash, lc = :black)
+    # xlims!(f, 0, length(local_cases) + 35)
+    ylims!(f, 0, 20)
+    # xlims!(f, Dates.value(Dates.Date("2021-12-15")), Dates.value(Dates.Date("2022-03-31")))
+    # ylims!(f, 0, 500)
+end
 
 save_simulations(
     D,
-    TP_local,
     state,
     file_date,
     onset_dates,
