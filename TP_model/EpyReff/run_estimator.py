@@ -11,7 +11,7 @@ sys.path.insert(0, "TP_model/EpyReff")
 # this is not used in the estimation routine, it just lets the plot know what we ignore
 from params import (
     truncation_days,
-    start_date,
+    sim_start_date,
     use_TP_adjustment,
     scale_rd,
     shape_rd,
@@ -228,7 +228,7 @@ fig, ax = plot_all_states(
     R_summary_states,
     df_interim,
     dates,
-    start=start_date,
+    start=sim_start_date,
     end=file_date_updated,
     save=True,
     tau=tau,

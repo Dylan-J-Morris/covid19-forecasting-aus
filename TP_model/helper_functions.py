@@ -1,7 +1,6 @@
 # A collection of helper functions that are used throughout. This file is aimed to avoid replication of code.
 
 import pandas as pd
-import numpy as np
 from scipy.stats import rv_discrete
 
 def sample_discrete_dist(dist_disc_unnorm, nsamples):
@@ -30,10 +29,8 @@ def read_in_NNDSS(
         A dataframe of all NNDSS data.
     """
 
-    import numpy as np
     from datetime import timedelta
     import glob
-    from params import use_linelist, assume_local_cases_if_unknown
     from params import (
         rd_disc_pmf,
         inc_disc_pmf,

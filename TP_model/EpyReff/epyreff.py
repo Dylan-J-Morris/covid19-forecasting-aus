@@ -139,7 +139,6 @@ def index_by_infection_date(infections_wide):
     imported_statedict = dict(zip(statelist, np.repeat(None, len(statelist))))
 
     # Determine start date as the first infection date for all.
-    # start_date = np.datetime64("2020-02-01")
     start_date = df_combined.index.get_level_values("INFECTION_DATE").min()
 
     # Determine end dates as the last infected date by state.

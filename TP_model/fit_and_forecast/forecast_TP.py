@@ -16,16 +16,16 @@ from params import (
     truncation_days,
     third_start_date,
     start_date,
+    sim_start_date,
     use_TP_adjustment,
     n_days_nowcast_TP_adjustment,
-    num_TP_samples,
-    p_detect_omicron, 
+    mob_samples,
+    p_detect_omicron,   # only used for naming 
 )
 from scenarios import scenarios, scenario_dates
 from sys import argv
 from datetime import timedelta, datetime
 from scipy.special import expit
-from scipy.stats import truncnorm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -40,7 +40,7 @@ except ValueError:
     print("Need to pass more inputs.")
 
 # Define inputs
-sim_start_date = pd.to_datetime(start_date)
+sim_start_date = pd.to_datetime(sim_start_date)
 
 # Add 3 days buffer to mobility forecast
 num_forecast_days = num_forecast_days + 3
@@ -49,8 +49,6 @@ num_forecast_days = num_forecast_days + 3
 print("============")
 print("Generating TP forecasts using data from", data_date)
 print("============")
-
-start_date = "2020-03-01"
 
 # convert third start date to the correct format
 third_start_date = pd.to_datetime(third_start_date)
@@ -279,15 +277,20 @@ axes.append(ax_states)
 figs.append(fig)
 
 # Forecasting Params
-mob_samples = 2000
 n_training = 21  # Period to examine trend
 n_baseline = 150  # Period to create baseline
 n_training_vaccination = 30  # period to create trend for vaccination
 
 # since this can be useful, predictor ordering is:
-# ['retail_and_recreation_7days', 'grocery_and_pharmacy_7days', 'parks_7days', 'transit_stations_7days', 'workplaces_7days']
-# Loop through states and run forecasting.
+# [
+#     'retail_and_recreation_7days', 
+#     'grocery_and_pharmacy_7days', 
+#     'parks_7days', 
+#     'transit_stations_7days', 
+#     'workplaces_7days'
+# ]
 
+# Loop through states and run forecasting.
 print("============")
 print("Forecasting macro, micro and vaccination")
 print("============")
@@ -1079,10 +1082,6 @@ vaccination_by_state = vaccination_by_state.pivot(
     index="state", columns="date", values="effect"
 )  # Convert to matrix form
 
-# the above part only deals with data after the vaccination program begins -- we also need to account
-# for a fixed effect of 1.0 before that
-start_date = "2020-03-01"
-
 # initialise a complete dataframe which will be the full VE timeseries plus the forecasted VE
 df_ve_delta = pd.DataFrame()
 # loop over states and get the offset compoonenets of the full VE
@@ -1127,9 +1126,6 @@ vaccination_by_state = vaccination_by_state.pivot(
     index="state", columns="date", values="effect"
 )  # Convert to matrix form
 
-# the above part only deals with data after the vaccination program begins -- we also need to account
-# for a fixed effect of 1.0 before that
-start_date = "2020-03-01"
 # initialise a complete dataframe which will be the full VE timeseries plus the forecasted VE
 df_ve_omicron = pd.DataFrame()
 # loop over states and get the offset compoonenets of the full VE
@@ -2149,8 +2145,6 @@ for strain in ("Delta", "Omicron"):
             df_forecast2_after = df_forecast2_state_R_L.iloc[:, 9:].loc[idx].T
             # concatenate updated df with the forecasted TP
             df_full = pd.concat([Rt, df_forecast2_after], axis=1)
-            # starting date for the datastreams
-            start_date = "2020-03-01"
             # transpose the full df for consistent structuring
             df_full = df_full.T
             # calculate the summary statistics as per the original df

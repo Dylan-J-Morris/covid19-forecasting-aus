@@ -10,58 +10,42 @@ from scipy.stats import gamma
 
 ##### Key parameters #####
 use_linelist = True
-use_local_cases_input = True
 use_TP_adjustment = True
-testing_inference = False
 n_days_nowcast_TP_adjustment = 30
-# number of forecasted TP samples to save
-num_TP_samples = 2000  
+# number of forecasted TP samples to save (2000 appears to work well, but could probably get away
+# with fewer if memory is an issue).
+mob_samples = 2000  
 # number of days to remove to stop the issues with the right-truncation
 truncation_days = 14
 # Number of days after data date to forecast (usually 35)
 num_forecast_days = 35
 
 ##### Usually unchanged parameters, contains some dates and number of forecast #####
-p_detect_delta = 0.725  # increased slightly due to comparisons between Delta and Omicron waves
-# p_detect_omicron = 0.64  # default
+p_detect_delta = 0.725
 p_detect_omicron = 0.5  # default
-# p_detect_omicron = 0.375
-# p_detect_omicron = 0.25
 
+# this is the earliest date the simulations are run from and helps with plotting
+sim_start_date = "2021-06-25"
+# the start of the third wave is used for a lot of calibration across fitting and forecasting and 
+# so is included here
 third_start_date = "2021-06-25"
-start_date = "2021-06-25"
-# Date from which to apply the VoC Reff increase from particular strains (based on Reff model)
+# Date from which to apply the VoC Reff increase from particular strains
 alpha_start_date = "2020-12-01"  
 delta_start_date = "2021-05-01"  
 omicron_start_date = "2021-11-15"  
+# the date at which omicron is assumed to be dominant (this is deprecated but kept for logic)
 omicron_dominance_date = "2021-12-15"
 # vaccination program began mid Feb 2021
 vaccination_start_date = "2021-02-21"
-
-start_dates = {
-    "NSW": start_date,
-    "QLD": "2021-06-23",
-    "SA": "2021-06-23",
-    "TAS": "2021-06-23",
-    "WA": "2021-06-23",
-    "ACT": "2021-06-23",
-    "NT": "2021-06-23",
-    "VIC": "2021-08-01",
-}
-
-
-# Will download Google data automatically on run. Set to False for repeated runs. 
-# False is the preferable setting.
-download_google_automatically = False
-# assume local cases in the absence of a POI 
-assume_local_cases_if_unknown = True
+# start date for the TP forecasts (might be able to try moving this to ensure we can reduce memory
+# usage)?
+start_date = "2020-03-01"
 
 ##### Simulation parameters/transmission parameters #####
 ## reporting delay distribution: 
 # empirically estimated from the case data using MLE looked at duration between symptom onset 
 # and cofnirmation for cases where this was feasible and truncated this to be between 0 and 30 
 # (plenty of retropsective cases with negatives etc)
-# (shape_rd, scale_rd) = (1.28, 2.31)
 # range(22) = 0:21 
 (shape_rd, scale_rd) = (2.33, 1.35)
 rd_disc_pmf = [gamma.pdf(x, a=shape_rd, scale=scale_rd) for x in range(22)]

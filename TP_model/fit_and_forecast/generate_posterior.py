@@ -25,6 +25,7 @@ matplotlib.use("Agg")
 from params import (
     truncation_days,
     download_google_automatically,
+    start_date, 
     third_start_date,
     alpha_start_date, 
     omicron_start_date,
@@ -313,17 +314,16 @@ def get_data_for_posterior(data_date):
     first_states = sorted(["NSW", "VIC", "QLD", "SA", "WA", "TAS"])
     fit_post_March = True
     ban = "2020-03-20"
-    start_date = "2020-03-01"
-    end_date = "2020-03-31"
+    first_end_date = "2020-03-31"
 
     # data for the first wave
     first_date_range = {
-        "NSW": pd.date_range(start="2020-03-01", end=end_date).values,
-        "QLD": pd.date_range(start="2020-03-01", end=end_date).values,
-        "SA": pd.date_range(start="2020-03-01", end=end_date).values,
-        "TAS": pd.date_range(start="2020-03-01", end=end_date).values,
-        "VIC": pd.date_range(start="2020-03-01", end=end_date).values,
-        "WA": pd.date_range(start="2020-03-01", end=end_date).values,
+        "NSW": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "QLD": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "SA": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "TAS": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "VIC": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "WA": pd.date_range(start="2020-03-01", end=first_end_date).values,
     }
 
     # Second wave inputs
@@ -1063,17 +1063,16 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     first_states = sorted(["NSW", "VIC", "QLD", "SA", "WA", "TAS"])
     fit_post_March = True
     ban = "2020-03-20"
-    start_date = "2020-03-01"
-    end_date = "2020-03-31"
+    first_end_date = "2020-03-31"
 
     # data for the first wave
     first_date_range = {
-        "NSW": pd.date_range(start="2020-03-01", end=end_date).values,
-        "QLD": pd.date_range(start="2020-03-01", end=end_date).values,
-        "SA": pd.date_range(start="2020-03-01", end=end_date).values,
-        "TAS": pd.date_range(start="2020-03-01", end=end_date).values,
-        "VIC": pd.date_range(start="2020-03-01", end=end_date).values,
-        "WA": pd.date_range(start="2020-03-01", end=end_date).values,
+        "NSW": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "QLD": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "SA": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "TAS": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "VIC": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "WA": pd.date_range(start="2020-03-01", end=first_end_date).values,
     }
 
     # Second wave inputs
