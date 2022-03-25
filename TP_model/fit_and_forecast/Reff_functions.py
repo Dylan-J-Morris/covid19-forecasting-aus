@@ -31,7 +31,7 @@ def read_in_posterior(date, custom_file_name=""):
     return df
 
 
-def read_in_google(Aus_only=True, local=False, moving=False):
+def read_in_google(Aus_only=True, local=True, moving=False):
     """
     Read in the Google data set
     """
@@ -139,17 +139,18 @@ def predict_plot(
         if not second_phase and not third_phase:
             mu_hat = samples[
                 [
-                    "mu_hat."
+                    "mu_hat["
                     + str(j + 1)
-                    + "."
+                    + ","
                     + str(states_to_fitd[states_initials[state]])
+                    + "]"
                     for j in range(df_state.shape[0])
                 ]
             ].values.T
         elif second_phase:
             mu_hat = samples[
                 [
-                    "mu_hat_sec_wave." + str(j + 1)
+                    "mu_hat_sec_wave[" + str(j + 1) + "]"
                     for j in range(
                         pos,
                         pos
@@ -169,7 +170,7 @@ def predict_plot(
             if third_plot_type == "combined":
                 mu_hat = samples[
                     [
-                        "mu_hat_third_wave." + str(j + 1)
+                        "mu_hat_third_wave[" + str(j + 1) + "]"
                         for j in range(
                             pos,
                             pos
@@ -188,7 +189,7 @@ def predict_plot(
             elif third_plot_type == "delta":
                 mu_hat = samples[
                     [
-                        "mu_hat_delta_only." + str(j + 1)
+                        "mu_hat_delta_only[" + str(j + 1) + "]"
                         for j in range(
                             pos,
                             pos
@@ -207,7 +208,7 @@ def predict_plot(
             elif third_plot_type == "omicron":
                 mu_hat = samples[
                     [
-                        "mu_hat_omicron_only." + str(j + 1)
+                        "mu_hat_omicron_only[" + str(j + 1) + "]"
                         for j in range(
                             pos,
                             pos

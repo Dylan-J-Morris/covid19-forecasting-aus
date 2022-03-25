@@ -18,13 +18,12 @@ import pandas as pd
 import matplotlib
 from math import ceil
 import pickle
-import stan
+from cmdstanpy import CmdStanModel
 
 matplotlib.use("Agg")
 
 from params import (
     truncation_days,
-    download_google_automatically,
     start_date, 
     third_start_date,
     alpha_start_date, 
@@ -275,7 +274,7 @@ def get_data_for_posterior(data_date):
     ######### Read in Google mobility results #########
     sys.path.insert(0, "../")
 
-    df_google = read_in_google(local=not download_google_automatically, moving=True)
+    df_google = read_in_google(moving=True)
     df = df_google.merge(
         df_Reff[
             [
@@ -363,7 +362,7 @@ def get_data_for_posterior(data_date):
     if fit_post_March:
         fit_mask = (fit_mask) & (df.date >= start_date)
 
-    fit_mask = (fit_mask) & (df.date <= end_date)
+    fit_mask = (fit_mask) & (df.date <= first_end_date)
 
     second_wave_mask = df.state.isin(sec_states)
     second_wave_mask = (second_wave_mask) & (df.date >= sec_start_date)
@@ -499,13 +498,13 @@ def get_data_for_posterior(data_date):
             dfX.loc[dfX.state == state, [val + "_std" for val in predictors]].values
             / 100
         )
-        count_by_state.append(survey_counts.loc[start_date:end_date, state].values)
-        respond_by_state.append(survey_respond.loc[start_date:end_date, state].values)
+        count_by_state.append(survey_counts.loc[start_date:first_end_date, state].values)
+        respond_by_state.append(survey_respond.loc[start_date:first_end_date, state].values)
         mask_wearing_count_by_state.append(
-            mask_wearing_counts.loc[start_date:end_date, state].values
+            mask_wearing_counts.loc[start_date:first_end_date, state].values
         )
         mask_wearing_respond_by_state.append(
-            mask_wearing_respond.loc[start_date:end_date, state].values
+            mask_wearing_respond.loc[start_date:first_end_date, state].values
         )
         include_in_first_wave.append(
             dfX.loc[dfX.state == state, "is_first_wave"].values
@@ -740,7 +739,7 @@ def get_data_for_posterior(data_date):
         "p_detect_omicron": p_detect_omicron, 
     }
 
-    # dump the dictionary to a json filex
+    # dump the dictionary to a json file
     a_file = open("results/stan_input_data.pkl", "wb")
     pickle.dump(input_data, a_file)
     a_file.close()
@@ -790,18 +789,23 @@ def run_stan(
     if run_inference:
 
         # import the stan model as a string
-        with open("TP_model/fit_and_forecast/rho_model_gamma.stan") as f:
-            rho_model_gamma = f.read()
+        # with open("TP_model/fit_and_forecast/rho_model_gamma.stan") as f:
+        #     rho_model_gamma = f.read()
+            
+        rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma.stan"
 
         # compile the stan model
-        posterior = stan.build(rho_model_gamma, data=input_data)
-        fit = posterior.sample(
-            num_chains=num_chains,
-            num_samples=num_samples,
-            num_warmup=num_warmup_samples,
+        model = CmdStanModel(stan_file=rho_model_gamma)
+
+        # obtain a posterior sample from the model conditioned on the data
+        fit = model.sample(
+            chains=num_chains, 
+            iter_warmup=num_warmup_samples, 
+            iter_sampling=num_samples, 
+            data=input_data,
         )
         
-        df_fit = fit.to_frame()
+        df_fit = fit.draws_pd()
         df_fit.to_csv(
             results_dir
             + "posterior_sample_" 
@@ -809,27 +813,42 @@ def run_stan(
             + ".csv"
         )
         
-        filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
-        with open(figs_dir + filename, "w") as f:
-            print(
-                az.summary(
-                    fit,
-                    var_names=[
-                        "bet",
-                        "R_I",
-                        "R_I_omicron",
-                        "R_L",
-                        "R_Li",
-                        "theta_md",
-                        "sig",
-                        "voc_effect_alpha",
-                        "voc_effect_delta",
-                        "voc_effect_omicron",
-                        "susceptible_depletion_factor",
-                    ],
-                ),
-                file=f,
-            )
+        # output a set of diagnostics
+        filename = (
+            figs_dir 
+            + "fit_summary_all_parameters" 
+            + data_date.strftime("%Y-%m-%d") 
+            + ".csv"
+        )
+        
+        # save a huge summary file
+        fit_summary = fit.summary()
+        fit_summary.to_csv(filename)
+        
+        # now save a small summary to easily view
+        pars_of_interest = ["bet[" + str(i + 1) + "]" for i in range(5)]
+        pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(5)]
+        pars_of_interest = pars_of_interest + [
+            "R_I",
+            "R_L",
+            "theta_md",
+            "sig",
+            "voc_effect_alpha",
+            "voc_effect_delta",
+            "voc_effect_omicron",
+            "susceptible_depletion_factor",
+        ]
+        
+        # save a summary for ease of viewing
+        # output a set of diagnostics
+        filename = (
+            figs_dir 
+            + "fit_summary_main_parameters" 
+            + data_date.strftime("%Y-%m-%d") 
+            + ".csv"
+        )
+        
+        fit_summary.loc[pars_of_interest].to_csv(filename) 
 
     return None
 
@@ -1024,7 +1043,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     ######### Read in Google mobility results #########
     sys.path.insert(0, "../")
 
-    df_google = read_in_google(local=not download_google_automatically, moving=True)
+    df_google = read_in_google(moving=True)
     df = df_google.merge(
         df_Reff[
             [
@@ -1115,7 +1134,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     if fit_post_March:
         fit_mask = (fit_mask) & (df.date >= start_date)
 
-    fit_mask = (fit_mask) & (df.date <= end_date)
+    fit_mask = (fit_mask) & (df.date <= first_end_date)
 
     second_wave_mask = df.state.isin(sec_states)
     second_wave_mask = (second_wave_mask) & (df.date >= sec_start_date)
@@ -1248,13 +1267,13 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             dfX.loc[dfX.state == state, [val + "_std" for val in predictors]].values
             / 100
         )
-        count_by_state.append(survey_counts.loc[start_date:end_date, state].values)
-        respond_by_state.append(survey_respond.loc[start_date:end_date, state].values)
+        count_by_state.append(survey_counts.loc[start_date:first_end_date, state].values)
+        respond_by_state.append(survey_respond.loc[start_date:first_end_date, state].values)
         mask_wearing_count_by_state.append(
-            mask_wearing_counts.loc[start_date:end_date, state].values
+            mask_wearing_counts.loc[start_date:first_end_date, state].values
         )
         mask_wearing_respond_by_state.append(
-            mask_wearing_respond.loc[start_date:end_date, state].values
+            mask_wearing_respond.loc[start_date:first_end_date, state].values
         )
         include_in_first_wave.append(
             dfX.loc[dfX.state == state, "is_first_wave"].values
@@ -1363,11 +1382,11 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             dates = df_Reff.loc[
                 (df_Reff.date >= start_date)
                 & (df_Reff.state == state)
-                & (df_Reff.date <= end_date)
+                & (df_Reff.date <= first_end_date)
             ].date
             rho_samples = samples_mov_gamma[
                 [
-                    "brho." + str(j + 1) + "." + str(states_to_fitd[state])
+                    "brho[" + str(j + 1) + "," + str(states_to_fitd[state]) + "]"
                     for j in range(dfX.loc[dfX.state == first_states[0]].shape[0])
                 ]
             ]
@@ -1394,7 +1413,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 data=df_state.loc[
                     (df_state.date_inferred >= start_date)
                     & (df_state.STATE == state)
-                    & (df_state.date_inferred <= end_date)
+                    & (df_state.date_inferred <= first_end_date)
                 ],
                 ax=ax[i],
                 color="C1",
@@ -1407,7 +1426,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             data=df_Reff.loc[
                 (df_Reff.date >= start_date)
                 & (df_Reff.state == state)
-                & (df_Reff.date <= end_date)
+                & (df_Reff.date <= first_end_date)
             ],
             ax=ax[i],
             color="C1",
@@ -1419,7 +1438,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             data=df_Reff.loc[
                 (df_Reff.date >= start_date)
                 & (df_Reff.state == state)
-                & (df_Reff.date <= end_date)
+                & (df_Reff.date <= first_end_date)
             ],
             ax=ax[i],
             color="C2",
@@ -1452,7 +1471,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             ].date.values
             rho_samples = samples_mov_gamma[
                 [
-                    "brho_sec_wave." + str(j + 1)
+                    "brho_sec_wave[" + str(j + 1) + "]"
                     for j in range(
                         pos, pos + df2X.loc[df2X.state == state].is_sec_wave.sum()
                     )
@@ -1542,7 +1561,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             ].date.values
             rho_samples = samples_mov_gamma[
                 [
-                    "brho_third_wave." + str(j + 1)
+                    "brho_third_wave[" + str(j + 1) + "]"
                     for j in range(
                         pos, pos + df3X.loc[df3X.state == state].is_third_wave.sum()
                     )
@@ -1670,7 +1689,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     ax.set_xticklabels(
         [
             "R_I",
-            "R_I_omicron",
+            # "R_I_omicron",
             "R_L0 mean",
             "R_L0 ACT",
             "R_L0 NSW",
@@ -1695,7 +1714,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     # Making a new figure that doesn't include the priors
     fig, ax = plt.subplots(figsize=(12, 9))
 
-    small_plot_cols = ["R_Li." + str(i) for i in range(1, 9)] + ["R_I"]
+    small_plot_cols = ["R_Li[" + str(i) + "]" for i in range(1, 9)] + ["R_I"]
 
     sns.violinplot(
         x="variable",
@@ -1771,7 +1790,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         dpi=288,
     )
 
-    posterior = samples_mov_gamma[["bet." + str(i + 1) for i in range(len(predictors))]]
+    posterior = samples_mov_gamma[["bet[" + str(i + 1) + "]" for i in range(len(predictors))]]
 
     split = True
     md = "power"  # samples_mov_gamma.md.values
@@ -1808,12 +1827,12 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
 
     # plot the TP's
     RL_by_state = {
-        state: samples_mov_gamma["R_Li." + str(i + 1)].values
+        state: samples_mov_gamma["R_Li[" + str(i + 1) + "]"].values
         for state, i in state_index.items()
     }
     ax3 = predict_plot(
         samples_mov_gamma,
-        df.loc[(df.date >= start_date) & (df.date <= end_date)],
+        df.loc[(df.date >= start_date) & (df.date <= first_end_date)],
         moving=True,
         grocery=True,
         rho=first_states,
@@ -1821,7 +1840,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     for ax in ax3:
         for a in ax:
             a.set_ylim((0, 2.5))
-            a.set_xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
+            a.set_xlim((pd.to_datetime(start_date), pd.to_datetime(first_end_date)))
 
     plt.savefig(
         figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_first_phase.png",
@@ -1943,10 +1962,10 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
 
     # extrac the samples
     delta_ve_samples = samples_mov_gamma[
-        ["ve_delta." + str(j + 1) for j in range(third_days_tot)]
+        ["ve_delta[" + str(j + 1) + "]" for j in range(third_days_tot)]
     ].T
     omicron_ve_samples = samples_mov_gamma[
-        ["ve_omicron." + str(j + 1) for j in range(third_omicron_days_tot)]
+        ["ve_omicron[" + str(j + 1) + "]" for j in range(third_omicron_days_tot)]
     ].T
 
     # now we plot and save the adjusted ve time series to be read in by the forecasting
@@ -2108,10 +2127,10 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     fig, ax = plt.subplots(figsize=(15, 12), nrows=4, ncols=2, sharex=True, sharey=True)
 
     for (i, state) in enumerate(third_states):
-        m0 = np.tile(samples_mov_gamma.loc[:, "m0." + str(i + 1)], (len(omicron_date_range), 1))
-        m1 = np.tile(samples_mov_gamma.loc[:, "m1." + str(i + 1)], (len(omicron_date_range), 1))
-        r = np.tile(samples_mov_gamma.loc[:, "r." + str(i + 1)], (len(omicron_date_range), 1))
-        tau = np.tile(samples_mov_gamma.loc[:, "tau." + str(i + 1)] , (len(omicron_date_range), 1))
+        # m0 = np.tile(samples_mov_gamma.loc[:, "m0[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        m1 = np.tile(samples_mov_gamma.loc[:, "m1[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        r = np.tile(samples_mov_gamma.loc[:, "r[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        tau = np.tile(samples_mov_gamma.loc[:, "tau[" + str(i + 1) + "]"] , (len(omicron_date_range), 1))
         
         omicron_start_date_tmp = max(
             pd.to_datetime(omicron_start_date), third_date_range[state][0]
@@ -2120,10 +2139,13 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             omicron_start_date_tmp, third_date_range[state][-1]
         )
         
-        if state in {"TAS", "WA", "NT"}:
-            prop_omicron_to_delta_tmp = m1 
-        else:
-            prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+        # if state in {"TAS", "WA", "NT"}:
+        #     prop_omicron_to_delta_tmp = m1 
+        # else:
+        #     prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+        
+        # prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+        prop_omicron_to_delta_tmp = m1 / (1 + np.exp(-r * (t - tau)))
         
         ax[i // 2, i % 2].plot(
             omicron_date_range, 
@@ -2189,7 +2211,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     # saving the final processed posterior samples to h5 for generate_RL_forecasts.py
     var_to_csv = predictors
     samples_mov_gamma[predictors] = samples_mov_gamma[
-        ["bet." + str(i + 1) for i in range(len(predictors))]
+        ["bet[" + str(i + 1) + "]" for i in range(len(predictors))]
     ]
     var_to_csv = [
         "R_I",
@@ -2205,16 +2227,16 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     var_to_csv = (
         var_to_csv
         + predictors
-        + ["R_Li." + str(i + 1) for i in range(len(states_to_fit_all_waves))]
+        + ["R_Li[" + str(i + 1) + "]" for i in range(len(states_to_fit_all_waves))]
     )
-    var_to_csv = var_to_csv + ["ve_delta." + str(j + 1) for j in range(third_days_tot)]
+    var_to_csv = var_to_csv + ["ve_delta[" + str(j + 1) + "]" for j in range(third_days_tot)]
     var_to_csv = var_to_csv + [
-        "ve_omicron." + str(j + 1) for j in range(third_omicron_days_tot)
+        "ve_omicron[" + str(j + 1) + "]" for j in range(third_omicron_days_tot)
     ]
-    var_to_csv = var_to_csv + ["r." + str(j + 1) for j in range(len(third_states))]
-    var_to_csv = var_to_csv + ["tau." + str(j + 1) for j in range(len(third_states))]
-    var_to_csv = var_to_csv + ["m0." + str(j + 1) for j in range(len(third_states))]
-    var_to_csv = var_to_csv + ["m1." + str(j + 1) for j in range(len(third_states))]
+    var_to_csv = var_to_csv + ["r[" + str(j + 1) + "]" for j in range(len(third_states))]
+    var_to_csv = var_to_csv + ["tau[" + str(j + 1) + "]" for j in range(len(third_states))]
+    # var_to_csv = var_to_csv + ["m0[" + str(j + 1) + "]" for j in range(len(third_states))]
+    var_to_csv = var_to_csv + ["m1[" + str(j + 1) + "]" for j in range(len(third_states))]
 
     # save the posterior
     samples_mov_gamma[var_to_csv].to_hdf(
@@ -2238,14 +2260,12 @@ def main(data_date, run_inference=True):
     """
     # some parameters for HMC
     custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
-        
+    get_data_for_posterior(data_date=data_date)    
+    
     if run_inference:     
         num_chains = 4
-        num_samples = 2000
-        num_warmup_samples = 1000
-        # num_samples = 200
-        # num_warmup_samples = 200
-        get_data_for_posterior(data_date=data_date)
+        num_samples = 500
+        num_warmup_samples = 500
         
         run_stan(
             data_date=data_date,

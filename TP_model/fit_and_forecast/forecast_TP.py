@@ -1375,10 +1375,10 @@ for strain in ("Delta", "Omicron"):
         vacc_ts_omicron = df_ve_omicron[state]
         # take right size of md to be N by N
         theta_md = np.tile(samples["theta_md"].values, (df_state.shape[0], 1))
-        r = samples["r." + str(kk + 1)].values
-        tau = samples["tau." + str(kk + 1)].values
-        m0 = samples["m0." + str(kk + 1)].values
-        m1 = samples["m1." + str(kk + 1)].values
+        r = samples["r[" + str(kk + 1) + "]"].values
+        tau = samples["tau[" + str(kk + 1) + "]"].values
+        m0 = samples["m0[" + str(kk + 1) + "]"].values
+        m1 = samples["m1[" + str(kk + 1) + "]"].values
         susceptible_depletion_factor = samples["susceptible_depletion_factor"].values
         md = ((1 + theta_md).T ** (-1 * prop_sim)).T
         third_states_indices = {
@@ -1395,7 +1395,7 @@ for strain in ("Delta", "Omicron"):
         third_days_tot = sum(v for v in third_days.values())
         # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
         sampled_vax_effects_all = samples[
-            ["ve_delta." + str(j + 1) for j in range(third_days_tot)]
+            ["ve_delta[" + str(j + 1) + "]" for j in range(third_days_tot)]
         ].T
         vacc_tmp = sampled_vax_effects_all.iloc[vax_idx_ranges[state], :]
         # now we layer in the posterior vaccine multiplier effect which ill be a (T,mob_samples) array
@@ -1438,7 +1438,7 @@ for strain in ("Delta", "Omicron"):
         # get the sampled vaccination effect (this will be incomplete as it's only over the fitting period)
         sampled_vax_effects_all = (
             samples[
-                ["ve_omicron." + str(j + 1) for j in range(third_omicron_days_tot)]
+                ["ve_omicron[" + str(j + 1) + "]" for j in range(third_omicron_days_tot)]
             ].T
         )
         vacc_tmp = sampled_vax_effects_all.iloc[omicron_ve_idx_ranges[state], :]
@@ -1498,7 +1498,7 @@ for strain in ("Delta", "Omicron"):
         voc_multiplier_omicron = samples["voc_effect_omicron"].values
 
         # sample the right R_L
-        sim_R = samples["R_Li." + state_key[state]].values
+        sim_R = samples["R_Li[" + state_key[state] + "]"].values
 
         for n in range(mob_samples):
             # add gaussian noise to predictors before forecast
@@ -2139,8 +2139,11 @@ for strain in ("Delta", "Omicron"):
             Rt = pd.DataFrame.from_dict(Rt, orient="index", columns=df_cases_local_ma.index)
 
             # next step is to stich the adjusted df back with the forecasting of TP
-            idx = pd.to_datetime(df_forecast2_state_R_L.date) > pd.to_datetime(data_date) - pd.Timedelta(
-                days=truncation_days + n_days_nowcast_TP_adjustment - 1
+            idx = (
+                pd.to_datetime(df_forecast2_state_R_L.date) > (
+                    pd.to_datetime(data_date) 
+                    - pd.Timedelta(days=truncation_days + n_days_nowcast_TP_adjustment - 1)
+                )
             )
             df_forecast2_after = df_forecast2_state_R_L.iloc[:, 9:].loc[idx].T
             # concatenate updated df with the forecasted TP
