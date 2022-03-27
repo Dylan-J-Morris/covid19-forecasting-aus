@@ -786,69 +786,70 @@ def run_stan(
     os.makedirs(results_dir, exist_ok=True)
 
     # to run the inference set run_inference to True in params
-    if run_inference:
+    # path to the stan model 
+    # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma.stan"
+    rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_prod.stan"
 
-        # import the stan model as a string
-        # with open("TP_model/fit_and_forecast/rho_model_gamma.stan") as f:
-        #     rho_model_gamma = f.read()
-            
-        rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma.stan"
+    # compile the stan model
+    model = CmdStanModel(stan_file=rho_model_gamma)
 
-        # compile the stan model
-        model = CmdStanModel(stan_file=rho_model_gamma)
-
-        # obtain a posterior sample from the model conditioned on the data
-        fit = model.sample(
-            chains=num_chains, 
-            iter_warmup=num_warmup_samples, 
-            iter_sampling=num_samples, 
-            data=input_data,
-        )
-        
-        df_fit = fit.draws_pd()
-        df_fit.to_csv(
-            results_dir
-            + "posterior_sample_" 
-            + data_date.strftime("%Y-%m-%d") 
-            + ".csv"
-        )
-        
-        # output a set of diagnostics
-        filename = (
-            figs_dir 
-            + "fit_summary_all_parameters" 
-            + data_date.strftime("%Y-%m-%d") 
-            + ".csv"
-        )
-        
-        # save a huge summary file
-        fit_summary = fit.summary()
-        fit_summary.to_csv(filename)
-        
-        # now save a small summary to easily view
-        pars_of_interest = ["bet[" + str(i + 1) + "]" for i in range(5)]
-        pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(5)]
-        pars_of_interest = pars_of_interest + [
-            "R_I",
-            "R_L",
-            "theta_md",
-            "sig",
-            "voc_effect_alpha",
-            "voc_effect_delta",
-            "voc_effect_omicron",
-            "susceptible_depletion_factor",
-        ]
-        
-        # save a summary for ease of viewing
-        # output a set of diagnostics
-        filename = (
-            figs_dir 
-            + "fit_summary_main_parameters" 
-            + data_date.strftime("%Y-%m-%d") 
-            + ".csv"
-        )
-        
-        fit_summary.loc[pars_of_interest].to_csv(filename) 
+    # obtain a posterior sample from the model conditioned on the data
+    fit = model.sample(
+        chains=num_chains, 
+        iter_warmup=num_warmup_samples, 
+        iter_sampling=num_samples, 
+        data=input_data,
+    )
+    
+    # display convergence diagnostics for the current run 
+    print("===========")
+    print(fit.diagnose())
+    print("===========")
+    
+    df_fit = fit.draws_pd()
+    df_fit.to_csv(
+        results_dir
+        + "posterior_sample_" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
+    
+    # output a set of diagnostics
+    filename = (
+        figs_dir 
+        + "fit_summary_all_parameters" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
+    
+    # save a huge summary file
+    fit_summary = fit.summary()
+    fit_summary.to_csv(filename)
+    
+    # now save a small summary to easily view
+    pars_of_interest = ["bet[" + str(i + 1) + "]" for i in range(5)]
+    pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(5)]
+    pars_of_interest = pars_of_interest + [
+        "R_I",
+        "R_L",
+        "theta_md",
+        "sig",
+        "voc_effect_alpha",
+        "voc_effect_delta",
+        "voc_effect_omicron",
+        "susceptible_depletion_factor",
+    ]
+    
+    # save a summary for ease of viewing
+    # output a set of diagnostics
+    filename = (
+        figs_dir 
+        + "fit_summary_main_parameters" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
+    
+    fit_summary.loc[pars_of_interest].to_csv(filename) 
 
     return None
 
@@ -1689,7 +1690,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     ax.set_xticklabels(
         [
             "R_I",
-            # "R_I_omicron",
+            "R_I_omicron",
             "R_L0 mean",
             "R_L0 ACT",
             "R_L0 NSW",
