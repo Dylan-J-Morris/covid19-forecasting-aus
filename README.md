@@ -30,12 +30,17 @@ The model can be broken down into two components
 6. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `/data`.
 
 ### Required Python/Julia packages
-To run the TP model component of the code you will need `matplotlib pandas numpy arviz pystan pyarrow fastparquet seaborn tables tqdm scipy pytables` installed in Python. For older versions of Python, you can use `stan` instead of `pystan`. This can be triggered by setting `on_phoenix=True` in `params.py`.
+To run the TP model component of the code you will need `matplotlib pandas numpy arviz cmdstanpy pyarrow fastparquet seaborn tables tqdm scipy pytables` installed in Python. The model uses Cmdstan in the `cmdstanpy` framework. The previous implementation of the code used Pystan but due to some recent changes in the Stan ecosystem and for consistency across platforms, we've moved to a more stable framework. Upon installation of `cmdstanpy`, you need to run:
+```
+cmdstanpy.install_cmdstan()
+```
+This can take some time to run as it installs and links all C++ libraries required for the latest stable Cmdstan build. 
 
 For the generative model, you will need to have Julia installed. The packages used can all be installed by running:
 ```
 julia generative_model/install_pkgs.jl
 ```
+In the future we may put the generative model code into a package but for ease of use we currently supply a very naieve approach for installation.
 
 ### Model options
 There are some options used within the model that are not passed as parameters. These are all found in the `TP_model/params.py` file. Additionally, options/assumptions have been made during the fitting in `TP_model/fitting_and_forecasting/generate_posterior.py`. Before running either workflow, ensure the flags in the `model/params.py` file are set accordingly. Typically this will involve setting `on_phoenix=True` to either true (if using HPC) of `False` (if running locally), setting `run_inference=True`, `testing_inference=False` and `run_inference_only=False`. The latter two flags are used to save time by not plotting in the stan fitting part of `generate_posterior.py`. 
