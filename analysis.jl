@@ -35,19 +35,57 @@ gr()
 default(
 	linewidth=1.5, 
 	label=nothing, 
-	framestyle=:box
+	framestyle=:box,
 )
 scalefontsizes(0.95)
 
 ##
 
-samples = CSV.read("mu_hat_New South Wales.csv", DataFrame)
-samples = CSV.read("mu_hat_Victoria.csv", DataFrame)
-
 samples = CSV.read(
-    "results/2022-03-15/50_case_ascertainment/posterior_sample_2022-03-15.csv", 
+    "results/2022-03-22/50_case_ascertainment/posterior_sample_2022-03-22.csv", 
     DataFrame, 
 )
+
+scatter(samples[!, "m1[7]"], samples[!, "r[7]"])
+
+
+fig = plot(layout = 12, legend = false)
+for i in 369:380
+    plot!(fig, subplot = i - 368, samples[!, "prop_md_third_wave." * string(i)])
+end
+fig
+
+fig = plot(layout = 12, legend = false)
+for i in 369:380
+    plot!(fig, subplot = i - 368, kde(samples[!, "prop_md_third_wave." * string(i)]))
+end
+fig
+
+plot(samples[1:1000, "prop_md_third_wave.370"])
+plot!(samples[1001:2000, "prop_md_third_wave.370"])
+plot!(samples[2001:3000, "prop_md_third_wave.370"])
+plot!(samples[3001:4000, "prop_md_third_wave.370"])
+
+plot(kde(samples[1:1000, "prop_md_third_wave.370"]))
+plot!(kde(samples[1001:2000, "prop_md_third_wave.370"]))
+plot!(kde(samples[2001:3000, "prop_md_third_wave.370"]))
+plot!(kde(samples[3001:4000, "prop_md_third_wave.370"]))
+
+plot(samples[1:1000, "bet.5"])
+plot!(samples[1001:2000, "bet.5"])
+plot!(samples[2001:3000, "bet.5"])
+plot!(samples[3001:4000, "bet.5"])
+
+plot((cumsum(samples[1:1000, "bet.5"])) ./ (1:1000))
+plot!((cumsum(samples[1001:2000, "bet.5"])) ./ (1:1000))
+plot!((cumsum(samples[2001:3000, "bet.5"])) ./ (1:1000))
+plot!((cumsum(samples[3001:4000, "bet.5"])) ./ (1:1000))
+
+plot(kde(samples[1:1000, "bet.4"]))
+
+plot!(kde(samples[1001:2000, "bet.4"]))
+plot!(kde(samples[2001:3000, "bet.4"]))
+plot!(kde(samples[3001:4000, "bet.4"]))
 
 plot(samples[!, "theta_md"])
 plot(samples[1:2000, "theta_md"])
@@ -70,8 +108,63 @@ plot(kde(samples[!, "theta_md"]))
 # plot(0:50, f1.(0:50))
 # plot!(0:50, f2.(0:50))
 
-plot_kde = false
-plot_traceplots = true
+using MCMCDiagnostics
+
+function ess(X)
+
+    # get number of samples and parameters
+    (samp, par) = size(X)
+
+    # vector for storing ESS 
+    n_eff = zeros(par)
+
+    # lags to evaluate the correlations at
+    lags = convert.(Int, round.(0:ceil(samp / 2), digits = 0))
+
+    # now evaluate ess for each parameter
+    for ii = 1:par 
+        ac1 = autocor(X[:,ii], lags)
+        cut = findfirst(x -> x < 0, ac1)
+        pt_total = sum(ac1[2:cut])
+        n_eff[ii] = samp / (1 + 2 * pt_total)
+    end
+
+    return n_eff
+
+end
+
+
+cut = findfirst(x -> x < 0, ac1)
+pt_total = sum(ac1[2:cut])
+n_eff[ii] = samp / (1 + 2 * pt_total)
+
+samples_only = samples[1:1000, 9:end]
+samples_mat = Matrix(samples_only)
+
+# get number of samples and parameters
+(samp, par) = size(samples_mat)
+
+# vector for storing ESS 
+n_eff = zeros(par)
+
+# lags to evaluate the correlations at
+lags = convert.(Int, round.(0:ceil(samp / 2), digits = 0))
+
+# now evaluate ess for each parameter
+ii = 5
+ac1 = autocor(samples_mat[:,ii], lags)
+plot(ac1[1:10])
+
+ess_samples_only = ess(samples_mat)
+# some negative ess???
+bad_samples = findall(ess_samples_only .< 0)
+
+plot(samples_mat[:, bad_samples[1:5]], layout = 5)
+
+samples_only[!,9136:9138]
+
+plot_kde = true
+plot_traceplots = false
 
 # filter by divergent samples
 # samples_good = filter(:divergent__ => ==(0.0), samples)
@@ -79,9 +172,16 @@ plot_traceplots = true
 
 # plot traceplots for ALL parameters in samples (this will take a few minutes and 
 # will produce quite a large pdf).
+samples = CSV.read(
+    "results/2022-03-22/50_case_ascertainment/posterior_sample_2022-03-22.csv", 
+    DataFrame, 
+)
 
-if plot_kde 
+let
 
+    num_samples = nrow(samples)
+    num_each_chain = num_samples ÷ 4
+    
     sp = 1
     page = 1
 
@@ -108,7 +208,9 @@ if plot_kde
             )
         end
         # plot!(fig, subplot = sp, samples[!,name])
-        plot!(fig, subplot = sp, kde(samples[!,name]))
+        for i in 1:4
+            plot!(fig, subplot = sp, kde(samples[(1 + (i - 1) * num_each_chain):(i * num_each_chain),name]))
+        end
         xlabel!(fig, subplot = sp, name)
         sp += 1
         if sp == 8*5 + 1 || sp == length(names_to_plot) + 1
@@ -129,8 +231,6 @@ if plot_kde
         "tmp_plots/kde.pdf",
         cleanup=true,
     )
-    
-elseif plot_traceplots
 
     sp = 1
     page = 1
@@ -158,7 +258,9 @@ elseif plot_traceplots
             )
         end
         # plot!(fig, subplot = sp, samples[!,name])
-        plot!(fig, subplot = sp, samples[!,name])
+        for i in 1:4
+            plot!(fig, subplot = sp, samples[(1 + (i - 1) * num_each_chain):(i * num_each_chain),name])
+        end
         xlabel!(fig, subplot = sp, name)
         sp += 1
         if sp == 8*5 + 1 || sp == length(names_to_plot) + 1
