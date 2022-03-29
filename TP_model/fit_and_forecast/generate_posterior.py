@@ -753,6 +753,7 @@ def run_stan(
     num_samples=1000, 
     num_warmup_samples=500, 
     custom_file_name="",
+    max_treedepth=15,
 ):
     """
     Read the input_data.json in and run the stan model.
@@ -799,6 +800,7 @@ def run_stan(
         iter_warmup=num_warmup_samples, 
         iter_sampling=num_samples, 
         data=input_data,
+        max_treedepth=max_treedepth,
     )
     
     # display convergence diagnostics for the current run 
@@ -833,6 +835,7 @@ def run_stan(
         "R_I",
         "R_L",
         "theta_md",
+        "theta_masks",
         "sig",
         "voc_effect_alpha",
         "voc_effect_delta",
@@ -1673,7 +1676,9 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         x="variable",
         y="value",
         data=pd.melt(
-            samples_mov_gamma[[col for col in samples_mov_gamma if "R" in col]]
+            samples_mov_gamma[[
+                col for col in samples_mov_gamma if "R" in col and col not in ("R_I0", "R_I0_omicron")
+            ]]
         ),
         ax=ax,
         cut=0,
@@ -2236,7 +2241,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     ]
     var_to_csv = var_to_csv + ["r[" + str(j + 1) + "]" for j in range(len(third_states))]
     var_to_csv = var_to_csv + ["tau[" + str(j + 1) + "]" for j in range(len(third_states))]
-    # var_to_csv = var_to_csv + ["m0[" + str(j + 1) + "]" for j in range(len(third_states))]
+    var_to_csv = var_to_csv + ["m0[" + str(j + 1) + "]" for j in range(len(third_states))]
     var_to_csv = var_to_csv + ["m1[" + str(j + 1) + "]" for j in range(len(third_states))]
 
     # save the posterior
@@ -2259,14 +2264,16 @@ def main(data_date, run_inference=True):
     """
     Runs the stan model in parts to cut down on memory.
     """
-    # some parameters for HMC
-    custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
-    get_data_for_posterior(data_date=data_date)    
     
     if run_inference:     
+        # some parameters for HMC
+        custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
+        get_data_for_posterior(data_date=data_date)    
+        
         num_chains = 4
-        num_samples = 500
+        num_samples = 1000
         num_warmup_samples = 500
+        max_treedepth = 12
         
         run_stan(
             data_date=data_date,
@@ -2274,6 +2281,7 @@ def main(data_date, run_inference=True):
             num_samples=num_samples,
             num_warmup_samples=num_warmup_samples,
             custom_file_name=custom_file_name,
+            max_treedepth=max_treedepth,
         )
         
     plot_and_save_posterior_samples(
