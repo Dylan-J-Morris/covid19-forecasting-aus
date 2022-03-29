@@ -20,7 +20,7 @@ U = []
 TP_local = []
 
 # parameters to pass to the main function
-file_date = "2022-03-15"
+file_date = "2022-03-22"
 
 # set seed for consistent plots (NOTE: this is not useful when multithreading 
 # enabled as we use separate seeds but the simulation pool should handle that)
@@ -88,7 +88,7 @@ using ProfileView
 include("simulate_states.jl")
 
 # parameters to pass to the main function
-file_date = "2022-03-15"
+file_date = "2022-03-22"
 
 # set seed for consistent plots (NOTE: this is not useful when multithreading 
 # enabled as we use separate seeds but the simulation pool should handle that)
@@ -146,16 +146,23 @@ ylims!(0, 100)
     jurisdiction_assumptions.omicron_dominant_date,
     state,
     p_detect_omicron = p_detect_omicron,
-    adjust_TP = true,
+    adjust_TP = false,
 )
 
-# save_simulations(
-#     D,
-#     state,
-#     file_date,
-#     onset_dates,
-#     rng,
-# )
+save_simulations(
+    D,
+    state,
+    file_date,
+    onset_dates,
+    rng,
+)
+
+sims_old = CSV.read(
+    "results/UoA_forecast_output/2022-03-08/NSW_2022-03-08_sim.csv", 
+    DataFrame, 
+)
+
+sims_old_mat = Matrix(sims_old[:, 3:end-1])
 
 let
     forecast_start_date = Dates.Date(jurisdiction_assumptions.simulation_start_dates[state])
@@ -174,12 +181,13 @@ let
     # plot!(f, dates[dates .>= forecast_start_date], local_cases, legend = false, linealpha = 1, lc = 1)
     # plot!(f, Z_historical[36:end, :], legend = false, lc = 3, linealpha = 0.5)
     plot!(f, D_local_dates, D_local, legend = false, lc = 1, linealpha = 0.5)
+    # plot!(f, sims_old[!, "onset date"], sims_old_mat, legend = false, lc = 2, linealpha = 0.5)
     plot!(f, dates[dates .>= forecast_start_date][begin:end-truncation_days+1], local_cases[begin:end-truncation_days+1], legend = false, lc = :black, lw = 2)
     # plot!(f, local_cases2.date_onset, local_cases2.count, legend = false, linealpha = 1, lc = 1)
     plot!(f, D_local_dates, D_local_median, legend = false, lc = 2, lw = 2)
     vline!(f, [Dates.Date("2021-11-15")], ls = :dash, lc = :black)
     # xlims!(f, 0, length(local_cases) + 35)
-    ylims!(f, 0, 9000)
+    ylims!(f, 0, 3000)
     xlims!(f, Dates.value(Dates.Date("2021-12-15")), Dates.value(Dates.Date("2022-03-31")))
     # ylims!(f, 0, 500)
 end

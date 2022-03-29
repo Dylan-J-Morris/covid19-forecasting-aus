@@ -96,6 +96,11 @@ function merge_simulation_files(file_date; truncation_days = 7)
     # loop over the states and read in and add to the merged df
     for s in states
         df_tmp = CSV.read(dir_name * "/" * s, DataFrame)
+        # count the number of unique simulations
+        df_tmp_mat = Matrix(df_tmp[:, 3:end - 1])
+        ia = size(unique(df_tmp_mat, dims = 2), 2)
+        println("There were ", ia, " unique simulation trajectories for ", s, ".")
+        
         df_merged = [df_merged; df_tmp]
     end
     

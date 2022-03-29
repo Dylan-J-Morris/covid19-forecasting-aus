@@ -19,6 +19,8 @@ struct Features
     max_cases::Vector{Int}
     idxs_limits::Vector{UnitRange{Int64}}
     state::String
+    # truncations for the various bits and pieces
+    reff_change_time::Int
 end
 
 

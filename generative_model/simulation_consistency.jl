@@ -26,7 +26,7 @@ function calculate_bounds(local_cases, τ, state)
     Uₜ = ceil.(Int, u * Cₜ)
     
     # remove restrictions over last τ * 2 days 
-    (ℓ, u) = (0.5, 3.0)
+    (ℓ, u) = (0.5, 2.5)
     Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
     Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
     
@@ -68,6 +68,9 @@ function get_simulation_limits(
     N, 
     state; 
     τ = 5,
+    data_truncation = 7, 
+    nowcast_truncation = 30, 
+    fitting_truncation = 14,
 )
     """
     Using the observed cases, determine the limits of cases over the backcast and 
@@ -96,6 +99,10 @@ function get_simulation_limits(
         Dates.Date(omicron_start_date) - Dates.Date(forecast_start_date)
     ).value
     
+    reff_change_time = (
+        T_observed + data_truncation - (fitting_truncation + nowcast_truncation)
+    )
+    
     sim_features = Features(
         max_forecast_cases,
         cases_pre_forecast, 
@@ -109,6 +116,7 @@ function get_simulation_limits(
         max_cases, 
         idxs_limits,
         state,
+        reff_change_time,
     )
     
     return sim_features

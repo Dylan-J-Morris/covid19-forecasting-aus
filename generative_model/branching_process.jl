@@ -334,6 +334,7 @@ function sample_offspring!(
     omicron_dominant_day = forecast.sim_features.omicron_dominant_day 
     T_observed = forecast.sim_features.T_observed
     state = forecast.sim_features.state
+    reff_change_time = forecast.sim_features.reff_change_time
     
     # extract fixed simulation values
     cases_pre_forecast = forecast.sim_features.cases_pre_forecast
@@ -353,7 +354,7 @@ function sample_offspring!(
             forecast, 
             local_cases, 
             day,  
-            N; 
+            N,
             adjust_TP = adjust_TP,
         )
         
@@ -379,16 +380,6 @@ function sample_offspring!(
         if day >= omicron_start_day
             # number of days into the omicron wave
             t_omicron = day - omicron_start_day 
-            prop_omicron = 0.0
-            # if we are in WA, TAS or NT, the outbreak began late enough to suggest omicron 
-            # proportion was high, so use the inferred long term proportions. Otherwise use the
-            # sigmoidal model. 
-            # if state in ("WA", "TAS", "NT")
-            # if state == "TAS"
-            #     prop_omicron = prop_pars[2]
-            # else
-            #     prop_omicron = sigmoid(t_omicron, prop_pars)
-            # end
             prop_omicron = sigmoid(t_omicron, prop_pars)
             # sample a random number of Omicron parents
             S_parents_omicron = rand(Binomial(S_parents, prop_omicron))
@@ -439,10 +430,10 @@ function sample_offspring!(
                 TP_parent = TP.TP_import_omicron_parent
                 k = forecast.sim_constants.k.omicron
             end
-                
-            # if (adjust_TP && day >= T_observed - 29) || (!adjust_TP)
+            
             # apply truncation for data, then apply the adjustment based in the forecasting
-            if (adjust_TP && day >= T_observed + 7 - 14 - 30 - 1) || !adjust_TP
+            # this includes the nowcast adjustment period of 30 days
+            if (adjust_TP && day >= reff_change_time) || !adjust_TP
                 # when using the Reff, we do not adjust the TP through susceptible 
                 # depletion as this is already implicit in the calculation. 
                 proportion_infected = min(1, total_infected / N)
