@@ -744,7 +744,7 @@ model {
             if (include_in_third_wave[i][n] == 1){
                 // the omicron_start_day + 15 ensures we don't switch over to the Omicron 
                 // strain Reff too early. 
-                if (n <= omicron_start_day){
+                if (n <= omicron_start_day + 15){
                     mu_hat_third_wave[pos] ~ gamma(
                         a_mu_hat_third_wave[n,i], 
                         b_mu_hat_third_wave[n,i]
@@ -752,29 +752,9 @@ model {
                     
                     pos += 1;
                 } else {
-                    // number of days into omicron period 
-                    n_omicron = n - omicron_start_day;
-                    prop_omicron_to_delta = sigmoid(
-                        n_omicron, 
-                        tau[map_to_state_index_third[i]], 
-                        r[map_to_state_index_third[i]], 
-                        m0[map_to_state_index_third[i]],
-                        m1[map_to_state_index_third[i]]
-                    );
-                    
-                    target += log_sum_exp(
-                        log1m(prop_omicron_to_delta) + 
-                        gamma_lpdf(
-                            mu_hat_third_wave[pos] | 
-                            a_mu_hat_third_wave[n,i], 
-                            b_mu_hat_third_wave[n,i]
-                        ), 
-                        log(prop_omicron_to_delta) + 
-                        gamma_lpdf(
-                            mu_hat_third_wave[pos] | 
-                            a_mu_hat_omicron_wave[n,i], 
-                            b_mu_hat_omicron_wave[n,i]
-                        )
+                    mu_hat_third_wave[pos] ~ gamma(
+                        a_mu_hat_omicron_wave[n,i], 
+                        b_mu_hat_omicron_wave[n,i]
                     );
                     
                     pos += 1;
