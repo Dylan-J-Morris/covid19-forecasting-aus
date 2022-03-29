@@ -1917,7 +1917,7 @@ for strain in ("Delta", "Omicron"):
         df_state = df_R.loc[df_R.state == state]
         for v in prop_omicron_vars:
             # take right size of the values to be N by N
-            y = samples[v + "." + str(kk + 1)].values
+            y = samples[v + "[" + str(kk + 1) + "]"].values
             
             pd.DataFrame(y[:mob_samples]).to_csv(
                 results_dir
