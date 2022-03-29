@@ -631,7 +631,7 @@ def get_data_for_posterior(data_date):
     ).days
     
     # number of days we fit the average VE over 
-    tau_vax_block_size = 7
+    tau_vax_block_size = 3
 
     # get pop size array
     pop_size_array = []
@@ -753,7 +753,7 @@ def run_stan(
     num_samples=1000, 
     num_warmup_samples=500, 
     custom_file_name="",
-    max_treedepth=15,
+    max_treedepth=12,
 ):
     """
     Read the input_data.json in and run the stan model.
@@ -2003,17 +2003,6 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         custom_file_name=custom_file_name, 
     )
 
-    # extract the prop of omicron to delta and save
-    total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
-    # prop_omicron_to_delta = samples_mov_gamma[
-    #     ["prop_omicron_to_delta." + str(j + 1) for j in range(total_N_p_third_omicron)]
-    # ]
-    # pd.DataFrame(
-    #     prop_omicron_to_delta.to_csv(
-    #         "results/prop_omicron_to_delta" + data_date.strftime("%Y-%m-%d") + ".csv"
-    #     )
-    # )
-
     if df3X.shape[0] > 0:
         df["is_third_wave"] = 0
         for state in third_states:
@@ -2133,7 +2122,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     fig, ax = plt.subplots(figsize=(15, 12), nrows=4, ncols=2, sharex=True, sharey=True)
 
     for (i, state) in enumerate(third_states):
-        # m0 = np.tile(samples_mov_gamma.loc[:, "m0[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        m0 = np.tile(samples_mov_gamma.loc[:, "m0[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
         m1 = np.tile(samples_mov_gamma.loc[:, "m1[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
         r = np.tile(samples_mov_gamma.loc[:, "r[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
         tau = np.tile(samples_mov_gamma.loc[:, "tau[" + str(i + 1) + "]"] , (len(omicron_date_range), 1))
@@ -2150,8 +2139,8 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         # else:
         #     prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
         
-        # prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
-        prop_omicron_to_delta_tmp = m1 / (1 + np.exp(-r * (t - tau)))
+        prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+        # prop_omicron_to_delta_tmp = m1 / (1 + np.exp(-r * (t - tau)))
         
         ax[i // 2, i % 2].plot(
             omicron_date_range, 
@@ -2230,7 +2219,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         "voc_effect_omicron",
         "susceptible_depletion_factor",
     ]
-    var_to_csv = (
+    var_to_csv = (      
         var_to_csv
         + predictors
         + ["R_Li[" + str(i + 1) + "]" for i in range(len(states_to_fit_all_waves))]
@@ -2260,16 +2249,22 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     return None
 
 
-def main(data_date, run_inference=True):
+def main(data_date, run_flag=1):
     """
-    Runs the stan model in parts to cut down on memory.
+    Runs the stan model in parts to cut down on memory. The run_flag enables us to run components
+    of the model as required and has the following settings:
+    run_flag=1 : Generate the data, save it, then run the inference and plotting methods. 
+    run_flag=2 : Using the data from 1, run the inference and plotting methods. 
+    run_flag=1 : Run plotting methods.
     """
     
-    if run_inference:     
-        # some parameters for HMC
-        custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
+    # some parameters for HMC
+    custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
+    
+    if run_flag == 1:
         get_data_for_posterior(data_date=data_date)    
-        
+    
+    if run_flag in (1, 2):    
         num_chains = 4
         num_samples = 1000
         num_warmup_samples = 500
@@ -2284,24 +2279,20 @@ def main(data_date, run_inference=True):
             max_treedepth=max_treedepth,
         )
         
-    plot_and_save_posterior_samples(
-        data_date=data_date, 
-        custom_file_name=custom_file_name
-    )
+    if run_flag in (1, 2, 3):
+        plot_and_save_posterior_samples(
+            data_date=data_date, 
+            custom_file_name=custom_file_name
+        )
+        
 
     return None
-
 
 if __name__ == "__main__":
     """
     If we are running the script here (which is always) then this ensures things run appropriately.
     """
     data_date = argv[1]
-    
-    if len(argv) == 2:
-        run_inference = True
-    elif len(argv) > 2:
-        if argv[2] == "False": 
-            run_inference = False
+    run_flag = int(argv[2])
         
-    main(data_date, run_inference)
+    main(data_date, run_flag=run_flag)
