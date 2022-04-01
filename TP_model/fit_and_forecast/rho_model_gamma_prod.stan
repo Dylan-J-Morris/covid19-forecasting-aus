@@ -237,7 +237,7 @@ parameters {
     // real<lower=0> r_sig;
     vector<lower=0>[j_third_wave] r;
     vector<lower=0,upper=1>[j_third_wave] m0; 
-    vector<lower=0,upper=1>[j_third_wave] m1; 
+    // vector<lower=0,upper=1>[j_third_wave] m1; 
 }
 
 transformed parameters {
@@ -380,6 +380,9 @@ transformed parameters {
     real<lower=0> R_I = R_I0 * voc_effect_delta * import_ve_delta;
     real<lower=0> R_I_omicron = R_I0_omicron * voc_effect_omicron * import_ve_omicron;
 
+    // // this is a requirement
+    // array[total_N_p_third_omicron] ordered[2] voc_ve;
+    
     // third wave model
     for (i in 1:j_third_wave){
         // define these within the scope of the loop only
@@ -430,7 +433,7 @@ transformed parameters {
                         tau[map_to_state_index_third[i]], 
                         r[map_to_state_index_third[i]], 
                         m0[map_to_state_index_third[i]],
-                        m1[map_to_state_index_third[i]]
+                        1.0
                     );
                     
                     voc_ve_prod = (
@@ -444,6 +447,10 @@ transformed parameters {
                     
                     TP_import = R_I_omicron; 
                 
+                    // // store the voc effects so that we get them the correct way around
+                    // voc_ve[pos_omicron2][1] = voc_effect_delta * ve_delta[pos];
+                    // voc_ve[pos_omicron2][2] = voc_effect_omicron * ve_omicron[pos_omicron2];
+                    
                     pos_omicron2 += 1;  
                 }
                 
@@ -505,32 +512,32 @@ model {
     r ~ gamma(square(r_mean) / r_sig, r_mean / r_sig);
     
     for (i in 1:j_third_wave){
-        if (i != 6 || i != 8){
-            tau[i] ~ gamma(225, 7.5);   // effectively a Normal(30, 2) prior 
-            m0[i] ~ beta(5, 95);
-        } else {
-            tau[i] ~ gamma(140, 2.4);   // effectively a Normal(70, 2) prior 
+        if (i == 6 || i == 8) {
+            tau[i] ~ normal(60, 3);   // effectively a Normal(70, 2) prior 
             m0[i] ~ beta(5, 5);
+        } else {
+            tau[i] ~ normal(30, 3);   // effectively a Normal(30, 2) prior 
+            m0[i] ~ beta(5, 95);
         }
     }
     
-    m1 ~ beta(5 * 95, 5 * 5);
+    // m1 ~ beta(5 * 95, 5 * 5);
     
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(square(0.4) / 0.05, 0.4 / 0.05);
     additive_voc_effect_delta ~ gamma(square(2.0) / 0.05, 2.0 / 0.05);
     additive_voc_effect_omicron ~ gamma(square(2.0) / 0.05, 2.0 / 0.05);
 
-    susceptible_depletion_factor ~ beta(70, 20);
+    susceptible_depletion_factor ~ beta(7, 3);
     
     // these are both informed by the previous estimates used inside the generative model
     import_ve_delta ~ beta(20.5, 105);
     import_ve_omicron ~ beta(20.5, 105);
+    R_I0 ~ gamma(square(0.5) / 0.2, 0.5 / 0.2);
+    R_I0_omicron ~ gamma(square(0.5) / 0.2, 0.5 / 0.2);
 
     // hierarchical model for the baseline RL
     R_L ~ gamma(square(1.7) / 0.005, 1.7 / 0.005);
-    R_I0 ~ gamma(square(0.5) / 0.2, 0.5 / 0.2);
-    R_I0_omicron ~ gamma(square(0.5) / 0.2, 0.5 / 0.2);
     sig ~ exponential(50);
     R_Li ~ gamma(square(R_L) / sig, R_L / sig);
 
@@ -649,6 +656,7 @@ model {
                 }
                     
                 pos_counter += 1; 
+                
                 if (pos_counter == tau_vax_block_size) {
                     pos_counter = 0; 
                     pos_block += 1;
@@ -752,12 +760,39 @@ model {
                     
                     pos += 1;
                 } else {
+                    // standard model
                     mu_hat_third_wave[pos] ~ gamma(
                         a_mu_hat_omicron_wave[n,i], 
                         b_mu_hat_omicron_wave[n,i]
                     );
                     
                     pos += 1;
+                    
+                    // // number of days into omicron period 
+                    // n_omicron = n - omicron_start_day;
+                    // prop_omicron_to_delta = sigmoid(
+                    //     n_omicron, 
+                    //     tau[map_to_state_index_third[i]], 
+                    //     r[map_to_state_index_third[i]], 
+                    //     m0[map_to_state_index_third[i]],
+                    //     1.0
+                    // );
+                    
+                    // target += log_mix(
+                    //     prop_omicron_to_delta, 
+                    //     gamma_lpdf(
+                    //         mu_hat_third_wave[pos] |
+                    //         a_mu_hat_omicron_wave[n,i], 
+                    //         b_mu_hat_omicron_wave[n,i]
+                    //     ),
+                    //     gamma_lpdf(
+                    //         mu_hat_third_wave[pos] |
+                    //         a_mu_hat_third_wave[n,i], 
+                    //         b_mu_hat_third_wave[n,i]
+                    //     )
+                    // );
+                    
+                    // pos += 1;
                 }
             }
         }
