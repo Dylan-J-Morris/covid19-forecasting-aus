@@ -212,14 +212,14 @@ def get_data_for_posterior(data_date):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_2.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
     
     df_Reff_omicron = pd.read_csv(
-        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_2.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
@@ -631,7 +631,7 @@ def get_data_for_posterior(data_date):
     ).days
     
     # number of days we fit the average VE over 
-    tau_vax_block_size = 3
+    tau_vax_block_size = 7
 
     # get pop size array
     pop_size_array = []
@@ -752,7 +752,6 @@ def run_stan(
     num_chains=4, 
     num_samples=1000, 
     num_warmup_samples=500, 
-    custom_file_name="",
     max_treedepth=12,
 ):
     """
@@ -768,18 +767,14 @@ def run_stan(
 
     # make results and figs dir
     figs_dir = (
-        "figs/stan_fit/" 
+        "figs/stan_fit/stan_fit_" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
         + "/"
     )
     
     results_dir = (
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/" 
-        + custom_file_name 
         + "/"
     )
     
@@ -789,7 +784,8 @@ def run_stan(
     # to run the inference set run_inference to True in params
     # path to the stan model 
     # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma.stan"
-    rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_prod.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_prod.stan"
+    rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_mix.stan"
 
     # compile the stan model
     model = CmdStanModel(stan_file=rho_model_gamma)
@@ -857,17 +853,15 @@ def run_stan(
     return None
 
 
-def plot_and_save_posterior_samples(data_date, custom_file_name=""):
+def plot_and_save_posterior_samples(data_date):
     """
     Runs the full suite of plotting.
     """
 
     data_date = pd.to_datetime(data_date)  # Define data date
     figs_dir = (
-        "figs/stan_fit/" 
+        "figs/stan_fit/stan_fit_" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
         + "/"
     )
 
@@ -875,10 +869,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     samples_mov_gamma = pd.read_csv(
         "results/"
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "posterior_sample_" 
+        + "/posterior_sample_" 
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
@@ -985,14 +976,14 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_2.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
     
     df_Reff_omicron = pd.read_csv(
-        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_2.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
@@ -1648,10 +1639,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     df_rho_third_all_states.to_csv(
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "rho_samples" 
+        + "/rho_samples" 
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
@@ -1986,7 +1974,6 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         delta_ve_idx_ranges,
         figs_dir,
         "delta",
-        custom_file_name=custom_file_name, 
     )
 
     plot_adjusted_ve(
@@ -2000,7 +1987,6 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         omicron_ve_idx_ranges,
         figs_dir,
         "omicron",
-        custom_file_name=custom_file_name, 
     )
 
     if df3X.shape[0] > 0:
@@ -2123,7 +2109,8 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
 
     for (i, state) in enumerate(third_states):
         m0 = np.tile(samples_mov_gamma.loc[:, "m0[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
-        m1 = np.tile(samples_mov_gamma.loc[:, "m1[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        # m1 = np.tile(samples_mov_gamma.loc[:, "m1[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        m1 = 1.0
         r = np.tile(samples_mov_gamma.loc[:, "r[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
         tau = np.tile(samples_mov_gamma.loc[:, "tau[" + str(i + 1) + "]"] , (len(omicron_date_range), 1))
         
@@ -2195,10 +2182,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     df_prop_omicron_to_delta.to_csv(
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "prop_omicron_to_delta" 
+        + "/prop_omicron_to_delta" 
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
@@ -2213,6 +2197,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         "R_I_omicron",
         "R_L",
         "sig",
+        "theta_masks",
         "theta_md",
         "voc_effect_alpha",
         "voc_effect_delta",
@@ -2231,16 +2216,13 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     var_to_csv = var_to_csv + ["r[" + str(j + 1) + "]" for j in range(len(third_states))]
     var_to_csv = var_to_csv + ["tau[" + str(j + 1) + "]" for j in range(len(third_states))]
     var_to_csv = var_to_csv + ["m0[" + str(j + 1) + "]" for j in range(len(third_states))]
-    var_to_csv = var_to_csv + ["m1[" + str(j + 1) + "]" for j in range(len(third_states))]
+    # var_to_csv = var_to_csv + ["m1[" + str(j + 1) + "]" for j in range(len(third_states))]
 
     # save the posterior
     samples_mov_gamma[var_to_csv].to_hdf(
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "soc_mob_posterior" 
+        + "/soc_mob_posterior" 
         + data_date.strftime("%Y-%m-%d") 
         + ".h5",
         key="samples",
@@ -2258,9 +2240,6 @@ def main(data_date, run_flag=1):
     run_flag=1 : Run plotting methods.
     """
     
-    # some parameters for HMC
-    custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
-    
     if run_flag == 1:
         get_data_for_posterior(data_date=data_date)    
     
@@ -2275,14 +2254,12 @@ def main(data_date, run_flag=1):
             num_chains=num_chains,
             num_samples=num_samples,
             num_warmup_samples=num_warmup_samples,
-            custom_file_name=custom_file_name,
             max_treedepth=max_treedepth,
         )
         
     if run_flag in (1, 2, 3):
         plot_and_save_posterior_samples(
             data_date=data_date, 
-            custom_file_name=custom_file_name
         )
         
 
