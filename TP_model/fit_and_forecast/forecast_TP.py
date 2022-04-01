@@ -76,15 +76,9 @@ third_date_range = {
 df_google_all = read_in_google(Aus_only=True, moving=True, local=True)
 third_end_date = pd.to_datetime(data_date) - pd.Timedelta(days=truncation_days)
 
-# dir to read and write from is the detection probability for omicron as a percentage (rounded) 
-# with the full path specified
-custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
 results_dir = (
-    "results"
-    + "/"
+    "results/"
     + data_date.strftime("%Y-%m-%d")
-    + "/"
-    + custom_file_name 
     + "/"
 )
 # Load in vaccination data by state and date which should have the same date as the 
@@ -196,7 +190,6 @@ mask_wearing_all = mask_wearing_X
 # Get posterior
 df_samples = read_in_posterior(
     date=data_date.strftime("%Y-%m-%d"),
-    custom_file_name=custom_file_name,
 )
 
 states = sorted(["NSW", "QLD", "SA", "VIC", "TAS", "WA", "ACT", "NT"])
@@ -261,10 +254,10 @@ axes.append(ax_states)
 figs.append(fig)
 
 # # extra fig for mask wearing
-# var = "Proportion people always wearing masks"
-# fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
-# axes.append(ax_states)
-# figs.append(fig)
+var = "Proportion people always wearing masks"
+fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
+axes.append(ax_states)
+figs.append(fig)
 
 var = "Reduction in Reff due to vaccination"
 fig, ax_states = plt.subplots(figsize=(7, 8), nrows=4, ncols=2, sharex=True)
@@ -612,110 +605,110 @@ for i, state in enumerate(states):
 
     ## currently not forecasting masks — may return in the future but will need to assess.
 
-    # # forecast mask wearing compliance
-    # # Get a baseline value of microdistancing
-    # mu_overall = np.mean(masks[state].values[-n_baseline:])
-    # md_diffs = np.diff(masks[state].values[-n_training:])
-    # mu_diffs = np.mean(md_diffs)
-    # std_diffs = np.std(md_diffs)
+    # forecast mask wearing compliance
+    # Get a baseline value of microdistancing
+    mu_overall = np.mean(masks[state].values[-n_baseline:])
+    md_diffs = np.diff(masks[state].values[-n_training:])
+    mu_diffs = np.mean(md_diffs)
+    std_diffs = np.std(md_diffs)
 
-    # extra_days_masks = (
-    #     pd.to_datetime(df_google.date.values[-1])
-    #     - pd.to_datetime(masks[state].index.values[-1])
-    # ).days
+    extra_days_masks = (
+        pd.to_datetime(df_google.date.values[-1])
+        - pd.to_datetime(masks[state].index.values[-1])
+    ).days
 
-    # # Set all values to current value.
-    # current = [masks[state].values[-1]] * mob_samples
-    # new_masks_forecast = []
-    # # Forecast mobility forward sequentially by day.
-    # for i in range(n_forecast + extra_days_masks):
+    # Set all values to current value.
+    current = [masks[state].values[-1]] * mob_samples
+    new_masks_forecast = []
+    # Forecast mobility forward sequentially by day.
+    for i in range(n_forecast + extra_days_masks):
 
-    #     # SCENARIO MODELLING
-    #     # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
-    #     if scenarios[state] == "":
-    #         # masksortion of trend_force to regression_to_baseline_force
-    #         p_force = (n_forecast + extra_days_masks - i) / (
-    #             n_forecast + extra_days_masks
-    #         )
-    #         # Generate step realisations in training trend direction
-    #         trend_force = np.random.normal(mu_diffs, std_diffs, size=mob_samples)
-    #         # Generate realisations that draw closer to baseline
-    #         # regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
-    #         # current = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
-    #         current = current + trend_force
+        # SCENARIO MODELLING
+        # This code chunk will allow you manually set the distancing params for a state to allow for modelling.
+        if scenarios[state] == "":
+            # masksortion of trend_force to regression_to_baseline_force
+            p_force = (n_forecast + extra_days_masks - i) / (
+                n_forecast + extra_days_masks
+            )
+            # Generate step realisations in training trend direction
+            trend_force = np.random.normal(mu_diffs, std_diffs, size=mob_samples)
+            # Generate realisations that draw closer to baseline
+            # regression_to_baseline_force = np.random.normal(0.05*(mu_overall - current), std_diffs)
+            # current = current + p_force*trend_force + (1-p_force)*regression_to_baseline_force  # Balance forces
+            current = current + trend_force
 
-    #     elif scenarios[state] != "":
-    #         current = np.array(current)
+        elif scenarios[state] != "":
+            current = np.array(current)
 
-    #         # Make baseline cov for generating points
-    #         std_baseline = np.std(masks[state].values[-42:-28])
-    #         mu_baseline = np.mean(masks[state].values[-42:-28], axis=0)
-    #         mu_current = masks[state].values[-1]
+            # Make baseline cov for generating points
+            std_baseline = np.std(masks[state].values[-42:-28])
+            mu_baseline = np.mean(masks[state].values[-42:-28], axis=0)
+            mu_current = masks[state].values[-1]
 
-    #         if scenario_dates[state] != "":
-    #             scenario_change_point = (
-    #                 pd.to_datetime(scenario_dates[state]) - data_date
-    #             ).days + extra_days_masks
+            if scenario_dates[state] != "":
+                scenario_change_point = (
+                    pd.to_datetime(scenario_dates[state]) - data_date
+                ).days + extra_days_masks
 
-    #         # Constant Lockdown
-    #         if (
-    #             scenarios[state] == "no_reversion"
-    #             or scenarios[state] == "school_opening_2022"
-    #         ):
-    #             # use only more recent data to forecast under a no-reversion scenario
-    #             # std_lockdown = np.std(masks[state].values[-24:-4])
-    #             # current = np.random.normal(mu_current, std_lockdown)
-    #             current = np.random.normal(mu_current, std_baseline)
+            # Constant Lockdown
+            if (
+                scenarios[state] == "no_reversion"
+                or scenarios[state] == "school_opening_2022"
+            ):
+                # use only more recent data to forecast under a no-reversion scenario
+                # std_lockdown = np.std(masks[state].values[-24:-4])
+                # current = np.random.normal(mu_current, std_lockdown)
+                current = np.random.normal(mu_current, std_baseline)
 
-    #         # No Lockdown
-    #         elif scenarios[state] == "full_reversion":
-    #             if i < scenario_change_point:
-    #                 current = np.random.normal(mu_current, std_baseline)
-    #             else:
-    #                 mu_baseline_0 = 0.2
-    #                 # masksortion of trend_force to regression_to_baseline_force
-    #                 p_force = (n_forecast + extra_days_masks - i) / (
-    #                     n_forecast + extra_days_masks
-    #                 )
-    #                 # take a mean of the differences over the last 2 weeks
-    #                 mu_diffs = np.mean(np.diff(masks[state].values[-14:]))
-    #                 # Generate step realisations in training trend direction
-    #                 trend_force = np.random.normal(mu_diffs, std_baseline)
-    #                 # Generate realisations that draw closer to baseline
-    #                 regression_to_baseline_force = np.random.normal(
-    #                     0.005 * (mu_baseline_0 - current), std_baseline
-    #                 )
-    #                 current = current + regression_to_baseline_force  # Balance forces
+            # No Lockdown
+            elif scenarios[state] == "full_reversion":
+                if i < scenario_change_point:
+                    current = np.random.normal(mu_current, std_baseline)
+                else:
+                    mu_baseline_0 = 0.2
+                    # masksortion of trend_force to regression_to_baseline_force
+                    p_force = (n_forecast + extra_days_masks - i) / (
+                        n_forecast + extra_days_masks
+                    )
+                    # take a mean of the differences over the last 2 weeks
+                    mu_diffs = np.mean(np.diff(masks[state].values[-14:]))
+                    # Generate step realisations in training trend direction
+                    trend_force = np.random.normal(mu_diffs, std_baseline)
+                    # Generate realisations that draw closer to baseline
+                    regression_to_baseline_force = np.random.normal(
+                        0.005 * (mu_baseline_0 - current), std_baseline
+                    )
+                    current = current + regression_to_baseline_force  # Balance forces
 
-    #         elif scenarios[state] == "immediately_baseline":
-    #             # this scenario is an immediate return to baseline values
-    #             if i < scenario_change_point:
-    #                 current = np.random.normal(mu_current, std_baseline)
-    #             else:
-    #                 mu_baseline_0 = 0.2
-    #                 # jump immediately to baseline
-    #                 current = np.random.normal(mu_baseline_0, std_baseline)
+            elif scenarios[state] == "immediately_baseline":
+                # this scenario is an immediate return to baseline values
+                if i < scenario_change_point:
+                    current = np.random.normal(mu_current, std_baseline)
+                else:
+                    mu_baseline_0 = 0.2
+                    # jump immediately to baseline
+                    current = np.random.normal(mu_baseline_0, std_baseline)
 
-    #         # Temporary Lockdown
-    #         elif scenarios[state] == "half_reversion":  # No Lockdown
-    #             if i < scenario_change_point:
-    #                 current = np.random.normal(mu_current, std_baseline)
-    #             else:
-    #                 # Revert to values halfway between the before and after
-    #                 current = np.random.normal(
-    #                     (mu_current + mu_baseline) / 2, std_baseline
-    #                 )
+            # Temporary Lockdown
+            elif scenarios[state] == "half_reversion":  # No Lockdown
+                if i < scenario_change_point:
+                    current = np.random.normal(mu_current, std_baseline)
+                else:
+                    # Revert to values halfway between the before and after
+                    current = np.random.normal(
+                        (mu_current + mu_baseline) / 2, std_baseline
+                    )
 
-    #     new_masks_forecast.append(current)
+        new_masks_forecast.append(current)
 
-    # masks_sims = np.vstack(new_masks_forecast)  # Put forecast days together
-    # masks_sims = np.minimum(1, masks_sims)
-    # masks_sims = np.maximum(0, masks_sims)
+    masks_sims = np.vstack(new_masks_forecast)  # Put forecast days together
+    masks_sims = np.minimum(1, masks_sims)
+    masks_sims = np.maximum(0, masks_sims)
 
-    # dd_masks = [
-    #     masks[state].index[-1] + timedelta(days=x)
-    #     for x in range(1, n_forecast + extra_days_masks + 1)
-    # ]
+    dd_masks = [
+        masks[state].index[-1] + timedelta(days=x)
+        for x in range(1, n_forecast + extra_days_masks + 1)
+    ]
 
     # Forecasting vaccine effect
     if state == "WA":
@@ -733,6 +726,7 @@ for i, state in enumerate(states):
 
     new_delta = []
     new_omicron = []
+    # variance on the vaccine forecasts is equivalent to what we use in the fitting 
     var_vax = 0.00005
     a_vax = np.zeros_like(mob_samples)
     b_vax = np.zeros_like(mob_samples)
@@ -765,6 +759,7 @@ for i, state in enumerate(states):
     for j, var in enumerate(
         predictors
         + ["md_prop"]
+        + ["masks_prop"]
         + ["vaccination_delta"]
         + ["vaccination_omicron"]
     ):
@@ -780,12 +775,12 @@ for i, state in enumerate(states):
             outdata["mean"].extend(np.mean(md_sims, axis=1))
             outdata["std"].extend(np.std(md_sims, axis=1))
 
-        # elif var == "masks_prop":
-        #     outdata["type"].extend([var] * len(dd_masks))
-        #     outdata["state"].extend([state] * len(dd_masks))
-        #     outdata["date"].extend([d.strftime("%Y-%m-%d") for d in dd_masks])
-        #     outdata["mean"].extend(np.mean(masks_sims, axis=1))
-        #     outdata["std"].extend(np.std(masks_sims, axis=1))
+        elif var == "masks_prop":
+            outdata["type"].extend([var] * len(dd_masks))
+            outdata["state"].extend([state] * len(dd_masks))
+            outdata["date"].extend([d.strftime("%Y-%m-%d") for d in dd_masks])
+            outdata["mean"].extend(np.mean(masks_sims, axis=1))
+            outdata["std"].extend(np.std(masks_sims, axis=1))
 
         elif var == "vaccination_delta":
             outdata["type"].extend([var] * len(dd_vacc))
@@ -822,19 +817,19 @@ for i, state in enumerate(states):
                     alpha=0.1,
                 )
 
-            # elif var == "masks_prop":
-            #     # masks plot
-            #     axs[rownum, colnum].plot(masks[state].index, masks[state].values, lw=1)
-            #     axs[rownum, colnum].plot(
-            #         dd_masks, np.median(masks_sims, axis=1), "k", lw=1
-            #     )
-            #     axs[rownum, colnum].fill_between(
-            #         dd_masks,
-            #         np.quantile(masks_sims, 0.25, axis=1),
-            #         np.quantile(masks_sims, 0.75, axis=1),
-            #         color="k",
-            #         alpha=0.1,
-            #     )
+            elif var == "masks_prop":
+                # masks plot
+                axs[rownum, colnum].plot(masks[state].index, masks[state].values, lw=1)
+                axs[rownum, colnum].plot(
+                    dd_masks, np.median(masks_sims, axis=1), "k", lw=1
+                )
+                axs[rownum, colnum].fill_between(
+                    dd_masks,
+                    np.quantile(masks_sims, 0.25, axis=1),
+                    np.quantile(masks_sims, 0.75, axis=1),
+                    color="k",
+                    alpha=0.1,
+                )
 
             elif var == "vaccination_delta":
                 # vaccination plot
@@ -919,10 +914,10 @@ for i, state in enumerate(states):
                 axs[rownum, colnum].set_ylabel(
                     "Proportion of respondents\n micro-distancing", fontsize=7
                 )
-            # elif var == "masks_prop":
-            #     axs[rownum, colnum].set_ylabel(
-            #         "Proportion of respondents\n wearing masks", fontsize=7
-            #     )
+            elif var == "masks_prop":
+                axs[rownum, colnum].set_ylabel(
+                    "Proportion of respondents\n wearing masks", fontsize=7
+                )
             elif var == "vaccination_delta" or var == "vaccination_omicron":
                 axs[rownum, colnum].set_ylabel(
                     "Reduction in TP \n from vaccination", fontsize=7
@@ -934,9 +929,8 @@ for i, state in enumerate(states):
 
 os.makedirs(
     "figs/mobility_forecasts/" 
-    + custom_file_name 
-    + "/"
-    + data_date.strftime("%Y-%m-%d"), 
+    + data_date.strftime("%Y-%m-%d") 
+    + "_mobility_forecasts", 
     exist_ok=True,
 )
 
@@ -947,10 +941,8 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
-            + custom_file_name 
-            + "/"
             + data_date.strftime("%Y-%m-%d")
-            + "/"
+            + "_mobility_forecasts/"
             + str(predictors[i])
             + ".png",
             dpi=400,
@@ -960,10 +952,8 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
-            + custom_file_name 
-            + "/"
             + data_date.strftime("%Y-%m-%d")
-            + "/micro_dist.png",
+            + "_mobility_forecasts/micro_dist.png",
             dpi=400,
         )
 
@@ -971,31 +961,25 @@ for i, fig in enumerate(figs):
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
-            + custom_file_name 
-            + "/"
             + data_date.strftime("%Y-%m-%d")
-            + "/mask_wearing.png",
+            + "_mobility_forecasts/mask_wearing.png",
             dpi=400,
         )
 
-    elif i == len(predictors) + 1:  # finally this plots the delta VE forecasts
+    elif i == len(predictors) + 2:  # finally this plots the delta VE forecasts
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
-            + custom_file_name 
-            + "/"
             + data_date.strftime("%Y-%m-%d")
-            + "/delta_vaccination.png",
+            + "_mobility_forecasts/delta_vaccination.png",
             dpi=400,
         )
     else:  # finally this plots the omicron VE forecasts
         fig.tight_layout()
         fig.savefig(
             "figs/mobility_forecasts/"
-            + custom_file_name 
-            + "/"
             + data_date.strftime("%Y-%m-%d")
-            + "/omicron_vaccination.png",
+            + "_mobility_forecasts/omicron_vaccination.png",
             dpi=400,
         )
 
@@ -1048,26 +1032,25 @@ df_forecast_md_std = df_forecast_md_std.reset_index()
 df_forecast_md.date = pd.to_datetime(df_forecast_md.date)
 df_forecast_md_std.date = pd.to_datetime(df_forecast_md_std.date)
 
-# df_forecast_masks = df_forecast_masks.reindex(
-#     [("mean", state) for state in states], axis=1
-# )
-# df_forecast_masks_std = df_forecast_masks_std.reindex(
-#     [("std", state) for state in states], axis=1
-# )
-# df_forecast_masks.columns = states
-# df_forecast_masks_std.columns = states
-# df_forecast_masks = df_forecast_masks.reset_index()
-# df_forecast_masks_std = df_forecast_masks_std.reset_index()
-# df_forecast_masks.date = pd.to_datetime(df_forecast_masks.date)
-# df_forecast_masks_std.date = pd.to_datetime(df_forecast_masks_std.date)
+df_forecast_masks = df_forecast_masks.reindex(
+    [("mean", state) for state in states], axis=1
+)
+df_forecast_masks_std = df_forecast_masks_std.reindex(
+    [("std", state) for state in states], axis=1
+)
+df_forecast_masks.columns = states
+df_forecast_masks_std.columns = states
+df_forecast_masks = df_forecast_masks.reset_index()
+df_forecast_masks_std = df_forecast_masks_std.reset_index()
+df_forecast_masks.date = pd.to_datetime(df_forecast_masks.date)
+df_forecast_masks_std.date = pd.to_datetime(df_forecast_masks_std.date)
 
 df_R = df_google[["date", "state"] + mov_values + [val + "_std" for val in mov_values]]
 df_R = pd.concat([df_R, df_forecast], ignore_index=True, sort=False)
 df_R["policy"] = (df_R.date >= "2020-03-20").astype("int8")
 
 df_md = pd.concat([prop, df_forecast_md.set_index("date")])
-# df_masks = pd.concat([masks, df_forecast_masks.set_index("date")])
-
+df_masks = pd.concat([masks, df_forecast_masks.set_index("date")])
 
 # now we read in the ve time series and create an adjusted timeseries from March 1st
 # that includes no effect prior
@@ -1224,78 +1207,77 @@ plt.tight_layout(rect=[0.05, 0.04, 1, 1])
 fig.savefig(
     "figs/"
     + "mobility_forecasts/" 
-    + custom_file_name 
-    + "/"
     + data_date.strftime("%Y-%m-%d") 
-    + "/md_factor.png",
+    + "_mobility_forecasts/md_factor.png",
     dpi=144,
 )
 
-# theta_masks = np.tile(df_samples["theta_masks"].values, (df_masks["NSW"].shape[0], 1))
+theta_masks = np.tile(df_samples["theta_masks"].values, (df_masks["NSW"].shape[0], 1))
 
-# fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
 
-# for i, state in enumerate(plot_states):
-#     # np.random.normal(df_md[state].values, df_md_std.values)
-#     masks_prop_sim = df_masks[state].values
-#     if expo_decay:
-#         mask_wearing_factor = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
-#     else:
-#         mask_wearing_factor = 2 * expit(
-#             -1 * theta_masks * masks_prop_sim[:, np.newaxis]
-#         )
+for i, state in enumerate(plot_states):
+    # np.random.normal(df_md[state].values, df_md_std.values)
+    masks_prop_sim = df_masks[state].values
+    if expo_decay:
+        mask_wearing_factor = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
+    else:
+        mask_wearing_factor = 2 * expit(
+            -1 * theta_masks * masks_prop_sim[:, np.newaxis]
+        )
 
-#     row = i // 2
-#     col = i % 2
+    row = i // 2
+    col = i % 2
 
-#     ax[row, col].plot(
-#         df_masks[state].index,
-#         np.median(mask_wearing_factor, axis=1),
-#         label="Microdistancing",
-#     )
-#     ax[row, col].fill_between(
-#         df_masks[state].index,
-#         np.quantile(mask_wearing_factor, 0.25, axis=1),
-#         np.quantile(mask_wearing_factor, 0.75, axis=1),
-#         label="Microdistancing",
-#         alpha=0.4,
-#         color="C0",
-#     )
-#     ax[row, col].fill_between(
-#         df_masks[state].index,
-#         np.quantile(mask_wearing_factor, 0.05, axis=1),
-#         np.quantile(mask_wearing_factor, 0.95, axis=1),
-#         label="Microdistancing",
-#         alpha=0.4,
-#         color="C0",
-#     )
-#     ax[row, col].set_title(state)
-#     ax[row, col].tick_params("x", rotation=45)
+    ax[row, col].plot(
+        df_masks[state].index,
+        np.median(mask_wearing_factor, axis=1),
+        label="Microdistancing",
+    )
+    ax[row, col].fill_between(
+        df_masks[state].index,
+        np.quantile(mask_wearing_factor, 0.25, axis=1),
+        np.quantile(mask_wearing_factor, 0.75, axis=1),
+        label="Microdistancing",
+        alpha=0.4,
+        color="C0",
+    )
+    ax[row, col].fill_between(
+        df_masks[state].index,
+        np.quantile(mask_wearing_factor, 0.05, axis=1),
+        np.quantile(mask_wearing_factor, 0.95, axis=1),
+        label="Microdistancing",
+        alpha=0.4,
+        color="C0",
+    )
+    ax[row, col].set_title(state)
+    ax[row, col].tick_params("x", rotation=45)
 
-#     ax[row, col].set_xticks(
-#         [df_masks[state].index.values[-n_forecast - extra_days_masks]], minor=True
-#     )
-#     ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
+    ax[row, col].set_xticks(
+        [df_masks[state].index.values[-n_forecast - extra_days_masks]], minor=True
+    )
+    ax[row, col].xaxis.grid(which="minor", linestyle="-.", color="grey", linewidth=1)
 
-# fig.text(
-#     0.03,
-#     0.5,
-#     "Multiplicative effect \n of mask-wearing $M_d$",
-#     ha="center",
-#     va="center",
-#     rotation="vertical",
-#     fontsize=20,
-# )
+fig.text(
+    0.03,
+    0.5,
+    "Multiplicative effect \n of mask-wearing $M_d$",
+    ha="center",
+    va="center",
+    rotation="vertical",
+    fontsize=20,
+)
 
-# fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
+fig.text(0.5, 0.04, "Date", ha="center", va="center", fontsize=20)
 
-# plt.tight_layout(rect=[0.05, 0.04, 1, 1])
-# fig.savefig(
-#     "figs/mobility_forecasts/"
-#     + data_date.strftime("%Y-%m-%d")
-#     + "/mask_wearing_factor.png",
-#     dpi=144,
-# )
+plt.tight_layout(rect=[0.05, 0.04, 1, 1])
+fig.savefig(
+    "figs/"
+    + "mobility_forecasts/" 
+    + data_date.strftime("%Y-%m-%d") 
+    + "_mobility_forecasts/mask_wearing_factor.png",
+    dpi=144,
+)
 
 df_R = df_R.sort_values("date")
 # samples = df_samples.sample(n_samples)  # test on sample of 2
@@ -1375,12 +1357,15 @@ for strain in ("Delta", "Omicron"):
         vacc_ts_omicron = df_ve_omicron[state]
         # take right size of md to be N by N
         theta_md = np.tile(samples["theta_md"].values, (df_state.shape[0], 1))
+        theta_masks = np.tile(samples["theta_masks"].values, (df_state.shape[0], 1))
         r = samples["r[" + str(kk + 1) + "]"].values
         tau = samples["tau[" + str(kk + 1) + "]"].values
         m0 = samples["m0[" + str(kk + 1) + "]"].values
-        m1 = samples["m1[" + str(kk + 1) + "]"].values
+        # m1 = samples["m1[" + str(kk + 1) + "]"].values
+        m1 = 1.0
         susceptible_depletion_factor = samples["susceptible_depletion_factor"].values
         md = ((1 + theta_md).T ** (-1 * prop_sim)).T
+        masks = ((1 + theta_masks).T ** (-1 * masks_prop_sim)).T
         third_states_indices = {
             state: index + 1 for (index, state) in enumerate(third_states)
         }
@@ -1615,6 +1600,7 @@ for strain in ("Delta", "Omicron"):
             2
             * expit(logodds.T)
             * md
+            * masks
             * sim_R
             * voc_vacc_product
         )
@@ -1654,7 +1640,7 @@ for strain in ("Delta", "Omicron"):
         if strain == "Delta":
             R_I = samples["R_I"].values[:df_state.shape[0]]
         elif strain == "Omicron":
-            R_I = samples["R_I"].values[:df_state.shape[0]]
+            R_I = samples["R_I_omicron"].values[:df_state.shape[0]]
             
         state_Rs["state"].extend([state] * df_state.shape[0])
         state_Rs["type"].extend(["R_I"] * df_state.shape[0])
@@ -1792,10 +1778,8 @@ for strain in ("Delta", "Omicron"):
 
     plt.savefig(
         "figs/mobility_forecasts/"
-        + custom_file_name 
-        + "/"
         + data_date.strftime("%Y-%m-%d")
-        + "/TP_6_month_" 
+        + "_mobility_forecasts/TP_6_month_" 
         + strain
         + data_date.strftime("%Y-%m-%d")
         + ".png",
@@ -1892,10 +1876,8 @@ for strain in ("Delta", "Omicron"):
 
     plt.savefig(
         "figs/mobility_forecasts/"
-        + custom_file_name 
-        + "/"
         + data_date.strftime("%Y-%m-%d")
-        + "/TP_12_month_"
+        + "_mobility_forecasts/TP_12_month_"
         + strain
         + data_date.strftime("%Y-%m-%d")
         + ".png",
@@ -1910,7 +1892,7 @@ for strain in ("Delta", "Omicron"):
     )
 
     # save values for the functional omicron related proportions for each state
-    prop_omicron_vars = ("r", "tau", "m0", "m1")
+    prop_omicron_vars = ("r", "tau", "m0")
 
     for (kk, state) in enumerate(states):
         # sort df_R by date so that rows are dates. rows are dates, columns are predictors
@@ -1927,7 +1909,6 @@ for strain in ("Delta", "Omicron"):
                 + data_date.strftime("%Y-%m-%d")
                 + ".csv"
             )
-        
 
     # now we save the sampled TP paths
     # convert the appropriate sampled susceptible depletion factors to a csv and save them for simulation
@@ -1973,7 +1954,7 @@ for strain in ("Delta", "Omicron"):
             + strain 
             + "_samples" 
             + data_date.strftime("%Y-%m-%d") 
-            + "tau_5.csv",
+            + "tau_2.csv",
             parse_dates=["INFECTION_DATES"],
         )
 
@@ -1993,7 +1974,6 @@ for strain in ("Delta", "Omicron"):
         # this is the forecasted TP dataframe, without R_L type
         df_forecast2_new = df_forecast2.loc[df_forecast2.type != "R_L"]
         end_date = pd.to_datetime(today) + timedelta(days=num_forecast_days)
-        # NT is not fit to in EpyReff so we cannot revert to it
         states_to_adjust = ["NSW", "QLD", "SA", "VIC", "TAS", "WA", "ACT", "NT"]
 
         # read in the samples for weighting between TP and Reff.
@@ -2027,6 +2007,16 @@ for strain in ("Delta", "Omicron"):
 
             return Reff_local
 
+        
+        last_date_for_reff = (
+            pd.to_datetime(data_date) 
+            - pd.Timedelta(days=truncation_days + n_days_nowcast_TP_adjustment - 1)
+        )
+
+        print("==============")
+        print("The last date the Reff estimate is used is", last_date_for_reff)
+        print("==============")
+
         for state in states:
 
             # filter case data by state
@@ -2038,8 +2028,7 @@ for strain in ("Delta", "Omicron"):
             # now we want to fill out indices by adding 0's on days with 0 cases and ensuring we go right up to the current truncated date
             idx = pd.date_range(
                 pd.to_datetime("2020-03-01"),
-                pd.to_datetime(data_date)
-                - pd.Timedelta(days=truncation_days + n_days_nowcast_TP_adjustment - 1),
+                last_date_for_reff,
             )
             
             is_omicron = np.array(idx >= pd.to_datetime(omicron_start_date))
@@ -2053,19 +2042,13 @@ for strain in ("Delta", "Omicron"):
 
             # take a rolling average of the cases over the interval of consideration
             idx = (pd.to_datetime(df_forecast2_state_R_L.date) >= pd.to_datetime("2020-03-01")) & (
-                pd.to_datetime(df_forecast2_state_R_L.date)
-                <= pd.to_datetime(data_date)
-                - pd.Timedelta(days=truncation_days + n_days_nowcast_TP_adjustment - 1)
+                pd.to_datetime(df_forecast2_state_R_L.date) <= last_date_for_reff
             )
             df_forecast2_state_R_L_sims = df_forecast2_state_R_L.iloc[:, 9:].loc[idx]
 
             Reff = df_Reff_state.loc[
                 (df_Reff_state.INFECTION_DATES >= pd.to_datetime("2020-03-01"))
-                & (
-                    df_Reff_state.INFECTION_DATES
-                    <= pd.to_datetime(data_date)
-                    - pd.Timedelta(days=truncation_days + n_days_nowcast_TP_adjustment - 1)
-                )
+                & (df_Reff_state.INFECTION_DATES<= last_date_for_reff)
             ].iloc[:, :-2]
 
             # take 7-day moving averages for the local, imported, and total cases
@@ -2075,9 +2058,7 @@ for strain in ("Delta", "Omicron"):
             df_cases_local_ma = df_cases_local.rolling(7, min_periods=1).mean()
             # only want to use indices over the fitting horizon, after this point we rely on the TP model
             idx = (df_cases.index >= pd.to_datetime("2020-03-01")) & (
-                df_cases.index
-                <= pd.to_datetime(data_date)
-                - pd.Timedelta(days=truncation_days + n_days_nowcast_TP_adjustment - 1)
+                df_cases.index <= last_date_for_reff
             )
             df_cases_local = df_cases_local[idx]
             df_cases_imported = df_cases_imported[idx]
@@ -2131,20 +2112,11 @@ for strain in ("Delta", "Omicron"):
                     # apply the mixture modelling and the adjustment to ensure we don't get negative
                     Rt[col] = np.maximum(0, (1 - omega) * Reff_local + omega * TP_local)
 
-                else:
-                    # if state is NT, do this instead
-                    Rt[col] = np.maximum(0, np.array(df_forecast2_state_R_L_sims[col]))
-
             # store Rt in a dataframe
             Rt = pd.DataFrame.from_dict(Rt, orient="index", columns=df_cases_local_ma.index)
 
             # next step is to stich the adjusted df back with the forecasting of TP
-            idx = (
-                pd.to_datetime(df_forecast2_state_R_L.date) > (
-                    pd.to_datetime(data_date) 
-                    - pd.Timedelta(days=truncation_days + n_days_nowcast_TP_adjustment - 1)
-                )
-            )
+            idx = pd.to_datetime(df_forecast2_state_R_L.date) > last_date_for_reff
             df_forecast2_after = df_forecast2_state_R_L.iloc[:, 9:].loc[idx].T
             # concatenate updated df with the forecasted TP
             df_full = pd.concat([Rt, df_forecast2_after], axis=1)
@@ -2160,7 +2132,6 @@ for strain in ("Delta", "Omicron"):
             df_full["std"] = np.std(df_full, axis=1)
             # put date back in
             df_full["date"] = pd.date_range(start_date, periods=df_full.shape[0])
-            # put names back in
             df_full["state"] = [state] * df_full.shape[0]
             df_full["type"] = ["R_L"] * df_full.shape[0]
             # reset indices
@@ -2255,10 +2226,8 @@ for strain in ("Delta", "Omicron"):
         plt.tight_layout(rect=[0.04, 0.04, 1, 1])
         plt.savefig(
             "figs/mobility_forecasts/"
-            + custom_file_name 
-            + "/"
             + data_date.strftime("%Y-%m-%d")
-            + "/TP_6_month_adjusted_"
+            + "_mobility_forecasts/TP_6_month_adjusted_"
             + strain
             + data_date.strftime("%Y-%m-%d")
             + ".png",

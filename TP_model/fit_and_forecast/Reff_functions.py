@@ -12,17 +12,14 @@ sys.path.insert(0, "model")
 from helper_functions import read_in_NNDSS
 from Reff_constants import *
 
-def read_in_posterior(date, custom_file_name=""):
+def read_in_posterior(date):
     """
     read in samples from posterior from inference
     """
     df = pd.read_hdf(
         "results/"
         + date 
-        + "/" 
-        + custom_file_name
-        + "/"
-        + "soc_mob_posterior" 
+        + "/soc_mob_posterior" 
         + date 
         + ".h5", 
         key="samples"
@@ -333,7 +330,6 @@ def plot_adjusted_ve(
     ve_idx_ranges,
     figs_dir,
     strain,
-    custom_file_name="",
 ):
 
     """
@@ -445,10 +441,7 @@ def plot_adjusted_ve(
     df_vacc_ts_adjusted.to_csv(
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "adjusted_vaccine_ts_"
+        + "/adjusted_vaccine_ts_"
         + strain
         + data_date.strftime("%Y-%m-%d")
         + ".csv",

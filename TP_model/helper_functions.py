@@ -44,7 +44,7 @@ def read_in_NNDSS(
     path = "data/interim_linelist_" + case_file_date + "*.csv"
 
     for file in glob.glob(path):  # Allows us to use the * option
-        df = pd.read_csv(file)
+        df = pd.read_csv(file, low_memory=False)
 
     if len(glob.glob(path)) == 0:
         raise FileNotFoundError(
@@ -54,9 +54,7 @@ def read_in_NNDSS(
     # take the representative dates
     df["date_onset"] = pd.to_datetime(df["date_onset"], errors="coerce")
     # create boolean of when confirmation dates used
-    df["date_confirmation"] = pd.to_datetime(
-        df["date_confirmation"], errors="coerce"
-    )
+    df["date_confirmation"] = pd.to_datetime(df["date_confirmation"], errors="coerce")
     df["is_confirmation"] = df["date_onset"].isna()
     # set the known onset dates
     df["date_inferred"] = df["date_onset"]
@@ -67,7 +65,12 @@ def read_in_NNDSS(
         # sample that number of delays from the distribution and take the ceiling.
         # This was fitted to the third and second wave data, looking at the common differences
         # between onsets and confirmations
-        rd = sample_discrete_dist(rd_disc_pmf, n_delays)
+        df_missing = (df["state"][df["date_inferred"].isna()]).to_numpy()
+        is_NT = df_missing == "NT"
+        rd = (
+            (1 - is_NT) * sample_discrete_dist(rd_disc_pmf, n_delays) 
+            + is_NT * 1
+        )
         rd = rd * timedelta(days=1)
 
         # fill missing days with the confirmation date, noting that this is adjusted when used
