@@ -9,6 +9,12 @@ slurm*
 experiments
 retro 
 
+# c++ header files (produced by stan)
+*.hpp
+# binary files without extensions 
+*
+!*.*
+
 # VScode
 .vscode
 
