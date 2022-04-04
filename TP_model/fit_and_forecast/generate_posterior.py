@@ -495,8 +495,7 @@ def get_data_for_posterior(data_date):
     for state in first_states:
         mobility_by_state.append(dfX.loc[dfX.state == state, predictors].values / 100)
         mobility_std_by_state.append(
-            dfX.loc[dfX.state == state, [val + "_std" for val in predictors]].values
-            / 100
+            dfX.loc[dfX.state == state, [val + "_std" for val in predictors]].values / 100
         )
         count_by_state.append(survey_counts.loc[start_date:first_end_date, state].values)
         respond_by_state.append(survey_respond.loc[start_date:first_end_date, state].values)
@@ -530,8 +529,7 @@ def get_data_for_posterior(data_date):
             df2X.loc[df2X.state == state, predictors].values / 100
         )
         sec_mobility_std_by_state.append(
-            df2X.loc[df2X.state == state, [val + "_std" for val in predictors]].values
-            / 100
+            df2X.loc[df2X.state == state, [val + "_std" for val in predictors]].values / 100
         )
         sec_count_by_state.append(
             survey_counts.loc[sec_start_date:sec_end_date, state].values
@@ -568,8 +566,7 @@ def get_data_for_posterior(data_date):
             df3X.loc[df3X.state == state, predictors].values / 100
         )
         third_mobility_std_by_state.append(
-            df3X.loc[df3X.state == state, [val + "_std" for val in predictors]].values
-            / 100
+            df3X.loc[df3X.state == state, [val + "_std" for val in predictors]].values / 100
         )
         third_count_by_state.append(
             survey_counts.loc[third_start_date:third_end_date, state].values
@@ -735,8 +732,7 @@ def get_data_for_posterior(data_date):
         ).astype(int),
         "pop_size_array": pop_size_array,
         "heterogeneity_start_day": heterogeneity_start_day,
-        "p_detect_delta": p_detect_delta, 
-        "p_detect_omicron": p_detect_omicron, 
+        
     }
 
     # dump the dictionary to a json file
@@ -760,9 +756,8 @@ def run_stan(
     data_date = pd.to_datetime(data_date)
 
     # read in the input data as a dictionary
-    a_file = open("results/stan_input_data.pkl", "rb")
-    input_data = pickle.load(a_file)
-    a_file.close()
+    with open("results/stan_input_data.pkl", "rb") as f:
+        input_data = pickle.load(f)
 
     # make results and figs dir
     figs_dir = (
@@ -2250,7 +2245,7 @@ def main(data_date, run_flag=1):
     
     if run_flag in (1, 2):    
         num_chains = 4
-        num_samples = 1000
+        num_samples = 500
         num_warmup_samples = 500
         max_treedepth = 12
         

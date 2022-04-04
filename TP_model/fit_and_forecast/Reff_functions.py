@@ -498,15 +498,24 @@ def modify_cases_by_CAR(df_state):
     decrease_bool = (CAR_dates >= CAR_decrease_range[0]) & (CAR_dates <= CAR_decrease_range[-1])
     low_bool = (CAR_dates > CAR_decrease_range[-1]) & (CAR_dates < CAR_increase_range[0])
     increase_bool = (CAR_dates >= CAR_increase_range[0]) & (CAR_dates <= CAR_increase_range[-1])
-    # adjust the CAR based on the time varying assumptions 
-    CAR[decrease_bool] = np.linspace(0.75, 0.333, 7)
+    # adjust the CAR based on the time varying assumptions by approximating the step change 
+    # linearly 
+    CAR[decrease_bool] = np.linspace(p_detect_delta, 0.333, 7)
     CAR[low_bool] = 0.333
-    CAR[increase_bool] = np.linspace(0.333, 0.75, 7)
+    CAR[increase_bool] = np.linspace(0.333, p_detect_delta, 7)
     
     # scale the cases up each day by the CAR
     for d in df_state.index:
         df_state.loc[d, "local"] = np.ceil(1 / CAR[CAR_dates == d] * df_state.loc[d, "local"])
         
+    # reset the indices so that the merging works as intended
+    df_state.reset_index(drop=False, inplace=True)
+    # the above worked with onset dates so we map back by (approx) the mean IP across Delta 
+    # and Omicron (around 5 days noting that this is only needed for the inferred import 
+    # proportion and susceptible depletion in the stan model so a day off isn't
+    # too concerning)
+    df_state["date_inferred"] = df_state["date_inferred"] - pd.Timedelta(days=5)
+    
     return None 
 
 
@@ -517,7 +526,7 @@ def modify_cases_by_CAR_old(df_state):
     probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
     """
     
-    from params import p_detect_delta
+    from params import p_detect_delta, omicron_dominance_date
     
     start_date = np.min(df_state.index)
     end_date = np.max(df_state.index)
@@ -540,20 +549,20 @@ def modify_cases_by_CAR_old(df_state):
     decrease_bool = (CAR_dates >= CAR_decrease_range[0]) & (CAR_dates <= CAR_decrease_range[-1])
     after_bool = CAR_dates > CAR_decrease_range[-1]
     # adjust the CAR based on the time varying assumptions 
-    CAR[decrease_bool] = np.linspace(0.75, 0.5, 7)
+    CAR[decrease_bool] = np.linspace(p_detect_delta, 0.5, 7)
     CAR[after_bool] = 0.5
     
     # scale the cases up each day by the CAR
     for d in df_state.index:
         df_state.loc[d, "local"] = np.ceil(1 / CAR[CAR_dates == d] * df_state.loc[d, "local"])
         
-    # the above worked with onset dates so we map back by (approx) the mean IP across Delta 
-    # and Omicron (around 4 days noting that this is only needed for the inferred import 
-    # proportion and susceptible depletion in the stan model so a day off isn't
-    # too concerning)
-    df_state.reindex(df_state.index - pd.Timedelta(days=4)) 
     # reset the indices so that the merging works as intended
     df_state.reset_index(drop=False, inplace=True)
+    # the above worked with onset dates so we map back by (approx) the mean IP across Delta 
+    # and Omicron (around 5 days noting that this is only needed for the inferred import 
+    # proportion and susceptible depletion in the stan model so a day off isn't
+    # too concerning)
+    df_state["date_inferred"] = df_state["date_inferred"] - pd.Timedelta(days=5)
         
     return None 
 
@@ -593,13 +602,17 @@ def read_in_cases(
             
             # modify_cases_by_CAR(df_state=df_state)
         
-        # add state column back in and concatenate with full array 
+        # add state column back in 
         df_state["STATE"] = state    
+        
+        # calculate the raw proportion of imported to local cases based off the detection 
+        # probability
         df_state["rho"] = [
             0 if (i + l == 0) else i / (i + l)
             for l, i in zip(df_state.local, df_state.imported)
         ]
         
+        # concatenate with full array 
         df_state_all = pd.concat((df_state_all, df_state))
 
 
