@@ -547,6 +547,14 @@ def modify_cases_by_CAR_old(df_state):
     for d in df_state.index:
         df_state.loc[d, "local"] = np.ceil(1 / CAR[CAR_dates == d] * df_state.loc[d, "local"])
         
+    # the above worked with onset dates so we map back by (approx) the mean IP across Delta 
+    # and Omicron (around 4 days noting that this is only needed for the inferred import 
+    # proportion and susceptible depletion in the stan model so a day off isn't
+    # too concerning)
+    df_state.reindex(df_state.index - pd.Timedelta(days=4)) 
+    # reset the indices so that the merging works as intended
+    df_state.reset_index(drop=False, inplace=True)
+        
     return None 
 
 
@@ -559,7 +567,7 @@ def read_in_cases(
     """
     Read in NNDSS data and from data, find rho
     """
-
+    
     df_NNDSS = read_in_NNDSS(
         case_file_date,
         apply_delay_at_read=apply_delay_at_read,
@@ -571,7 +579,9 @@ def read_in_cases(
     states = df_NNDSS["STATE"].unique()
     
     for state in states:
+        # boolean array for isolating the current state
         ind = df_NNDSS["STATE"] == state
+        # aggregate data into daily local / imported cases 
         df_state = (
             df_NNDSS[ind][["date_inferred", "imported", "local"]]
             .groupby(["date_inferred"])
@@ -580,16 +590,17 @@ def read_in_cases(
     
         if apply_case_ascertainment_increase:
             modify_cases_by_CAR_old(df_state=df_state)
+            
             # modify_cases_by_CAR(df_state=df_state)
         
-        # add state column back in 
+        # add state column back in and concatenate with full array 
         df_state["STATE"] = state    
+        df_state["rho"] = [
+            0 if (i + l == 0) else i / (i + l)
+            for l, i in zip(df_state.local, df_state.imported)
+        ]
         
         df_state_all = pd.concat((df_state_all, df_state))
 
-    df_state["rho"] = [
-        0 if (i + l == 0) else i / (i + l)
-        for l, i in zip(df_state.local, df_state.imported)
-    ]
 
-    return df_state
+    return df_state_all
