@@ -360,13 +360,6 @@ function sample_offspring!(
         
         (S_parents, A_parents, I_parents) = Z_tmp
         
-        import_multiplier = 1.0
-        # p_{v,h} is the proportion of hotel quarantine workers vaccinated
-        p_vh = 0.9 + rand(Beta(2, 4)) * 9 / 100
-        # v_{e,h} is the overall vaccine effectiveness
-        v_eh = 0.83 + rand(Beta(2, 2)) * 14 / 100
-        import_multiplier = (1 - p_vh * v_eh)
-        
         # sum up the number local infections on the current day
         Z_historical[map_day_to_index_Z(day)] += S_parents + A_parents
         # Z_tmp gets emptied at the end of sampling so we won't be double counting 
@@ -416,7 +409,7 @@ function sample_offspring!(
                 TP_parent = TP.TP_local_delta_parent * α_a
                 k = forecast.sim_constants.k.delta
             elseif i == 3
-                TP_parent = TP.TP_import_delta_parent * import_multiplier
+                TP_parent = TP.TP_import_delta_parent
                 k = forecast.sim_constants.k.delta
             elseif i == 4
                 α_s = forecast.sim_constants.α_s.omicron
@@ -771,7 +764,7 @@ function simulate_branching_process(
             # get the sampled parameters on a given day
             prop_pars_day = (
                 m0 = omicron_prop_pars["m0"][TP_ind], 
-                m1 = omicron_prop_pars["m1"][TP_ind], 
+                m1 = 1.0,
                 r = omicron_prop_pars["r"][TP_ind], 
                 tau = omicron_prop_pars["tau"][TP_ind], 
             )
