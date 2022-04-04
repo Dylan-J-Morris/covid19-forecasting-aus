@@ -7,6 +7,8 @@ assumptions.
 """
 
 from scipy.stats import gamma
+import numpy as np 
+import pandas as pd    
 
 ##### Key parameters #####
 use_linelist = True
@@ -96,3 +98,112 @@ pop_sizes = {
     "VIC": 6649159,
     "WA": 2681633,
 }
+
+def get_p_detect_old_assumptions(end_date):
+    """
+    Apply a scaling to the daily reported cases by accounting for a ~75% detection probability pre
+    15/12/2021 and 0.5 following that. To improve the transition, we assume that detection 
+    probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
+    """
+    
+    CAR_normal_before = pd.date_range(third_start_date, "2021-12-08")
+    CAR_decrease_range = pd.date_range("2021-12-09", "2021-12-15")
+    CAR_normal_after = pd.date_range("2021-12-16", end_date)
+    
+    CAR_dates = np.concatenate(
+        (
+            CAR_normal_before, 
+            CAR_decrease_range,
+            CAR_normal_after,
+        )
+    )
+    
+    # get baseline CAR
+    CAR = p_detect_delta * np.ones(CAR_dates.shape)
+    # determine index arrays for the various phases assumed
+    decrease_bool = (CAR_dates >= CAR_decrease_range[0]) & (CAR_dates <= CAR_decrease_range[-1])
+    after_bool = CAR_dates > CAR_decrease_range[-1]
+    # adjust the CAR based on the time varying assumptions 
+    CAR[decrease_bool] = np.linspace(p_detect_delta, 0.5, 7)
+    CAR[after_bool] = 0.5
+    
+    return CAR
+    
+    
+def get_p_detect_big_jurisdictions(end_date):
+    """
+    Apply a scaling to the daily reported cases by accounting for a ~75% detection probability pre
+    15/12/2021 and 0.5 following that. To improve the transition, we assume that detection 
+    probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
+    """
+    
+    CAR_normal_before = pd.date_range(third_start_date, "2021-12-12")
+    CAR_decrease_range = pd.date_range("2021-12-13", "2021-12-19")
+    CAR_low_range = pd.date_range("2021-12-20", "2022-01-16")
+    CAR_increase_range = pd.date_range("2022-01-17", "2022-01-23")
+    CAR_normal_after = pd.date_range("2022-01-24", end_date)
+    
+    CAR_dates = np.concatenate(
+        (
+            CAR_normal_before, 
+            CAR_decrease_range,
+            CAR_low_range, 
+            CAR_increase_range, 
+            CAR_normal_after,
+        )
+    )
+    
+    # get baseline CAR
+    CAR = p_detect_delta * np.ones(CAR_dates.shape)
+    # determine index arrays for the various phases assumed
+    decrease_bool = (CAR_dates >= CAR_decrease_range[0]) & (CAR_dates <= CAR_decrease_range[-1])
+    low_bool = (CAR_dates > CAR_decrease_range[-1]) & (CAR_dates < CAR_increase_range[0])
+    increase_bool = (CAR_dates >= CAR_increase_range[0]) & (CAR_dates <= CAR_increase_range[-1])
+    # adjust the CAR based on the time varying assumptions by approximating the step change 
+    # linearly 
+    CAR[decrease_bool] = np.linspace(p_detect_delta, 0.333, 7)
+    CAR[low_bool] = 0.333
+    CAR[increase_bool] = np.linspace(0.333, p_detect_delta, 7)
+    
+    return CAR
+    
+    
+def get_p_detect_small_jurisdictions(end_date):
+    """
+    Apply a scaling to the daily reported cases by accounting for a ~75% detection probability pre
+    15/12/2021 and 0.5 following that. To improve the transition, we assume that detection 
+    probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
+    """
+    
+    CAR_dates = pd.date_range(third_start_date, end_date)
+    
+    # get baseline CAR
+    CAR = p_detect_delta * np.ones(CAR_dates.shape)
+    
+    return CAR
+
+
+def get_all_p_detect(end_date, num_days):
+    states = sorted(["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"])
+    
+    p_detect = np.zeros((num_days, len(states)))
+    
+    for i, s in enumerate(states):
+        if s in ("NSW", "ACT", "QLD", "VIC"):
+            p_detect[:,i] = get_p_detect_big_jurisdictions(end_date)        
+        elif s in ("NSW", "ACT", "QLD", "VIC"):
+            p_detect[:,i] = get_p_detect_small_jurisdictions(end_date)
+    
+    return p_detect
+
+
+def get_all_p_detect_old(end_date, num_days):
+    states = sorted(["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"])
+    
+    p_detect = np.zeros((num_days, len(states)))
+    
+    for i, s in enumerate(states):
+        p_detect[:,i] = get_p_detect_old_assumptions(end_date)
+    
+    return p_detect
+

@@ -68,7 +68,6 @@ def read_in_NNDSS(
         # sample that number of delays from the distribution and take the ceiling.
         # This was fitted to the third and second wave data, looking at the common differences
         # between onsets and confirmations
-        # missing_onset_date = (df["state"][df["date_inferred"].isna()]).to_numpy()
         # subtract 1 as report delay of 0 days is reasonable
         rd = sample_discrete_dist(rd_disc_pmf, n_delays) - 1
         rd = rd * timedelta(days=1)
@@ -101,7 +100,9 @@ def read_in_NNDSS(
         inc = inc * timedelta(days=1)
         df["date_inferred"] = df["date_inferred"] - inc
 
-    df["imported"] = [1 if stat == "imported" else 0 for stat in df["import_status"]]
+    df["imported"] = [
+        1 if stat == "imported" else 0 for stat in df["import_status"]
+    ]
     df["local"] = 1 - df.imported
     df["STATE"] = df["state"]
 
