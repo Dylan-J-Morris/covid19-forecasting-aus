@@ -46,7 +46,7 @@ file_date = ARGS[1]
 file_name = (
     "results/"
     * file_date 
-    * "/50_case_ascertainment/posterior_sample_"
+    * "/posterior_sample_"
     * file_date 
     * ".csv"
 )
