@@ -9,9 +9,10 @@ def sample_discrete_dist(dist_disc_unnorm, nsamples):
     Samples from the (unnormalised) discrete distribution nsamples times efficiently using C.
     """
     res = (
-        rv_discrete(values=(range(21), dist_disc_unnorm / sum(dist_disc_unnorm)))
+        rv_discrete(values=(range(1, 22), dist_disc_unnorm / sum(dist_disc_unnorm)))
         .rvs(size=nsamples)
     )
+    
     return res 
 
 
@@ -67,7 +68,8 @@ def read_in_NNDSS(
         # This was fitted to the third and second wave data, looking at the common differences
         # between onsets and confirmations
         df_missing = (df["state"][df["date_inferred"].isna()]).to_numpy()
-        rd = sample_discrete_dist(rd_disc_pmf, n_delays) 
+        # subtract 1 as report delay of 0 days is reasonable
+        rd = sample_discrete_dist(rd_disc_pmf, n_delays) - 1
         rd = rd * timedelta(days=1)
 
         # fill missing days with the confirmation date, noting that this is adjusted when used
