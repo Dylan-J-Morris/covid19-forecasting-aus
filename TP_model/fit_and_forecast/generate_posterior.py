@@ -212,14 +212,14 @@ def get_data_for_posterior(data_date):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_2.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_3.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
     
     df_Reff_omicron = pd.read_csv(
-        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_2.csv",
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_3.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
@@ -242,7 +242,7 @@ def get_data_for_posterior(data_date):
     df_state = read_in_cases(
         case_file_date=data_date.strftime("%d%b%Y"),
         apply_delay_at_read=True,
-        apply_inc_at_read=True,
+        apply_case_ascertainment_increase=True,
     )
 
     df_Reff = df_Reff.merge(
@@ -740,9 +740,8 @@ def get_data_for_posterior(data_date):
     }
 
     # dump the dictionary to a json file
-    a_file = open("results/stan_input_data.pkl", "wb")
-    pickle.dump(input_data, a_file)
-    a_file.close()
+    with open("results/stan_input_data.pkl", "wb") as f:
+        pickle.dump(input_data, f)
 
     return None
 
@@ -784,19 +783,24 @@ def run_stan(
     # to run the inference set run_inference to True in params
     # path to the stan model 
     # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma.stan"
-    # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_prod.stan"
-    rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_mix.stan"
+    rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_prod.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_mix.stan"
 
     # compile the stan model
     model = CmdStanModel(stan_file=rho_model_gamma)
 
+    # vb_fit = model.variational(data=input_data, require_converged=True, grad_samples=20, seed=12345)
+    # vb_vars = vb_fit.stan_variables()
+
     # obtain a posterior sample from the model conditioned on the data
     fit = model.sample(
         chains=num_chains, 
+        # inits=vb_vars,
         iter_warmup=num_warmup_samples, 
         iter_sampling=num_samples, 
         data=input_data,
         max_treedepth=max_treedepth,
+        refresh=1
     )
     
     # display convergence diagnostics for the current run 
@@ -976,14 +980,14 @@ def plot_and_save_posterior_samples(data_date):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_2.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_3.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
     
     df_Reff_omicron = pd.read_csv(
-        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_2.csv",
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_3.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
@@ -1007,6 +1011,7 @@ def plot_and_save_posterior_samples(data_date):
         case_file_date=data_date.strftime("%d%b%Y"),
         apply_delay_at_read=True,
         apply_inc_at_read=True,
+        apply_case_ascertainment_increase=True,
     )
 
     df_Reff = df_Reff.merge(

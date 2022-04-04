@@ -1954,7 +1954,7 @@ for strain in ("Delta", "Omicron"):
             + strain 
             + "_samples" 
             + data_date.strftime("%Y-%m-%d") 
-            + "tau_2.csv",
+            + "tau_3.csv",
             parse_dates=["INFECTION_DATES"],
         )
 
