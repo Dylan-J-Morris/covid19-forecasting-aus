@@ -31,8 +31,8 @@ from params import (
     omicron_dominance_date,
     pop_sizes,
     num_forecast_days,
-    p_detect_delta, 
-    p_detect_omicron, 
+    get_all_p_detect_old,
+    get_all_p_detect,
 )
 
 def process_vax_data_array(
@@ -242,7 +242,7 @@ def get_data_for_posterior(data_date):
     df_state = read_in_cases(
         case_file_date=data_date.strftime("%d%b%Y"),
         apply_delay_at_read=True,
-        apply_case_ascertainment_increase=True,
+        apply_inc_at_read=True,
     )
 
     df_Reff = df_Reff.merge(
@@ -602,6 +602,7 @@ def get_data_for_posterior(data_date):
         variant="Delta",
         print_latest_date_in_ts=True,
     )
+    
     omicron_vaccination_by_state_array = process_vax_data_array(
         data_date=data_date,
         third_states=third_states,
@@ -634,6 +635,16 @@ def get_data_for_posterior(data_date):
     pop_size_array = []
     for s in states_to_fit_all_waves:
         pop_size_array.append(pop_sizes[s])
+       
+    # p_detect = get_all_p_detect(
+    #     end_date=third_end_date, 
+    #     num_days=df3X.loc[df3X.state == "NSW"].shape[0],
+    # )
+    
+    p_detect = get_all_p_detect_old(
+        end_date=third_end_date, 
+        num_days=df3X.loc[df3X.state == "NSW"].shape[0],
+    )
 
     # input data block for stan model
     input_data = {
@@ -661,7 +672,7 @@ def get_data_for_posterior(data_date):
         "imported_sec_wave": sec_data_by_state["imported"].values,
         "apply_alpha_sec_wave": apply_alpha_sec_wave,
         
-        "N_third_wave": df3X.loc[df3X.state == third_states[0]].shape[0],
+        "N_third_wave": df3X.loc[df3X.state == "NSW"].shape[0],
         "j_third_wave": len(third_states),
         "Reff_third_wave": third_data_by_state["mean"].values,
         "Reff_omicron_wave": third_data_by_state["mean_omicron"].values,
@@ -732,7 +743,7 @@ def get_data_for_posterior(data_date):
         ).astype(int),
         "pop_size_array": pop_size_array,
         "heterogeneity_start_day": heterogeneity_start_day,
-        
+        "p_detect": p_detect,
     }
 
     # dump the dictionary to a json file
@@ -1006,7 +1017,6 @@ def plot_and_save_posterior_samples(data_date):
         case_file_date=data_date.strftime("%d%b%Y"),
         apply_delay_at_read=True,
         apply_inc_at_read=True,
-        apply_case_ascertainment_increase=True,
     )
 
     df_Reff = df_Reff.merge(
