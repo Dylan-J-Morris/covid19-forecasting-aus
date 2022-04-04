@@ -21,7 +21,7 @@ truncation_days = 14
 num_forecast_days = 35
 
 ##### Usually unchanged parameters, contains some dates and number of forecast #####
-p_detect_delta = 0.725
+p_detect_delta = 0.75
 p_detect_omicron = 0.5  # default
 
 # this is the earliest date the simulations are run from and helps with plotting
@@ -48,27 +48,40 @@ start_date = "2020-03-01"
 # (plenty of retropsective cases with negatives etc)
 # range(22) = 0:21 
 (shape_rd, scale_rd) = (2.33, 1.35)
-rd_disc_pmf = [gamma.pdf(x, a=shape_rd, scale=scale_rd) for x in range(22)]
+rd_disc_pmf = [
+    gamma.cdf(x+1, a=shape_rd, scale=scale_rd) - gamma.cdf(x, a=shape_rd, scale=scale_rd) 
+    for x in range(21)
+]
 
 # incubation period: taken from Lauer et al. 2020
 (shape_inc, scale_inc) = (5.807, 0.948)
-inc_disc_pmf = [gamma.pdf(x, a=shape_inc, scale=scale_inc) for x in range(22)]
+inc_disc_pmf = [
+    gamma.cdf(x+1, a=shape_inc, scale=scale_inc) - gamma.cdf(x, a=shape_inc, scale=scale_inc) 
+    for x in range(21)
+]
 # omicron incubation period determined by sampling Delta incubation periods and subtracting 1 
 # (then taking those with days > 0.05) and using MLE to fit a Gamma distribution
 (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
 inc_omicron_disc_pmf = [
-    gamma.pdf(x, a=shape_inc_omicron, scale=scale_inc_omicron) for x in range(22)
+    gamma.cdf(x+1, a=shape_inc_omicron, scale=scale_inc_omicron) 
+    - gamma.cdf(x, a=shape_inc_omicron, scale=scale_inc_omicron) 
+    for x in range(21)
 ]
 
 ## generation interval:
 # generation inteval changed Oct 5 2021
 (shape_gen, scale_gen) = (2.75, 1.00)
-gen_disc_pmf = [gamma.pdf(x, a=shape_gen, scale=scale_gen) for x in range(22)]
+gen_disc_pmf = [
+    gamma.cdf(x+1, a=shape_gen, scale=scale_gen) - gamma.cdf(x, a=shape_gen, scale=scale_gen) 
+    for x in range(21)
+]
 # omicron GI determined by sampling Delta GI and subtracting 1 (then taking those with days > 0.05)
 # and using MLE to fit a Gamma distribution
 (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
 gen_omicron_disc_pmf = [
-    gamma.pdf(x, a=shape_gen_omicron, scale=scale_gen_omicron) for x in range(22)
+    gamma.cdf(x+1, a=shape_gen_omicron, scale=scale_gen_omicron) 
+    - gamma.cdf(x, a=shape_gen_omicron, scale=scale_gen_omicron) 
+    for x in range(21)
 ]
 
 # pulled from

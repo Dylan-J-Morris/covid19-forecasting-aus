@@ -464,6 +464,92 @@ def plot_adjusted_ve(
     return None
 
 
+def modify_cases_by_CAR(df_state):
+    """
+    Apply a scaling to the daily reported cases by accounting for a ~75% detection probability pre
+    15/12/2021 and 0.33 following that. To improve the transition, we assume that detection 
+    probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
+    """
+    
+    from params import p_detect_delta
+    
+    start_date = np.min(df_state.index)
+    end_date = np.max(df_state.index)
+    
+    CAR_normal_before = pd.date_range(start_date, "2021-12-12")
+    CAR_decrease_range = pd.date_range("2021-12-13", "2021-12-19")
+    CAR_low_range = pd.date_range("2021-12-20", "2022-01-16")
+    CAR_increase_range = pd.date_range("2022-01-17", "2022-01-23")
+    CAR_normal_after = pd.date_range("2022-01-24", end_date)
+    
+    CAR_dates = np.concatenate(
+        (
+            CAR_normal_before, 
+            CAR_decrease_range,
+            CAR_low_range, 
+            CAR_increase_range, 
+            CAR_normal_after,
+        )
+    )
+    
+    # get baseline CAR
+    CAR = p_detect_delta * np.ones(CAR_dates.shape)
+    # determine index arrays for the various phases assumed
+    decrease_bool = (CAR_dates >= CAR_decrease_range[0]) & (CAR_dates <= CAR_decrease_range[-1])
+    low_bool = (CAR_dates > CAR_decrease_range[-1]) & (CAR_dates < CAR_increase_range[0])
+    increase_bool = (CAR_dates >= CAR_increase_range[0]) & (CAR_dates <= CAR_increase_range[-1])
+    # adjust the CAR based on the time varying assumptions 
+    CAR[decrease_bool] = np.linspace(0.75, 0.333, 7)
+    CAR[low_bool] = 0.333
+    CAR[increase_bool] = np.linspace(0.333, 0.75, 7)
+    
+    # scale the cases up each day by the CAR
+    for d in df_state.index:
+        df_state.loc[d, "local"] = np.ceil(1 / CAR[CAR_dates == d] * df_state.loc[d, "local"])
+        
+    return None 
+
+
+def modify_cases_by_CAR_old(df_state):
+    """
+    Apply a scaling to the daily reported cases by accounting for a ~75% detection probability pre
+    15/12/2021 and 0.5 following that. To improve the transition, we assume that detection 
+    probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
+    """
+    
+    from params import p_detect_delta
+    
+    start_date = np.min(df_state.index)
+    end_date = np.max(df_state.index)
+    
+    CAR_normal_before = pd.date_range(start_date, "2021-12-08")
+    CAR_decrease_range = pd.date_range("2021-12-09", "2021-12-15")
+    CAR_normal_after = pd.date_range("2021-12-16", end_date)
+    
+    CAR_dates = np.concatenate(
+        (
+            CAR_normal_before, 
+            CAR_decrease_range,
+            CAR_normal_after,
+        )
+    )
+    
+    # get baseline CAR
+    CAR = p_detect_delta * np.ones(CAR_dates.shape)
+    # determine index arrays for the various phases assumed
+    decrease_bool = (CAR_dates >= CAR_decrease_range[0]) & (CAR_dates <= CAR_decrease_range[-1])
+    after_bool = CAR_dates > CAR_decrease_range[-1]
+    # adjust the CAR based on the time varying assumptions 
+    CAR[decrease_bool] = np.linspace(0.75, 0.5, 7)
+    CAR[after_bool] = 0.5
+    
+    # scale the cases up each day by the CAR
+    for d in df_state.index:
+        df_state.loc[d, "local"] = np.ceil(1 / CAR[CAR_dates == d] * df_state.loc[d, "local"])
+        
+    return None 
+
+
 def read_in_cases(
     case_file_date, 
     apply_delay_at_read=False, 
@@ -473,20 +559,33 @@ def read_in_cases(
     """
     Read in NNDSS data and from data, find rho
     """
-    from datetime import timedelta
-    import glob
 
     df_NNDSS = read_in_NNDSS(
         case_file_date,
         apply_delay_at_read=apply_delay_at_read,
         apply_inc_at_read=apply_inc_at_read,
     )
-
-    df_state = (
-        df_NNDSS[["date_inferred", "STATE", "imported", "local"]]
-        .groupby(["STATE", "date_inferred"])
-        .sum()
-    )
+    
+    df_state_all = pd.DataFrame()
+    
+    states = df_NNDSS["STATE"].unique()
+    
+    for state in states:
+        ind = df_NNDSS["STATE"] == state
+        df_state = (
+            df_NNDSS[ind][["date_inferred", "imported", "local"]]
+            .groupby(["date_inferred"])
+            .sum()
+        )
+    
+        if apply_case_ascertainment_increase:
+            modify_cases_by_CAR_old(df_state=df_state)
+            # modify_cases_by_CAR(df_state=df_state)
+        
+        # add state column back in 
+        df_state["STATE"] = state    
+        
+        df_state_all = pd.concat((df_state_all, df_state))
 
     df_state["rho"] = [
         0 if (i + l == 0) else i / (i + l)
