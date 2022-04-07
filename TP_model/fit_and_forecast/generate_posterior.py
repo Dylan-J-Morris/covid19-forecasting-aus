@@ -28,6 +28,7 @@ from params import (
     third_start_date,
     alpha_start_date, 
     omicron_start_date,
+    omicron_only_date,
     omicron_dominance_date,
     pop_sizes,
     num_forecast_days,
@@ -212,14 +213,14 @@ def get_data_for_posterior(data_date):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_3.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_4.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
     
     df_Reff_omicron = pd.read_csv(
-        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_3.csv",
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_4.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
@@ -621,6 +622,9 @@ def get_data_for_posterior(data_date):
     omicron_start_day = (
         pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)
     ).days
+    omicron_only_day = (
+        pd.to_datetime(omicron_only_date) - pd.to_datetime(third_start_date)
+    ).days
     omicron_dominance_day = (
         pd.to_datetime(omicron_dominance_date) - pd.to_datetime(third_start_date)
     ).days
@@ -629,22 +633,23 @@ def get_data_for_posterior(data_date):
     ).days
     
     # number of days we fit the average VE over 
-    tau_vax_block_size = 7
+    tau_vax_block_size = 3
 
     # get pop size array
     pop_size_array = []
     for s in states_to_fit_all_waves:
         pop_size_array.append(pop_sizes[s])
-       
-    # p_detect = get_all_p_detect(
-    #     end_date=third_end_date, 
-    #     num_days=df3X.loc[df3X.state == "NSW"].shape[0],
-    # )
+        
     
     p_detect = get_all_p_detect_old(
         end_date=third_end_date, 
         num_days=df3X.loc[df3X.state == "NSW"].shape[0],
     )
+    
+    # p_detect = get_all_p_detect(
+    #     end_date=third_end_date, 
+    #     num_days=df3X.loc[df3X.state == "NSW"].shape[0],
+    # )
 
     # input data block for stan model
     input_data = {
@@ -654,8 +659,8 @@ def get_data_for_posterior(data_date):
         "K": len(predictors),
         "j_first_wave": len(first_states),
         "Reff": data_by_state["mean"].values,
-        "Mob": mobility_by_state,
-        "Mob_std": mobility_std_by_state,
+        "mob": mobility_by_state,
+        "mob_std": mobility_std_by_state,
         "sigma2": data_by_state["std"].values ** 2,
         "policy": policy.values,
         "local": data_by_state["local"].values,
@@ -664,8 +669,8 @@ def get_data_for_posterior(data_date):
         "N_sec_wave": df2X.loc[df2X.state == sec_states[0]].shape[0],
         "j_sec_wave": len(sec_states),
         "Reff_sec_wave": sec_data_by_state["mean"].values,
-        "Mob_sec_wave": sec_mobility_by_state,
-        "Mob_sec_wave_std": sec_mobility_std_by_state,
+        "mob_sec_wave": sec_mobility_by_state,
+        "mob_sec_wave_std": sec_mobility_std_by_state,
         "sigma2_sec_wave": sec_data_by_state["std"].values ** 2,
         "policy_sec_wave": policy_sec_wave,
         "local_sec_wave": sec_data_by_state["local"].values,
@@ -676,8 +681,8 @@ def get_data_for_posterior(data_date):
         "j_third_wave": len(third_states),
         "Reff_third_wave": third_data_by_state["mean"].values,
         "Reff_omicron_wave": third_data_by_state["mean_omicron"].values,
-        "Mob_third_wave": third_mobility_by_state,
-        "Mob_third_wave_std": third_mobility_std_by_state,
+        "mob_third_wave": third_mobility_by_state,
+        "mob_third_wave_std": third_mobility_std_by_state,
         "sigma2_third_wave": third_data_by_state["std"].values ** 2,
         "sigma2_omicron_wave": third_data_by_state["std_omicron"].values ** 2,
         "policy_third_wave": policy_third_wave,
@@ -720,7 +725,7 @@ def get_data_for_posterior(data_date):
         "ve_omicron_data": omicron_vaccination_by_state_array,
         
         "omicron_start_day": omicron_start_day,
-        "omicron_dominance_day": omicron_dominance_day,
+        "omicron_only_day": omicron_only_day,
         "include_in_omicron_wave": include_in_omicron_wave,
         "total_N_p_third_omicron": int(
             sum([sum(x) for x in include_in_omicron_wave]).item()
@@ -986,14 +991,14 @@ def plot_and_save_posterior_samples(data_date):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_3.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_4.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
     
     df_Reff_omicron = pd.read_csv(
-        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_3.csv",
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_4.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
@@ -2255,8 +2260,8 @@ def main(data_date, run_flag=1):
     
     if run_flag in (1, 2):    
         num_chains = 4
-        num_samples = 500
         num_warmup_samples = 500
+        num_samples = 1000
         max_treedepth = 12
         
         run_stan(

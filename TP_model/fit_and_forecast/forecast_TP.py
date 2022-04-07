@@ -1892,6 +1892,7 @@ for strain in ("Delta", "Omicron"):
     )
 
     # save values for the functional omicron related proportions for each state
+    # prop_omicron_vars = ("r", "tau", "m0", "m1")
     prop_omicron_vars = ("r", "tau", "m0")
 
     for (kk, state) in enumerate(states):
@@ -1954,7 +1955,7 @@ for strain in ("Delta", "Omicron"):
             + strain 
             + "_samples" 
             + data_date.strftime("%Y-%m-%d") 
-            + "tau_3.csv",
+            + "tau_4.csv",
             parse_dates=["INFECTION_DATES"],
         )
 
@@ -2140,6 +2141,7 @@ for strain in ("Delta", "Omicron"):
             df_forecast2_new = pd.concat([df_forecast2_new, df_full], axis=0)
 
         fig, ax = plt.subplots(figsize=(12, 9), nrows=4, ncols=2, sharex=True, sharey=True)
+        
         for i, state in enumerate(plot_states):
 
             row = i // 2
