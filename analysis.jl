@@ -35,16 +35,133 @@ gr()
 default(
 	linewidth=1.5, 
 	label=nothing, 
-	framestyle=:box
+	framestyle=:box,
 )
 scalefontsizes(0.95)
 
 ##
 
 samples = CSV.read(
-    "results/2022-02-22/50_case_ascertainment/posterior_sample_2022-02-22.csv", 
+    "results/2022-03-22/50_case_ascertainment/posterior_sample_2022-03-22.csv", 
     DataFrame, 
 )
+
+scatter(samples[!, "m1[7]"], samples[!, "r[7]"])
+
+
+fig = plot(layout = 12, legend = false)
+for i in 369:380
+    plot!(fig, subplot = i - 368, samples[!, "prop_md_third_wave." * string(i)])
+end
+fig
+
+fig = plot(layout = 12, legend = false)
+for i in 369:380
+    plot!(fig, subplot = i - 368, kde(samples[!, "prop_md_third_wave." * string(i)]))
+end
+fig
+
+plot(samples[1:1000, "prop_md_third_wave.370"])
+plot!(samples[1001:2000, "prop_md_third_wave.370"])
+plot!(samples[2001:3000, "prop_md_third_wave.370"])
+plot!(samples[3001:4000, "prop_md_third_wave.370"])
+
+plot(kde(samples[1:1000, "prop_md_third_wave.370"]))
+plot!(kde(samples[1001:2000, "prop_md_third_wave.370"]))
+plot!(kde(samples[2001:3000, "prop_md_third_wave.370"]))
+plot!(kde(samples[3001:4000, "prop_md_third_wave.370"]))
+
+plot(samples[1:1000, "bet.5"])
+plot!(samples[1001:2000, "bet.5"])
+plot!(samples[2001:3000, "bet.5"])
+plot!(samples[3001:4000, "bet.5"])
+
+plot((cumsum(samples[1:1000, "bet.5"])) ./ (1:1000))
+plot!((cumsum(samples[1001:2000, "bet.5"])) ./ (1:1000))
+plot!((cumsum(samples[2001:3000, "bet.5"])) ./ (1:1000))
+plot!((cumsum(samples[3001:4000, "bet.5"])) ./ (1:1000))
+
+plot(kde(samples[1:1000, "bet.4"]))
+
+plot!(kde(samples[1001:2000, "bet.4"]))
+plot!(kde(samples[2001:3000, "bet.4"]))
+plot!(kde(samples[3001:4000, "bet.4"]))
+
+plot(samples[!, "theta_md"])
+plot(samples[1:2000, "theta_md"])
+plot!(samples[2001:4000, "theta_md"])
+plot!(samples[4001:6000, "theta_md"])
+plot!(samples[6001:8000, "theta_md"])
+
+plot(kde(samples[!, "theta_md"]))
+
+# scatter(samples[!, "tau.8"], samples[!, "r.8"])
+# xlabel!("days after 15/11/2021")
+# ylabel!("rate of increase for the sigmoid")
+
+# f(x, m0, m1, r, tau) = m0 + (m1 - m0) / (1 + exp(-r * (x - tau)))
+# (m01, m11, r1, tau1) = (0.05, 0.95, 0.025, 25)
+# f1(x) = f(x, m01, m11, r1, tau1)
+# (m02, m12, r2, tau2) = (0.05, 0.95, 0.6, 17)
+# f2(x) = f(x, m02, m12, r2, tau2)
+
+# plot(0:50, f1.(0:50))
+# plot!(0:50, f2.(0:50))
+
+using MCMCDiagnostics
+
+function ess(X)
+
+    # get number of samples and parameters
+    (samp, par) = size(X)
+
+    # vector for storing ESS 
+    n_eff = zeros(par)
+
+    # lags to evaluate the correlations at
+    lags = convert.(Int, round.(0:ceil(samp / 2), digits = 0))
+
+    # now evaluate ess for each parameter
+    for ii = 1:par 
+        ac1 = autocor(X[:,ii], lags)
+        cut = findfirst(x -> x < 0, ac1)
+        pt_total = sum(ac1[2:cut])
+        n_eff[ii] = samp / (1 + 2 * pt_total)
+    end
+
+    return n_eff
+
+end
+
+
+cut = findfirst(x -> x < 0, ac1)
+pt_total = sum(ac1[2:cut])
+n_eff[ii] = samp / (1 + 2 * pt_total)
+
+samples_only = samples[1:1000, 9:end]
+samples_mat = Matrix(samples_only)
+
+# get number of samples and parameters
+(samp, par) = size(samples_mat)
+
+# vector for storing ESS 
+n_eff = zeros(par)
+
+# lags to evaluate the correlations at
+lags = convert.(Int, round.(0:ceil(samp / 2), digits = 0))
+
+# now evaluate ess for each parameter
+ii = 5
+ac1 = autocor(samples_mat[:,ii], lags)
+plot(ac1[1:10])
+
+ess_samples_only = ess(samples_mat)
+# some negative ess???
+bad_samples = findall(ess_samples_only .< 0)
+
+plot(samples_mat[:, bad_samples[1:5]], layout = 5)
+
+samples_only[!,9136:9138]
 
 plot_kde = true
 plot_traceplots = false
@@ -55,16 +172,23 @@ plot_traceplots = false
 
 # plot traceplots for ALL parameters in samples (this will take a few minutes and 
 # will produce quite a large pdf).
+samples = CSV.read(
+    "results/2022-03-22/50_case_ascertainment/posterior_sample_2022-03-22.csv", 
+    DataFrame, 
+)
 
-if plot_kde 
+let
 
+    num_samples = nrow(samples)
+    num_each_chain = num_samples ÷ 4
+    
     sp = 1
     page = 1
 
     names_to_plot = names(samples)
 
     fig = plot(
-        layout = (8,4),
+        layout = (8,5),
         dpi=200, 
         size=(1000,1200), 
         # link=:x, 
@@ -75,7 +199,7 @@ if plot_kde
     for name in ProgressBar(names_to_plot)
         if sp == 1
             fig = plot(
-                layout = (8,4),
+                layout = (8,5),
                 dpi=200, 
                 size=(1000,1200), 
                 # link=:x, 
@@ -84,10 +208,12 @@ if plot_kde
             )
         end
         # plot!(fig, subplot = sp, samples[!,name])
-        plot!(fig, subplot = sp, kde(samples[!,name]))
+        for i in 1:4
+            plot!(fig, subplot = sp, kde(samples[(1 + (i - 1) * num_each_chain):(i * num_each_chain),name]))
+        end
         xlabel!(fig, subplot = sp, name)
         sp += 1
-        if sp == 8*4 + 1 || sp == length(names_to_plot) + 1
+        if sp == 8*5 + 1 || sp == length(names_to_plot) + 1
             sp = 1 
             savefig(fig, "tmp_plots/page"*string(page)*".pdf")
             page += 1
@@ -105,8 +231,6 @@ if plot_kde
         "tmp_plots/kde.pdf",
         cleanup=true,
     )
-    
-elseif plot_traceplots
 
     sp = 1
     page = 1
@@ -114,7 +238,7 @@ elseif plot_traceplots
     names_to_plot = names(samples)
 
     fig = plot(
-        layout = (8,4),
+        layout = (8,5),
         dpi=200, 
         size=(1000,1200), 
         # link=:x, 
@@ -125,7 +249,7 @@ elseif plot_traceplots
     for name in ProgressBar(names_to_plot)
         if sp == 1
             fig = plot(
-                layout = (8,4),
+                layout = (8,5),
                 dpi=200, 
                 size=(1000,1200), 
                 # link=:x, 
@@ -134,10 +258,12 @@ elseif plot_traceplots
             )
         end
         # plot!(fig, subplot = sp, samples[!,name])
-        plot!(fig, subplot = sp, samples[!,name])
+        for i in 1:4
+            plot!(fig, subplot = sp, samples[(1 + (i - 1) * num_each_chain):(i * num_each_chain),name])
+        end
         xlabel!(fig, subplot = sp, name)
         sp += 1
-        if sp == 8*4 + 1 || sp == length(names_to_plot) + 1
+        if sp == 8*5 + 1 || sp == length(names_to_plot) + 1
             sp = 1 
             savefig(fig, "tmp_plots/page"*string(page)*".pdf")
             page += 1
@@ -195,10 +321,39 @@ mu_hat_filtered = CSV.read(
     DataFrame,
 )
 
-Reff = CSV.read(
-    "results/EpyReff/Reff2022-02-22tau_5.csv", 
+Reff_delta = CSV.read(
+    "results/EpyReff/Reff_delta2022-03-08tau_5.csv", 
     DataFrame
 )
+Reff_omicron = CSV.read(
+    "results/EpyReff/Reff_omicron2022-03-08tau_5.csv", 
+    DataFrame
+)
+
+fig = plot(layout = (4, 2), size = (800, 800)) 
+plot!(fig, Reff_delta.INFECTION_DATES, Reff_delta.mean, group = Reff_delta.STATE, lc = 1)
+plot!(fig, Reff_delta.INFECTION_DATES, Reff_delta.bottom, group = Reff_delta.STATE, lc = 1, ls = :dash)
+plot!(fig, Reff_delta.INFECTION_DATES, Reff_delta.top, group = Reff_delta.STATE, lc = 1, ls = :dash)
+plot!(fig, Reff_omicron.INFECTION_DATES, Reff_omicron.mean, group = Reff_omicron.STATE, lc = 2)
+plot!(fig, Reff_omicron.INFECTION_DATES, Reff_omicron.bottom, group = Reff_omicron.STATE, lc = 2, ls = :dash)
+plot!(fig, Reff_omicron.INFECTION_DATES, Reff_omicron.top, group = Reff_omicron.STATE, lc = 2, ls = :dash)
+xlims!((Dates.Date("2021-12-01"), Dates.Date("2022-03-05")))
+ylims!(0.5, 3)
+
+Reff_delta = filter(:STATE => ==("NSW"), Reff_delta)
+Reff_omicron = filter(:STATE => ==("NSW"), Reff_omicron)
+
+fig = plot(size = (800, 800)) 
+plot!(fig, Reff_delta.INFECTION_DATES, Reff_delta.mean, lc = 1)
+plot!(fig, Reff_delta.INFECTION_DATES, Reff_delta.bottom, lc = 1, ls = :dash)
+plot!(fig, Reff_delta.INFECTION_DATES, Reff_delta.top, lc = 1, ls = :dash)
+plot!(fig, Reff_omicron.INFECTION_DATES, Reff_omicron.mean, lc = 2)
+plot!(fig, Reff_omicron.INFECTION_DATES, Reff_omicron.bottom, lc = 2, ls = :dash)
+plot!(fig, Reff_omicron.INFECTION_DATES, Reff_omicron.top, lc = 2, ls = :dash)
+vline!(fig, [Dates.Date("2021-12-13")], lc = :black, ls = :dash, lw = 2)
+vline!(fig, [Dates.Date("2021-11-15")], lc = :green, ls = :dash, lw = 2)
+xlims!((Dates.Date("2021-11-10"), Dates.Date("2022-03-05")))
+ylims!(0.5, 1.7)
 
 Reff_state = filter(:STATE => ==(state), Reff)
 plot(

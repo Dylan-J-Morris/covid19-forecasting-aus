@@ -18,21 +18,22 @@ import pandas as pd
 import matplotlib
 from math import ceil
 import pickle
-import stan
+from cmdstanpy import CmdStanModel
 
 matplotlib.use("Agg")
 
 from params import (
     truncation_days,
-    download_google_automatically,
+    start_date, 
     third_start_date,
     alpha_start_date, 
     omicron_start_date,
+    omicron_only_date,
     omicron_dominance_date,
     pop_sizes,
     num_forecast_days,
-    p_detect_delta, 
-    p_detect_omicron, 
+    get_all_p_detect_old,
+    get_all_p_detect,
 )
 
 def process_vax_data_array(
@@ -212,11 +213,30 @@ def get_data_for_posterior(data_date):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_4.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
+    
+    df_Reff_omicron = pd.read_csv(
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_4.csv",
+        parse_dates=["INFECTION_DATES"],
+    )
+    df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
+    df_Reff_omicron["state"] = df_Reff_omicron.STATE
+    
+    # relabel some of the columns to avoid replication in the merged dataframe 
+    col_names_replace = {
+        "mean": "mean_omicron",
+        "lower": "lower_omicron",
+        "upper": "upper_omicron",
+        "top": "top_omicron",
+        "bottom": "bottom_omicron",
+        "std": "std_omicron",
+    }
+
+    df_Reff_omicron.rename(col_names_replace, axis=1, inplace=True)
 
     # read in NNDSS/linelist data
     # If this errors it may be missing a leading zero on the date.
@@ -232,6 +252,15 @@ def get_data_for_posterior(data_date):
         left_on=["state", "date"],
         right_on=["STATE", "date_inferred"],
     )  # how = left to use Reff days, NNDSS missing dates
+
+    # merge in the omicron stuff 
+    df_Reff = df_Reff.merge(
+        df_Reff_omicron, 
+        how="left", 
+        left_on=["state", "date"],
+        right_on=["state", "date"],
+    )
+    
     df_Reff["rho_moving"] = df_Reff.groupby(["state"])["rho"].transform(
         lambda x: x.rolling(7, 1).mean()
     )  # minimum number of 1
@@ -246,7 +275,7 @@ def get_data_for_posterior(data_date):
     ######### Read in Google mobility results #########
     sys.path.insert(0, "../")
 
-    df_google = read_in_google(local=not download_google_automatically, moving=True)
+    df_google = read_in_google(moving=True)
     df = df_google.merge(
         df_Reff[
             [
@@ -258,6 +287,12 @@ def get_data_for_posterior(data_date):
                 "top",
                 "bottom",
                 "std",
+                "mean_omicron",
+                "lower_omicron",
+                "upper_omicron",
+                "top_omicron",
+                "bottom_omicron",
+                "std_omicron",
                 "rho",
                 "rho_moving",
                 "local",
@@ -279,17 +314,16 @@ def get_data_for_posterior(data_date):
     first_states = sorted(["NSW", "VIC", "QLD", "SA", "WA", "TAS"])
     fit_post_March = True
     ban = "2020-03-20"
-    start_date = "2020-03-01"
-    end_date = "2020-03-31"
+    first_end_date = "2020-03-31"
 
     # data for the first wave
     first_date_range = {
-        "NSW": pd.date_range(start="2020-03-01", end=end_date).values,
-        "QLD": pd.date_range(start="2020-03-01", end=end_date).values,
-        "SA": pd.date_range(start="2020-03-01", end=end_date).values,
-        "TAS": pd.date_range(start="2020-03-01", end=end_date).values,
-        "VIC": pd.date_range(start="2020-03-01", end=end_date).values,
-        "WA": pd.date_range(start="2020-03-01", end=end_date).values,
+        "NSW": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "QLD": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "SA": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "TAS": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "VIC": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "WA": pd.date_range(start="2020-03-01", end=first_end_date).values,
     }
 
     # Second wave inputs
@@ -329,7 +363,7 @@ def get_data_for_posterior(data_date):
     if fit_post_March:
         fit_mask = (fit_mask) & (df.date >= start_date)
 
-    fit_mask = (fit_mask) & (df.date <= end_date)
+    fit_mask = (fit_mask) & (df.date <= first_end_date)
 
     second_wave_mask = df.state.isin(sec_states)
     second_wave_mask = (second_wave_mask) & (df.date >= sec_start_date)
@@ -427,6 +461,22 @@ def get_data_for_posterior(data_date):
                 columns="state",
                 values=value,
             ).sort_index(axis="columns")
+            
+    # now add in the summary stats for Omicron Reff 
+    for value in ["mean_omicron", "std_omicron"]:
+        if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
+            print("making empty")
+            third_data_by_state[value] = pd.DataFrame(columns=third_states).astype(
+                float
+            )
+        else:
+            third_data_by_state[value] = pd.pivot(
+                df3X[["state", value, "date"]],
+                index="date",
+                columns="state",
+                values=value,
+            ).sort_index(axis="columns")
+        
 
     # FIRST PHASE
     mobility_by_state = []
@@ -446,16 +496,15 @@ def get_data_for_posterior(data_date):
     for state in first_states:
         mobility_by_state.append(dfX.loc[dfX.state == state, predictors].values / 100)
         mobility_std_by_state.append(
-            dfX.loc[dfX.state == state, [val + "_std" for val in predictors]].values
-            / 100
+            dfX.loc[dfX.state == state, [val + "_std" for val in predictors]].values / 100
         )
-        count_by_state.append(survey_counts.loc[start_date:end_date, state].values)
-        respond_by_state.append(survey_respond.loc[start_date:end_date, state].values)
+        count_by_state.append(survey_counts.loc[start_date:first_end_date, state].values)
+        respond_by_state.append(survey_respond.loc[start_date:first_end_date, state].values)
         mask_wearing_count_by_state.append(
-            mask_wearing_counts.loc[start_date:end_date, state].values
+            mask_wearing_counts.loc[start_date:first_end_date, state].values
         )
         mask_wearing_respond_by_state.append(
-            mask_wearing_respond.loc[start_date:end_date, state].values
+            mask_wearing_respond.loc[start_date:first_end_date, state].values
         )
         include_in_first_wave.append(
             dfX.loc[dfX.state == state, "is_first_wave"].values
@@ -481,8 +530,7 @@ def get_data_for_posterior(data_date):
             df2X.loc[df2X.state == state, predictors].values / 100
         )
         sec_mobility_std_by_state.append(
-            df2X.loc[df2X.state == state, [val + "_std" for val in predictors]].values
-            / 100
+            df2X.loc[df2X.state == state, [val + "_std" for val in predictors]].values / 100
         )
         sec_count_by_state.append(
             survey_counts.loc[sec_start_date:sec_end_date, state].values
@@ -519,8 +567,7 @@ def get_data_for_posterior(data_date):
             df3X.loc[df3X.state == state, predictors].values / 100
         )
         third_mobility_std_by_state.append(
-            df3X.loc[df3X.state == state, [val + "_std" for val in predictors]].values
-            / 100
+            df3X.loc[df3X.state == state, [val + "_std" for val in predictors]].values / 100
         )
         third_count_by_state.append(
             survey_counts.loc[third_start_date:third_end_date, state].values
@@ -556,6 +603,7 @@ def get_data_for_posterior(data_date):
         variant="Delta",
         print_latest_date_in_ts=True,
     )
+    
     omicron_vaccination_by_state_array = process_vax_data_array(
         data_date=data_date,
         third_states=third_states,
@@ -574,6 +622,9 @@ def get_data_for_posterior(data_date):
     omicron_start_day = (
         pd.to_datetime(omicron_start_date) - pd.to_datetime(third_start_date)
     ).days
+    omicron_only_day = (
+        pd.to_datetime(omicron_only_date) - pd.to_datetime(third_start_date)
+    ).days
     omicron_dominance_day = (
         pd.to_datetime(omicron_dominance_date) - pd.to_datetime(third_start_date)
     ).days
@@ -582,12 +633,23 @@ def get_data_for_posterior(data_date):
     ).days
     
     # number of days we fit the average VE over 
-    tau_vax_block_size = 7
+    tau_vax_block_size = 3
 
     # get pop size array
     pop_size_array = []
     for s in states_to_fit_all_waves:
         pop_size_array.append(pop_sizes[s])
+        
+    
+    p_detect = get_all_p_detect_old(
+        end_date=third_end_date, 
+        num_days=df3X.loc[df3X.state == "NSW"].shape[0],
+    )
+    
+    # p_detect = get_all_p_detect(
+    #     end_date=third_end_date, 
+    #     num_days=df3X.loc[df3X.state == "NSW"].shape[0],
+    # )
 
     # input data block for stan model
     input_data = {
@@ -597,8 +659,8 @@ def get_data_for_posterior(data_date):
         "K": len(predictors),
         "j_first_wave": len(first_states),
         "Reff": data_by_state["mean"].values,
-        "Mob": mobility_by_state,
-        "Mob_std": mobility_std_by_state,
+        "mob": mobility_by_state,
+        "mob_std": mobility_std_by_state,
         "sigma2": data_by_state["std"].values ** 2,
         "policy": policy.values,
         "local": data_by_state["local"].values,
@@ -607,20 +669,22 @@ def get_data_for_posterior(data_date):
         "N_sec_wave": df2X.loc[df2X.state == sec_states[0]].shape[0],
         "j_sec_wave": len(sec_states),
         "Reff_sec_wave": sec_data_by_state["mean"].values,
-        "Mob_sec_wave": sec_mobility_by_state,
-        "Mob_sec_wave_std": sec_mobility_std_by_state,
+        "mob_sec_wave": sec_mobility_by_state,
+        "mob_sec_wave_std": sec_mobility_std_by_state,
         "sigma2_sec_wave": sec_data_by_state["std"].values ** 2,
         "policy_sec_wave": policy_sec_wave,
         "local_sec_wave": sec_data_by_state["local"].values,
         "imported_sec_wave": sec_data_by_state["imported"].values,
         "apply_alpha_sec_wave": apply_alpha_sec_wave,
         
-        "N_third_wave": df3X.loc[df3X.state == third_states[0]].shape[0],
+        "N_third_wave": df3X.loc[df3X.state == "NSW"].shape[0],
         "j_third_wave": len(third_states),
         "Reff_third_wave": third_data_by_state["mean"].values,
-        "Mob_third_wave": third_mobility_by_state,
-        "Mob_third_wave_std": third_mobility_std_by_state,
+        "Reff_omicron_wave": third_data_by_state["mean_omicron"].values,
+        "mob_third_wave": third_mobility_by_state,
+        "mob_third_wave_std": third_mobility_std_by_state,
         "sigma2_third_wave": third_data_by_state["std"].values ** 2,
+        "sigma2_omicron_wave": third_data_by_state["std_omicron"].values ** 2,
         "policy_third_wave": policy_third_wave,
         "local_third_wave": third_data_by_state["local"].values,
         "imported_third_wave": third_data_by_state["imported"].values,
@@ -661,7 +725,7 @@ def get_data_for_posterior(data_date):
         "ve_omicron_data": omicron_vaccination_by_state_array,
         
         "omicron_start_day": omicron_start_day,
-        "omicron_dominance_day": omicron_dominance_day,
+        "omicron_only_day": omicron_only_day,
         "include_in_omicron_wave": include_in_omicron_wave,
         "total_N_p_third_omicron": int(
             sum([sum(x) for x in include_in_omicron_wave]).item()
@@ -684,14 +748,12 @@ def get_data_for_posterior(data_date):
         ).astype(int),
         "pop_size_array": pop_size_array,
         "heterogeneity_start_day": heterogeneity_start_day,
-        "p_detect_delta": p_detect_delta, 
-        "p_detect_omicron": p_detect_omicron, 
+        "p_detect": p_detect,
     }
 
-    # dump the dictionary to a json filex
-    a_file = open("results/stan_input_data.pkl", "wb")
-    pickle.dump(input_data, a_file)
-    a_file.close()
+    # dump the dictionary to a json file
+    with open("results/stan_input_data.pkl", "wb") as f:
+        pickle.dump(input_data, f)
 
     return None
 
@@ -701,7 +763,7 @@ def run_stan(
     num_chains=4, 
     num_samples=1000, 
     num_warmup_samples=500, 
-    custom_file_name="",
+    max_treedepth=12,
 ):
     """
     Read the input_data.json in and run the stan model.
@@ -710,24 +772,19 @@ def run_stan(
     data_date = pd.to_datetime(data_date)
 
     # read in the input data as a dictionary
-    a_file = open("results/stan_input_data.pkl", "rb")
-    input_data = pickle.load(a_file)
-    a_file.close()
+    with open("results/stan_input_data.pkl", "rb") as f:
+        input_data = pickle.load(f)
 
     # make results and figs dir
     figs_dir = (
-        "figs/stan_fit/" 
+        "figs/stan_fit/stan_fit_" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
         + "/"
     )
     
     results_dir = (
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/" 
-        + custom_file_name 
         + "/"
     )
     
@@ -735,64 +792,91 @@ def run_stan(
     os.makedirs(results_dir, exist_ok=True)
 
     # to run the inference set run_inference to True in params
-    if run_inference:
+    # path to the stan model 
+    # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma.stan"
+    rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_prod.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_mix.stan"
 
-        # import the stan model as a string
-        with open("TP_model/fit_and_forecast/rho_model_gamma.stan") as f:
-            rho_model_gamma = f.read()
+    # compile the stan model
+    model = CmdStanModel(stan_file=rho_model_gamma)
 
-        # compile the stan model
-        posterior = stan.build(rho_model_gamma, data=input_data)
-        fit = posterior.sample(
-            num_chains=num_chains,
-            num_samples=num_samples,
-            num_warmup=num_warmup_samples,
-        )
-        
-        df_fit = fit.to_frame()
-        df_fit.to_csv(
-            results_dir
-            + "posterior_sample_" 
-            + data_date.strftime("%Y-%m-%d") 
-            + ".csv"
-        )
-        
-        filename = "stan_posterior_fit" + data_date.strftime("%Y-%m-%d") + ".txt"
-        with open(figs_dir + filename, "w") as f:
-            print(
-                az.summary(
-                    fit,
-                    var_names=[
-                        "bet",
-                        "R_I",
-                        "R_I_omicron",
-                        "R_L",
-                        "R_Li",
-                        "theta_md",
-                        "sig",
-                        "voc_effect_alpha",
-                        "voc_effect_delta",
-                        "voc_effect_omicron",
-                        "susceptible_depletion_factor",
-                    ],
-                ),
-                file=f,
-            )
+    # vb_fit = model.variational(data=input_data, require_converged=True, grad_samples=20, seed=12345)
+    # vb_vars = vb_fit.stan_variables()
+
+    # obtain a posterior sample from the model conditioned on the data
+    fit = model.sample(
+        chains=num_chains, 
+        # inits=vb_vars,
+        iter_warmup=num_warmup_samples, 
+        iter_sampling=num_samples, 
+        data=input_data,
+        max_treedepth=max_treedepth,
+        refresh=1
+    )
+    
+    # display convergence diagnostics for the current run 
+    print("===========")
+    print(fit.diagnose())
+    print("===========")
+    
+    df_fit = fit.draws_pd()
+    df_fit.to_csv(
+        results_dir
+        + "posterior_sample_" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
+    
+    # output a set of diagnostics
+    filename = (
+        figs_dir 
+        + "fit_summary_all_parameters" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
+    
+    # save a huge summary file
+    fit_summary = fit.summary()
+    fit_summary.to_csv(filename)
+    
+    # now save a small summary to easily view
+    pars_of_interest = ["bet[" + str(i + 1) + "]" for i in range(5)]
+    pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(5)]
+    pars_of_interest = pars_of_interest + [
+        "R_I",
+        "R_L",
+        "theta_md",
+        "theta_masks",
+        "sig",
+        "voc_effect_alpha",
+        "voc_effect_delta",
+        "voc_effect_omicron",
+        "susceptible_depletion_factor",
+    ]
+    
+    # save a summary for ease of viewing
+    # output a set of diagnostics
+    filename = (
+        figs_dir 
+        + "fit_summary_main_parameters" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
+    
+    fit_summary.loc[pars_of_interest].to_csv(filename) 
 
     return None
 
 
-def plot_and_save_posterior_samples(data_date, custom_file_name=""):
+def plot_and_save_posterior_samples(data_date):
     """
     Runs the full suite of plotting.
     """
 
     data_date = pd.to_datetime(data_date)  # Define data date
     figs_dir = (
-        "figs/stan_fit/" 
+        "figs/stan_fit/stan_fit_" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
         + "/"
     )
 
@@ -800,10 +884,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     samples_mov_gamma = pd.read_csv(
         "results/"
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "posterior_sample_" 
+        + "/posterior_sample_" 
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
@@ -910,13 +991,32 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     ).astype(int)
 
     df_Reff = pd.read_csv(
-        "results/EpyReff/Reff" + data_date.strftime("%Y-%m-%d") + "tau_5.csv",
+        "results/EpyReff/Reff_delta" + data_date.strftime("%Y-%m-%d") + "tau_4.csv",
         parse_dates=["INFECTION_DATES"],
     )
     df_Reff["date"] = df_Reff.INFECTION_DATES
     df_Reff["state"] = df_Reff.STATE
+    
+    df_Reff_omicron = pd.read_csv(
+        "results/EpyReff/Reff_omicron" + data_date.strftime("%Y-%m-%d") + "tau_4.csv",
+        parse_dates=["INFECTION_DATES"],
+    )
+    df_Reff_omicron["date"] = df_Reff_omicron.INFECTION_DATES
+    df_Reff_omicron["state"] = df_Reff_omicron.STATE
+    
+    # relabel some of the columns to avoid replication in the merged dataframe 
+    col_names_replace = {
+        "mean": "mean_omicron",
+        "lower": "lower_omicron",
+        "upper": "upper_omicron",
+        "top": "top_omicron",
+        "bottom": "bottom_omicron",
+        "std": "std_omicron",
+    }
 
-    ######### Read in NNDSS/linelist data #########
+    df_Reff_omicron.rename(col_names_replace, axis=1, inplace=True)
+
+    # read in NNDSS/linelist data
     # If this errors it may be missing a leading zero on the date.
     df_state = read_in_cases(
         case_file_date=data_date.strftime("%d%b%Y"),
@@ -930,6 +1030,15 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         left_on=["state", "date"],
         right_on=["STATE", "date_inferred"],
     )  # how = left to use Reff days, NNDSS missing dates
+
+    # merge in the omicron stuff 
+    df_Reff = df_Reff.merge(
+        df_Reff_omicron, 
+        how="left", 
+        left_on=["state", "date"],
+        right_on=["state", "date"],
+    )
+    
     df_Reff["rho_moving"] = df_Reff.groupby(["state"])["rho"].transform(
         lambda x: x.rolling(7, 1).mean()
     )  # minimum number of 1
@@ -944,7 +1053,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     ######### Read in Google mobility results #########
     sys.path.insert(0, "../")
 
-    df_google = read_in_google(local=not download_google_automatically, moving=True)
+    df_google = read_in_google(moving=True)
     df = df_google.merge(
         df_Reff[
             [
@@ -956,6 +1065,12 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 "top",
                 "bottom",
                 "std",
+                "mean_omicron",
+                "lower_omicron",
+                "upper_omicron",
+                "top_omicron",
+                "bottom_omicron",
+                "std_omicron",
                 "rho",
                 "rho_moving",
                 "local",
@@ -977,17 +1092,16 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     first_states = sorted(["NSW", "VIC", "QLD", "SA", "WA", "TAS"])
     fit_post_March = True
     ban = "2020-03-20"
-    start_date = "2020-03-01"
-    end_date = "2020-03-31"
+    first_end_date = "2020-03-31"
 
     # data for the first wave
     first_date_range = {
-        "NSW": pd.date_range(start="2020-03-01", end=end_date).values,
-        "QLD": pd.date_range(start="2020-03-01", end=end_date).values,
-        "SA": pd.date_range(start="2020-03-01", end=end_date).values,
-        "TAS": pd.date_range(start="2020-03-01", end=end_date).values,
-        "VIC": pd.date_range(start="2020-03-01", end=end_date).values,
-        "WA": pd.date_range(start="2020-03-01", end=end_date).values,
+        "NSW": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "QLD": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "SA": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "TAS": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "VIC": pd.date_range(start="2020-03-01", end=first_end_date).values,
+        "WA": pd.date_range(start="2020-03-01", end=first_end_date).values,
     }
 
     # Second wave inputs
@@ -1030,7 +1144,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     if fit_post_March:
         fit_mask = (fit_mask) & (df.date >= start_date)
 
-    fit_mask = (fit_mask) & (df.date <= end_date)
+    fit_mask = (fit_mask) & (df.date <= first_end_date)
 
     second_wave_mask = df.state.isin(sec_states)
     second_wave_mask = (second_wave_mask) & (df.date >= sec_start_date)
@@ -1125,6 +1239,22 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 columns="state",
                 values=value,
             ).sort_index(axis="columns")
+            
+            
+    # now add in the summary stats for Omicron Reff 
+    for value in ["mean_omicron", "std_omicron"]:
+        if df3X.loc[df3X.state == third_states[0]].shape[0] == 0:
+            print("making empty")
+            third_data_by_state[value] = pd.DataFrame(columns=third_states).astype(
+                float
+            )
+        else:
+            third_data_by_state[value] = pd.pivot(
+                df3X[["state", value, "date"]],
+                index="date",
+                columns="state",
+                values=value,
+            ).sort_index(axis="columns")
 
     # FIRST PHASE
     mobility_by_state = []
@@ -1147,13 +1277,13 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             dfX.loc[dfX.state == state, [val + "_std" for val in predictors]].values
             / 100
         )
-        count_by_state.append(survey_counts.loc[start_date:end_date, state].values)
-        respond_by_state.append(survey_respond.loc[start_date:end_date, state].values)
+        count_by_state.append(survey_counts.loc[start_date:first_end_date, state].values)
+        respond_by_state.append(survey_respond.loc[start_date:first_end_date, state].values)
         mask_wearing_count_by_state.append(
-            mask_wearing_counts.loc[start_date:end_date, state].values
+            mask_wearing_counts.loc[start_date:first_end_date, state].values
         )
         mask_wearing_respond_by_state.append(
-            mask_wearing_respond.loc[start_date:end_date, state].values
+            mask_wearing_respond.loc[start_date:first_end_date, state].values
         )
         include_in_first_wave.append(
             dfX.loc[dfX.state == state, "is_first_wave"].values
@@ -1262,11 +1392,11 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             dates = df_Reff.loc[
                 (df_Reff.date >= start_date)
                 & (df_Reff.state == state)
-                & (df_Reff.date <= end_date)
+                & (df_Reff.date <= first_end_date)
             ].date
             rho_samples = samples_mov_gamma[
                 [
-                    "brho." + str(j + 1) + "." + str(states_to_fitd[state])
+                    "brho[" + str(j + 1) + "," + str(states_to_fitd[state]) + "]"
                     for j in range(dfX.loc[dfX.state == first_states[0]].shape[0])
                 ]
             ]
@@ -1293,7 +1423,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 data=df_state.loc[
                     (df_state.date_inferred >= start_date)
                     & (df_state.STATE == state)
-                    & (df_state.date_inferred <= end_date)
+                    & (df_state.date_inferred <= first_end_date)
                 ],
                 ax=ax[i],
                 color="C1",
@@ -1306,7 +1436,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             data=df_Reff.loc[
                 (df_Reff.date >= start_date)
                 & (df_Reff.state == state)
-                & (df_Reff.date <= end_date)
+                & (df_Reff.date <= first_end_date)
             ],
             ax=ax[i],
             color="C1",
@@ -1318,7 +1448,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             data=df_Reff.loc[
                 (df_Reff.date >= start_date)
                 & (df_Reff.state == state)
-                & (df_Reff.date <= end_date)
+                & (df_Reff.date <= first_end_date)
             ],
             ax=ax[i],
             color="C2",
@@ -1351,7 +1481,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             ].date.values
             rho_samples = samples_mov_gamma[
                 [
-                    "brho_sec_wave." + str(j + 1)
+                    "brho_sec_wave[" + str(j + 1) + "]"
                     for j in range(
                         pos, pos + df2X.loc[df2X.state == state].is_sec_wave.sum()
                     )
@@ -1441,7 +1571,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             ].date.values
             rho_samples = samples_mov_gamma[
                 [
-                    "brho_third_wave." + str(j + 1)
+                    "brho_third_wave[" + str(j + 1) + "]"
                     for j in range(
                         pos, pos + df3X.loc[df3X.state == state].is_third_wave.sum()
                     )
@@ -1524,10 +1654,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     df_rho_third_all_states.to_csv(
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "rho_samples" 
+        + "/rho_samples" 
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
@@ -1552,7 +1679,9 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         x="variable",
         y="value",
         data=pd.melt(
-            samples_mov_gamma[[col for col in samples_mov_gamma if "R" in col]]
+            samples_mov_gamma[[
+                col for col in samples_mov_gamma if "R" in col and col not in ("R_I0", "R_I0_omicron")
+            ]]
         ),
         ax=ax,
         cut=0,
@@ -1594,7 +1723,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     # Making a new figure that doesn't include the priors
     fig, ax = plt.subplots(figsize=(12, 9))
 
-    small_plot_cols = ["R_Li." + str(i) for i in range(1, 9)] + ["R_I"]
+    small_plot_cols = ["R_Li[" + str(i) + "]" for i in range(1, 9)] + ["R_I"]
 
     sns.violinplot(
         x="variable",
@@ -1670,7 +1799,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         dpi=288,
     )
 
-    posterior = samples_mov_gamma[["bet." + str(i + 1) for i in range(len(predictors))]]
+    posterior = samples_mov_gamma[["bet[" + str(i + 1) + "]" for i in range(len(predictors))]]
 
     split = True
     md = "power"  # samples_mov_gamma.md.values
@@ -1707,12 +1836,12 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
 
     # plot the TP's
     RL_by_state = {
-        state: samples_mov_gamma["R_Li." + str(i + 1)].values
+        state: samples_mov_gamma["R_Li[" + str(i + 1) + "]"].values
         for state, i in state_index.items()
     }
     ax3 = predict_plot(
         samples_mov_gamma,
-        df.loc[(df.date >= start_date) & (df.date <= end_date)],
+        df.loc[(df.date >= start_date) & (df.date <= first_end_date)],
         moving=True,
         grocery=True,
         rho=first_states,
@@ -1720,7 +1849,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     for ax in ax3:
         for a in ax:
             a.set_ylim((0, 2.5))
-            a.set_xlim((pd.to_datetime(start_date), pd.to_datetime(end_date)))
+            a.set_xlim((pd.to_datetime(start_date), pd.to_datetime(first_end_date)))
 
     plt.savefig(
         figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_first_phase.png",
@@ -1842,10 +1971,10 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
 
     # extrac the samples
     delta_ve_samples = samples_mov_gamma[
-        ["ve_delta." + str(j + 1) for j in range(third_days_tot)]
+        ["ve_delta[" + str(j + 1) + "]" for j in range(third_days_tot)]
     ].T
     omicron_ve_samples = samples_mov_gamma[
-        ["ve_omicron." + str(j + 1) for j in range(third_omicron_days_tot)]
+        ["ve_omicron[" + str(j + 1) + "]" for j in range(third_omicron_days_tot)]
     ].T
 
     # now we plot and save the adjusted ve time series to be read in by the forecasting
@@ -1860,7 +1989,6 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         delta_ve_idx_ranges,
         figs_dir,
         "delta",
-        custom_file_name=custom_file_name, 
     )
 
     plot_adjusted_ve(
@@ -1874,19 +2002,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
         omicron_ve_idx_ranges,
         figs_dir,
         "omicron",
-        custom_file_name=custom_file_name, 
     )
-
-    # extract the prop of omicron to delta and save
-    total_N_p_third_omicron = int(sum([sum(x) for x in include_in_omicron_wave]).item())
-    # prop_omicron_to_delta = samples_mov_gamma[
-    #     ["prop_omicron_to_delta." + str(j + 1) for j in range(total_N_p_third_omicron)]
-    # ]
-    # pd.DataFrame(
-    #     prop_omicron_to_delta.to_csv(
-    #         "results/prop_omicron_to_delta" + data_date.strftime("%Y-%m-%d") + ".csv"
-    #     )
-    # )
 
     if df3X.shape[0] > 0:
         df["is_third_wave"] = 0
@@ -1914,7 +2030,77 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
                 # a.set_xlim((start_date,end_date))
 
         plt.savefig(
-            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase.png",
+            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase_combined.png",
+            dpi=144,
+        )
+
+        # remove plots from memory
+        fig.clear()
+        plt.close(fig)
+        
+    if df3X.shape[0] > 0:
+        df["is_third_wave"] = 0
+        for state in third_states:
+            df.loc[df.state == state, "is_third_wave"] = (
+                df.loc[df.state == state]
+                .date.isin(third_date_range[state])
+                .astype(int)
+                .values
+            )
+
+        # plot only if there is third phase data - have to have third_phase=True
+        ax4 = predict_plot(
+            samples_mov_gamma,
+            df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
+            moving=True,
+            grocery=True,
+            rho=third_states,
+            third_phase=True,
+            third_plot_type="delta"
+        )  # by states....
+
+        for ax in ax4:
+            for a in ax:
+                a.set_ylim((0, 2.5))
+                # a.set_xlim((start_date,end_date))
+
+        plt.savefig(
+            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase_delta.png",
+            dpi=144,
+        )
+
+        # remove plots from memory
+        fig.clear()
+        plt.close(fig)
+        
+    if df3X.shape[0] > 0:
+        df["is_omicron_wave"] = 0
+        for state in third_states:
+            df.loc[df.state == state, "is_omicron_wave"] = (
+                df.loc[df.state == state]
+                .date.isin(third_omicron_date_range[state])
+                .astype(int)
+                .values
+            )
+
+        # plot only if there is third phase data - have to have third_phase=True
+        ax4 = predict_plot(
+            samples_mov_gamma,
+            df.loc[(df.date >= omicron_start_date) & (df.date <= third_end_date)],
+            moving=True,
+            grocery=True,
+            rho=third_states,
+            third_phase=True,
+            third_plot_type="omicron"
+        )  # by states....
+
+        for ax in ax4:
+            for a in ax:
+                a.set_ylim((0, 2.5))
+                # a.set_xlim((start_date,end_date))
+
+        plt.savefig(
+            figs_dir + data_date.strftime("%Y-%m-%d") + "Reff_third_phase_omicron.png",
             dpi=144,
         )
 
@@ -1937,10 +2123,11 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     fig, ax = plt.subplots(figsize=(15, 12), nrows=4, ncols=2, sharex=True, sharey=True)
 
     for (i, state) in enumerate(third_states):
-        m0 = np.tile(samples_mov_gamma.loc[:, "m0." + str(i + 1)], (len(omicron_date_range), 1))
-        m1 = np.tile(samples_mov_gamma.loc[:, "m1." + str(i + 1)], (len(omicron_date_range), 1))
-        r = np.tile(samples_mov_gamma.loc[:, "r." + str(i + 1)], (len(omicron_date_range), 1))
-        tau = np.tile(samples_mov_gamma.loc[:, "tau." + str(i + 1)] , (len(omicron_date_range), 1))
+        m0 = np.tile(samples_mov_gamma.loc[:, "m0[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        # m1 = np.tile(samples_mov_gamma.loc[:, "m1[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        m1 = 1.0
+        r = np.tile(samples_mov_gamma.loc[:, "r[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        tau = np.tile(samples_mov_gamma.loc[:, "tau[" + str(i + 1) + "]"] , (len(omicron_date_range), 1))
         
         omicron_start_date_tmp = max(
             pd.to_datetime(omicron_start_date), third_date_range[state][0]
@@ -1949,10 +2136,13 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
             omicron_start_date_tmp, third_date_range[state][-1]
         )
         
-        if state in {"TAS", "WA", "NT"}:
-            prop_omicron_to_delta_tmp = m1 
-        else:
-            prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+        # if state in {"TAS", "WA", "NT"}:
+        #     prop_omicron_to_delta_tmp = m1 
+        # else:
+        #     prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+        
+        prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
+        # prop_omicron_to_delta_tmp = m1 / (1 + np.exp(-r * (t - tau)))
         
         ax[i // 2, i % 2].plot(
             omicron_date_range, 
@@ -2007,10 +2197,7 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     df_prop_omicron_to_delta.to_csv(
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "prop_omicron_to_delta" 
+        + "/prop_omicron_to_delta" 
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
@@ -2018,41 +2205,39 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     # saving the final processed posterior samples to h5 for generate_RL_forecasts.py
     var_to_csv = predictors
     samples_mov_gamma[predictors] = samples_mov_gamma[
-        ["bet." + str(i + 1) for i in range(len(predictors))]
+        ["bet[" + str(i + 1) + "]" for i in range(len(predictors))]
     ]
     var_to_csv = [
         "R_I",
         "R_I_omicron",
         "R_L",
         "sig",
+        "theta_masks",
         "theta_md",
         "voc_effect_alpha",
         "voc_effect_delta",
         "voc_effect_omicron",
         "susceptible_depletion_factor",
     ]
-    var_to_csv = (
+    var_to_csv = (      
         var_to_csv
         + predictors
-        + ["R_Li." + str(i + 1) for i in range(len(states_to_fit_all_waves))]
+        + ["R_Li[" + str(i + 1) + "]" for i in range(len(states_to_fit_all_waves))]
     )
-    var_to_csv = var_to_csv + ["ve_delta." + str(j + 1) for j in range(third_days_tot)]
+    var_to_csv = var_to_csv + ["ve_delta[" + str(j + 1) + "]" for j in range(third_days_tot)]
     var_to_csv = var_to_csv + [
-        "ve_omicron." + str(j + 1) for j in range(third_omicron_days_tot)
+        "ve_omicron[" + str(j + 1) + "]" for j in range(third_omicron_days_tot)
     ]
-    var_to_csv = var_to_csv + ["r." + str(j + 1) for j in range(len(third_states))]
-    var_to_csv = var_to_csv + ["tau." + str(j + 1) for j in range(len(third_states))]
-    var_to_csv = var_to_csv + ["m0." + str(j + 1) for j in range(len(third_states))]
-    var_to_csv = var_to_csv + ["m1." + str(j + 1) for j in range(len(third_states))]
+    var_to_csv = var_to_csv + ["r[" + str(j + 1) + "]" for j in range(len(third_states))]
+    var_to_csv = var_to_csv + ["tau[" + str(j + 1) + "]" for j in range(len(third_states))]
+    var_to_csv = var_to_csv + ["m0[" + str(j + 1) + "]" for j in range(len(third_states))]
+    # var_to_csv = var_to_csv + ["m1[" + str(j + 1) + "]" for j in range(len(third_states))]
 
     # save the posterior
     samples_mov_gamma[var_to_csv].to_hdf(
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "soc_mob_posterior" 
+        + "/soc_mob_posterior" 
         + data_date.strftime("%Y-%m-%d") 
         + ".h5",
         key="samples",
@@ -2061,45 +2246,45 @@ def plot_and_save_posterior_samples(data_date, custom_file_name=""):
     return None
 
 
-def main(data_date, run_inference=True):
+def main(data_date, run_flag=1):
     """
-    Runs the stan model in parts to cut down on memory.
+    Runs the stan model in parts to cut down on memory. The run_flag enables us to run components
+    of the model as required and has the following settings:
+    run_flag=1 : Generate the data, save it, then run the inference and plotting methods. 
+    run_flag=2 : Using the data from 1, run the inference and plotting methods. 
+    run_flag=1 : Run plotting methods.
     """
-    # some parameters for HMC
-    custom_file_name = str(round(p_detect_omicron * 100)) + "_case_ascertainment"
-        
-    if run_inference:     
+    
+    if run_flag == 1:
+        get_data_for_posterior(data_date=data_date)    
+    
+    if run_flag in (1, 2):    
         num_chains = 4
-        num_samples = 1500
-        num_warmup_samples = 1000
-        get_data_for_posterior(data_date=data_date)
+        num_warmup_samples = 500
+        num_samples = 1000
+        max_treedepth = 12
         
         run_stan(
             data_date=data_date,
             num_chains=num_chains,
             num_samples=num_samples,
             num_warmup_samples=num_warmup_samples,
-            custom_file_name=custom_file_name,
+            max_treedepth=max_treedepth,
         )
         
-    plot_and_save_posterior_samples(
-        data_date=data_date, 
-        custom_file_name=custom_file_name
-    )
+    if run_flag in (1, 2, 3):
+        plot_and_save_posterior_samples(
+            data_date=data_date, 
+        )
+        
 
     return None
-
 
 if __name__ == "__main__":
     """
     If we are running the script here (which is always) then this ensures things run appropriately.
     """
     data_date = argv[1]
-    
-    if len(argv) == 2:
-        run_inference = True
-    elif len(argv) > 2:
-        if argv[2] == "False": 
-            run_inference = False
+    run_flag = int(argv[2])
         
-    main(data_date, run_inference)
+    main(data_date, run_flag=run_flag)

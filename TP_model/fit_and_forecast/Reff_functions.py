@@ -12,17 +12,14 @@ sys.path.insert(0, "model")
 from helper_functions import read_in_NNDSS
 from Reff_constants import *
 
-def read_in_posterior(date, custom_file_name=""):
+def read_in_posterior(date):
     """
     read in samples from posterior from inference
     """
     df = pd.read_hdf(
         "results/"
         + date 
-        + "/" 
-        + custom_file_name
-        + "/"
-        + "soc_mob_posterior" 
+        + "/soc_mob_posterior" 
         + date 
         + ".h5", 
         key="samples"
@@ -31,7 +28,7 @@ def read_in_posterior(date, custom_file_name=""):
     return df
 
 
-def read_in_google(Aus_only=True, local=False, moving=False):
+def read_in_google(Aus_only=True, local=True, moving=False):
     """
     Read in the Google data set
     """
@@ -90,16 +87,13 @@ def predict_plot(
     rho=None,
     second_phase=False,
     third_phase=False,
+    third_plot_type="combined",
 ):
     """
     Produce posterior predictive plots for all states using the inferred mu_hat. This should run 
     regardless of the form of the model as it only requires the mu_hat parameter which is 
     calculated inside stan (the TP model fitted to the Reff). 
     """
-    from scipy.special import expit
-    from params import third_start_date
-
-    os.makedirs("results/third_wave_fit/", exist_ok=True)
 
     value_vars = [
         "retail_and_recreation_percent_change_from_baseline",
@@ -142,17 +136,18 @@ def predict_plot(
         if not second_phase and not third_phase:
             mu_hat = samples[
                 [
-                    "mu_hat."
+                    "mu_hat["
                     + str(j + 1)
-                    + "."
+                    + ","
                     + str(states_to_fitd[states_initials[state]])
+                    + "]"
                     for j in range(df_state.shape[0])
                 ]
             ].values.T
         elif second_phase:
             mu_hat = samples[
                 [
-                    "mu_hat_sec_wave." + str(j + 1)
+                    "mu_hat_sec_wave[" + str(j + 1) + "]"
                     for j in range(
                         pos,
                         pos
@@ -169,24 +164,63 @@ def predict_plot(
                 ].is_sec_wave.sum()
             )
         elif third_phase:
-            mu_hat = samples[
-                [
-                    "mu_hat_third_wave." + str(j + 1)
-                    for j in range(
-                        pos,
-                        pos
-                        + df.loc[
-                            df.state == states_initials[state]
-                        ].is_third_wave.sum(),
-                    )
-                ]
-            ].values.T
-            pos = (
-                pos
-                + df.loc[
-                    df.state == states_initials[state]
-                ].is_third_wave.sum()
-            )
+            if third_plot_type == "combined":
+                mu_hat = samples[
+                    [
+                        "mu_hat_third_wave[" + str(j + 1) + "]"
+                        for j in range(
+                            pos,
+                            pos
+                            + df.loc[
+                                df.state == states_initials[state]
+                            ].is_third_wave.sum(),
+                        )
+                    ]
+                ].values.T
+                pos = (
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_third_wave.sum()
+                )
+            elif third_plot_type == "delta":
+                mu_hat = samples[
+                    [
+                        "mu_hat_delta_only[" + str(j + 1) + "]"
+                        for j in range(
+                            pos,
+                            pos
+                            + df.loc[
+                                df.state == states_initials[state]
+                            ].is_third_wave.sum(),
+                        )
+                    ]
+                ].values.T
+                pos = (
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_third_wave.sum()
+                )
+            elif third_plot_type == "omicron":
+                mu_hat = samples[
+                    [
+                        "mu_hat_omicron_only[" + str(j + 1) + "]"
+                        for j in range(
+                            pos,
+                            pos
+                            + df.loc[
+                                df.state == states_initials[state]
+                            ].is_omicron_wave.sum(),
+                        )
+                    ]
+                ].values.T
+                pos = (
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_omicron_wave.sum()
+                )
             
         
         df_hat = pd.DataFrame(mu_hat.T)
@@ -198,16 +232,58 @@ def predict_plot(
                 ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
             continue
         
-        # plot actual R_eff
-        ax[i // 4, i % 4].plot(
-            df_state.date, df_state["mean"], label="$R_{eff}$", color="C1"
-        )
-        ax[i // 4, i % 4].fill_between(
-            df_state.date, df_state["bottom"], df_state["top"], color="C1", alpha=0.3
-        )
-        ax[i // 4, i % 4].fill_between(
-            df_state.date, df_state["lower"], df_state["upper"], color="C1", alpha=0.3
-        )
+        if not third_phase: 
+            # plot actual R_eff
+            ax[i // 4, i % 4].plot(
+                df_state.date, df_state["mean"], label="$R_{eff}$", color="C1"
+            )
+            ax[i // 4, i % 4].fill_between(
+                df_state.date, df_state["bottom"], df_state["top"], color="C1", alpha=0.3
+            )
+            ax[i // 4, i % 4].fill_between(
+                df_state.date, df_state["lower"], df_state["upper"], color="C1", alpha=0.3
+            )
+        elif third_phase:
+            if third_plot_type in ("combined", "omicron"):
+                # plot actual R_eff
+                ax[i // 4, i % 4].plot(
+                    df_state.date, df_state["mean_omicron"], label="$R_{eff}$", color="C1"
+                )
+                ax[i // 4, i % 4].fill_between(
+                    df_state.date, 
+                    df_state["bottom_omicron"], 
+                    df_state["top_omicron"], 
+                    color="C1", 
+                    alpha=0.3
+                )
+                ax[i // 4, i % 4].fill_between(
+                    df_state.date, 
+                    df_state["lower_omicron"], 
+                    df_state["upper_omicron"], 
+                    color="C1", 
+                    alpha=0.3
+                )
+            else:
+                # plot actual R_eff
+                ax[i // 4, i % 4].plot(
+                    df_state.date, df_state["mean"], label="$R_{eff}$", color="C1"
+                )
+                ax[i // 4, i % 4].fill_between(
+                    df_state.date, 
+                    df_state["bottom"], 
+                    df_state["top"], 
+                    color="C1", 
+                    alpha=0.3
+                )
+                ax[i // 4, i % 4].fill_between(
+                    df_state.date, 
+                    df_state["lower"], 
+                    df_state["upper"], 
+                    color="C1", 
+                    alpha=0.3
+                )
+            
+            
         ax[i // 4, i % 4].plot(
             df_state.date, df_hat.quantile(0.5, axis=0), label="$\hat{\mu}$", color="C0"
         )
@@ -254,7 +330,6 @@ def plot_adjusted_ve(
     ve_idx_ranges,
     figs_dir,
     strain,
-    custom_file_name="",
 ):
 
     """
@@ -366,10 +441,7 @@ def plot_adjusted_ve(
     df_vacc_ts_adjusted.to_csv(
         "results/" 
         + data_date.strftime("%Y-%m-%d") 
-        + "/"
-        + custom_file_name 
-        + "/"
-        + "adjusted_vaccine_ts_"
+        + "/adjusted_vaccine_ts_"
         + strain
         + data_date.strftime("%Y-%m-%d")
         + ".csv",
@@ -396,14 +468,11 @@ def read_in_cases(
     case_file_date, 
     apply_delay_at_read=False, 
     apply_inc_at_read=False,
-    apply_case_ascertainment_increase=False,
 ):
     """
     Read in NNDSS data and from data, find rho
     """
-    from datetime import timedelta
-    import glob
-
+    
     df_NNDSS = read_in_NNDSS(
         case_file_date,
         apply_delay_at_read=apply_delay_at_read,
