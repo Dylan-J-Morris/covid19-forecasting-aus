@@ -59,19 +59,41 @@ if !ispath(dir_name)
 end
 
 let
-    
     num_samples = nrow(samples)
     # we run 4 independent chains and so this just ensures that we get the right number of samples 
     # per chain 
     num_each_chain = num_samples ÷ 4
     
     sp = 1
+    sp_total = 1
     page = 1
 
     names_to_plot = names(samples)
+    names_to_plot_keep = ones(Bool, length(names_to_plot))
+    
+    for (i, name) in enumerate(names_to_plot)
+        # this gross chunk of code enables us to avoid plotting of some of the nuisance parameters
+        if length(name) >= length("mu_hat") && name[1:length("mu_hat")] == "mu_hat" 
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("prop_md") && name[1:length("prop_md")] == "prop_md"
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("prop_masks") && name[1:length("prop_masks")] == "prop_masks"
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("brho") && name[1:length("brho")] == "brho"
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("ve") && name[1:length("ve")] == "ve"
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("md") && name[1:length("md")] == "md"
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("masks") && name[1:length("masks")] == "masks"
+            names_to_plot_keep[i] = false
+        end 
+    end
+    
+    names_to_plot = names_to_plot[names_to_plot_keep]
 
     fig = plot(
-        layout = (8,5),
+        layout = (5,5),
         dpi=200, 
         size=(1000,1200), 
         # link=:x, 
@@ -80,9 +102,10 @@ let
     )
 
     for name in ProgressBar(names_to_plot)
+        
         if sp == 1
             fig = plot(
-                layout = (8,5),
+                layout = (5,5),
                 dpi=200, 
                 size=(1000,1200), 
                 # link=:x, 
@@ -96,7 +119,8 @@ let
         end
         xlabel!(fig, subplot = sp, name)
         sp += 1
-        if sp == 8*5 + 1 || sp == length(names_to_plot) + 1
+        sp_total += 1
+        if sp == 5*5 + 1 || sp_total == length(names_to_plot) + 1
             sp = 1 
             savefig(fig, dir_name*"/page"*string(page)*".pdf")
             page += 1
@@ -116,12 +140,11 @@ let
     )
 
     sp = 1
+    sp_total = 1
     page = 1
 
-    names_to_plot = names(samples)
-
     fig = plot(
-        layout = (8,5),
+        layout = (5,5),
         dpi=200, 
         size=(1000,1200), 
         # link=:x, 
@@ -132,7 +155,7 @@ let
     for name in ProgressBar(names_to_plot)
         if sp == 1
             fig = plot(
-                layout = (8,5),
+                layout = (5,5),
                 dpi=200, 
                 size=(1000,1200), 
                 # link=:x, 
@@ -146,7 +169,8 @@ let
         end
         xlabel!(fig, subplot = sp, name)
         sp += 1
-        if sp == 8*5 + 1 || sp == length(names_to_plot) + 1
+        sp_total += 1
+        if sp == 5*5 + 1 || sp_total == length(names_to_plot) + 1
             sp = 1 
             savefig(fig, dir_name*"/page"*string(page)*".pdf")
             page += 1
