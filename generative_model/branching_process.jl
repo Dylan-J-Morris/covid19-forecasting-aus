@@ -59,15 +59,16 @@ function initialise_population!(
     # NOTE: this currently assumes we are starting in the Delta wave (which is true as
     # of 31/1/2022) but we will need to update this if we shift the starting date into 
     # an only Omicron period. 
-    p_symp = forecast.sim_constants.p_symp.delta 
-    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.delta 
     T_end = forecast.sim_features.T_end
     individual_type_map = forecast.individual_type_map
-    omicron_dominant_day = forecast.sim_features.omicron_dominant_day 
+    
+    # assume detection probabilities for initialisation is whatever it was at day 0
+    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp[map_day_to_index_p(0)]
+    p_symp = forecast.sim_constants.p_symp[map_day_to_index_p(0)]
 
     # infer some initial undetected symptomatic
     num_S_undetected = 0
-    
+        
     if D0.S == 0
         num_S_undetected = rand(NegativeBinomial(1, p_detect_given_symp))
     else
@@ -166,31 +167,21 @@ function import_cases_model!(
     D = forecast.sim_realisation.D
     U = forecast.sim_realisation.U
     
-    omicron_dominant_day = forecast.sim_features.omicron_dominant_day
-    
-    # grab the correct parameters for the particular dominant strain 
-    qi = 0.0
-    
     T_observed = forecast.sim_features.T_observed
     T_end = forecast.sim_features.T_end
     
 	# number of days after t = 0 (2020/03/01)
 	days_into_forecast = Day(Date(forecast_start_date) - Date("2020-03-01")).value
 	
+    # grab the correct parameters for the particular dominant strain 
+    p_detect_import = 0.0
+    
 	# the number of days the simulation is run for 
 	forecast_days_plus_padding = -10:T_end
 	# posterior a, b for sampling number of imports on day t 
 	a_post = MVector{length(forecast_days_plus_padding)}(
         zeros(Float64, length(forecast_days_plus_padding))
     )
-	
-    # TODO: Check this calculation makes sense. 
-    # A quick comment: 
-    # I think that the +7 deals with the truncation of the data at the end of the fitting 
-    # period and then the +4 ensures that we are considering the infection dates of those 
-    # individuals that have later onsets. I.e. individual is detected at time t, they are 
-    # infected at time t - 4, and so we want the count at time t. Bit roundabout to get 
-    # there but saves us writing more code. 
     
 	# current ema is taken 11 days before the forecast start date
 	current_ema = zero(Float64)
@@ -222,12 +213,12 @@ function import_cases_model!(
         # see whether they're observed 
         unobserved_I = D_I == 0 ? 1 : D_I
         # based on the switch to omicron (in terms of infections so -5 days)
-        if t < omicron_dominant_day
-            qi = forecast.sim_constants.qi.delta 
+        if map_day_to_index_p(t) <= length(forecast.sim_constants.p_detect_import)
+            p_detect_import = forecast.sim_constants.p_detect_import[map_day_to_index_p(t)]
         else
-            qi = forecast.sim_constants.qi.omicron 
+            p_detect_import = forecast.sim_constants.p_detect_import[end]
         end
-        U_I = rand(NegativeBinomial(unobserved_I, qi))
+        U_I = rand(NegativeBinomial(unobserved_I, p_detect_import))
         
         # day of infection is time t which is why the infection time in 
         if D_I + U_I > 0
@@ -256,43 +247,10 @@ function calculate_historical_infected(
     Z_historical = forecast.sim_realisation.Z_historical
     T_observed = forecast.sim_features.T_observed
     cases_pre_forecast = forecast.sim_features.cases_pre_forecast
-    omicron_dominant_day = forecast.sim_features.omicron_dominant_day 
-    p_detect_delta = forecast.sim_constants.p_detect.delta 
-    p_detect_omicron = forecast.sim_constants.p_detect.omicron 
     
     cases = 0
     cases_pre_omicron = 0
     cases_after_omicron = 0
-    
-    # if adjust_TP  
-    #     τ = map_day_to_index_cases(day)
-    #     # if adjusting the TP then use the raw daily cases in the calculation of the 
-    #     # depletion factor. We need to also scale the daily cases by the assumed 
-    #     # CAR.
-    #     cases_pre_omicron = 1 / p_detect_delta * sum(
-    #         @view local_cases[
-    #             begin:min(τ, map_day_to_index_cases(omicron_dominant_day) - 1)
-    #         ]
-    #     )
-        
-    #     if day >= omicron_dominant_day
-    #         cases_after_omicron = 1 / p_detect_omicron * sum(
-    #             @view local_cases[
-    #                 map_day_to_index_cases(omicron_dominant_day):min(τ, length(local_cases))
-    #             ]
-    #         )
-    #     end
-        
-    #     cases += cases_pre_omicron + cases_after_omicron
-        
-    #     if τ > length(local_cases)
-    #         τ2 = min(map_day_to_index_Z(day), size(Z_historical, 1))
-    #         cases += sum(@view Z_historical[map_day_to_index_Z(T_observed + 1):τ2])
-    #     end
-    # else    
-    #     τ = min(map_day_to_index_Z(day), size(Z_historical, 1))
-    #     cases = sum(@view Z_historical[begin:τ])
-    # end
     
     τ = min(map_day_to_index_Z(day), size(Z_historical, 1))
     cases = sum(@view Z_historical[begin:τ])
@@ -331,10 +289,15 @@ function sample_offspring!(
     D = forecast.sim_realisation.D
     U = forecast.sim_realisation.U
     omicron_start_day = forecast.sim_features.omicron_start_day 
-    omicron_dominant_day = forecast.sim_features.omicron_dominant_day 
     T_observed = forecast.sim_features.T_observed
     state = forecast.sim_features.state
     reff_change_time = forecast.sim_features.reff_change_time
+    
+    # extract the CAR related quantities 
+    p_detect = forecast.sim_constants.p_detect
+    p_symp = forecast.sim_constants.p_symp[map_day_to_index_Z(day)]
+    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp[map_day_to_index_Z(day)]
+    p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp[map_day_to_index_Z(day)]
     
     # extract fixed simulation values
     cases_pre_forecast = forecast.sim_features.cases_pre_forecast
@@ -397,61 +360,84 @@ function sample_offspring!(
             # reset counters
             num_offspring = 0
             TP_parent = 0.0 
-            k = 0.0 
+            k = 0.0
+            
+            # α_s = forecast.sim_constants.α_s[map_day_to_index_Z(day)]
+            # α_a = forecast.sim_constants.α_a[map_day_to_index_Z(day)]
             
             # essentially a (gross) switch statement 
-            if i == 1 
-                α_s = forecast.sim_constants.α_s.delta
+            if i == 1
+                γ = 0.5
+                α_s = 1 / (p_symp + γ * (1 - p_symp))
                 TP_parent = TP.TP_local_delta_parent * α_s
-                k = forecast.sim_constants.k.delta
+                k = 0.15
             elseif i == 2
-                α_a = forecast.sim_constants.α_a.delta
+                γ = 0.5
+                α_s = 1 / (p_symp + γ * (1 - p_symp))
+                α_a = γ * α_s
                 TP_parent = TP.TP_local_delta_parent * α_a
-                k = forecast.sim_constants.k.delta
+                k = 0.15
             elseif i == 3
                 TP_parent = TP.TP_import_delta_parent
-                k = forecast.sim_constants.k.delta
+                k = 0.15
             elseif i == 4
-                α_s = forecast.sim_constants.α_s.omicron
+                γ = 0.5
+                α_s = 1 / (p_symp + γ * (1 - p_symp))
+                α_a = γ * α_s
                 TP_parent = TP.TP_local_omicron_parent * α_s
-                k = forecast.sim_constants.k.omicron
+                k = 0.5
             elseif i == 5
-                α_a = forecast.sim_constants.α_a.omicron
+                γ = 0.5
+                α_s = 1 / (p_symp + γ * (1 - p_symp))
+                α_a = γ * α_s
                 TP_parent = TP.TP_local_omicron_parent * α_a
-                k = forecast.sim_constants.k.omicron
+                k = 0.6
             elseif i == 6
                 TP_parent = TP.TP_import_omicron_parent
-                k = forecast.sim_constants.k.omicron
+                k = 0.6
             end
             
-            # apply truncation for data, then apply the adjustment based in the forecasting
-            # this includes the nowcast adjustment period of 30 days
-            if (adjust_TP && day >= reff_change_time) || !adjust_TP
-                # when using the Reff, we do not adjust the TP through susceptible 
-                # depletion as this is already implicit in the calculation. 
+            if (adjust_TP && day <= reff_change_time) 
+                # When using the Reff we need to back out the inferred effect of susceptible 
+                # depletion to remain consistent with TP. If the Reff is given by 
+                # Reff = Reff' * ϕ 
+                # where ϕ is the inferred susceptible depletion term, we can back it out to get
+                # Reff'.
+                
+                # Calculate the "true" number of cases by multiplying the observed cases by 
+                # 1/p(detect) for assumed CA 
+                local_cases_idx = 1:map_day_to_index_cases(day - 5)
+                p_detect_idx = map_day_to_index_p(0):map_day_to_index_p(day - 5)
+                total_infected_actual = @views sum(
+                    local_cases[local_cases_idx] ./ p_detect[p_detect_idx]
+                )
+                # this is the same model as used in the fitting
+                proportion_infected = min(1, total_infected_actual / N)
+                scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
+                # divide out the susceptible depeletion factor from Reff
+                TP_parent = TP_parent / scale_factor
+                
+                # now multiply the effect back in based off the actual cases in the current 
+                # simulation
                 proportion_infected = min(1, total_infected / N)
                 scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
-                TP_parent *= scale_factor
+                TP_parent = TP_parent * scale_factor
+            elseif (adjust_TP && day >= reff_change_time) || !adjust_TP
+                # when using the TP, we just adjust by the susceptible depletion term
+                proportion_infected = min(1, total_infected / N)
+                scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
+                TP_parent = TP_parent * scale_factor 
             end
             
             num_offspring += sample_negative_binomial_limit(TP_parent * n_parents, k * n_parents)
             
             if num_offspring > 0            
-                p_symp = 0.0 
-                p_detect_given_symp = 0.0 
-                p_detect_given_asymp = 0.0 
                 is_omicron = false
                 
                 # set the appropriate detection probabilities based on the point in the forecast
                 if i in 1:3
-                    p_symp = forecast.sim_constants.p_symp.delta 
-                    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.delta 
-                    p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.delta  
                     is_omicron = false
                 elseif i in 4:6
-                    p_symp = forecast.sim_constants.p_symp.omicron 
-                    p_detect_given_symp = forecast.sim_constants.p_detect_given_symp.omicron 
-                    p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp.omicron  
                     is_omicron = true
                 end
                 
@@ -507,7 +493,6 @@ function assign_to_arrays_and_times!(
     D = forecast.sim_realisation.D
     U = forecast.sim_realisation.U
     individual_type_map = forecast.individual_type_map
-    omicron_dominant_day = forecast.sim_features.omicron_dominant_day
     T_end = forecast.sim_features.T_end
     
     # sampling detected cases 
@@ -603,8 +588,6 @@ function clean_up_sim_results(
     processed format. We also account for the effect of susceptible depletion in the TP 
     here so that the output includes the adjusted TP. 
     """
-    # TODO: Need to refactor the layout of this. Don't need to pass in so many parameters
-    
     return (
         D_results[:, :, 1:good_sims - 1], 
         U_results[:, :, 1:good_sims - 1], 
@@ -621,10 +604,7 @@ function simulate_branching_process(
     cases_pre_forecast,
     forecast_start_date, 
     date, 
-    omicron_start_date,
-    omicron_dominant_date,
     state; 
-    p_detect_omicron = 0.5,
     adjust_TP = false,
 )
     """
@@ -637,7 +617,6 @@ function simulate_branching_process(
         forecast_start_date, 
         date, 
         state,
-        p_detect_omicron = p_detect_omicron, 
         strain = "Delta",
         adjust_TP = adjust_TP,
     )
@@ -646,33 +625,21 @@ function simulate_branching_process(
         forecast_start_date, 
         date, 
         state,
-        p_detect_omicron = p_detect_omicron, 
         strain = "Omicron",
         adjust_TP = adjust_TP,
     )
     
-    susceptible_depletion = read_in_susceptible_depletion(
-        date, 
-        p_detect_omicron = p_detect_omicron,
-    )
+    susceptible_depletion = read_in_susceptible_depletion(date)
     
-    omicron_prop_pars = read_in_prop_omicron(date, state, p_detect_omicron = p_detect_omicron)
+    omicron_prop_pars = read_in_prop_omicron(date, state)
      
     max_restarts = 10
     good_sims = ones(Bool, nsims)
-    
-    # get simulation constants 
-    (sim_constants, individual_type_map) = set_simulation_constants(
-        state, 
-        p_detect_omicron = p_detect_omicron, 
-    )
     
     # calculate the upper and lower limits for checking sims against data 
     sim_features = get_simulation_limits(
         local_cases, 
         forecast_start_date,
-        omicron_start_date,
-        omicron_dominant_date,
         cases_pre_forecast, 
         TP_indices, 
         N, 
@@ -680,7 +647,17 @@ function simulate_branching_process(
     )
     
     # the range of days for the simulation -1 as the "days", day ↦ day + 1
-    day_range = -35:sim_features.T_end - 1
+    day_range = -30:sim_features.T_end - 1
+    
+    earliest_start_date = Dates.Date(forecast_start_date) - Dates.Day(30)
+    forecast_end_date = Dates.Date(forecast_start_date) + Dates.Day(sim_features.T_end - 1)
+    
+    # get simulation constants 
+    (sim_constants, individual_type_map) = set_simulation_constants(
+        earliest_start_date, 
+        forecast_end_date, 
+        state,
+    )
         
     # initialise state arrays (T_end + 1 as we include 0 day)
     sim_realisation = Realisation(sim_features.T_end)
@@ -745,6 +722,7 @@ function simulate_branching_process(
         # initialise counter to first day, when earliest infection occured based on 
         # initialisation
         day = start_day
+        
         # find index of the first TP to use based on the indices representing time 
         # from forecast origin
         TP_start_day_ind = findfirst(start_day == d for d in TP_indices)
@@ -764,6 +742,7 @@ function simulate_branching_process(
             # get the sampled parameters on a given day
             prop_pars_day = (
                 m0 = omicron_prop_pars["m0"][TP_ind], 
+                # m1 = omicron_prop_pars["m1"][TP_ind], 
                 m1 = 1.0,
                 r = omicron_prop_pars["r"][TP_ind], 
                 tau = omicron_prop_pars["tau"][TP_ind], 

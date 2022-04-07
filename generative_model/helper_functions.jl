@@ -11,7 +11,16 @@ function map_day_to_index_Z(day)
     Map the day to the appropriate index for the infection array Z noting the 35 day
     padding at the start. 
     """
-    return day + 36
+    return day + 31
+    
+end
+
+function map_day_to_index_p(day)
+    """
+    Map the day to the appropriate index for the actual case data. This just wraps the UD 
+    mapping for clarity in the code. 
+    """
+    return map_day_to_index_Z(day)
     
 end
 
@@ -38,8 +47,12 @@ end
 
 
 function sample_inf_time_delta()
+    # these are the calculated cdf from doing 
+    # p = [pdf(Gamma(2.7, 1.0), x) for x in 1:21]
+    # c = cumsum(p / sum(p))
+    # we store c as a tuple as this treats it as a constant
     c = (
-        0.110973577180615, 0.27329217944045014, 0.25160723139643126, 0.16887549417969105, 0.09717236270111923, 0.051042787594637214, 0.025243529370285504, 0.011961070187119777, 0.005489051747539894, 0.002457257541327242, 0.0010784609533814435, 0.0004657307434988743, 0.00019843640955813553, 8.359282266014512e-5, 3.487287711664492e-5, 1.4425964749702236e-5, 5.9238009894200945e-6, 2.4167578116632567e-6, 9.802978433867657e-7, 3.9558551639514304e-7, 1.5889321780907003e-7, 6.355444004537977e-8
+        0.23123495324177792, 0.5173637000503444, 0.7313700767804615, 0.8616192638327465, 0.9324257531818554, 0.968263917871601, 0.9855305708537918, 0.9935547309702418, 0.9971823528990054, 0.9987870872347043, 0.9994845898851373, 0.9997833904140334, 0.9999098409183975, 0.9999628010773516, 0.9999847842534525, 0.9999938383729761, 0.9999975420011928, 0.999999047825051, 0.9999996567609942, 0.9999999018144428, 1.0
     )
     rn = rand()
     
@@ -49,8 +62,9 @@ end
 
 
 function sample_inf_time_omicron()
+    
     c = (
-        0.3380452569369169, 0.282235881463163, 0.1714064992645785, 0.09670470439110702, 0.052693788873186195, 0.02813279681100046, 0.014819457215524679, 0.0077324169685374314, 0.00400600259867144, 0.0020640233460315987, 0.0010587877673257182, 0.0005411833219447294, 0.0002757928163397227, 0.00014019273315940716, 7.110982970736625e-5, 3.600155092866423e-5, 1.819710629544052e-5, 9.184531291818476e-6, 4.6297243425726e-6, 2.3310713684505575e-6, 1.17248764846839e-6, 5.891909304320088e-7
+        0.40689440196911647, 0.669715658845875, 0.8215038873109877, 0.90524088112286, 0.9502907431513508, 0.9741453945637667, 0.9866391638086626, 0.9931304454487997, 0.9964824676651625, 0.9982050685138709, 0.999086857187352, 0.9995367845137373, 0.9997657357194057, 0.9998819717796519, 0.9999408662716314, 0.9999706552739388, 0.9999856997137064, 0.9999932874197702, 0.9999971097019844, 0.9999990330876355, 1.0
     )
     rn = rand()
     
@@ -61,7 +75,7 @@ end
 
 function sample_det_time_delta()
     c = (
-        0.0011126391007854188, 0.02500420040955002, 0.09212834653575538, 0.1598528912582521, 0.18672124923850889, 0.1713965419627255, 0.1338612067897289, 0.093130770831524, 0.0594080686600261, 0.03542290867839186, 0.020011392631891424, 0.010816684757237507, 0.005635561270221634, 0.0028462260340724726, 0.0013996698416887197, 0.0006725943266925051, 0.00031674442983966136, 0.00014653036428194404, 6.672230620232283e-5, 2.9954689646549925e-5, 1.3277780752749815e-5, 5.8181022243337385e-6
+        0.005481604976502295, 0.058918643630252246, 0.18959485142323212, 0.37100454410185607, 0.5556720050758871, 0.7101611913610963, 0.8230354111406564, 0.8977224959544793, 0.9435387039488634, 0.9700150992568369, 0.98459373725705, 0.9923072112983735, 0.9962539186531401, 0.998216511248062, 0.9991687521425704, 0.9996209873403942, 0.9998317584234413, 0.9999283682832782, 0.9999719976126707, 0.99999143977769, 1.0
     )
     rn = rand()
     
@@ -72,7 +86,7 @@ end
 
 function sample_det_time_omicron()
     c = (
-        0.018354699747111635, 0.1034401575402339, 0.17391188097485316, 0.18821550005575002, 0.16337692773297102, 0.12428616295092726, 0.08660866309282085, 0.05669614954427924, 0.03541801295237932, 0.021336008540979234, 0.012485118515689909, 0.007134542168699892, 0.003997226760909039, 0.0022024006815003225, 0.001196242657140024, 0.0006417403547129652, 0.0003405585380316517, 0.0001790079255101512, 9.329612752480465e-5, 4.8256449656731913e-5, 2.4790108915296424e-5, 1.265657940358179e-5
+        0.05465972865344886, 0.20227289941119453, 0.39199410142203933, 0.5719151467164512, 0.7163612824630651, 0.8207303835305828, 0.890853438104743, 0.9355256297540415, 0.9628506906875296, 0.9790374698285156, 0.9883806383087265, 0.9936593224349681, 0.9965885012866724, 0.9981892154091149, 0.9990524882440441, 0.999512733615265, 0.9997556426337206, 0.9998827037093614, 0.9999486387768106, 0.9999826099893431, 1.0
     )
     rn = rand()
     
@@ -116,7 +130,7 @@ function sample_times(t, omicron)
     
 end
 
-function set_simulation_constants(state; p_detect_omicron = 0.5)
+function set_simulation_constants(forecast_start_date, forecast_end_date, state)
     """
     Creates structures of the constants and type mappings. . This includes all the dynamical
     constants: 
@@ -130,7 +144,8 @@ function set_simulation_constants(state; p_detect_omicron = 0.5)
         results in cases being injected into the simulation. This is used to account 
         for superspreading events after periods of low incidence. 
     """
-    simulation_constants = Constants(state, p_detect_omicron = p_detect_omicron)
+    # simulation_constants = Constants(forecast_start_date, forecast_end_date, state)
+    simulation_constants = Constants(forecast_start_date, forecast_end_date)
     individual_type_map = IndividualTypeMap()
 
     return (simulation_constants, individual_type_map)
@@ -197,18 +212,12 @@ end
 function read_in_TP(
     date, 
     state; 
-    p_detect_omicron = 0.5, 
     strain = "Delta",
     adjust_TP = false,
 )
     
     # read in the reff file
-    TP_file_name = "results/" * 
-        date * 
-        "/" * 
-        string(round(Int, p_detect_omicron * 100)) * 
-        "_case_ascertainment" *
-        "/"
+    TP_file_name = "results/" * date * "/"
     
     if adjust_TP 
         TP_file_name = TP_file_name * "soc_mob_R_adjusted_" * strain * date * ".csv"        
@@ -267,7 +276,6 @@ function get_single_state_TP(
     forecast_start_date, 
     date, 
     state; 
-    p_detect_omicron = 0.5,
     strain = "Delta",
     adjust_TP = false,
 )
@@ -281,15 +289,12 @@ function get_single_state_TP(
     (TP_dict_local, TP_dict_import) = read_in_TP(
         date, 
         state, 
-        p_detect_omicron = p_detect_omicron,
         strain = strain, 
         adjust_TP = adjust_TP
     )
     # adjust the indices so that the forecast start date is t = 0
     TP_dates = TP_dict_local["date"]
-    TP_indices = convert.(
-        Int, Dates.value.(TP_dict_local["date"] - forecast_start_date)
-    ) 
+    TP_indices = convert.(Int, Dates.value.(TP_dict_local["date"] - forecast_start_date)) 
     # make a matrix for a given state 
     TP_local = TP_dict_local[state]
     TP_import = TP_dict_import[state]
@@ -299,7 +304,7 @@ function get_single_state_TP(
 end
 
 
-function read_in_susceptible_depletion(file_date; p_detect_omicron = 0.5)
+function read_in_susceptible_depletion(file_date)
     """
     Read in the posterior drawn susceptible_depletion factors. This will be sorted/sampled 
     in the same order as the posterior predictive TP's to ensure we use the appropriate
@@ -309,9 +314,6 @@ function read_in_susceptible_depletion(file_date; p_detect_omicron = 0.5)
     # read in the reff file
     file_name = "results/" * 
         file_date * 
-        "/" * 
-        string(round(Int, p_detect_omicron * 100)) *
-        "_case_ascertainment" * 
         "/" * 
         "sampled_susceptible_depletion_" * 
         file_date * 
@@ -324,7 +326,7 @@ function read_in_susceptible_depletion(file_date; p_detect_omicron = 0.5)
 end
 
 
-function read_in_prop_omicron(file_date, state; p_detect_omicron = 0.5)
+function read_in_prop_omicron(file_date, state)
     """
     Read in the posterior drawn susceptible_depletion factors. This will be sorted/sampled 
     in the same order as the posterior predictive TP's to ensure we use the appropriate
@@ -334,9 +336,6 @@ function read_in_prop_omicron(file_date, state; p_detect_omicron = 0.5)
     # prefix and suffix for the file name
     file_name_prefix = "results/" * 
         file_date * 
-        "/" * 
-        string(round(Int, p_detect_omicron * 100)) *
-        "_case_ascertainment" * 
         "/"  
     
     file_name_suffix = "_" *
@@ -345,6 +344,7 @@ function read_in_prop_omicron(file_date, state; p_detect_omicron = 0.5)
         ".csv"
     
     # these vars are used to calculate the omicron proportion
+    # prop_vars = ("m0", "m1", "r", "tau")
     prop_vars = ("m0", "r", "tau")
     # create vector of vectors to store the various parameter samples
     res = Dict{String, Vector{Float64}}()
@@ -363,8 +363,6 @@ function read_in_cases(
 	date, 
 	rng; 
     apply_delay = true,
-	apply_inc = false, 
-	omicron_dominant_date = nothing,
     use_mean = false,
 )
     
@@ -388,12 +386,10 @@ function read_in_cases(
             rd .= mean(Gamma(shape_rd, scale_rd))
         else
             # use the discretised pmf to sample the reporting delays 
-            p = [pdf(Gamma(shape_rd, scale_rd), x) for x in 0:21]
-            c = cumsum(p / sum(p))
-            rd = [findfirst(rand(rng) <= cᵢ for cᵢ in c) for _ in 1:length(confirm_dates)]
+            rd = round.(rand(Gamma(shape_rd, scale_rd), length(confirm_dates)))
         end
         
-        confirm_dates = confirm_dates - round.(rd) * Dates.Day(1)
+        confirm_dates = confirm_dates - rd * Dates.Day(1)
     end
 
 	# initialise array for complete_onset_dates
@@ -403,43 +399,6 @@ function read_in_cases(
 		convert(Vector, df.date_onset[.!is_confirmation])
 	)
 	complete_dates[is_confirmation] = confirm_dates[is_confirmation]
-	
-	# if want to apply delay, subtract an incubation period per individual 
-	if apply_inc
-		shape_inc = 5.807  # taken from Lauer et al. 2020 #1.62/0.418
-		scale_inc = 0.948  # 0.418
-        inc = zeros(length(complete_dates))
-        
-        if use_mean 
-            inc .= mean(Gamma(shape_inc, scale_inc))
-        else
-		    inc = rand(rng, Gamma(shape_inc, scale_inc), length(complete_dates))
-        end
-		
-		# now apply different incubation period for Omicron 
-		apply_omicron = !isnothing(omicron_dominant_date) ? true : false
-		if apply_omicron
-			is_omicron = complete_dates .>= Dates.Date(omicron_dominant_date)
-			shape_inc_omicron = 3.33
-			scale_inc_omicron = 1.34
-            
-            inc = zeros(length(complete_dates))
-            if use_mean 
-                inc_omicron .= mean(Gamma(shape_inc_omicron, scale_inc_omicron))
-            else
-                inc_omicron = rand(
-                    rng, 
-                    Gamma(shape_inc_omicron, scale_inc_omicron), 
-                    length(complete_dates),
-                )
-            end
-			# add the incubation for omicron dates in 
-			inc = (1 .- is_omicron) .* inc + is_omicron .* inc_omicron
-		end
-        
-		complete_dates = complete_dates - ceil.(inc) * Day(1)
-        
-	end
 
 	# other useful fields
 	state = df.state
@@ -503,4 +462,3 @@ function read_in_cases(
     return (date_vec, local_case_dict, import_case_dict)
     
 end
-
