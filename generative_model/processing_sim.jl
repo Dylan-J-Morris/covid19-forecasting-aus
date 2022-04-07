@@ -3,7 +3,6 @@ using CSV
 
 function save_simulations(
     D,
-    TP_local,
     state,
     file_date,
     onset_dates,
@@ -15,19 +14,15 @@ function save_simulations(
     Also saves a CSV for the TP paths used per simulation.
     """
     df_observed = DataFrame()
-    df_TP_local = DataFrame()
     df_observed[!, "state"] = [state for _ in 1:length(onset_dates)]
     df_observed[!, "onset date"] = onset_dates
-    df_TP_local[!, "state"] = [state for _ in 1:length(onset_dates)]
-    df_TP_local[!, "onset date"] = onset_dates
     # total observed cases 
     D_observed = D[:, 1, :] + D[:, 2, :]
     
     # indexer for naming the columns 
     i = 0
-    for (d, tp) in zip(eachcol(D_observed), eachcol(TP_local))
+    for d in eachcol(D_observed)
         df_observed[!, "sim" * string(i)] = d[(end - length(onset_dates) + 1):end]
-        df_TP_local[!, "sim" * string(i)] = tp[(end - length(onset_dates) + 1):end]
         i += 1
         if i == 2000
             break
@@ -38,7 +33,6 @@ function save_simulations(
         for i in 0:1999
             # if nothing sampled, set observations to be missing
             df_observed[!, "sim" * string(i)] = [missing for _ in 1:length(onset_dates)]
-            df_TP_local[!, "sim" * string(i)] = [missing for _ in 1:length(onset_dates)]
         end
     elseif i < 2000 
         # if we are under the required number of sims, sample randomly from the good sims 
@@ -50,9 +44,7 @@ function save_simulations(
                 ind = rand(rng, 1:(i - 1))
             end
             d = D_observed[:, ind]
-            tp = TP_local[:, ind]
             df_observed[!, "sim" * string(j)] = d[(end - length(onset_dates) + 1):end]
-            df_TP_local[!, "sim" * string(j)] = tp[(end - length(onset_dates) + 1):end]
         end
     end
     
@@ -60,7 +52,6 @@ function save_simulations(
     # near the most recent data. This is needed for forecast evaluations. 
     forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
     df_observed[!, "forecast_origin"] .= forecast_origin
-    df_TP_local[!, "forecast_origin"] .= forecast_origin
     
     # directory path, and check to see whether it's good
     dir_name = joinpath("results", "UoA_forecast_output", forecast_origin)
@@ -70,9 +61,7 @@ function save_simulations(
     
     # file name is just the state and file date
     sim_file_name = state * "_" * forecast_origin * "_sim.csv"
-    TP_file_name = state * "_" * forecast_origin * "_TP.csv"
     CSV.write(dir_name * "/" * sim_file_name, df_observed)
-    CSV.write(dir_name * "/" * TP_file_name, df_TP_local)
     
     return nothing
     
@@ -107,6 +96,11 @@ function merge_simulation_files(file_date; truncation_days = 7)
     # loop over the states and read in and add to the merged df
     for s in states
         df_tmp = CSV.read(dir_name * "/" * s, DataFrame)
+        # count the number of unique simulations
+        df_tmp_mat = Matrix(df_tmp[:, 3:end - 1])
+        ia = size(unique(df_tmp_mat, dims = 2), 2)
+        println("There were ", ia, " unique simulation trajectories for ", s, ".")
+        
         df_merged = [df_merged; df_tmp]
     end
     
@@ -116,44 +110,6 @@ function merge_simulation_files(file_date; truncation_days = 7)
     
 end
 
-function merge_TP_files(file_date; truncation_days = 7)
-    """
-    Merge the TP files in a similar format to the overall simulation file.
-    """
-    # set the dir name and read in the state files for merging
-    # now we make sure the filenames are as we want
-    forecast_origin = string(Dates.Date(file_date) - Dates.Day(truncation_days))
-    dir_name = joinpath("results", "UoA_forecast_output", forecast_origin)
-    state_file_names = readdir(dir_name)
-    # need to remove the non-output files
-    states = []
-    for f in state_file_names
-        ind = findfirst("_", f)[1]
-        if (f[1:ind-1] ∉ states) && (f[1:ind-1] != "UoA")
-            push!(states, f[1:ind-1])
-        end
-    end
-
-    # now we make sure the filenames are as we want
-    for (i,f) in enumerate(states)
-        g = f * "_" * forecast_origin * "_TP.csv"
-        states[i] = g 
-    end
-    
-    df_merged = DataFrame()
-    df_tmp = DataFrame()
-    
-    # loop over the states and read in and add to the merged df
-    for s in states
-        df_tmp = CSV.read(dir_name * "/" * s, DataFrame)
-        df_merged = [df_merged; df_tmp]
-    end
-    
-    CSV.write(dir_name * "/" * "UoA_TP_" * forecast_origin * ".csv", df_merged)
-    
-    return nothing
-    
-end
 
 function summarise_forecast_for_plotting(D_observed)
     """

@@ -1,8 +1,9 @@
+from random import sample
 import sys
 
 # I hate this too but it allows everything to use the same helper functions.
 sys.path.insert(0, "TP_model")
-from helper_functions import read_in_NNDSS
+from helper_functions import read_in_NNDSS, sample_discrete_dist
 from scipy.stats import gamma
 import glob
 from datetime import timedelta
@@ -10,15 +11,12 @@ from datetime import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from params import use_linelist
+from params import use_linelist, rd_disc_pmf, shape_rd, scale_rd
 import matplotlib
 
 matplotlib.use("Agg")
 
 plt.style.use("seaborn-poster")
-
-# Code taken from read_in_cases from Reff_functions. Preprocessing was not helpful for this situation.
-
 
 def read_cases_lambda(case_file_date):
     """
@@ -37,7 +35,6 @@ def read_cases_lambda(case_file_date):
 
 
 def tidy_cases_lambda(interim_data, remove_territories=True):
-
     # Remove non-existent notification dates
     interim_data = interim_data[~np.isnat(interim_data.date_inferred)]
 
@@ -47,8 +44,8 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
     else:
         df_linel = interim_data
 
-    # Melt down so that imported and local are no longer columns. Allows multiple draws for infection date.
-    # i.e. create linelist data
+    # Melt down so that imported and local are no longer columns. Allows multiple draws for 
+    # infection date. i.e. create linelist data
     if use_linelist:
         df_linel = df_linel.melt(
             id_vars=["date_inferred", "STATE", "is_confirmation"],
@@ -69,13 +66,10 @@ def tidy_cases_lambda(interim_data, remove_territories=True):
 
 def draw_inf_dates(
     df_linelist,
-    shape_inc=5.807,
-    scale_inc=0.948,
-    shape_rd=2,
-    scale_rd=1,
+    inc_disc_pmf=[], 
 ):
-
-    # these aren't really notification dates, they are a combination of onset and confirmation dates
+    # these aren't really notification dates, they are a combination of onset and 
+    # confirmation dates
     notification_dates = df_linelist["date_inferred"]
 
     # the above are the same size so this works
@@ -84,26 +78,22 @@ def draw_inf_dates(
     # Draw from incubation distribution
     # inc_period = np.random.gamma(shape_inc, scale_inc, size=(nsamples))
 
-    if use_linelist:
-        # apply the delay at the point of applying the incubation
-        # as we are taking a posterior sample
-        # extract boolean indicator of when the confirmation date was used
-        is_confirmation_date = df_linelist["is_confirmation"].to_numpy()
-        # rd_period = (
-        #     np.random.gamma(shape_rd, scale_rd, size=nsamples)
-        # ) * is_confirmation_date
-        
-        # id_nd_diff = inc_period + rd_period
-        id_nd_diff = (
-            np.random.gamma(shape_inc, scale_inc, size=nsamples) 
-            + np.random.gamma(shape_rd, scale_rd, size=nsamples) * is_confirmation_date
-        )
-            
-
-    # else:
-        # id_nd_diff = inc_period
-
-    # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. This can still be a long vector.
+    # apply the delay at the point of applying the incubation
+    # as we are taking a posterior sample
+    # extract boolean indicator of when the confirmation date was used
+    is_confirmation_date = df_linelist["is_confirmation"].to_numpy()
+    
+    # impute the infection dates (id) assuming that we do allow a 0 day entry delay 
+    # sampling the reporting delay using the raw gamma distribution allows for us to include 0 day 
+    # delays between onset and reporting 
+    id_nd_diff = (
+        sample_discrete_dist(dist_disc_unnorm=inc_disc_pmf, nsamples=nsamples)
+        + is_confirmation_date 
+        * np.round(np.random.gamma(shape=shape_rd, scale=scale_rd, size=nsamples))
+    )
+    
+    # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. 
+    # This can still be a long vector.
     whole_day_diff = np.ceil(id_nd_diff)
     time_day_diffmat = whole_day_diff.astype("timedelta64[D]").reshape(nsamples)
 
@@ -137,7 +127,8 @@ def index_by_infection_date(infections_wide):
         )
         df_combined = pd.concat([df_combined, df_addin], axis=1, ignore_index=True)
 
-    # NaNs are inserted for missing values when concatenating. If it's missing, there were zero infections
+    # NaNs are inserted for missing values when concatenating. If it's missing, there were 
+    # zero infections
     df_combined[np.isnan(df_combined)] = 0
     # Rename the index.
     df_combined.index.set_names(["STATE", "INFECTION_DATE", "SOURCE"], inplace=True)
@@ -148,13 +139,12 @@ def index_by_infection_date(infections_wide):
     imported_infs = df_combined.xs("imported", level="SOURCE")
     statelist = [*df_combined.index.get_level_values("STATE").unique()]
 
-    # Should all states have the same start date? Current code starts from the first case in each state.
-    # For the same start date:
+    # Should all states have the same start date? Current code starts from the first case in 
+    # each state. For the same start date:
     local_statedict = dict(zip(statelist, np.repeat(None, len(statelist))))
     imported_statedict = dict(zip(statelist, np.repeat(None, len(statelist))))
 
     # Determine start date as the first infection date for all.
-    # start_date = np.datetime64("2020-02-01")
     start_date = df_combined.index.get_level_values("INFECTION_DATE").min()
 
     # Determine end dates as the last infected date by state.
@@ -197,8 +187,7 @@ def index_by_infection_date(infections_wide):
 
 def generate_lambda(
     infections,
-    shape_gen=3.64 / 3.07,
-    scale_gen=3.07,
+    gen_disc_pmf=[],
     trunc_days=21,
 ):
     """
@@ -207,15 +196,7 @@ def generate_lambda(
     a N_dates-tau by N_samples array.
     Default generation interval parameters taken from Ganyani et al 2020.
     """
-    from scipy.stats import gamma
-        
-    # Find midpoints for discretisation
-    xmids = [x for x in range(trunc_days + 1)]
-    # double check parameterisation of scipy
-    gamma_vals = gamma.pdf(xmids, a=shape_gen, scale=scale_gen)
-    # renormalise the pdf
-    disc_gamma = gamma_vals / sum(gamma_vals)
-
+    disc_gamma = gen_disc_pmf / sum(gen_disc_pmf)
     ws = disc_gamma[:trunc_days]
     lambda_t = np.zeros(shape=(infections.shape[0] - trunc_days + 1, infections.shape[1]))
     lambda_t[:, 0] = np.convolve(infections[:, 0], ws, mode="valid")

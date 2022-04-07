@@ -8,6 +8,14 @@
 slurm*
 experiments
 retro 
+*.pdf
+
+# c++ header files (produced by Stan when model compiled)
+*.hpp
+# directly ignore the unix executables produced by Stan
+/TP_model/fit_and_forecast/rho_model_gamma
+/TP_model/fit_and_forecast/rho_model_gamma_prod
+/TP_model/fit_and_forecast/rho_model_gammamix
 
 # VScode
 .vscode

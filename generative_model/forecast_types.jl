@@ -11,12 +11,15 @@ struct Features
     N::Int
     T_observed::Int
     T_end::Int
-    omicron_dominant_day::Int
     # number of days for each consistency check 
     τ::Int
     min_cases::Vector{Int}
     max_cases::Vector{Int}
     idxs_limits::Vector{UnitRange{Int64}}
+    state::String
+    # truncations for the various bits and pieces
+    reff_change_time::Int
+    omicron_start_day::Int
 end
 
 
@@ -86,125 +89,184 @@ struct Constants{S, T}
     """
     A type for the dynamical / simulation constants 
     """
-    k::S
+    p_detect::S
     p_symp::S
     p_detect_given_symp::S
     p_detect_given_asymp::S
-    p_detect::S
     p_symp_given_detect::S
     α_s::S
     α_a::S
-    qi::S
-    γ::T
-    # import model parameters
+    p_detect_import::S
     prior_alpha::T
     prior_beta::T
     ϕ::T
-    # multiplier for the consistency between observed cases 
     consistency_multiplier::T
     
-    function Constants(state; p_detect_omicron = 0.5)
-        ## Delta assumptions
-        k_delta = 0.15
-        p_symp_delta = 0.7
-        p_ds = 0.95
-        p_da = 0.2
-        p_detect_given_symp_delta_dict = Dict{String, Float64}(
-            "NSW" => p_ds,
-            "QLD" => p_ds,
-            "SA" => p_ds,
-            "TAS" => p_ds,
-            "WA" => p_ds,
-            "ACT" => p_ds,
-            "NT" => p_ds,
-            "VIC" => p_ds,
-        )
-        p_detect_given_asymp_delta_dict = Dict{String, Float64}(
-            "NSW" => p_da,
-            "QLD" => p_da,
-            "SA" => p_da,
-            "TAS" => p_da,
-            "WA" => p_da,
-            "ACT" => p_da,
-            "NT" => p_da,
-            "VIC" => p_da,
-        )
-        p_detect_given_symp_delta = p_detect_given_symp_delta_dict[state]
-        p_detect_given_asymp_delta = p_detect_given_asymp_delta_dict[state]
-        p_detect_delta = p_symp_delta * p_detect_given_symp_delta + 
-            (1 - p_symp_delta) * p_detect_given_asymp_delta 
-        p_symp_given_detect_delta = (
-            p_detect_given_symp_delta * p_symp_delta / p_detect_delta 
-        )
-        # prob of detecting an international import 
-        p_detect_import_delta = 0.98
+    function Constants(start_date, end_date)
+        """
+        Constructor for the older version of the model. This assumes a simpler form of the CAR and 
+        doesn't have jurisdiction dependent assumptions in relation to the CAR.
+        """
         
-        ## omicron assumptions 
-        k_omicron = 0.6
-        p_symp_omicron = 0.4
-        # solve the system
-        r = 0.3
-        p_ds = p_detect_omicron / (p_symp_omicron + (1 - p_symp_omicron) * r) 
-                
-        p_detect_given_symp_omicron_dict = Dict{String, Float64}(
-            "NSW" => p_ds,
-            "QLD" => p_ds,
-            "SA" => p_ds,
-            "TAS" => p_ds,
-            "WA" => p_ds,
-            "ACT" => p_ds,
-            "NT" => p_ds,
-            "VIC" => p_ds,
-        )
-        p_detect_given_asymp_omicron_dict = Dict{String, Float64}(
-            "NSW" => r * p_ds,
-            "QLD" => r * p_ds,
-            "SA" => r * p_ds,
-            "TAS" => r * p_ds,
-            "WA" => r * p_ds,
-            "ACT" => r * p_ds,
-            "NT" => r * p_ds,
-            "VIC" => r * p_ds,
-        )
-        p_detect_given_symp_omicron = p_detect_given_symp_omicron_dict[state]
-        p_detect_given_asymp_omicron = p_detect_given_asymp_omicron_dict[state]
-        p_symp_given_detect_omicron = (
-            p_detect_given_symp_omicron * p_symp_omicron / p_detect_omicron 
-        )
-        # as of 1/1/2022, same as the probability of detection for local omicron cases 
-        p_detect_import_omicron = p_detect_omicron
+        # date vectors to indicate which period we're in. Noting that this is +5 days (mean inc 
+        # period) compared to the ranges used in the fitting. This is to deal with detection being 
+        # related to detection of cases and not infection dates. 
+        CAR_normal_before = Dates.Date(start_date):Dates.Day(1):Dates.Date("2021-12-09")
+        CAR_low = Dates.Date("2021-12-10"):Dates.Day(1):Dates.Date(end_date)
+        # all dates
+        CAR_dates = [
+            CAR_normal_before;
+            CAR_low
+        ]
+        
+        # initialise the 
+        CAR = 0.75 * ones(Float64, length(CAR_dates))
+        # idx = CAR_dates .>= Dates.Date("2021-12-10")
+        idx = CAR_dates .>= CAR_low[begin]
+        CAR[idx] .= 0.5
+        
+        p_symp = zeros(Float64, length(CAR_dates))
+        p_detect_given_asymp = zeros(Float64, length(CAR_dates))
+        p_detect_given_symp = zeros(Float64, length(CAR_dates))
+        p_symp_given_detect = zeros(Float64, length(CAR_dates))
+        p_detect_import = zeros(Float64, length(CAR_dates))
+        
+        for (i, d) in enumerate(CAR_dates)
+            p_detect = CAR[i]
+            
+            if d <= Dates.Date("2021-11-01")
+                p_symp[i] = 0.7
+            else
+                p_symp[i] = 0.4
+            end
+            
+            if d <= Dates.Date("2021-11-01")
+                # p_symp = 0.7 and p_d = 0.75
+                p_detect_given_symp[i] = 0.9375
+                p_detect_given_asymp[i] = 0.3125
+                p_detect_import[i] = 0.98
+            elseif d <= Dates.Date("2021-12-10")
+                # p_symp = 0.4 and p_d = 0.75
+                p_detect_given_symp[i] = 0.9
+                p_detect_given_asymp[i] = 0.65
+                p_detect_import[i] = p_detect
+            else
+                # p_symp = 0.4 and p_d = 0.5 noting that the line defined by 
+                # p(d|s) = -p(a)/p(s) p(d|a) + p(d)/p(s) 
+                # translates vertically when the CA changes and so we just find the point on 
+                # the reduced CA line which is closest to the previous values 
+                # (p(d|a), p(d|s)) = (0.65, 0.9)
+                p_detect_given_asymp[i] = 0.3615
+                p_detect_given_symp[i] = 0.7076
+                p_detect_import[i] = p_detect
+            end
+            
+            p_symp_given_detect[i] = p_detect_given_symp[i] * p_symp[i] / p_detect
+            
+        end
+        
+        p_detect = CAR
         
         γ = 0.5     # relative infectiousness of asymptomatic
-        α_s_delta = 1 / (p_symp_delta + γ * (1 - p_symp_delta))
-        α_a_delta = γ * α_s_delta
-        α_s_omicron = 1 / (p_symp_omicron + γ * (1 - p_symp_omicron))
-        α_a_omicron = γ * α_s_omicron
+        α_s = 1 ./ (p_symp .+ γ * (1 .- p_symp))    # contribution of TP attributable to symptomatic
+        α_a = γ * α_s   # contribution of TP attributable to asymptomatic
         
-        # store all parameters in named tuples indexed by strain
-        α_s = (delta = α_s_delta, omicron = α_s_omicron)
-        α_a = (delta = α_a_delta, omicron = α_a_omicron)
-        k = (delta = k_delta, omicron = k_omicron)
-        p_symp = (delta = p_symp_delta, omicron = p_symp_omicron)
-        p_detect_given_symp = (
-            delta = p_detect_given_symp_delta, 
-            omicron = p_detect_given_symp_omicron, 
+        # for checking consistency when we miss an outbreak 
+        consistency_multiplier = 5.0
+        # prior parametes for the import model
+        prior_alpha = 0.5
+        prior_beta = 0.1
+        # ema smoothing factor for the import model 
+        ϕ = 0.5
+        
+        # use this to ensure the Constants type is correct
+        S = typeof(p_symp)
+        T = typeof(prior_alpha)
+        
+        return new{S, T}(
+            p_detect, 
+            p_symp,
+            p_detect_given_symp,
+            p_detect_given_asymp,
+            p_symp_given_detect,
+            α_s,
+            α_a,
+            p_detect_import,
+            prior_alpha,
+            prior_beta,
+            ϕ,
+            consistency_multiplier,
         )
-        p_detect_given_asymp = (
-            delta = p_detect_given_asymp_delta, 
-            omicron = p_detect_given_asymp_omicron, 
-        )
-        p_detect = (
-            delta = p_detect_delta, 
-            omicron = p_detect_omicron, 
-        )
-        p_symp_given_detect = (
-            delta = p_symp_given_detect_delta,
-            omicron = p_symp_given_detect_omicron,
-        )
-        p_detect_import = (
-            delta = p_detect_import_delta,
-            omicron = p_detect_import_omicron,
-        )
+    end
+    
+    function Constants(start_date, end_date, state)
+        """
+        Newer version constructor. This is distinguished from the other by the extra parameter
+        `state` which enables us to produce jurisdiction specific scenarios. 
+        """
+        # date vectors to indicate which period we're in
+        CAR_normal_before = Dates.Date(start_date):Dates.Day(1):Dates.Date("2021-12-07")
+        CAR_low = Dates.Date("2021-12-08"):Dates.Day(1):Dates.Date("2022-01-17")
+        CAR_normal_after = Dates.Date("2022-01-18"):Dates.Day(1):Dates.Date(end_date)
+        # all dates
+        CAR_dates = [
+            CAR_normal_before;
+            CAR_low; 
+            CAR_normal_after
+        ]
+        
+        # initialise the 
+        CAR = 0.75 * ones(Float64, length(CAR_dates))
+        
+        # if we are one of the jurisdictions that got overwhelmed, apply time varying CAR
+        if state in ("NSW", "VIC", "ACT", "QLD")
+            idx = (CAR_dates .>= CAR_low[begin]) .& (CAR_dates .<= CAR_low[end])
+            CAR[idx] .= 0.333
+            idx = CAR_dates .> CAR_low[end]
+            CAR[idx] .= 0.75
+        end
+        
+        p_symp = zeros(Float64, length(CAR_dates))
+        p_detect_given_asymp = zeros(Float64, length(CAR_dates))
+        p_detect_given_symp = zeros(Float64, length(CAR_dates))
+        p_symp_given_detect = zeros(Float64, length(CAR_dates))
+        p_detect_import = zeros(Float64, length(CAR_dates))
+        
+        for (i, d) in enumerate(CAR_dates)
+            p_detect = CAR[i]
+            
+            if d <= Dates.Date("2021-11-01")
+                p_symp[i] = 0.7
+            else
+                p_symp[i] = 0.4
+            end
+            
+            if d <= Dates.Date("2021-11-01")
+                # p_symp = 0.7 and p_d = 0.75
+                p_detect_given_symp[i] = 0.9375
+                p_detect_given_asymp[i] = 0.3125
+                p_detect_import[i] = 0.98
+            elseif d <= Dates.Date("2021-12-07") || d >= Dates.Date("2022-01-18")
+                # p_symp = 0.4 and p_d = 0.75
+                p_detect_given_symp[i] = 0.9
+                p_detect_given_asymp[i] = 0.65
+                p_detect_import[i] = p_detect
+            else
+                # p_symp = 0.4 and p_d = 0.333
+                p_detect_given_asymp[i] = 0.16885
+                p_detect_given_symp[i] = 0.57923
+                p_detect_import[i] = p_detect
+            end
+            
+            p_symp_given_detect[i] = p_detect_given_symp[i] * p_symp[i] / p_detect
+            
+        end
+        
+        p_detect = CAR
+        
+        γ = 0.5     # relative infectiousness of asymptomatic
+        α_s = 1 ./ (p_symp .+ γ * (1 .- p_symp))
+        α_a = γ * α_s
         
         # other parameters 
         consistency_multiplier = 5.0
@@ -214,15 +276,14 @@ struct Constants{S, T}
         # ema smoothing factor 
         ϕ = 0.5
         
-        S = typeof(α_s)
+        S = typeof(p_symp)
         T = typeof(prior_alpha)
         
         return new{S, T}(
-            k,
+            p_detect,
             p_symp,
             p_detect_given_symp,
             p_detect_given_asymp,
-            p_detect, 
             p_symp_given_detect,
             α_s,
             α_a,
@@ -281,6 +342,7 @@ struct JurisdictionAssumptions
         String, 
         NamedTuple{(:S, :A, :I), Tuple{Int64, Int64, Int64}},
     }
+    omicron_start_date::Date
     omicron_dominant_date::Date
 
     function JurisdictionAssumptions()
@@ -298,6 +360,7 @@ struct JurisdictionAssumptions
         # date we want to apply increase in cases due to Omicron 
         # put a small delay on this as we use the infection dates to index things but in 
         # the fitting we used the confirmation dates 
+        omicron_start_date = Dates.Date("2021-11-15")
         omicron_dominant_date = Dates.Date("2021-12-15") - Dates.Day(5)
         
         pop_sizes = Dict{String, Int}(
