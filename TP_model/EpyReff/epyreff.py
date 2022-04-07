@@ -11,7 +11,7 @@ from datetime import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from params import use_linelist, rd_disc_pmf
+from params import use_linelist, rd_disc_pmf, shape_rd, scale_rd
 import matplotlib
 
 matplotlib.use("Agg")
@@ -83,11 +83,13 @@ def draw_inf_dates(
     # extract boolean indicator of when the confirmation date was used
     is_confirmation_date = df_linelist["is_confirmation"].to_numpy()
     
-    # impute the infection dates (id) assuming that we do allow a 0 day entry delay (hence the -1)
+    # impute the infection dates (id) assuming that we do allow a 0 day entry delay 
+    # sampling the reporting delay using the raw gamma distribution allows for us to include 0 day 
+    # delays between onset and reporting 
     id_nd_diff = (
         sample_discrete_dist(dist_disc_unnorm=inc_disc_pmf, nsamples=nsamples)
         + is_confirmation_date 
-        * (sample_discrete_dist(dist_disc_unnorm=rd_disc_pmf, nsamples=nsamples) - 1)
+        * np.round(np.random.gamma(shape=shape_rd, scale=scale_rd, size=nsamples))
     )
     
     # Minutes aren't included in df. Take the ceiling because the day runs from 0000 to 2359. 

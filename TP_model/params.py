@@ -35,6 +35,7 @@ third_start_date = "2021-06-25"
 alpha_start_date = "2020-12-01"  
 delta_start_date = "2021-05-01"  
 omicron_start_date = "2021-11-15"  
+omicron_only_date = "2022-02-01"  
 # the date at which omicron is assumed to be dominant (this is deprecated but kept for logic)
 omicron_dominance_date = "2021-12-15"
 # vaccination program began mid Feb 2021
@@ -50,40 +51,27 @@ start_date = "2020-03-01"
 # (plenty of retropsective cases with negatives etc)
 # range(22) = 0:21 
 (shape_rd, scale_rd) = (2.33, 1.35)
-rd_disc_pmf = [
-    gamma.cdf(x+1, a=shape_rd, scale=scale_rd) - gamma.cdf(x, a=shape_rd, scale=scale_rd) 
-    for x in range(21)
-]
+rd_disc_pmf = [gamma.pdf(x, a=shape_rd, scale=scale_rd) for x in range(22)]
 
 # incubation period: taken from Lauer et al. 2020
 (shape_inc, scale_inc) = (5.807, 0.948)
-inc_disc_pmf = [
-    gamma.cdf(x+1, a=shape_inc, scale=scale_inc) - gamma.cdf(x, a=shape_inc, scale=scale_inc) 
-    for x in range(21)
-]
+inc_disc_pmf = [gamma.pdf(x, a=shape_inc, scale=scale_inc) for x in range(22)]
 # omicron incubation period determined by sampling Delta incubation periods and subtracting 1 
 # (then taking those with days > 0.05) and using MLE to fit a Gamma distribution
 (shape_inc_omicron, scale_inc_omicron) = (3.581, 1.257)
 inc_omicron_disc_pmf = [
-    gamma.cdf(x+1, a=shape_inc_omicron, scale=scale_inc_omicron) 
-    - gamma.cdf(x, a=shape_inc_omicron, scale=scale_inc_omicron) 
-    for x in range(21)
+    gamma.pdf(x, a=shape_inc_omicron, scale=scale_inc_omicron) for x in range(22)
 ]
 
 ## generation interval:
 # generation inteval changed Oct 5 2021
 (shape_gen, scale_gen) = (2.75, 1.00)
-gen_disc_pmf = [
-    gamma.cdf(x+1, a=shape_gen, scale=scale_gen) - gamma.cdf(x, a=shape_gen, scale=scale_gen) 
-    for x in range(21)
-]
+gen_disc_pmf = [gamma.pdf(x, a=shape_gen, scale=scale_gen) for x in range(22)]
 # omicron GI determined by sampling Delta GI and subtracting 1 (then taking those with days > 0.05)
 # and using MLE to fit a Gamma distribution
 (shape_gen_omicron, scale_gen_omicron) = (1.389, 1.415)
 gen_omicron_disc_pmf = [
-    gamma.cdf(x+1, a=shape_gen_omicron, scale=scale_gen_omicron) 
-    - gamma.cdf(x, a=shape_gen_omicron, scale=scale_gen_omicron) 
-    for x in range(21)
+    gamma.pdf(x, a=shape_gen_omicron, scale=scale_gen_omicron) for x in range(22)
 ]
 
 # pulled from
@@ -106,25 +94,22 @@ def get_p_detect_old_assumptions(end_date):
     probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
     """
     
-    CAR_normal_before = pd.date_range(third_start_date, "2021-12-08")
-    CAR_decrease_range = pd.date_range("2021-12-09", "2021-12-15")
-    CAR_normal_after = pd.date_range("2021-12-16", end_date)
+    # CA is related to detection of actual cases but our fitting works with infection dates. 
+    # deal with this by subtracting 1 mean incubation period from the CA
+    CAR_normal_before = pd.date_range(third_start_date, "2021-12-09")
+    CAR_decrease_range = pd.date_range("2021-12-10", end_date)
     
     CAR_dates = np.concatenate(
         (
             CAR_normal_before, 
             CAR_decrease_range,
-            CAR_normal_after,
         )
     )
     
     # get baseline CAR
-    CAR = p_detect_delta * np.ones(CAR_dates.shape)
-    # determine index arrays for the various phases assumed
-    decrease_bool = (CAR_dates >= CAR_decrease_range[0]) & (CAR_dates <= CAR_decrease_range[-1])
-    after_bool = CAR_dates > CAR_decrease_range[-1]
-    # adjust the CAR based on the time varying assumptions 
-    CAR[decrease_bool] = np.linspace(p_detect_delta, 0.5, 7)
+    CAR = 0.75 * np.ones(CAR_dates.shape)
+    # apply a step decrease in the CAR 
+    after_bool = CAR_dates >= CAR_decrease_range[0]
     CAR[after_bool] = 0.5
     
     return CAR
@@ -137,33 +122,25 @@ def get_p_detect_big_jurisdictions(end_date):
     probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
     """
     
-    CAR_normal_before = pd.date_range(third_start_date, "2021-12-12")
-    CAR_decrease_range = pd.date_range("2021-12-13", "2021-12-19")
-    CAR_low_range = pd.date_range("2021-12-20", "2022-01-16")
-    CAR_increase_range = pd.date_range("2022-01-17", "2022-01-23")
-    CAR_normal_after = pd.date_range("2022-01-24", end_date)
+    CAR_normal_before = pd.date_range(third_start_date, "2021-12-07")
+    CAR_decrease_range = pd.date_range("2021-12-08", "2022-01-17")
+    CAR_normal_after = pd.date_range("2022-01-18", end_date)
     
     CAR_dates = np.concatenate(
         (
             CAR_normal_before, 
             CAR_decrease_range,
-            CAR_low_range, 
-            CAR_increase_range, 
             CAR_normal_after,
         )
     )
     
     # get baseline CAR
-    CAR = p_detect_delta * np.ones(CAR_dates.shape)
+    CAR = 0.75 * np.ones(CAR_dates.shape)
     # determine index arrays for the various phases assumed
     decrease_bool = (CAR_dates >= CAR_decrease_range[0]) & (CAR_dates <= CAR_decrease_range[-1])
-    low_bool = (CAR_dates > CAR_decrease_range[-1]) & (CAR_dates < CAR_increase_range[0])
-    increase_bool = (CAR_dates >= CAR_increase_range[0]) & (CAR_dates <= CAR_increase_range[-1])
     # adjust the CAR based on the time varying assumptions by approximating the step change 
     # linearly 
-    CAR[decrease_bool] = np.linspace(p_detect_delta, 0.333, 7)
-    CAR[low_bool] = 0.333
-    CAR[increase_bool] = np.linspace(0.333, p_detect_delta, 7)
+    CAR[decrease_bool] = 0.333
     
     return CAR
     
@@ -178,7 +155,7 @@ def get_p_detect_small_jurisdictions(end_date):
     CAR_dates = pd.date_range(third_start_date, end_date)
     
     # get baseline CAR
-    CAR = p_detect_delta * np.ones(CAR_dates.shape)
+    CAR = 0.75 * np.ones(CAR_dates.shape)
     
     return CAR
 
@@ -191,7 +168,7 @@ def get_all_p_detect(end_date, num_days):
     for i, s in enumerate(states):
         if s in ("NSW", "ACT", "QLD", "VIC"):
             p_detect[:,i] = get_p_detect_big_jurisdictions(end_date)        
-        elif s in ("NSW", "ACT", "QLD", "VIC"):
+        else:
             p_detect[:,i] = get_p_detect_small_jurisdictions(end_date)
     
     return p_detect

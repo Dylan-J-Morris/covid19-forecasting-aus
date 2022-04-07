@@ -10,7 +10,7 @@ def sample_discrete_dist(dist_disc_unnorm, nsamples):
     """
     # this returns a number in the range [1, 21] corresponding 
     res = (
-        rv_discrete(values=(range(1, 22), dist_disc_unnorm / sum(dist_disc_unnorm)))
+        rv_discrete(values=(range(22), dist_disc_unnorm / sum(dist_disc_unnorm)))
         .rvs(size=nsamples)
     )
     
@@ -36,6 +36,8 @@ def read_in_NNDSS(
     import glob
     from params import (
         rd_disc_pmf,
+        shape_rd,
+        scale_rd,
         inc_disc_pmf,
         inc_omicron_disc_pmf,
         omicron_dominance_date,
@@ -68,8 +70,9 @@ def read_in_NNDSS(
         # sample that number of delays from the distribution and take the ceiling.
         # This was fitted to the third and second wave data, looking at the common differences
         # between onsets and confirmations
-        # subtract 1 as report delay of 0 days is reasonable
-        rd = sample_discrete_dist(rd_disc_pmf, n_delays) - 1
+        # rd = sample_discrete_dist(rd_disc_pmf, n_delays)
+        # sampling using an actual gamma distribution allows for 0 day delays
+        rd = np.round(np.random.gamma(shape=shape_rd, scale=scale_rd, size=n_delays))
         rd = rd * timedelta(days=1)
 
         # fill missing days with the confirmation date, noting that this is adjusted when used

@@ -37,7 +37,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 # parameters
-tau = 3
+tau = 4
 prior_a = 1
 prior_b = 3
 trunc_days = 21
