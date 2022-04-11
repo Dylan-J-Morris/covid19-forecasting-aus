@@ -491,3 +491,112 @@ def read_in_cases(
     ]
 
     return df_state
+
+
+def remove_sus_from_Reff(strain, data_date):
+    """
+    This removes the inferred susceptibility depletion from the Reff estimates out of EpyReff. 
+    The inferred Reff = S(t) * Reff_1 where S(t) is the effect of susceptible depletion (i.e. a 
+    factor between 0 and 1) and Reff_1 is the Reff without the effect of a reducing susceptibility 
+    pool.
+    """
+
+    data_date = pd.to_datetime(data_date)
+    # read in Reff samples
+    df_Reff = pd.read_csv(
+        "results/EpyReff/Reff_" 
+        + strain 
+        + "_samples" 
+        + data_date.strftime("%Y-%m-%d")
+        + "tau_4.csv",
+        parse_dates=["INFECTION_DATES"],
+    )
+
+    # read in assumed CA
+    CA = pd.read_csv(
+        "results/" 
+        + "CA_" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
+
+    # read in cases by infection dates
+    cases = pd.read_csv(
+        "results/" 
+        + "cases_" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv",
+        parse_dates=["date_inferred"]
+    )
+
+    # scale the local cases by the assumed CA 
+    cases["local_scaled"] = cases["local"] 
+    cases.loc[cases.date_inferred <= pd.to_datetime("2021-12-09"), "local_scaled"] *= 1 / 0.75
+    cases.loc[cases.date_inferred > pd.to_datetime("2021-12-09"), "local_scaled"] *= 1 / 0.50
+
+    # read in the inferred susceptibility depletion factor and convert to a simple array
+    sus_dep_factor = pd.read_csv(
+        "results/" 
+        + data_date.strftime("%Y-%m-%d") 
+        + "/"
+        + "sampled_susceptible_depletion_" 
+        + data_date.strftime("%Y-%m-%d") 
+        + ".csv"
+    )
+    sus_dep_factor = sus_dep_factor.iloc[:,1].to_numpy()
+
+    states = sorted(["NSW", "QLD", "SA", "VIC", "TAS", "WA", "ACT", "NT"])
+
+    pop_sizes = {
+        "ACT": 432266,
+        "NSW": 8189266,
+        "NT": 246338,
+        "QLD": 5221170,
+        "SA": 1773243,
+        "TAS": 541479,
+        "VIC": 6649159,
+        "WA": 2681633,
+    }
+
+    # init a dataframe to hold the Reff samples without susceptible depletion
+    df_Reff_adjusted = pd.DataFrame()
+
+    for state in states:
+        # filter cases by the state and after March 2020 
+        cases_state = (
+            cases
+            .loc[(cases.STATE == state) & (cases.date_inferred >= pd.to_datetime("2020-03-01"))]
+        )
+        dates_complete = pd.DataFrame(
+            pd.date_range(start="2020-03-01", end=max(df_Reff.INFECTION_DATES)), 
+            columns=["date_inferred"],
+        )
+        # merging on date_inferred forces missing dates to be added into cases_state 
+        cases_state = dates_complete.merge(right=cases_state, how='left', on='date_inferred')
+        cases_state.fillna(0, inplace=True)
+        cases_state.loc[cases_state.date_inferred <= "2021-06-25", "local_scaled"] = 0
+        cases_state["cum_local_scaled"] = cases_state["local_scaled"].cumsum()
+        
+        cases_state = cases_state.cum_local_scaled.to_numpy()
+        cases_state = np.tile(cases_state, (2000, 1)).T
+        # invert the susceptible depletion factor for the model
+        cases_state = 1 / (1 - sus_dep_factor * cases_state / pop_sizes[state])
+
+        df_Reff_state = df_Reff.loc[
+            (df_Reff.STATE == state) 
+            & (df_Reff.INFECTION_DATES >= pd.to_datetime("2020-03-01"))
+        ]
+        df_Reff_state.iloc[:, :-2] = df_Reff_state.iloc[:, :-2] * cases_state
+        df_Reff_adjusted = pd.concat((df_Reff_adjusted, df_Reff_state), axis=0)
+        
+
+    # save the unscaled Reff
+    df_Reff_adjusted.to_csv(
+        "results/EpyReff/Reff_"
+        + strain
+        + "_samples"
+        + data_date.strftime("%Y-%m-%d")
+        + ".csv"
+    )
+    
+    return None 

@@ -245,6 +245,9 @@ def get_data_for_posterior(data_date):
         apply_delay_at_read=True,
         apply_inc_at_read=True,
     )
+    
+    # save the case file for convenience 
+    df_state.to_csv("results/cases_" + data_date.strftime("%Y-%m-%d") + ".csv")
 
     df_Reff = df_Reff.merge(
         df_state,
@@ -646,6 +649,11 @@ def get_data_for_posterior(data_date):
         num_days=df3X.loc[df3X.state == "NSW"].shape[0],
     )
     
+    df_p_detect = pd.DataFrame(p_detect, columns=third_states)
+    df_p_detect["date"] = third_date_range["NSW"]
+    
+    df_p_detect.to_csv("results/CA_" + data_date.strftime("%Y-%m-%d") + ".csv")
+    
     # p_detect = get_all_p_detect(
     #     end_date=third_end_date, 
     #     num_days=df3X.loc[df3X.state == "NSW"].shape[0],
@@ -657,7 +665,7 @@ def get_data_for_posterior(data_date):
         
         "N": dfX.loc[dfX.state == first_states[0]].shape[0],
         "K": len(predictors),
-        "j_first_wave": len(first_states),
+        "j_first": len(first_states),
         "Reff": data_by_state["mean"].values,
         "mob": mobility_by_state,
         "mob_std": mobility_std_by_state,
@@ -666,42 +674,42 @@ def get_data_for_posterior(data_date):
         "local": data_by_state["local"].values,
         "imported": data_by_state["imported"].values,
         
-        "N_sec_wave": df2X.loc[df2X.state == sec_states[0]].shape[0],
-        "j_sec_wave": len(sec_states),
-        "Reff_sec_wave": sec_data_by_state["mean"].values,
-        "mob_sec_wave": sec_mobility_by_state,
-        "mob_sec_wave_std": sec_mobility_std_by_state,
-        "sigma2_sec_wave": sec_data_by_state["std"].values ** 2,
-        "policy_sec_wave": policy_sec_wave,
-        "local_sec_wave": sec_data_by_state["local"].values,
-        "imported_sec_wave": sec_data_by_state["imported"].values,
-        "apply_alpha_sec_wave": apply_alpha_sec_wave,
+        "N_sec": df2X.loc[df2X.state == sec_states[0]].shape[0],
+        "j_sec": len(sec_states),
+        "Reff_sec": sec_data_by_state["mean"].values,
+        "mob_sec": sec_mobility_by_state,
+        "mob_sec_std": sec_mobility_std_by_state,
+        "sigma2_sec": sec_data_by_state["std"].values ** 2,
+        "policy_sec": policy_sec_wave,
+        "local_sec": sec_data_by_state["local"].values,
+        "imported_sec": sec_data_by_state["imported"].values,
+        "apply_alpha_sec": apply_alpha_sec_wave,
         
-        "N_third_wave": df3X.loc[df3X.state == "NSW"].shape[0],
-        "j_third_wave": len(third_states),
-        "Reff_third_wave": third_data_by_state["mean"].values,
-        "Reff_omicron_wave": third_data_by_state["mean_omicron"].values,
-        "mob_third_wave": third_mobility_by_state,
-        "mob_third_wave_std": third_mobility_std_by_state,
-        "sigma2_third_wave": third_data_by_state["std"].values ** 2,
-        "sigma2_omicron_wave": third_data_by_state["std_omicron"].values ** 2,
-        "policy_third_wave": policy_third_wave,
-        "local_third_wave": third_data_by_state["local"].values,
-        "imported_third_wave": third_data_by_state["imported"].values,
+        "N_third": df3X.loc[df3X.state == "NSW"].shape[0],
+        "j_third": len(third_states),
+        "Reff_third": third_data_by_state["mean"].values,
+        "Reff_omicron": third_data_by_state["mean_omicron"].values,
+        "mob_third": third_mobility_by_state,
+        "mob_third_std": third_mobility_std_by_state,
+        "sigma2_third": third_data_by_state["std"].values ** 2,
+        "sigma2_omicron": third_data_by_state["std_omicron"].values ** 2,
+        "policy_third": policy_third_wave,
+        "local_third": third_data_by_state["local"].values,
+        "imported_third": third_data_by_state["imported"].values,
         
         "count_md": count_by_state,
         "respond_md": respond_by_state,
-        "count_md_sec_wave": sec_count_by_state,
-        "respond_md_sec_wave": sec_respond_by_state,
-        "count_md_third_wave": third_count_by_state,
-        "respond_md_third_wave": third_respond_by_state,
+        "count_md_sec": sec_count_by_state,
+        "respond_md_sec": sec_respond_by_state,
+        "count_md_third": third_count_by_state,
+        "respond_md_third": third_respond_by_state,
         
         "count_masks": mask_wearing_count_by_state,
         "respond_masks": mask_wearing_respond_by_state,
-        "count_masks_sec_wave": sec_mask_wearing_count_by_state,
-        "respond_masks_sec_wave": sec_mask_wearing_respond_by_state,
-        "count_masks_third_wave": third_mask_wearing_count_by_state,
-        "respond_masks_third_wave": third_mask_wearing_respond_by_state,
+        "count_masks_sec": sec_mask_wearing_count_by_state,
+        "respond_masks_sec": sec_mask_wearing_respond_by_state,
+        "count_masks_third": third_mask_wearing_count_by_state,
+        "respond_masks_third": third_mask_wearing_respond_by_state,
         
         "map_to_state_index_first": [state_index[state] for state in first_states],
         "map_to_state_index_sec": [state_index[state] for state in sec_states],
@@ -710,29 +718,29 @@ def get_data_for_posterior(data_date):
         "total_N_p_sec": sum([sum(x) for x in include_in_sec_wave]).item(),
         "total_N_p_third": sum([sum(x) for x in include_in_third_wave]).item(),
         
-        "include_in_first_wave": include_in_first_wave,
-        "include_in_sec_wave": include_in_sec_wave,
-        "include_in_third_wave": include_in_third_wave,
+        "include_in_first": include_in_first_wave,
+        "include_in_sec": include_in_sec_wave,
+        "include_in_third": include_in_third_wave,
         
-        "pos_starts_sec": np.cumsum([sum(x) for x in include_in_sec_wave])
-            .astype(int)
-            .tolist(),
-        "pos_starts_third": np.cumsum([sum(x) for x in include_in_third_wave])
-            .astype(int)
-            .tolist(),
+        "pos_starts_sec": np.cumsum(
+            [sum(x) for x in include_in_sec_wave]
+        ).astype(int).tolist(),
+        "pos_starts_third": np.cumsum(
+            [sum(x) for x in include_in_third_wave]
+        ).astype(int).tolist(),
         
         "ve_delta_data": delta_vaccination_by_state_array,
         "ve_omicron_data": omicron_vaccination_by_state_array,
         
         "omicron_start_day": omicron_start_day,
         "omicron_only_day": omicron_only_day,
-        "include_in_omicron_wave": include_in_omicron_wave,
+        "include_in_omicron": include_in_omicron_wave,
         "total_N_p_third_omicron": int(
             sum([sum(x) for x in include_in_omicron_wave]).item()
         ),
-        "pos_starts_third_omicron": np.cumsum([sum(x) for x in include_in_omicron_wave])
-            .astype(int)
-            .tolist(),
+        "pos_starts_third_omicron": np.cumsum(
+            [sum(x) for x in include_in_omicron_wave]
+        ).astype(int).tolist(),
         'tau_vax_block_size': tau_vax_block_size, 
         'total_N_p_third_blocks': int(
             sum([int(ceil(sum(x)/tau_vax_block_size)) for x in include_in_third_wave])
@@ -841,7 +849,7 @@ def run_stan(
     
     # now save a small summary to easily view
     pars_of_interest = ["bet[" + str(i + 1) + "]" for i in range(5)]
-    pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(5)]
+    pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(8)]
     pars_of_interest = pars_of_interest + [
         "R_I",
         "R_L",
@@ -851,7 +859,7 @@ def run_stan(
         "voc_effect_alpha",
         "voc_effect_delta",
         "voc_effect_omicron",
-        "susceptible_depletion_factor",
+        "sus_dep_factor",
     ]
     
     # save a summary for ease of viewing
@@ -2217,7 +2225,7 @@ def plot_and_save_posterior_samples(data_date):
         "voc_effect_alpha",
         "voc_effect_delta",
         "voc_effect_omicron",
-        "susceptible_depletion_factor",
+        "sus_dep_factor",
     ]
     var_to_csv = (      
         var_to_csv
@@ -2246,7 +2254,7 @@ def plot_and_save_posterior_samples(data_date):
     return None
 
 
-def main(data_date, run_flag=1):
+def main(data_date, run_flag=0):
     """
     Runs the stan model in parts to cut down on memory. The run_flag enables us to run components
     of the model as required and has the following settings:
@@ -2255,10 +2263,10 @@ def main(data_date, run_flag=1):
     run_flag=1 : Run plotting methods.
     """
     
-    if run_flag == 1:
+    if run_flag in (0, 1):
         get_data_for_posterior(data_date=data_date)    
     
-    if run_flag in (1, 2):    
+    if run_flag in (0, 2):    
         num_chains = 4
         num_warmup_samples = 500
         num_samples = 1000
@@ -2272,11 +2280,12 @@ def main(data_date, run_flag=1):
             max_treedepth=max_treedepth,
         )
         
-    if run_flag in (1, 2, 3):
-        plot_and_save_posterior_samples(
-            data_date=data_date, 
-        )
-        
+    if run_flag in (0, 3):
+        # remove the susceptibility depletion term from Reff
+        for strain in ("Delta", "Omicron"):
+            remove_sus_from_Reff(strain=strain, data_date=data_date)
+            
+        plot_and_save_posterior_samples(data_date=data_date)
 
     return None
 
@@ -2285,6 +2294,9 @@ if __name__ == "__main__":
     If we are running the script here (which is always) then this ensures things run appropriately.
     """
     data_date = argv[1]
-    run_flag = int(argv[2])
+    try:
+        run_flag = int(argv[2])
+    except:
+        run_flag = 0
         
     main(data_date, run_flag=run_flag)
