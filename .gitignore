@@ -15,7 +15,7 @@ retro
 # directly ignore the unix executables produced by Stan
 /TP_model/fit_and_forecast/rho_model_gamma
 /TP_model/fit_and_forecast/rho_model_gamma_prod
-/TP_model/fit_and_forecast/rho_model_gammamix
+/TP_model/fit_and_forecast/rho_model_gamma_mix
 
 # c++ header files (produced by stan)
 *.hpp
