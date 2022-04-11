@@ -147,7 +147,7 @@ def predict_plot(
         elif second_phase:
             mu_hat = samples[
                 [
-                    "mu_hat_sec_wave[" + str(j + 1) + "]"
+                    "mu_hat_sec[" + str(j + 1) + "]"
                     for j in range(
                         pos,
                         pos
@@ -167,7 +167,7 @@ def predict_plot(
             if third_plot_type == "combined":
                 mu_hat = samples[
                     [
-                        "mu_hat_third_wave[" + str(j + 1) + "]"
+                        "mu_hat_third[" + str(j + 1) + "]"
                         for j in range(
                             pos,
                             pos
@@ -306,10 +306,97 @@ def predict_plot(
         ax[i // 4, i % 4].axhline(1, ls="--", c="k", lw=1)
         ax[i // 4, i % 4].set_yticks([0, 1, 2], minor=False)
         ax[i // 4, i % 4].set_yticklabels([0, 1, 2], minor=False)
-        ax[i // 4, i % 4].yaxis.grid(
-            which="minor", linestyle="--", color="black", linewidth=2
-        )
+        ax[i // 4, i % 4].yaxis.grid(which="minor", linestyle="--", color="black", linewidth=2)
         ax[i // 4, i % 4].set_ylim((0, 2.5))
+        
+        if i // 4 == 1:
+            ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
+
+    plt.legend()
+    
+    return ax
+
+
+def predict_micro_macro_plot(samples, df, micro=False):
+    """
+    Produce posterior predictive plots for all states of the micro and macro factors. This should 
+    enable us to look into the overall factor multiplying TP at any given time. 
+    """
+
+    # all states
+    fig, ax = plt.subplots(figsize=(15, 12), ncols=4, nrows=2, sharex=True, sharey=True)
+
+    states = sorted(list(states_initials.keys()))
+    
+    pos = 0
+    for i, state in enumerate(states):
+
+        df_state = df.loc[df.sub_region_1 == state]
+        df_state = df_state.loc[df_state.is_third_wave == 1]
+
+        if micro:
+            factor = samples[
+                [
+                    "micro_factor[" + str(j + 1) + "]"
+                    for j in range(
+                        pos,
+                        pos
+                        + df.loc[
+                            df.state == states_initials[state]
+                        ].is_third_wave.sum(),
+                    )
+                ]
+            ].values.T
+            pos = (
+                pos
+                + df.loc[
+                    df.state == states_initials[state]
+                ].is_third_wave.sum()
+            )
+        else:
+            factor = samples[
+                [
+                    "macro_factor[" + str(j + 1) + "]"
+                    for j in range(
+                        pos,
+                        pos
+                        + df.loc[
+                            df.state == states_initials[state]
+                        ].is_third_wave.sum(),
+                    )
+                ]
+            ].values.T
+            pos = (
+                pos
+                + df.loc[
+                    df.state == states_initials[state]
+                ].is_third_wave.sum()
+            )
+            
+        
+        df_hat = pd.DataFrame(factor.T)
+        
+        # df_hat.to_csv('mu_hat_' + state + '.csv')
+        ax[i // 4, i % 4].plot(df_state.date, df_hat.quantile(0.5, axis=0), color="C0")
+        ax[i // 4, i % 4].fill_between(
+            df_state.date,
+            df_hat.quantile(0.25, axis=0),
+            df_hat.quantile(0.75, axis=0),
+            color="C0",
+            alpha=0.3,
+        )
+        ax[i // 4, i % 4].fill_between(
+            df_state.date,
+            df_hat.quantile(0.05, axis=0),
+            df_hat.quantile(0.95, axis=0),
+            color="C0",
+            alpha=0.3,
+        )
+        ax[i // 4, i % 4].set_title(state)
+        # grid line at R_eff =1
+        ax[i // 4, i % 4].set_yticks([0, 0.5, 1], minor=False)
+        ax[i // 4, i % 4].set_yticklabels([0, 0.5, 1], minor=False)
+        ax[i // 4, i % 4].set_ylim((0, 1.0))
         
         if i // 4 == 1:
             ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
@@ -560,15 +647,16 @@ def remove_sus_from_Reff(strain, data_date):
 
     # init a dataframe to hold the Reff samples without susceptible depletion
     df_Reff_adjusted = pd.DataFrame()
+    df_cases_adjusted = pd.DataFrame()
 
     for state in states:
         # filter cases by the state and after March 2020 
-        cases_state = (
-            cases
-            .loc[(cases.STATE == state) & (cases.date_inferred >= pd.to_datetime("2020-03-01"))]
-        )
+        cases_state = cases.loc[cases.STATE == state]
         dates_complete = pd.DataFrame(
-            pd.date_range(start="2020-03-01", end=max(df_Reff.INFECTION_DATES)), 
+            pd.date_range(
+                start=df_Reff.INFECTION_DATES.min(), 
+                end=max(df_Reff.INFECTION_DATES)
+            ), 
             columns=["date_inferred"],
         )
         # merging on date_inferred forces missing dates to be added into cases_state 
@@ -576,16 +664,14 @@ def remove_sus_from_Reff(strain, data_date):
         cases_state.fillna(0, inplace=True)
         cases_state.loc[cases_state.date_inferred <= "2021-06-25", "local_scaled"] = 0
         cases_state["cum_local_scaled"] = cases_state["local_scaled"].cumsum()
+        df_cases_adjusted = pd.concat((df_cases_adjusted, cases_state), axis=0)
         
         cases_state = cases_state.cum_local_scaled.to_numpy()
         cases_state = np.tile(cases_state, (2000, 1)).T
         # invert the susceptible depletion factor for the model
         cases_state = 1 / (1 - sus_dep_factor * cases_state / pop_sizes[state])
 
-        df_Reff_state = df_Reff.loc[
-            (df_Reff.STATE == state) 
-            & (df_Reff.INFECTION_DATES >= pd.to_datetime("2020-03-01"))
-        ]
+        df_Reff_state = df_Reff.loc[df_Reff.STATE == state]
         df_Reff_state.iloc[:, :-2] = df_Reff_state.iloc[:, :-2] * cases_state
         df_Reff_adjusted = pd.concat((df_Reff_adjusted, df_Reff_state), axis=0)
         
@@ -596,7 +682,15 @@ def remove_sus_from_Reff(strain, data_date):
         + strain
         + "_samples"
         + data_date.strftime("%Y-%m-%d")
-        + ".csv"
+        + ".csv",
+        index=False,
+    )
+    
+    df_cases_adjusted.to_csv(
+        "results/EpyReff/cases_adjusted_"
+        + data_date.strftime("%Y-%m-%d")
+        + ".csv",
+        index=False,
     )
     
     return None 
