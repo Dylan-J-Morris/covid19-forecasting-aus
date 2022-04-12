@@ -165,3 +165,4 @@ data/Global_Mobility_Report.csv
 TP_model/fit_and_forecast/stan_models/TP_model_switchover_waning_infection
 TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix_waning_infection
 TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix_omicron
+TP_model/fit_and_forecast/stan_models/TP_model_switchover
