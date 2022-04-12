@@ -798,10 +798,16 @@ def run_stan(
 
     # to run the inference set run_inference to True in params
     # path to the stan model 
+    # basic model with a switchover between Reffs 
     # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_switchover.stan"
+    
+    # mixture model with basic susceptible depletion 
     # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix.stan"
-    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix_omicron.stan"
+    
+    # model that has a switchover but incorporates a waning in infection acquired immunity
     rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_switchover_waning_infection.stan"
+    
+    # model that incorporates a waning in infection acquired immunity but is coded as a mixture
     # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix_waning_infection.stan"
 
     # compile the stan model
@@ -849,17 +855,6 @@ def run_stan(
     # now save a small summary to easily view
     pars_of_interest = ["bet[" + str(i + 1) + "]" for i in range(5)]
     pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(8)]
-    # pars_of_interest = pars_of_interest + [
-    #     "R_I",
-    #     "R_L",
-    #     "theta_md",
-    #     "theta_masks",
-    #     "sig",
-    #     "voc_effect_alpha",
-    #     "voc_effect_delta",
-    #     "voc_effect_omicron",
-    #     "sus_dep_factor",
-    # ]
     pars_of_interest = pars_of_interest + [
         "R_I",
         "R_L",
@@ -870,7 +865,6 @@ def run_stan(
         "voc_effect_delta",
         "voc_effect_omicron",
     ]
-    
     pars_of_interest = pars_of_interest + ["phi[" + str(i + 1) + "]" for i in range(4)]
     
     # save a summary for ease of viewing
@@ -2295,9 +2289,10 @@ def main(data_date, run_flag=0):
     """
     Runs the stan model in parts to cut down on memory. The run_flag enables us to run components
     of the model as required and has the following settings:
-    run_flag=1 : Generate the data, save it, then run the inference and plotting methods. 
-    run_flag=2 : Using the data from 1, run the inference and plotting methods. 
-    run_flag=1 : Run plotting methods.
+        run_flag=0 (default) : Run full inference and plotting procedures.
+        run_flag=1 : Generate the data, save it. 
+        run_flag=2 : Using the data from 1, run the inference. 
+        run_flag=3 : Run plotting methods.
     """
     
     if run_flag in (0, 1):
@@ -2306,7 +2301,7 @@ def main(data_date, run_flag=0):
     if run_flag in (0, 2):    
         num_chains = 4
         num_warmup_samples = 500
-        num_samples = 500
+        num_samples = 1000
         max_treedepth = 12
         
         run_stan(
@@ -2320,7 +2315,8 @@ def main(data_date, run_flag=0):
     if run_flag in (0, 3):
         # remove the susceptibility depletion term from Reff
         for strain in ("Delta", "Omicron"):
-            remove_sus_from_Reff(strain=strain, data_date=data_date)
+            # remove_sus_from_Reff(strain=strain, data_date=data_date)
+            remove_sus_with_waning_from_Reff(strain=strain, data_date=data_date)
             
         plot_and_save_posterior_samples(data_date=data_date)
 
