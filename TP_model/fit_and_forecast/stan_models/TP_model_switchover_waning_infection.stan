@@ -799,6 +799,8 @@ model {
         );
     }
     
+    int Reff_switchover_day;
+    
     for (i in 1:j_third){
         if (i == 1){
             pos = 1;
@@ -806,38 +808,18 @@ model {
             pos = pos_starts_third[i-1] + 1;
         }
         
+        if (i == 6 || i == 8 || i == 3) {
+            Reff_switchover_day = omicron_start_day + 75;
+        } else {
+            Reff_switchover_day = omicron_start_day + 15;
+        }
+        
         for (n in 1:N_third){
             if (include_in_third[i][n] == 1){
-                if (n < omicron_start_day) {
+                if (n < Reff_switchover_day) {
                     mu_hat_third[pos] ~ gamma(
                         a_mu_hat_third[n,i], 
                         b_mu_hat_third[n,i]
-                    );
-                    
-                    pos += 1;
-                } else if (n < omicron_only_day) {
-                    // number of days into omicron period 
-                    n_omicron = n - omicron_start_day;
-                    prop_omicron = sigmoid(
-                        n_omicron, 
-                        tau[map_to_state_index_third[i]], 
-                        r[map_to_state_index_third[i]], 
-                        m0[map_to_state_index_third[i]],
-                        m1[map_to_state_index_third[i]]
-                    );
-                    
-                    target += log_mix(
-                        prop_omicron, 
-                        gamma_lpdf(
-                            mu_hat_third[pos] | 
-                            a_mu_hat_omicron[n,i], 
-                            b_mu_hat_omicron[n,i]
-                        ), 
-                        gamma_lpdf(
-                            mu_hat_third[pos] | 
-                            a_mu_hat_third[n,i], 
-                            b_mu_hat_third[n,i]
-                        )
                     );
                     
                     pos += 1;
@@ -846,6 +828,7 @@ model {
                         a_mu_hat_omicron[n,i], 
                         b_mu_hat_omicron[n,i]
                     );
+                    
                     pos += 1;
                 }
             }
