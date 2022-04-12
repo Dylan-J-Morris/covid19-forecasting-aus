@@ -212,8 +212,15 @@ for strain in ("Delta", "Omicron"):
     else:
         file_name_start = "results/EpyReff/Reff_delta"
         
+    # save the summary Reff's
     df.to_csv(file_name_start + file_date + "tau_" + str(tau) + ".csv", index=False)
-    df_R_samples.to_csv(
+    
+    # we tile the Reff's to the same size (2000) for the TP forecasts 
+    df_Reff_samples = np.tile(df_R_samples.iloc[:, :-2].to_numpy(), 4)
+    df_Reff_full = pd.DataFrame(df_Reff_samples, columns=[str(n) for n in range(2000)])
+    df_Reff_full["INFECTION_DATES"] = df_R_samples["INFECTION_DATES"]
+    df_Reff_full["STATE"] = df_R_samples["STATE"]
+    df_Reff_full.to_csv(
         file_name_start + "_samples" + file_date + "tau_" + str(tau) + ".csv", index=False
     )
 
