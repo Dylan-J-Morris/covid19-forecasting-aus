@@ -165,20 +165,32 @@ transformed data {
             num = sum(CA_scaled_local_third[idx_start:idx_end]);
             prop_inf_30[n,i] = fmin(num / denom, 1.0);
             
-            idx_start = max(n - 60, 1);
-            idx_end = min(n - 31, N_third);
-            num = sum(CA_scaled_local_third[idx_start:idx_end]);
-            prop_inf_60[n,i] = fmin(num / denom, 1.0);
+            if (n > 30) {
+                idx_start = max(n - 60, 1);
+                idx_end = min(n - 31, N_third);
+                num = sum(CA_scaled_local_third[idx_start:idx_end]);
+                prop_inf_60[n,i] = fmin(num / denom, 1.0);
+            } else {
+                prop_inf_60[n,i] = 0.0;
+            }
             
-            idx_start = max(n - 90, 1);
-            idx_end = min(n - 61, N_third);
-            num = sum(CA_scaled_local_third[idx_start:idx_end]);
-            prop_inf_90[n,i] = fmin(num / denom, 1.0);
+            if (n > 60) {
+                idx_start = max(n - 90, 1);
+                idx_end = min(n - 61, N_third);
+                num = sum(CA_scaled_local_third[idx_start:idx_end]);
+                prop_inf_90[n,i] = fmin(num / denom, 1.0);
+            } else {
+                prop_inf_90[n,i] = 0.0;
+            }
             
-            idx_start = max(n - 120, 1);
-            idx_end = min(n - 91, N_third);
-            num = sum(CA_scaled_local_third[idx_start:idx_end]);
-            prop_inf_120[n,i] = fmin(num / denom, 1.0);
+            if (n > 60) {
+                idx_start = max(n - 120, 1);
+                idx_end = min(n - 91, N_third);
+                num = sum(CA_scaled_local_third[idx_start:idx_end]);
+                prop_inf_120[n,i] = fmin(num / denom, 1.0);
+            } else {
+                prop_inf_120[n,i] = 0.0;
+            }
         }
     }
 

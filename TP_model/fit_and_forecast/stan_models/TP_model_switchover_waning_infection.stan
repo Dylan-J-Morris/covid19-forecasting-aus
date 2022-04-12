@@ -165,20 +165,32 @@ transformed data {
             num = sum(CA_scaled_local_third[idx_start:idx_end]);
             prop_inf_30[n,i] = fmin(num / denom, 1.0);
             
-            idx_start = max(n - 60, 1);
-            idx_end = min(n - 31, N_third);
-            num = sum(CA_scaled_local_third[idx_start:idx_end]);
-            prop_inf_60[n,i] = fmin(num / denom, 1.0);
+            if (n > 30) {
+                idx_start = max(n - 60, 1);
+                idx_end = min(n - 31, N_third);
+                num = sum(CA_scaled_local_third[idx_start:idx_end]);
+                prop_inf_60[n,i] = fmin(num / denom, 1.0);
+            } else {
+                prop_inf_60[n,i] = 0.0;
+            }
             
-            idx_start = max(n - 90, 1);
-            idx_end = min(n - 61, N_third);
-            num = sum(CA_scaled_local_third[idx_start:idx_end]);
-            prop_inf_90[n,i] = fmin(num / denom, 1.0);
+            if (n > 60) {
+                idx_start = max(n - 90, 1);
+                idx_end = min(n - 61, N_third);
+                num = sum(CA_scaled_local_third[idx_start:idx_end]);
+                prop_inf_90[n,i] = fmin(num / denom, 1.0);
+            } else {
+                prop_inf_90[n,i] = 0.0;
+            }
             
-            idx_start = max(n - 120, 1);
-            idx_end = min(n - 91, N_third);
-            num = sum(CA_scaled_local_third[idx_start:idx_end]);
-            prop_inf_120[n,i] = fmin(num / denom, 1.0);
+            if (n > 60) {
+                idx_start = max(n - 120, 1);
+                idx_end = min(n - 91, N_third);
+                num = sum(CA_scaled_local_third[idx_start:idx_end]);
+                prop_inf_120[n,i] = fmin(num / denom, 1.0);
+            } else {
+                prop_inf_120[n,i] = 0.0;
+            }
         }
     }
 
@@ -442,13 +454,13 @@ transformed parameters {
                 );  
                 
                 // calculate the effective proporiton infected
-                sus_dep_comp[1] = 1 - phi[4] * prop_inf_30[n,i];
-                sus_dep_comp[2] = 1 - phi[3] * prop_inf_60[n,i];
-                sus_dep_comp[3] = 1 - phi[2] * prop_inf_90[n,i];
-                sus_dep_comp[4] = 1 - phi[1] * prop_inf_120[n,i];
+                sus_dep_comp[1] = phi[4] * prop_inf_30[n,i];
+                sus_dep_comp[2] = phi[3] * prop_inf_60[n,i];
+                sus_dep_comp[3] = phi[2] * prop_inf_90[n,i];
+                sus_dep_comp[4] = phi[1] * prop_inf_120[n,i];
                     
                 // total term is just the sum of the above
-                sus_dep_term = prod(sus_dep_comp);
+                sus_dep_term = 1.0 - sum(sus_dep_comp);
 
                 if (n < omicron_start_day) {
                     voc_ve_prod = voc_effect_delta * ve_delta[pos];
@@ -582,8 +594,8 @@ model {
     R_I_omicron ~ gamma(square(0.3) / 0.2, 0.3 / 0.2);
 
     // hierarchical model for the baseline RL
-    R_L ~ gamma(square(1.7) / 0.005, 1.7 / 0.005);
-    sig ~ exponential(50);
+    R_L ~ gamma(square(1.8) / 0.01, 1.8 / 0.01);
+    sig ~ exponential(20);
     R_Li ~ gamma(square(R_L) / sig, R_L / sig);
 
     // first wave model
@@ -866,13 +878,13 @@ generated quantities {
         for (n in 1:N_third) {
             if (include_in_third[i][n] == 1) {
                 // calculate the effective proporiton infected
-                sus_dep_comp[1] = 1 - phi[4] * prop_inf_30[n,i];
-                sus_dep_comp[2] = 1 - phi[3] * prop_inf_60[n,i];
-                sus_dep_comp[3] = 1 - phi[2] * prop_inf_90[n,i];
-                sus_dep_comp[4] = 1 - phi[1] * prop_inf_120[n,i];
+                sus_dep_comp[1] = phi[4] * prop_inf_30[n,i];
+                sus_dep_comp[2] = phi[3] * prop_inf_60[n,i];
+                sus_dep_comp[3] = phi[2] * prop_inf_90[n,i];
+                sus_dep_comp[4] = phi[1] * prop_inf_120[n,i];
                     
                 // total term is just the sum of the above
-                sus_dep = prod(sus_dep_comp);
+                sus_dep = 1.0 - sum(sus_dep_comp);
                 sus_dep_factor[pos] = sus_dep;
                 
                 micro_factor[pos] = md_third[pos];

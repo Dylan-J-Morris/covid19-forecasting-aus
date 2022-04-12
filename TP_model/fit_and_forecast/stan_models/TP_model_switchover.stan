@@ -1,3 +1,7 @@
+/*
+A stan model that incorporates the effect of waning infection acquired immunity on the TP. 
+*/
+
 functions {
     
    real sigmoid(int t, real tau, real r, real m0, real m1) {
@@ -147,13 +151,12 @@ transformed data {
     for (i in 1:j_third) {
         // scale up the cases by the assumed CAR
         CA_scaled_local_third = ceil(local_third[:,i] .* CA_scaling_factor[:,i]);
-        
         // calculate the cumulative sum of the scaled cases 
         local_third_cum = cumulative_sum(CA_scaled_local_third);
+        denom = pop_size_array[map_to_state_index_third[i]];
         
         for (n in 1:N_third) {
-            // can't have more cases than the observed population
-            num = 1.0 * local_third_cum[n]; 
+            num = 1.0 * local_third_cum[n];
             denom = 1.0 * pop_size_array[map_to_state_index_third[i]];
             prop_inf[n,i] = fmin(num / denom, 1.0);
         }
@@ -173,7 +176,7 @@ transformed data {
     for (i in 1:j_third) {
         a_mu_hat_third[:,i] = square(Reff_third[:,i]) ./ sigma2_third[:,i];
         b_mu_hat_third[:,i] = Reff_third[:,i] ./ sigma2_third[:,i];
-        a_mu_hat_omicron[:,i] = (square(Reff_omicron[:,i]) ./ sigma2_omicron[:,i]);
+        a_mu_hat_omicron[:,i] = square(Reff_omicron[:,i]) ./ sigma2_omicron[:,i];
         b_mu_hat_omicron[:,i] = Reff_omicron[:,i] ./ sigma2_omicron[:,i];
     }
     
@@ -221,14 +224,16 @@ parameters {
     vector<lower=0,upper=1>[total_N_p_third_blocks] ve_delta_tau;
     vector<lower=0,upper=1>[total_N_p_third_omicron_blocks] ve_omicron_tau;
     
-    real<lower=0,upper=1> sus_dep_factor;
+    // real<lower=0,upper=1> sus_dep_factor;
     
     // parameters for the transition from Delta to Omicron 
     vector[j_third] tau_raw; 
-    
     vector<lower=0>[j_third] r;
     vector<lower=0,upper=1>[j_third] m0; 
-    // vector<lower=0,upper=1>[j_third] m1; 
+    vector<lower=0,upper=1>[j_third] m1; 
+    
+    // simplex[5] phi_simplex;
+    real<lower=0,upper=1> phi;
 }
 
 transformed parameters {
@@ -250,7 +255,7 @@ transformed parameters {
             pos_c = 0;
             pos_omicron_c = 0;
             
-            if (i == 1){
+            if (i == 1) {
                 pos = 1;
                 pos_block = 1;
                 pos_omicron = 1;
@@ -261,10 +266,9 @@ transformed parameters {
                 pos_omicron = pos_starts_third_omicron[i-1] + 1;
                 pos_block_omicron = pos_starts_third_omicron_blocks[i-1] + 1;
             }
-            
-            //reverse the array
-            for (n in 1:N_third){
-                if (include_in_third[i][n] == 1){
+        
+            for (n in 1:N_third) {
+                if (include_in_third[i][n] == 1) {
                     ve_delta[pos] = ve_delta_tau[pos_block];
                     pos_c += 1; 
                     if (pos_c == tau_vax_block_size) {
@@ -312,8 +316,8 @@ transformed parameters {
         real TP_local;
         real social_measures;
         
-        for (n in 1:N){
-            if (include_in_first[i][n] == 1){
+        for (n in 1:N) {
+            if (include_in_first[i][n] == 1) {
                 md[n,i] = pow(1 + theta_md, -1 * prop_md[n,i]);
                 masks[n,i] = pow(1 + theta_masks, -1 * prop_masks[n,i]);
                 
@@ -328,19 +332,19 @@ transformed parameters {
     }
 
     // second wave model
-    for (i in 1:j_sec){
+    for (i in 1:j_sec) {
         int pos;
         real TP_local;
         real social_measures;
         
-        if (i == 1){
+        if (i == 1) {
             pos = 1;
         } else {
             pos = pos_starts_sec[i-1] + 1;
         }
         
-        for (n in 1:N_sec){
-            if (include_in_sec[i][n] == 1){
+        for (n in 1:N_sec) {
+            if (include_in_sec[i][n] == 1) {
                 md_sec[pos] = pow(1 + theta_md, -1 * prop_md_sec[pos]);
                 masks_sec[pos] = pow(1 + theta_masks, -1 * prop_masks_sec[pos]);
                 
@@ -380,18 +384,18 @@ transformed parameters {
     }
     
     // third wave model
-    for (i in 1:j_third){
+    for (i in 1:j_third) {
         // define these within the scope of the loop only
         int pos;
         int pos_omicron2;
         real social_measures; 
         real sus_dep_term;
-        real prop_omicron_to_delta; 
+        real prop_omicron; 
         int n_omicron; 
         real voc_ve_prod; 
         real TP_import;
         
-        if (i == 1){
+        if (i == 1) {
             pos = 1;
             pos_omicron2 = 1;
         } else {
@@ -399,15 +403,11 @@ transformed parameters {
             pos_omicron2 = pos_starts_third_omicron[i-1] + 1;
         }
         
-        for (n in 1:N_third){
-            if (include_in_third[i][n] == 1){
-                md_third[pos] = pow(
-                    1 + theta_md, -1 * prop_md_third[pos]
-                );
+        for (n in 1:N_third) {
+            if (include_in_third[i][n] == 1) {
+                md_third[pos] = pow(1 + theta_md, -1 * prop_md_third[pos]);
                 
-                masks_third[pos] = pow(
-                    1 + theta_masks, -1 * prop_masks_third[pos]
-                );
+                masks_third[pos] = pow(1 + theta_masks, -1 * prop_masks_third[pos]);
                 
                 social_measures = (
                     2 * inv_logit(mob_third[i][n,:] * (bet)) 
@@ -415,40 +415,46 @@ transformed parameters {
                     * masks_third[pos]
                 );  
                     
-                sus_dep_term = (1.0 - sus_dep_factor * prop_inf[n,i]);
+                // total term is just the sum of the above
+                sus_dep_term = 1 - phi * prop_inf[n,i];
 
-                if (n <= omicron_start_day) {
+                if (n < omicron_start_day) {
                     voc_ve_prod = voc_effect_delta * ve_delta[pos];
-                    
                     TP_import = R_I;
-                } else {
+                } else if (n < omicron_only_day) {
                     // number of days into omicron period 
                     n_omicron = n - omicron_start_day;
-                    prop_omicron_to_delta = sigmoid(
+                    prop_omicron = sigmoid(
                         n_omicron, 
                         tau[map_to_state_index_third[i]], 
                         r[map_to_state_index_third[i]], 
                         m0[map_to_state_index_third[i]],
-                        1.0
+                        m1[map_to_state_index_third[i]]
                     );
                     
                     voc_ve_prod = (
-                        prop_omicron_to_delta
+                        prop_omicron
                         * voc_effect_omicron
                         * ve_omicron[pos_omicron2] 
-                        + (1 - prop_omicron_to_delta)
+                        + (1 - prop_omicron)
                         * voc_effect_delta
                         * ve_delta[pos]
                     );
                     
                     // adjust the import R by the proportion of cases and VoC's
                     TP_import = R_I_omicron * (
-                        prop_omicron_to_delta * voc_effect_omicron 
-                        + (1 - prop_omicron_to_delta) * voc_effect_delta
+                        prop_omicron * voc_effect_omicron 
+                        + (1 - prop_omicron) * voc_effect_delta
                     ); 
                     
                     pos_omicron2 += 1;  
-                } 
+                } else {
+                    voc_ve_prod = voc_effect_omicron * ve_omicron[pos_omicron2];
+                    // adjust the import R by the proportion of cases and VoC's
+                    TP_import = R_I_omicron * voc_effect_omicron; 
+                    
+                    pos_omicron2 += 1;  
+                }
                 
                 mu_hat_third[pos] = (
                     brho_third[pos]
@@ -479,7 +485,7 @@ model {
     // define these within the scope of the loop only
     int pos;
     int pos_omicron2;
-    real prop_omicron_to_delta; 
+    real prop_omicron; 
     int n_omicron; 
 
     // variables for vax effects (reused for Delta and Omicron VEs)
@@ -492,14 +498,14 @@ model {
     array[N_sec] int idxs_sec;
     array[N_third] int idxs_third;
     int pos_idxs;
-    
-    int Reff_switchover_day; 
 
     // priors
     // mobility, micro
     bet ~ std_normal();
-    theta_md ~ lognormal(0, 0.5);
-    theta_masks ~ lognormal(0, 0.5);
+    // theta_md ~ lognormal(0, 0.5);
+    // theta_masks ~ lognormal(0, 0.5);
+    theta_md ~ lognormal(-2, 0.5);
+    theta_masks ~ lognormal(-2, 0.5);
     // theta_md ~ exponential(5);
     
     // third wave transition parameters 
@@ -509,7 +515,6 @@ model {
     real r_mean = 1.0;
     // r_mean ~ gamma(0.5^2 / 0.005, 0.5 / 0.005);
     r ~ gamma(square(r_mean) / r_sig, r_mean / r_sig);
-    
     
     for (i in 1:j_third){
         if (i == 8) {
@@ -521,26 +526,26 @@ model {
     
     tau_raw ~ std_normal();
     
-    // m1 ~ beta(5 * 95, 5 * 5);
+    m1 ~ beta(5 * 97, 5 * 3);
     
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(square(0.4) / 0.05, 0.4 / 0.05);
     additive_voc_effect_delta ~ gamma(square(2.0) / 0.05, 2.0 / 0.05);
     additive_voc_effect_omicron ~ gamma(square(2.0) / 0.05, 2.0 / 0.05);
 
-    sus_dep_factor ~ beta(2, 7);
+    phi ~ beta(7, 3);
     
     // this effect is the informed scaling (adjustment in the import ve) by the previous 
     // estimates used inside the generative model. It is the product of hotel worker 
-    // vaccination efficacy and coverage of vaccinated hotel workers. 
+    // vaccination efficacy and coverage of vaccinated hotel workers. Informed by TKI mid-2021
     import_ve_delta ~ beta(20.5, 105);
     
     R_I0 ~ gamma(square(0.3) / 0.2, 0.3 / 0.2);
     R_I_omicron ~ gamma(square(0.3) / 0.2, 0.3 / 0.2);
 
     // hierarchical model for the baseline RL
-    R_L ~ gamma(square(1.7) / 0.005, 1.7 / 0.005);
-    sig ~ exponential(50);
+    R_L ~ gamma(square(1.8) / 0.01, 1.8 / 0.01);
+    sig ~ exponential(20);
     R_Li ~ gamma(square(R_L) / sig, R_L / sig);
 
     // first wave model
@@ -548,7 +553,8 @@ model {
         prop_md[:,i] ~ beta(1 + count_md[i][:], 1 + respond_md[i][:] - count_md[i][:]);
         
         prop_masks[:,i] ~ beta(
-            1 + count_masks[i][:], 1 + respond_masks[i][:] - count_masks[i][:]
+            1 + count_masks[i][:], 
+            1 + respond_masks[i][:] - count_masks[i][:]
         );
         
         brho[:,i] ~ beta(1 + imported[:,i], 1 + local[:,i]);
@@ -755,6 +761,8 @@ model {
         );
     }
     
+    int Reff_switchover_day;
+    
     for (i in 1:j_third){
         if (i == 1){
             pos = 1;
@@ -762,15 +770,6 @@ model {
             pos = pos_starts_third[i-1] + 1;
         }
         
-        // Assume that we start using the Omicron Reff as of 2nd Feb for NT and WA. Assume 
-        // that we use the Omicron Reff for all other jurisdictions as of mid December. 
-        // The latter assumption possibly biases the TP upwards slightly but should be 
-        // explained through the omicron proportion.
-        // if (i == 6 || i == 8) {
-        //     Reff_switchover_day = omicron_start_day + 75;
-        // } else {
-        //     Reff_switchover_day = omicron_start_day + 15;
-        // }
         if (i == 6 || i == 8 || i == 3) {
             Reff_switchover_day = omicron_start_day + 75;
         } else {
@@ -779,7 +778,7 @@ model {
         
         for (n in 1:N_third){
             if (include_in_third[i][n] == 1){
-                if (n <= Reff_switchover_day) {
+                if (n < Reff_switchover_day) {
                     mu_hat_third[pos] ~ gamma(
                         a_mu_hat_third[n,i], 
                         b_mu_hat_third[n,i]
@@ -805,17 +804,20 @@ generated quantities {
     // independent estimates
     vector[total_N_p_third] mu_hat_delta_only;
     vector[total_N_p_third_omicron] mu_hat_omicron_only;
-    matrix[j_third,N_third] sus_dep_state;
+    vector[total_N_p_third] micro_factor;
+    vector[total_N_p_third] macro_factor;
+    vector[total_N_p_third] sus_dep_factor;
     
-    for (i in 1:j_third){
+    for (i in 1:j_third) {
         // define these within the scope of the loop only
         int pos;
         int pos_omicron2;
         real social_measures; 
         real sus_dep;
+        vector[4] sus_dep_comp;
         real voc_ve_prod;
         
-        if (i == 1){
+        if (i == 1) {
             pos = 1;
             pos_omicron2 = 1;
         } else {
@@ -823,19 +825,22 @@ generated quantities {
             pos_omicron2 = pos_starts_third_omicron[i-1] + 1;
         }
         
-        for (n in 1:N_third){
-            
-            sus_dep = 1 - sus_dep_factor * prop_inf[n,i];
-            sus_dep_state[i,n] = sus_dep;
-            
-            if (include_in_third[i][n] == 1){
+        for (n in 1:N_third) {
+            if (include_in_third[i][n] == 1) {
+                // total term is just the sum of the above
+                sus_dep = 1 - phi * prop_inf[n,i];
+                sus_dep_factor[pos] = sus_dep;
+                
+                micro_factor[pos] = md_third[pos];
+                macro_factor[pos] = 2 * inv_logit(mob_third[i][n,:] * (bet));
+                
                 social_measures = (
                     2 * inv_logit(mob_third[i][n,:] * (bet)) 
                     * md_third[pos]
                     * masks_third[pos]
                 );  
 
-                if (n <= omicron_start_day) {
+                if (n < omicron_start_day) {
                     voc_ve_prod = voc_effect_delta * ve_delta[pos];
                     
                     mu_hat_delta_only[pos] = (
