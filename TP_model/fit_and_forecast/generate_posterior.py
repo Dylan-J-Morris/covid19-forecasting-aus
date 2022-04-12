@@ -628,9 +628,6 @@ def get_data_for_posterior(data_date):
     omicron_only_day = (
         pd.to_datetime(omicron_only_date) - pd.to_datetime(third_start_date)
     ).days
-    omicron_dominance_day = (
-        pd.to_datetime(omicron_dominance_date) - pd.to_datetime(third_start_date)
-    ).days
     heterogeneity_start_day = (
         pd.to_datetime("2021-08-20") - pd.to_datetime(third_start_date)
     ).days
@@ -801,9 +798,11 @@ def run_stan(
 
     # to run the inference set run_inference to True in params
     # path to the stan model 
-    # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma.stan"
-    rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_prod.stan"
-    # rho_model_gamma = "TP_model/fit_and_forecast/rho_model_gamma_mix.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_switchover.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix_omicron.stan"
+    rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_switchover_waning_infection.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix_waning_infection.stan"
 
     # compile the stan model
     model = CmdStanModel(stan_file=rho_model_gamma)
@@ -819,7 +818,7 @@ def run_stan(
         iter_sampling=num_samples, 
         data=input_data,
         max_treedepth=max_treedepth,
-        refresh=1
+        refresh=10
     )
     
     # display convergence diagnostics for the current run 
@@ -850,6 +849,17 @@ def run_stan(
     # now save a small summary to easily view
     pars_of_interest = ["bet[" + str(i + 1) + "]" for i in range(5)]
     pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(8)]
+    # pars_of_interest = pars_of_interest + [
+    #     "R_I",
+    #     "R_L",
+    #     "theta_md",
+    #     "theta_masks",
+    #     "sig",
+    #     "voc_effect_alpha",
+    #     "voc_effect_delta",
+    #     "voc_effect_omicron",
+    #     "sus_dep_factor",
+    # ]
     pars_of_interest = pars_of_interest + [
         "R_I",
         "R_L",
@@ -859,8 +869,9 @@ def run_stan(
         "voc_effect_alpha",
         "voc_effect_delta",
         "voc_effect_omicron",
-        "sus_dep_factor",
     ]
+    
+    pars_of_interest = pars_of_interest + ["phi[" + str(i + 1) + "]" for i in range(4)]
     
     # save a summary for ease of viewing
     # output a set of diagnostics
@@ -1489,7 +1500,7 @@ def plot_and_save_posterior_samples(data_date):
             ].date.values
             rho_samples = samples_mov_gamma[
                 [
-                    "brho_sec_wave[" + str(j + 1) + "]"
+                    "brho_sec[" + str(j + 1) + "]"
                     for j in range(
                         pos, pos + df2X.loc[df2X.state == state].is_sec_wave.sum()
                     )
@@ -1579,7 +1590,7 @@ def plot_and_save_posterior_samples(data_date):
             ].date.values
             rho_samples = samples_mov_gamma[
                 [
-                    "brho_third_wave[" + str(j + 1) + "]"
+                    "brho_third[" + str(j + 1) + "]"
                     for j in range(
                         pos, pos + df3X.loc[df3X.state == state].is_third_wave.sum()
                     )
@@ -1688,7 +1699,8 @@ def plot_and_save_posterior_samples(data_date):
         y="value",
         data=pd.melt(
             samples_mov_gamma[[
-                col for col in samples_mov_gamma if "R" in col and col not in ("R_I0", "R_I0_omicron")
+                col for col in samples_mov_gamma 
+                if "R" in col and col not in ("R_I0", "R_I0_omicron")
             ]]
         ),
         ax=ax,
@@ -2046,16 +2058,6 @@ def plot_and_save_posterior_samples(data_date):
         fig.clear()
         plt.close(fig)
         
-    if df3X.shape[0] > 0:
-        df["is_third_wave"] = 0
-        for state in third_states:
-            df.loc[df.state == state, "is_third_wave"] = (
-                df.loc[df.state == state]
-                .date.isin(third_date_range[state])
-                .astype(int)
-                .values
-            )
-
         # plot only if there is third phase data - have to have third_phase=True
         ax4 = predict_plot(
             samples_mov_gamma,
@@ -2080,6 +2082,31 @@ def plot_and_save_posterior_samples(data_date):
         # remove plots from memory
         fig.clear()
         plt.close(fig)
+        
+        for param in ("micro", "macro", "susceptibility"):
+            # plot only if there is third phase data - have to have third_phase=True
+            ax4 = predict_multiplier_plot(
+                samples_mov_gamma,
+                df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
+                param=param,
+            )  # by states....
+
+            for ax in ax4:
+                for a in ax:
+                    if param == "macro":
+                        a.set_ylim((0, 1.25))
+                    else:
+                        a.set_ylim((0, 1.1))
+            
+            plt.savefig(
+                figs_dir + data_date.strftime("%Y-%m-%d") + param + "_factor.png",
+                dpi=144,
+            )
+
+            # remove plots from memory
+            fig.clear()
+            plt.close(fig)
+        
         
     if df3X.shape[0] > 0:
         df["is_omicron_wave"] = 0
@@ -2115,7 +2142,6 @@ def plot_and_save_posterior_samples(data_date):
         # remove plots from memory
         fig.clear()
         plt.close(fig)
-
     
     # plot the omicron proportion 
     
@@ -2132,8 +2158,8 @@ def plot_and_save_posterior_samples(data_date):
 
     for (i, state) in enumerate(third_states):
         m0 = np.tile(samples_mov_gamma.loc[:, "m0[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
-        # m1 = np.tile(samples_mov_gamma.loc[:, "m1[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
-        m1 = 1.0
+        m1 = np.tile(samples_mov_gamma.loc[:, "m1[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
+        # m1 = 1.0
         r = np.tile(samples_mov_gamma.loc[:, "r[" + str(i + 1) + "]"], (len(omicron_date_range), 1))
         tau = np.tile(samples_mov_gamma.loc[:, "tau[" + str(i + 1) + "]"] , (len(omicron_date_range), 1))
         
@@ -2150,7 +2176,6 @@ def plot_and_save_posterior_samples(data_date):
         #     prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
         
         prop_omicron_to_delta_tmp = m0 + (m1 - m0) / (1 + np.exp(-r * (t - tau)))
-        # prop_omicron_to_delta_tmp = m1 / (1 + np.exp(-r * (t - tau)))
         
         ax[i // 2, i % 2].plot(
             omicron_date_range, 
@@ -2215,6 +2240,18 @@ def plot_and_save_posterior_samples(data_date):
     samples_mov_gamma[predictors] = samples_mov_gamma[
         ["bet[" + str(i + 1) + "]" for i in range(len(predictors))]
     ]
+    # var_to_csv = [
+    #     "R_I",
+    #     "R_I_omicron",
+    #     "R_L",
+    #     "sig",
+    #     "theta_masks",
+    #     "theta_md",
+    #     "voc_effect_alpha",
+    #     "voc_effect_delta",
+    #     "voc_effect_omicron",
+    #     "sus_dep_factor",
+    # ]
     var_to_csv = [
         "R_I",
         "R_I_omicron",
@@ -2225,8 +2262,8 @@ def plot_and_save_posterior_samples(data_date):
         "voc_effect_alpha",
         "voc_effect_delta",
         "voc_effect_omicron",
-        "sus_dep_factor",
     ]
+    var_to_csv = var_to_csv + ["phi[" + str(i + 1) + "]" for i in range(4)]
     var_to_csv = (      
         var_to_csv
         + predictors
@@ -2239,7 +2276,7 @@ def plot_and_save_posterior_samples(data_date):
     var_to_csv = var_to_csv + ["r[" + str(j + 1) + "]" for j in range(len(third_states))]
     var_to_csv = var_to_csv + ["tau[" + str(j + 1) + "]" for j in range(len(third_states))]
     var_to_csv = var_to_csv + ["m0[" + str(j + 1) + "]" for j in range(len(third_states))]
-    # var_to_csv = var_to_csv + ["m1[" + str(j + 1) + "]" for j in range(len(third_states))]
+    var_to_csv = var_to_csv + ["m1[" + str(j + 1) + "]" for j in range(len(third_states))]
 
     # save the posterior
     samples_mov_gamma[var_to_csv].to_hdf(
@@ -2269,7 +2306,7 @@ def main(data_date, run_flag=0):
     if run_flag in (0, 2):    
         num_chains = 4
         num_warmup_samples = 500
-        num_samples = 1000
+        num_samples = 500
         max_treedepth = 12
         
         run_stan(

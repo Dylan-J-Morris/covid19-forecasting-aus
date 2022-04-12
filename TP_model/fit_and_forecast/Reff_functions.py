@@ -317,7 +317,7 @@ def predict_plot(
     return ax
 
 
-def predict_micro_macro_plot(samples, df, micro=False):
+def predict_multiplier_plot(samples, df, param=""):
     """
     Produce posterior predictive plots for all states of the micro and macro factors. This should 
     enable us to look into the overall factor multiplying TP at any given time. 
@@ -334,7 +334,7 @@ def predict_micro_macro_plot(samples, df, micro=False):
         df_state = df.loc[df.sub_region_1 == state]
         df_state = df_state.loc[df_state.is_third_wave == 1]
 
-        if micro:
+        if param == "micro":
             factor = samples[
                 [
                     "micro_factor[" + str(j + 1) + "]"
@@ -353,10 +353,29 @@ def predict_micro_macro_plot(samples, df, micro=False):
                     df.state == states_initials[state]
                 ].is_third_wave.sum()
             )
-        else:
+        elif param == "macro":
             factor = samples[
                 [
                     "macro_factor[" + str(j + 1) + "]"
+                    for j in range(
+                        pos,
+                        pos
+                        + df.loc[
+                            df.state == states_initials[state]
+                        ].is_third_wave.sum(),
+                    )
+                ]
+            ].values.T
+            pos = (
+                pos
+                + df.loc[
+                    df.state == states_initials[state]
+                ].is_third_wave.sum()
+            )
+        elif param == "susceptibility":
+            factor = samples[
+                [
+                    "sus_dep_factor[" + str(j + 1) + "]"
                     for j in range(
                         pos,
                         pos
@@ -393,10 +412,9 @@ def predict_micro_macro_plot(samples, df, micro=False):
             alpha=0.3,
         )
         ax[i // 4, i % 4].set_title(state)
-        # grid line at R_eff =1
-        ax[i // 4, i % 4].set_yticks([0, 0.5, 1], minor=False)
-        ax[i // 4, i % 4].set_yticklabels([0, 0.5, 1], minor=False)
-        ax[i // 4, i % 4].set_ylim((0, 1.0))
+        ax[i // 4, i % 4].set_yticks([0, 0.25, 0.5, 0.75, 1, 1.25], minor=False)
+        ax[i // 4, i % 4].set_yticklabels([0, 0.25, 0.5, 0.75, 1, 1.25], minor=False)
+        ax[i // 4, i % 4].axhline(1, ls="--", c="k", lw=1)
         
         if i // 4 == 1:
             ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
