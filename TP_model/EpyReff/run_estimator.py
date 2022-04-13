@@ -52,7 +52,7 @@ plot_time = False
 
 # read in case file data
 print("=============")
-print("Running EpyReff on NNDSS data for", dt_date.strftime("%d%b%Y"), "...")
+print("Running EpyReff on NNDSS data for", dt_date.strftime("%d%b%Y"))
 print("=============")
 
 df_interim = read_cases_lambda(dt_date.strftime("%d%b%Y"))
@@ -66,7 +66,7 @@ samples = 500
 for strain in ("Delta", "Omicron"):
     
     print("=============")
-    print("Running EpyReff for", strain, ".")
+    print("Running EpyReff for", strain)
     print("=============")
     
     R_summary_states = {}
