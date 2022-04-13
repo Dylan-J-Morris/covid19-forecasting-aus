@@ -8,7 +8,7 @@ import seaborn as sns
 
 plt.style.use("seaborn-poster")
 # I hate this too but it allows everything to use the same helper functions.
-sys.path.insert(0, "model")
+sys.path.insert(0, "TP_model")
 from helper_functions import read_in_NNDSS
 from Reff_constants import *
 
@@ -778,6 +778,7 @@ def remove_sus_with_waning_from_Reff(strain, data_date):
     # init a dataframe to hold the Reff samples without susceptible depletion
     df_Reff_adjusted = pd.DataFrame()
     df_cases_adjusted = pd.DataFrame()
+    df_scaling_factor = pd.DataFrame()
 
     for state in states:
         # filter cases by the state and after March 2020 
