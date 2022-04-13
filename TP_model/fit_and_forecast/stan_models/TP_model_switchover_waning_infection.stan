@@ -3,23 +3,21 @@ A stan model that incorporates the effect of waning infection acquired immunity 
 */
 
 functions {
-    
-   real sigmoid(int t, real tau, real r, real m0, real m1) {
-       /*
-       Calculate a translated and adjusted sigmoid function that approximates the 
-       transition from an initial proportion m0 to a final proportion m1. The parameter 
-       tau is the inflection point in the curve and r is the rate of increase from m0 
-       to m1. The parameter t is of type int upon calling the function, but gets cast to 
-       real.
-       */
-       real y;
-       // convert t to real 
-       real t_real = 1.0 * t;
-       y = m0 + (m1 - m0) / (1 + exp(-r * (t_real - tau)));
+    real sigmoid(int t, real tau, real r, real m0, real m1) {
+        /*
+        Calculate a translated and adjusted sigmoid function that approximates the 
+        transition from an initial proportion m0 to a final proportion m1. The parameter 
+        tau is the inflection point in the curve and r is the rate of increase from m0 
+        to m1. The parameter t is of type int upon calling the function, but gets cast to 
+        real.
+        */
+        real y;
+        // convert t to real 
+        real t_real = 1.0 * t;
+        y = m0 + (m1 - m0) / (1 + exp(-r * (t_real - tau)));
        
-       return y; 
-   }
-   
+        return y; 
+    }
 }
 
 data {
@@ -160,14 +158,14 @@ transformed data {
         denom = pop_size_array[map_to_state_index_third[i]];
         
         for (n in 1:N_third) {
-            idx_start = max(n - 30, 1);
-            idx_end = min(n - 1, N_third);
+            idx_start = max(n - 29, 1);
+            idx_end = min(n, N_third);
             num = sum(CA_scaled_local_third[idx_start:idx_end]);
             prop_inf_30[n,i] = fmin(num / denom, 1.0);
             
             if (n > 30) {
-                idx_start = max(n - 60, 1);
-                idx_end = min(n - 31, N_third);
+                idx_start = max(n - 59, 1);
+                idx_end = min(n - 30, N_third);
                 num = sum(CA_scaled_local_third[idx_start:idx_end]);
                 prop_inf_60[n,i] = fmin(num / denom, 1.0);
             } else {
@@ -175,17 +173,17 @@ transformed data {
             }
             
             if (n > 60) {
-                idx_start = max(n - 90, 1);
-                idx_end = min(n - 61, N_third);
+                idx_start = max(n - 89, 1);
+                idx_end = min(n - 60, N_third);
                 num = sum(CA_scaled_local_third[idx_start:idx_end]);
                 prop_inf_90[n,i] = fmin(num / denom, 1.0);
             } else {
                 prop_inf_90[n,i] = 0.0;
             }
             
-            if (n > 60) {
-                idx_start = max(n - 120, 1);
-                idx_end = min(n - 91, N_third);
+            if (n > 90) {
+                idx_start = max(n - 119, 1);
+                idx_end = min(n - 90, N_third);
                 num = sum(CA_scaled_local_third[idx_start:idx_end]);
                 prop_inf_120[n,i] = fmin(num / denom, 1.0);
             } else {
@@ -415,7 +413,7 @@ transformed parameters {
     }
     
     // Use a trick mentioned by Bob Carpenter to use a simplex X of dimension K+1 and simple 
-    // transformation to a sorted vector on (a, b), 
+    // transformation to a positive_ordered vector on (a, b), 
     // Y = (a + X[1] * (b - a), a + sum(X[1:2]) * (b - a), ..., a + sum(X[1:K] * (b - a))
     // Link: https://groups.google.com/g/stan-users/c/04GSu-ql3vM
     positive_ordered[4] phi = 0 + head(cumulative_sum(phi_simplex), 4) * (1 - 0);
@@ -854,6 +852,8 @@ generated quantities {
     // independent estimates
     vector[total_N_p_third] mu_hat_delta_only;
     vector[total_N_p_third_omicron] mu_hat_omicron_only;
+    
+    // generate posterior predictive estimates of the factors that adjust the TP 
     vector[total_N_p_third] micro_factor;
     vector[total_N_p_third] macro_factor;
     vector[total_N_p_third] sus_dep_factor;
