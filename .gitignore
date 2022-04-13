@@ -2,6 +2,7 @@
 /data/*
 /results/*
 /figs/*
+/notebooks_and_experiments/*
 *.png
 *.csv
 *.xlsx
