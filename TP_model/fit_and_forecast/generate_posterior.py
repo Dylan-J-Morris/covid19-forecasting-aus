@@ -832,6 +832,9 @@ def run_stan(
     print(fit.diagnose())
     print("===========")
     
+    # save output file to 
+    fit.save_csvfiles(dir=results_dir)
+    
     df_fit = fit.draws_pd()
     df_fit.to_csv(
         results_dir
