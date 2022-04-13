@@ -30,13 +30,19 @@ The model can be broken down into two components
 6. Download Google mobility data from https://www.google.com/covid19/mobility/ and put in `/data`.
 
 ### Required Python/Julia packages
-To run the TP model component of the code you will need `matplotlib pandas numpy arviz cmdstanpy pyarrow fastparquet seaborn tables tqdm scipy pytables` installed in Python. The model uses Stan in the `cmdstanpy` framework. The previous implementation of the code used Pystan but due to some recent changes in the Stan ecosystem and for consistency across platforms, we've moved to a more stable framework. Upon installation of `cmdstanpy`, you need to run:
+To run the TP model component of the code you will need `matplotlib pandas numpy arviz cmdstanpy pyarrow fastparquet seaborn tables tqdm scipy pytables` installed in Python. The model uses Stan in the `cmdstanpy` framework. The previous implementation of the code used Pystan but due to some recent changes in the Stan ecosystem and for consistency across platforms, we've moved to a more stable framework. Cmdstanpy (> v2.28) offers across chain parralelism resulting in dramatic runtime improvements over the Pystan implementation. Upon installation of `cmdstanpy`, from within Python, run:
 ```
 cmdstanpy.install_cmdstan()
 ```
-This can take some time to run as it installs and links all C++ libraries required for the latest stable Cmdstan build. 
+This can take some time to run as it installs and links all C++ libraries required for the latest stable Cmdstan build. On MacOSX whenever the command line tools are updated (Xcode) then Cmdstan will fail to build. In these cases Cmdstanpy should prompt the appropriate direction but running (inside Python):
+```
+cmdstanpy.rebuild_cmdstan()
+```
+will relink all C++ libraries and ensure Cmdstan is working as intended. 
 
-For the generative model, you will need to have Julia installed. The packages used can all be installed by running:
+For the generative model, you will need to have Julia installed. Julia is available at:
+https://julialang.org/downloads/
+and the code is currently implemented using v1.7.1 (which has some improvements in random number generation). Install is easy to handle and the advantage of Julia is that the code can be run effortlessly across systems. The packages used in the model can all be installed by running:
 ```
 julia generative_model/install_pkgs.jl
 ```
