@@ -65,13 +65,14 @@ NUM_THREADS=4
 NSIMS=1000               # Total number of simulations to run should be > 5000
 POST_RUN_FLAG=1
 ```
-`POST_RUN_FLAG` enables us to run the full inference setup, only the inference itself, or just the plotting by setting to 1, 2, or 3 respectively.
+`POST_RUN_FLAG` enables us to run the full inference when not supplied, only the data generation, or inference, or just the plotting by setting to 1, 2, or 3 respectively.
 
 To run the pipeline:
 ```
 python TP_model/EpyReff/run_estimator.py $DATADATE 
 python TP_model/fit_and_forecast/generate_posterior.py $DATADATE $POST_RUN_FLAG
 python TP_model/fit_and_forecast/forecast_TP.py $DATADATE
+python TP_model/fit_and_forecast/adjust_TP.py $DATADATE
 julia -t $NUM_THREADS generative_model/run_forecasts_all_states.jl $DATADATE $NSIMS
 ```
 
