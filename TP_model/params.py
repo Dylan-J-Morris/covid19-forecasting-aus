@@ -24,7 +24,6 @@ num_forecast_days = 35
 
 ##### Usually unchanged parameters, contains some dates and number of forecast #####
 p_detect_delta = 0.75
-p_detect_omicron = 0.5  # default
 
 # this is the earliest date the simulations are run from and helps with plotting
 sim_start_date = "2021-06-25"
