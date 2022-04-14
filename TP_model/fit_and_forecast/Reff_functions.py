@@ -648,7 +648,7 @@ def remove_sus_from_Reff(strain, data_date):
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
-    sus_dep_factor = samples["phi"]
+    sus_dep_factor = samples["phi"][:2000]
     sus_dep_factor.to_csv(
         "results/"
         + data_date.strftime("%Y-%m-%d") 
