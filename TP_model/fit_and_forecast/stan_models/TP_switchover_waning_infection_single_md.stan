@@ -1,5 +1,12 @@
 /*
-A stan model that incorporates the effect of waning infection acquired immunity on the TP. 
+Date: 19/04/22
+
+Description: A stan model that incorporates the effect of waning infection acquired 
+immunity on the TP. This assumes a perfect survey result and doesn't allow for flexibility 
+in the proportion always complying. 
+
+Why: This was done to see whether the flexibility in the micro values was what lead to an 
+overestimate in the micro factor. 
 */
 
 functions {
@@ -26,16 +33,16 @@ data {
     int j_total;
     
     // first wave data 
-    int N;
-    int K;
+    int N_first;
+    int K;  // number of mobility coefficients 
     int j_first;
-    matrix[N,j_first] Reff;
-    array[j_first] matrix[N,K] mob;
-    array[j_first] matrix[N,K] mob_std;
-    matrix[N,j_first] sigma2;
-    vector[N] policy;
-    matrix[N,j_first] local;
-    matrix[N,j_first] imported;
+    matrix[N_first,j_first] Reff;
+    array[j_first] matrix[N_first,K] mob;
+    array[j_first] matrix[N_first,K] mob_std;
+    matrix[N_first,j_first] sigma2;
+    vector[N_first] policy;
+    matrix[N_first,j_first] local;
+    matrix[N_first,j_first] imported;
     
     // second wave data 
     int N_sec;
@@ -63,16 +70,16 @@ data {
     matrix[N_third,j_third] imported_third;
     
     // micro data
-    array[j_first] vector[N] count_md;
-    array[j_first] vector[N] respond_md;
+    array[j_first] vector[N_first] count_md;
+    array[j_first] vector[N_first] respond_md;
     array[j_sec] vector[N_sec] count_md_sec;
     array[j_sec] vector[N_sec] respond_md_sec;
     array[j_third] vector[N_third] count_md_third;
     array[j_third] vector[N_third] respond_md_third;
     
     // masks data 
-    array[j_first] vector[N] count_masks;
-    array[j_first] vector[N] respond_masks;
+    array[j_first] vector[N_first] count_masks;
+    array[j_first] vector[N_first] respond_masks;
     array[j_sec] vector[N_sec] count_masks_sec;
     array[j_sec] vector[N_sec] respond_masks_sec;
     array[j_third] vector[N_third] count_masks_third;
@@ -89,7 +96,7 @@ data {
     int total_N_p_third;
     
     // bool arrays for when to include data 
-    array[j_first] vector[N] include_in_first;
+    array[j_first] vector[N_first] include_in_first;
     array[j_sec] vector[N_sec] include_in_sec;
     array[j_third] vector[N_third] include_in_third;
     
@@ -129,15 +136,18 @@ transformed data {
     matrix[N_third,j_third] CA_scaling_factor = 1.0 ./ p_detect;
     vector[N_third] CA_scaled_local_third;
     vector[N_third] local_third_cum;
+    
     // to be used as the accurate number of cases when determining the import fraction
-    matrix[N_third,j_third] prop_inf_30;
-    matrix[N_third,j_third] prop_inf_60;
-    matrix[N_third,j_third] prop_inf_90;
-    matrix[N_third,j_third] prop_inf_120;
+    matrix[N_third,j_third] prop_inf_14;
+    matrix[N_third,j_third] prop_inf_28;
+    matrix[N_third,j_third] prop_inf_42;
+    matrix[N_third,j_third] prop_inf_72;
+    matrix[N_third,j_third] prop_inf_102;
+    matrix[N_third,j_third] prop_inf_132;
     
     // shape and scale for the likelihood in each wave
-    matrix[N,j_first] a_mu_hat;
-    matrix[N,j_first] b_mu_hat;
+    matrix[N_first,j_first] a_mu_hat;
+    matrix[N_first,j_first] b_mu_hat;
     matrix[N_sec,j_sec] a_mu_hat_sec;
     matrix[N_sec,j_sec] b_mu_hat_sec;
     matrix[N_third,j_third] a_mu_hat_third;
@@ -158,36 +168,54 @@ transformed data {
         denom = pop_size_array[map_to_state_index_third[i]];
         
         for (n in 1:N_third) {
-            idx_start = max(n - 29, 1);
+            idx_start = max(n - 13, 1);
             idx_end = min(n, N_third);
             num = sum(CA_scaled_local_third[idx_start:idx_end]);
-            prop_inf_30[n,i] = fmin(num / denom, 1.0);
+            prop_inf_14[n,i] = fmin(num / denom, 1.0);
             
-            if (n > 30) {
-                idx_start = max(n - 59, 1);
-                idx_end = min(n - 30, N_third);
+            if (n > 14) {
+                idx_start = max(n - 27, 1);
+                idx_end = min(n - 14, N_third);
                 num = sum(CA_scaled_local_third[idx_start:idx_end]);
-                prop_inf_60[n,i] = fmin(num / denom, 1.0);
+                prop_inf_28[n,i] = fmin(num / denom, 1.0);
             } else {
-                prop_inf_60[n,i] = 0.0;
+                prop_inf_28[n,i] = 0.0;
             }
             
-            if (n > 60) {
-                idx_start = max(n - 89, 1);
-                idx_end = min(n - 60, N_third);
+            if (n > 28) {
+                idx_start = max(n - 41, 1);
+                idx_end = min(n - 28, N_third);
                 num = sum(CA_scaled_local_third[idx_start:idx_end]);
-                prop_inf_90[n,i] = fmin(num / denom, 1.0);
+                prop_inf_42[n,i] = fmin(num / denom, 1.0);
             } else {
-                prop_inf_90[n,i] = 0.0;
+                prop_inf_42[n,i] = 0.0;
             }
             
-            if (n > 90) {
-                idx_start = max(n - 119, 1);
-                idx_end = min(n - 90, N_third);
+            if (n > 42) {
+                idx_start = max(n - 71, 1);
+                idx_end = min(n - 42, N_third);
                 num = sum(CA_scaled_local_third[idx_start:idx_end]);
-                prop_inf_120[n,i] = fmin(num / denom, 1.0);
+                prop_inf_72[n,i] = fmin(num / denom, 1.0);
             } else {
-                prop_inf_120[n,i] = 0.0;
+                prop_inf_72[n,i] = 0.0;
+            }
+            
+            if (n > 72) {
+                idx_start = max(n - 101, 1);
+                idx_end = min(n - 72, N_third);
+                num = sum(CA_scaled_local_third[idx_start:idx_end]);
+                prop_inf_102[n,i] = fmin(num / denom, 1.0);
+            } else {
+                prop_inf_102[n,i] = 0.0;
+            }
+            
+            if (n > 102) {
+                idx_start = max(n - 131, 1);
+                idx_end = min(n - 102, N_third);
+                num = sum(CA_scaled_local_third[idx_start:idx_end]);
+                prop_inf_132[n,i] = fmin(num / denom, 1.0);
+            } else {
+                prop_inf_132[n,i] = 0.0;
             }
         }
     }
@@ -210,6 +238,50 @@ transformed data {
         b_mu_hat_omicron[:,i] = Reff_omicron[:,i] ./ sigma2_omicron[:,i];
     }
     
+    matrix<lower=0,upper=1>[N_first,j_first] prop_md;
+    vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec;
+    vector<lower=0,upper=1>[total_N_p_third] prop_md_third;
+    
+    matrix<lower=0,upper=1>[N_first,j_first] prop_masks;
+    vector<lower=0,upper=1>[total_N_p_sec] prop_masks_sec;
+    vector<lower=0,upper=1>[total_N_p_third] prop_masks_third;
+    
+    int pos; 
+    
+    for (i in 1:j_first) {
+        for (n in 1:N_first) {
+            prop_md[n,i] = (1 + count_md[i][n]) / (1 + respond_md[i][n] - count_md[i][n]);
+            prop_masks[n,i] = (1 + count_masks[i][n]) / (1 + respond_masks[i][n] - count_masks[i][n]);
+        }
+    }
+    
+    for (i in 1:j_sec) {
+        if (i == 1) {
+            pos = 1;
+        } else {
+            pos = pos_starts_sec[i-1] + 1;
+        }
+        for (n in 1:N_sec) {
+            if (include_in_sec[i][n] == 1) {
+                prop_md_sec[pos] = (1 + count_md_sec[i][n]) / (1 + respond_md_sec[i][n] - count_md_sec[i][n]);
+                prop_masks_sec[pos] = (1 + count_masks_sec[i][n]) / (1 + respond_masks_sec[i][n] - count_masks_sec[i][n]);
+            }
+        }
+    }
+    
+    for (i in 1:j_third) {
+        if (i == 1) {
+            pos = 1;
+        } else {
+            pos = pos_starts_third[i-1] + 1;
+        }
+        for (n in 1:N_third) {
+            if (include_in_third[i][n] == 1) {
+                prop_md_third[pos] = (1 + count_md_third[i][n]) / (1 + respond_md_third[i][n] - count_md_third[i][n]);
+                prop_masks_third[pos] = (1 + count_masks_third[i][n]) / (1 + respond_masks_third[i][n] - count_masks_third[i][n]);
+            }
+        }
+    }
 }
 
 parameters {
@@ -220,13 +292,18 @@ parameters {
     real<lower=0> theta_md;
     real<lower=0> theta_masks;
     
-    matrix<lower=0,upper=1>[N,j_first] prop_md;
-    vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec;
-    vector<lower=0,upper=1>[total_N_p_third] prop_md_third;
+    // arrays of matrices that feature noisy macro estimates
+    // array[j_first] matrix[N_first,K] mob_noisy_raw;
+    // vector[total_N_p_sec * K] mob_sec_noisy_raw;
+    // vector[total_N_p_third * K] mob_third_noisy_raw;
     
-    matrix<lower=0,upper=1>[N,j_first] prop_masks;
-    vector<lower=0,upper=1>[total_N_p_sec] prop_masks_sec;
-    vector<lower=0,upper=1>[total_N_p_third] prop_masks_third;
+    // matrix<lower=0,upper=1>[N_first,j_first] prop_md;
+    // vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec;
+    // vector<lower=0,upper=1>[total_N_p_third] prop_md_third;
+    
+    // matrix<lower=0,upper=1>[N_first,j_first] prop_masks;
+    // vector<lower=0,upper=1>[total_N_p_sec] prop_masks_sec;
+    // vector<lower=0,upper=1>[total_N_p_third] prop_masks_third;
     
     // import baseline R_I
     real<lower=0> R_I0;
@@ -241,7 +318,7 @@ parameters {
     real<lower=0> sig;
     
     // import parameters 
-    matrix<lower=0,upper=1>[N,j_first] brho;
+    matrix<lower=0,upper=1>[N_first,j_first] brho;
     vector<lower=0,upper=1>[total_N_p_sec] brho_sec;
     vector<lower=0,upper=1>[total_N_p_third] brho_third;
     
@@ -262,7 +339,8 @@ parameters {
     vector<lower=0,upper=1>[j_third] m0; 
     vector<lower=0,upper=1>[j_third] m1; 
     
-    simplex[5] phi_simplex; 
+    // the simplex is equal to the number of periods of infections + 1
+    simplex[7] phi_simplex; 
 }
 
 transformed parameters {
@@ -326,33 +404,47 @@ transformed parameters {
     real voc_effect_omicron = 1 + additive_voc_effect_omicron;
     
     // TP models 
-    matrix[N,j_first] mu_hat;
+    matrix[N_first,j_first] mu_hat;
     vector[total_N_p_sec] mu_hat_sec;
     vector[total_N_p_third] mu_hat_third;
     
     // micro distancing model
-    matrix[N,j_first] md;
+    matrix[N_first,j_first] md;
     vector[total_N_p_sec] md_sec;
     vector[total_N_p_third] md_third;
     
     // micro distancing model
-    matrix[N,j_first] masks;
+    matrix[N_first,j_first] masks;
     vector[total_N_p_sec] masks_sec;
     vector[total_N_p_third] masks_third;
+    
+    // array[j_first] matrix[N_first,K] mob_noisy;
+    // vector[total_N_p_sec * K] mob_sec_noisy;
+    // vector[total_N_p_third * K] mob_third_noisy;    
 
     // first wave model
     for (i in 1:j_first) {
         real TP_local;
         real social_measures;
+        real mob_input;
         
-        for (n in 1:N) {
+        for (n in 1:N_first) {
             if (include_in_first[i][n] == 1) {
+                // mob_input = 0.0;
+                // for (k in 1:K) {
+                //     mob_noisy[i][n,k] = (
+                //         mob_noisy_raw[i][n,k] * mob_std[i][n,k] + mob[i][n,k]
+                //     );
+                //     mob_input += mob_noisy[i][n,k] * bet[k];
+                // }
+                
+                mob_input = mob[i][n,:] * (bet);
                 md[n,i] = pow(1 + theta_md, -1 * prop_md[n,i]);
                 masks[n,i] = pow(1 + theta_masks, -1 * prop_masks[n,i]);
                 
                 social_measures = (
-                    (1 - policy[n]) + md[n,i] * policy[n]   
-                ) * 2 * inv_logit(mob[i][n,:] * (bet)) * masks[n,i];
+                    (1 - policy[n]) + md[n,i] * policy[n] * masks[n,i]   
+                ) * 2 * inv_logit(mob_input);
                 
                 TP_local = R_Li[map_to_state_index_first[i]] * social_measures;
                 mu_hat[n,i] = brho[n,i] * R_I0 + (1 - brho[n,i]) * TP_local;
@@ -365,6 +457,7 @@ transformed parameters {
         int pos;
         real TP_local;
         real social_measures;
+        real mob_input; 
         
         if (i == 1) {
             pos = 1;
@@ -374,16 +467,26 @@ transformed parameters {
         
         for (n in 1:N_sec) {
             if (include_in_sec[i][n] == 1) {
+                // mob_input = 0.0;
+                // for (k in 1:K) {
+                //     mob_sec_noisy[pos + k - 1] = (
+                //         mob_sec_noisy_raw[pos + k - 1] * mob_sec_std[i][n,k] 
+                //         + mob_sec[i][n,k] 
+                //     );
+                //     mob_input += mob_sec_noisy[pos + k - 1] * bet[k];
+                // }
+                
+                mob_input = mob_sec[i][n,:] * (bet);
+                
                 md_sec[pos] = pow(1 + theta_md, -1 * prop_md_sec[pos]);
                 masks_sec[pos] = pow(1 + theta_masks, -1 * prop_masks_sec[pos]);
                 
                 social_measures = (
-                    (1 - policy_sec[n]) + md_sec[pos] * policy_sec[n]
-                ) * 2 * inv_logit(mob_sec[i][n,:] * (bet)) * masks_sec[pos];
+                    (1 - policy_sec[n]) + md_sec[pos] * policy_sec[n] * masks_sec[pos]
+                ) * 2 * inv_logit(mob_input);
                 
                 TP_local = R_Li[map_to_state_index_sec[i]] * social_measures; 
-                mu_hat_sec[pos] = brho_sec[pos] * R_I0 
-                    + (1 - brho_sec[pos]) * TP_local;
+                mu_hat_sec[pos] = brho_sec[pos] * R_I0 + (1 - brho_sec[pos]) * TP_local;
                 pos += 1;
             }
         }
@@ -400,23 +503,24 @@ transformed parameters {
     
     for (i in 1:j_third) {
         real mu_tau = 0.0;
-        real sig_tau = 2.0;
+        real sig_tau = 3.0;
         
-        if (i == 3) {
-            mu_tau = 60;
-        } else if (i == 8) {
-            mu_tau = 70; // based on a report for NT, there were only 2 Omicron cases by 15/12/21
+        if (i == 8 || i == 6) {
+            mu_tau = 70;  // based on a report for NT, there were only 2 Omicron cases by 15/12/21
+        } else if (i == 3 || i == 5) {
+            mu_tau = 60;  // based off report for SA, there were ~70% of cases by December 22/12/21
         } else {
-            mu_tau = 30; 
+            mu_tau = 30;  // for the other jurisdictions, let it be inferred earlier
         }
         tau[i] = mu_tau + sig_tau * tau_raw[i];
     }
     
-    // Use a trick mentioned by Bob Carpenter to use a simplex X of dimension K+1 and simple 
+    // Use a trick mentioned by Bob Carpenter on the Stan forums: 
+    // (link https://groups.google.com/g/stan-users/c/04GSu-ql3vM)
+    // to use a simplex X of dimension K+1 and simple 
     // transformation to a positive_ordered vector on (a, b), 
     // Y = (a + X[1] * (b - a), a + sum(X[1:2]) * (b - a), ..., a + sum(X[1:K] * (b - a))
-    // Link: https://groups.google.com/g/stan-users/c/04GSu-ql3vM
-    positive_ordered[4] phi = 0 + head(cumulative_sum(phi_simplex), 4) * (1 - 0);
+    positive_ordered[6] phi = 0 + head(cumulative_sum(phi_simplex), 6) * (1 - 0);
     
     // third wave model
     for (i in 1:j_third) {
@@ -425,11 +529,12 @@ transformed parameters {
         int pos_omicron2;
         real social_measures; 
         real sus_dep_term;
-        vector[4] sus_dep_comp;
+        vector[6] sus_dep_comp;
         real prop_omicron; 
         int n_omicron; 
         real voc_ve_prod; 
         real TP_import;
+        real mob_input;
         
         if (i == 1) {
             pos = 1;
@@ -441,21 +546,32 @@ transformed parameters {
         
         for (n in 1:N_third) {
             if (include_in_third[i][n] == 1) {
-                md_third[pos] = pow(1 + theta_md, -1 * prop_md_third[pos]);
+                // mob_input = 0.0;
+                // for (k in 1:K) {
+                //     mob_third_noisy[pos + k - 1] = (
+                //         mob_third_noisy_raw[pos + k - 1] * mob_third_std[i][n,k] 
+                //         + mob_third[i][n,k] 
+                //     );
+                //     mob_input += mob_third_noisy[pos + k - 1] * bet[k];
+                // }
                 
+                mob_input = mob_third[i][n,:] * (bet);
+                md_third[pos] = pow(1 + theta_md, -1 * prop_md_third[pos]);
                 masks_third[pos] = pow(1 + theta_masks, -1 * prop_masks_third[pos]);
                 
                 social_measures = (
-                    2 * inv_logit(mob_third[i][n,:] * (bet)) 
+                    2 * inv_logit(mob_input) 
                     * md_third[pos]
                     * masks_third[pos]
                 );  
                 
                 // calculate the effective proporiton infected
-                sus_dep_comp[1] = phi[4] * prop_inf_30[n,i];
-                sus_dep_comp[2] = phi[3] * prop_inf_60[n,i];
-                sus_dep_comp[3] = phi[2] * prop_inf_90[n,i];
-                sus_dep_comp[4] = phi[1] * prop_inf_120[n,i];
+                sus_dep_comp[1] = phi[6] * prop_inf_14[n,i];
+                sus_dep_comp[2] = phi[5] * prop_inf_28[n,i];
+                sus_dep_comp[3] = phi[4] * prop_inf_42[n,i];
+                sus_dep_comp[4] = phi[3] * prop_inf_72[n,i];
+                sus_dep_comp[5] = phi[2] * prop_inf_102[n,i];
+                sus_dep_comp[6] = phi[1] * prop_inf_132[n,i];
                     
                 // total term is just the sum of the above
                 sus_dep_term = 1.0 - sum(sus_dep_comp);
@@ -543,31 +659,36 @@ model {
 
     // priors
     // mobility, micro
-    bet ~ std_normal();
-    // theta_md ~ lognormal(0, 0.5);
-    // theta_masks ~ lognormal(0, 0.5);
-    theta_md ~ lognormal(-2, 0.5);
-    theta_masks ~ lognormal(-2, 0.5);
-    // theta_md ~ exponential(5);
+    bet ~ normal(0, 1);
+    // for (i in 1:j_first) {
+    //     for (k in 1:5) {
+    //         mob_noisy_raw[i][:,k] ~ normal(0, 1);
+    //     }
+    // }
+    // mob_sec_noisy_raw ~ normal(0, 1);
+    // mob_third_noisy_raw ~ normal(0, 1);
+    
+    theta_md ~ lognormal(0, 0.5);
+    theta_masks ~ lognormal(0, 0.5);
     
     // third wave transition parameters 
     // r_mean ~ gamma(20, 40);     // mean of 0.75 
     // r_sig ~ exponential(500);   // mean of 1/200 
-    real r_sig = 0.005;
-    real r_mean = 1.0;
-    // r_mean ~ gamma(0.5^2 / 0.005, 0.5 / 0.005);
+    real r_sig = 0.025;
+    real r_mean = 0.8;
     r ~ gamma(square(r_mean) / r_sig, r_mean / r_sig);
     
     for (i in 1:j_third){
-        if (i == 8) {
+        if (i == 8 || i == 6 || i == 3) {
             m0[i] ~ beta(5, 5);
         } else {
             m0[i] ~ beta(5, 95);
         }
     }
     
-    tau_raw ~ std_normal();
+    tau_raw ~ normal(0, 1);
     
+    // assume final proportion of ~97%
     m1 ~ beta(5 * 97, 5 * 3);
     
     // gives full priors of 1 + Gamma() for each VoC effect
@@ -578,10 +699,11 @@ model {
     // Even though this prior is on the transformed parameter phi which depends on 
     // phi_simplex, we don't need a Jacobian adjustment as the Jacobian will have unit 
     // determinant due to the fixed (a, b) = (0, 1). 
-    phi[4] ~ beta(11, 3);
-    phi[3] ~ beta(9, 3);
-    phi[2] ~ beta(7, 3);
-    phi[1] ~ beta(5, 3);
+    // phi[4:6] ~ beta(9, 2);
+    // phi[1:3] ~ beta(2, 2);
+    phi[6] ~ beta(9, 2);
+    phi[2:5] ~ beta(2, 2);
+    phi[1] ~ beta(2, 9);
     
     // this effect is the informed scaling (adjustment in the import ve) by the previous 
     // estimates used inside the generative model. It is the product of hotel worker 
@@ -592,20 +714,20 @@ model {
     R_I_omicron ~ gamma(square(0.3) / 0.2, 0.3 / 0.2);
 
     // hierarchical model for the baseline RL
-    R_L ~ gamma(square(1.8) / 0.01, 1.8 / 0.01);
-    sig ~ exponential(20);
+    R_L ~ gamma(square(1.7) / 0.05, 1.7 / 0.05);
+    sig ~ exponential(100);
     R_Li ~ gamma(square(R_L) / sig, R_L / sig);
 
     // first wave model
     for (i in 1:j_first) { 
-        prop_md[:,i] ~ beta(1 + count_md[i][:], 1 + respond_md[i][:] - count_md[i][:]);
+        // prop_md[:,i] ~ beta(1 + count_md[i][:], 1 + respond_md[i][:] - count_md[i][:]);
         
-        prop_masks[:,i] ~ beta(
-            1 + count_masks[i][:], 
-            1 + respond_masks[i][:] - count_masks[i][:]
-        );
+        // prop_masks[:,i] ~ beta(
+        //     1 + count_masks[i][:], 
+        //     1 + respond_masks[i][:] - count_masks[i][:]
+        // );
         
-        brho[:,i] ~ beta(1 + imported[:,i], 1 + local[:,i]);
+        brho[:,i] ~ beta(0.5 + imported[:,i], 0.5 + local[:,i]);
         
         // likelihood
         mu_hat[:,i] ~ gamma(a_mu_hat[:,i], b_mu_hat[:,i]);
@@ -625,27 +747,27 @@ model {
         
         // create an array for indexing the proportion terms
         for (n in 1:N_sec){ 
-            if (include_in_sec[i][n] == 1){
+            if (include_in_sec[i][n] == 1) {
                 idxs_sec[pos_idxs] = n;
                 pos_idxs += 1;  
             }
         }
         
-        prop_md_sec[pos2_start:pos2_end] ~ beta(
-            1 + count_md_sec[i][idxs_sec[1:pos_idxs-1]], 
-            1 + respond_md_sec[i][idxs_sec[1:pos_idxs-1]]
-                - count_md_sec[i][idxs_sec[1:pos_idxs-1]]
-        );
+        // prop_md_sec[pos2_start:pos2_end] ~ beta(
+        //     1 + count_md_sec[i][idxs_sec[1:pos_idxs-1]], 
+        //     1 + respond_md_sec[i][idxs_sec[1:pos_idxs-1]]
+        //         - count_md_sec[i][idxs_sec[1:pos_idxs-1]]
+        // );
         
-        prop_masks_sec[pos2_start:pos2_end] ~ beta(
-            1 + count_masks_sec[i][idxs_sec[1:pos_idxs-1]], 
-            1 + respond_masks_sec[i][idxs_sec[1:pos_idxs-1]]
-                - count_masks_sec[i][idxs_sec[1:pos_idxs-1]]
-        );
+        // prop_masks_sec[pos2_start:pos2_end] ~ beta(
+        //     1 + count_masks_sec[i][idxs_sec[1:pos_idxs-1]], 
+        //     1 + respond_masks_sec[i][idxs_sec[1:pos_idxs-1]]
+        //         - count_masks_sec[i][idxs_sec[1:pos_idxs-1]]
+        // );
         
         brho_sec[pos2_start:pos2_end] ~ beta(
-            1 + imported_sec[idxs_sec[1:pos_idxs-1],i], 
-            1 + local_sec[idxs_sec[1:pos_idxs-1],i]
+            0.5 + imported_sec[idxs_sec[1:pos_idxs-1],i], 
+            0.5 + local_sec[idxs_sec[1:pos_idxs-1],i]
         );
 
         // likelihood
@@ -654,7 +776,6 @@ model {
             b_mu_hat_sec[idxs_sec[1:pos_idxs-1],i]
         );
     }
-    
     
     // VE model 
     int pos_block = 1;
@@ -785,27 +906,27 @@ model {
         // days, n, that the wave is happening (i.e. idxs_third[1] is the first
         // day for the jurisdictions 3rd wave fitting).
         for (n in 1:N_third){ 
-            if (include_in_third[i][n] == 1){
+            if (include_in_third[i][n] == 1) {
                 idxs_third[pos_idxs] = n;
                 pos_idxs += 1;  
             }
         }
         
-        prop_md_third[pos2_start:pos2_end] ~ beta(
-            1 + count_md_third[i][idxs_third[1:pos_idxs-1]], 
-            1 + respond_md_third[i][idxs_third[1:pos_idxs-1]]
-                - count_md_third[i][idxs_third[1:pos_idxs-1]]
-        );
+        // prop_md_third[pos2_start:pos2_end] ~ beta(
+        //     1.0 + count_md_third[i][idxs_third[1:pos_idxs-1]], 
+        //     1.0 + respond_md_third[i][idxs_third[1:pos_idxs-1]]
+        //         - count_md_third[i][idxs_third[1:pos_idxs-1]]
+        // );
         
-        prop_masks_third[pos2_start:pos2_end] ~ beta(
-            1 + count_masks_third[i][idxs_third[1:pos_idxs-1]], 
-            1 + respond_masks_third[i][idxs_third[1:pos_idxs-1]]
-                - count_masks_third[i][idxs_third[1:pos_idxs-1]]
-        );
+        // prop_masks_third[pos2_start:pos2_end] ~ beta(
+        //     1 + count_masks_third[i][idxs_third[1:pos_idxs-1]], 
+        //     1 + respond_masks_third[i][idxs_third[1:pos_idxs-1]]
+        //         - count_masks_third[i][idxs_third[1:pos_idxs-1]]
+        // );
         
         brho_third[pos2_start:pos2_end] ~ beta(
-            1 + imported_third[idxs_third[1:pos_idxs-1],i], 
-            1 + local_third[idxs_third[1:pos_idxs-1],i]
+            0.5 + imported_third[idxs_third[1:pos_idxs-1],i], 
+            0.5 + local_third[idxs_third[1:pos_idxs-1],i]
         );
     }
     
@@ -818,7 +939,7 @@ model {
             pos = pos_starts_third[i-1] + 1;
         }
         
-        if (i == 6 || i == 8 || i == 3) {
+        if (i == 8) {
             Reff_switchover_day = omicron_start_day + 75;
         } else {
             Reff_switchover_day = omicron_start_day + 15;
@@ -858,14 +979,19 @@ generated quantities {
     vector[total_N_p_third] macro_factor;
     vector[total_N_p_third] sus_dep_factor;
     
+    vector[total_N_p_third] macro_level_data;
+    vector[total_N_p_third] macro_level_inferred;
+    
     for (i in 1:j_third) {
         // define these within the scope of the loop only
         int pos;
         int pos_omicron2;
         real social_measures; 
         real sus_dep;
-        vector[4] sus_dep_comp;
+        vector[6] sus_dep_comp;
         real voc_ve_prod;
+        real mob_input; 
+        real mob_input_data; 
         
         if (i == 1) {
             pos = 1;
@@ -878,10 +1004,12 @@ generated quantities {
         for (n in 1:N_third) {
             if (include_in_third[i][n] == 1) {
                 // calculate the effective proporiton infected
-                sus_dep_comp[1] = phi[4] * prop_inf_30[n,i];
-                sus_dep_comp[2] = phi[3] * prop_inf_60[n,i];
-                sus_dep_comp[3] = phi[2] * prop_inf_90[n,i];
-                sus_dep_comp[4] = phi[1] * prop_inf_120[n,i];
+                sus_dep_comp[1] = phi[6] * prop_inf_14[n,i];
+                sus_dep_comp[2] = phi[5] * prop_inf_28[n,i];
+                sus_dep_comp[3] = phi[4] * prop_inf_42[n,i];
+                sus_dep_comp[4] = phi[3] * prop_inf_72[n,i];
+                sus_dep_comp[5] = phi[2] * prop_inf_102[n,i];
+                sus_dep_comp[6] = phi[1] * prop_inf_132[n,i];
                     
                 // total term is just the sum of the above
                 sus_dep = 1.0 - sum(sus_dep_comp);
@@ -890,8 +1018,19 @@ generated quantities {
                 micro_factor[pos] = md_third[pos];
                 macro_factor[pos] = 2 * inv_logit(mob_third[i][n,:] * (bet));
                 
+                // mob_input = 0.0;
+                // for (k in 1:K) {
+                //     mob_input += mob_third_noisy[pos + k - 1] * bet[k];
+                // }
+                
+                mob_input_data = mob_third[i][n,:] * bet;
+                
+                macro_level_data[pos] = 2 * inv_logit(mob_input_data);
+                // macro_level_inferred[pos] = 2 * inv_logit(mob_input);
+                
                 social_measures = (
-                    2 * inv_logit(mob_third[i][n,:] * (bet)) 
+                    // macro_level_inferred[pos]
+                    macro_level_data[pos]
                     * md_third[pos]
                     * masks_third[pos]
                 );  
