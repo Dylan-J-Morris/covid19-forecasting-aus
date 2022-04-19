@@ -60,12 +60,12 @@ def forecast_TP(data_date):
     # NOTE: These need to be in date sorted order
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
-        "NSW": pd.date_range(start=third_start_date, end=third_end_date).values,
-        "NT": pd.date_range(start="2021-12-01", end=third_end_date).values,
+        "NSW": pd.date_range(start="2021-06-25", end=third_end_date).values,
+        "NT": pd.date_range(start="2021-12-20", end=third_end_date).values,
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
-        "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
+        "SA": pd.date_range(start="2021-12-10", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
-        "VIC": pd.date_range(start="2021-08-01", end=third_end_date).values,
+        "VIC": pd.date_range(start="2021-07-10", end=third_end_date).values,
         "WA": pd.date_range(start="2022-01-01", end=third_end_date).values,
     }
 
@@ -233,7 +233,7 @@ def forecast_TP(data_date):
     df_google = df_google.loc[df_google.date >= training_start_date]
     outdata = {"date": [], "type": [], "state": [], "mean": [], "std": []}
     predictors = mov_values.copy()
-    predictors.remove("residential_7days")
+    # predictors.remove("residential_7days")
 
     # Setup Figures
     axes = []
@@ -295,7 +295,7 @@ def forecast_TP(data_date):
         rows = df_google.loc[df_google.state == state].shape[0]
         # Rmed currently a list, needs to be a matrix
         Rmed_array = np.zeros(shape=(rows, len(predictors), mob_samples))
-        Rmed_array_inflated = np.zeros(shape=(rows, len(predictors), mob_samples))
+        
         for j, var in enumerate(predictors):
             for n in range(mob_samples):
                 # historically we want a little more noise. In the actual forecasting of trends
@@ -2301,32 +2301,33 @@ def adjust_TP(data_date):
             inferred_prop_imports_state = (
                 inferred_prop_imports
                 .loc[inferred_prop_imports.state == state]
-                .iloc[:,1:]
+                .iloc[:,1:-1]
                 .set_index("date")
-                .mean(axis=1)
             )
-            ratio_import_to_local_combined = pd.Series(
-                inferred_prop_imports_state[i] 
-                if i in inferred_prop_imports_state.index else ratio_import_to_local[i]
-                for i in ratio_import_to_local.index
-            )
-            ratio_import_to_local_combined.index = ratio_import_to_local.index
-            ratio_import_to_local_combined = ratio_import_to_local_combined.to_numpy()
 
             n_Reff_samples = Reff.shape[1]
 
             # loop over the TP paths for a state
-            for (n, col) in enumerate(df_forecast2_state_R_L_sims):
+            for (n, col_str) in enumerate(df_forecast2_state_R_L_sims):
+                
+                ratio_import_to_local_combined = pd.Series(
+                    inferred_prop_imports_state[str(int(col_str) % mob_samples)][i]
+                    if i in inferred_prop_imports_state.index else ratio_import_to_local[i]
+                    for i in ratio_import_to_local.index
+                )
+                ratio_import_to_local_combined.index = ratio_import_to_local.index
+                ratio_import_to_local_combined = ratio_import_to_local_combined.to_numpy()
+                
                 if state in states_to_adjust:
                     # sample a Reff path from EpyReff (there are only 2000 of these)
                     Reff_sample = Reff.iloc[:, n % n_Reff_samples].to_numpy()
-                    TP_local = np.array(df_forecast2_state_R_L_sims[col])
-                    # Index by col % n_samples as we would be cycling the values in the R_I
+                    TP_local = np.array(df_forecast2_state_R_L_sims[col_str])
+                    # Index by col_str % n_samples as we would be cycling the values in the R_I
                     Reff_local = calculate_Reff_local(
                         Reff_sample, 
-                        R_I[int(col) % mob_samples], 
-                        R_I_omicron[int(col) % mob_samples], 
-                        voc_effect[int(col) % mob_samples],
+                        R_I[int(col_str) % mob_samples], 
+                        R_I_omicron[int(col_str) % mob_samples], 
+                        voc_effect[int(col_str) % mob_samples],
                         ratio_import_to_local_combined,
                         omicron_start_day=omicron_start_day,
                     )
@@ -2339,7 +2340,7 @@ def adjust_TP(data_date):
                     )
 
                     # apply the mixture modelling and the adjustment to ensure we don't get negative
-                    Rt[col] = np.maximum(0, (1 - omega) * Reff_local + omega * TP_local)
+                    Rt[col_str] = np.maximum(0, (1 - omega) * Reff_local + omega * TP_local)
 
             # store Rt in a dataframe
             Rt = pd.DataFrame.from_dict(Rt, orient="index", columns=df_cases_local_ma.index)
@@ -2491,7 +2492,8 @@ def main(data_date, run_flag=0):
     """
     if run_flag in (0, 1):
         forecast_TP(data_date=data_date)
-    elif run_flag in (0, 2):
+    
+    if run_flag in (0, 2):
         adjust_TP(data_date=data_date)
         
     return None

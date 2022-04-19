@@ -28,7 +28,7 @@ def read_in_posterior(date):
     return df
 
 
-def read_in_google(Aus_only=True, local=True, moving=False):
+def read_in_google(Aus_only=True, local=True, moving=False, moving_window=7):
     """
     Read in the Google data set
     """
@@ -61,13 +61,23 @@ def read_in_google(Aus_only=True, local=True, moving=False):
         mov_values = []
         for val in value_vars:
             mov_values.append(val[:-29] + "_7days")
+            # df[mov_values[-1]] = df.groupby(["state"])[val].transform(
+            #     lambda x: x[::-1].rolling(moving_window, 1, center=True).mean()[::-1]
+            # )  # minimumnumber of 1
+
+            # # minimum of moving_window days for std, forward fill the rest
+            # df[mov_values[-1] + "_std"] = df.groupby(["state"])[val].transform(
+            #     lambda x: x[::-1].rolling(moving_window, moving_window, center=True).std()[::-1]
+            # )
+            
+            # MA was taken in reverse, what about when we do it normally?
             df[mov_values[-1]] = df.groupby(["state"])[val].transform(
-                lambda x: x[::-1].rolling(7, 1).mean()[::-1]
+                lambda x: x.rolling(moving_window, 1, center=True).mean()
             )  # minimumnumber of 1
 
-            # minimum of 7 days for std, forward fill the rest
+            # minimum of moving_window days for std, forward fill the rest
             df[mov_values[-1] + "_std"] = df.groupby(["state"])[val].transform(
-                lambda x: x[::-1].rolling(7, 7).std()[::-1]
+                lambda x: x.rolling(moving_window, moving_window, center=True).std()
             )
             # fill final values as std doesn't work with single value
             df[mov_values[-1] + "_std"] = df.groupby("state")[
@@ -76,6 +86,10 @@ def read_in_google(Aus_only=True, local=True, moving=False):
 
     # show latest date
     print("Latest date in Google indices " + str(df.date.values[-1]))
+    
+    name_addon = "ma" * moving + (1 - moving) * "standard"
+    df.to_csv("results/mobility_" + name_addon + ".csv")
+    
     return df
 
 
@@ -328,70 +342,37 @@ def predict_multiplier_plot(samples, df, param=""):
 
     states = sorted(list(states_initials.keys()))
     
+    # dictionary for mapping between plot type and variable name
+    factor_dict = {
+        "micro": "micro_factor", 
+        "macro": "macro_factor",
+        "susceptibility": "sus_dep_factor"
+    }
+    
     pos = 0
     for i, state in enumerate(states):
 
         df_state = df.loc[df.sub_region_1 == state]
         df_state = df_state.loc[df_state.is_third_wave == 1]
 
-        if param == "micro":
-            factor = samples[
-                [
-                    "micro_factor[" + str(j + 1) + "]"
-                    for j in range(
-                        pos,
-                        pos
-                        + df.loc[
-                            df.state == states_initials[state]
-                        ].is_third_wave.sum(),
-                    )
-                ]
-            ].values.T
-            pos = (
-                pos
-                + df.loc[
-                    df.state == states_initials[state]
-                ].is_third_wave.sum()
-            )
-        elif param == "macro":
-            factor = samples[
-                [
-                    "macro_factor[" + str(j + 1) + "]"
-                    for j in range(
-                        pos,
-                        pos
-                        + df.loc[
-                            df.state == states_initials[state]
-                        ].is_third_wave.sum(),
-                    )
-                ]
-            ].values.T
-            pos = (
-                pos
-                + df.loc[
-                    df.state == states_initials[state]
-                ].is_third_wave.sum()
-            )
-        elif param == "susceptibility":
-            factor = samples[
-                [
-                    "sus_dep_factor[" + str(j + 1) + "]"
-                    for j in range(
-                        pos,
-                        pos
-                        + df.loc[
-                            df.state == states_initials[state]
-                        ].is_third_wave.sum(),
-                    )
-                ]
-            ].values.T
-            pos = (
-                pos
-                + df.loc[
-                    df.state == states_initials[state]
-                ].is_third_wave.sum()
-            )
-            
+        factor = samples[
+            [
+                factor_dict[param] + "[" + str(j + 1) + "]"
+                for j in range(
+                    pos,
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_third_wave.sum(),
+                )
+            ]
+        ].values.T
+        pos = (
+            pos
+            + df.loc[
+                df.state == states_initials[state]
+            ].is_third_wave.sum()
+        )   
         
         df_hat = pd.DataFrame(factor.T)
         
@@ -409,6 +390,110 @@ def predict_multiplier_plot(samples, df, param=""):
             df_hat.quantile(0.05, axis=0),
             df_hat.quantile(0.95, axis=0),
             color="C0",
+            alpha=0.3,
+        )
+        ax[i // 4, i % 4].set_title(state)
+        ax[i // 4, i % 4].set_yticks([0, 0.25, 0.5, 0.75, 1, 1.25], minor=False)
+        ax[i // 4, i % 4].set_yticklabels([0, 0.25, 0.5, 0.75, 1, 1.25], minor=False)
+        ax[i // 4, i % 4].axhline(1, ls="--", c="k", lw=1)
+        
+        if i // 4 == 1:
+            ax[i // 4, i % 4].tick_params(axis="x", rotation=90)
+
+    plt.legend()
+    
+    return ax
+
+
+def macro_factor_plots(samples, df):
+    """
+    Produce posterior predictive plots for all states of the micro and macro factors. This should 
+    enable us to look into the overall factor multiplying TP at any given time. 
+    """
+
+    # all states
+    fig, ax = plt.subplots(figsize=(15, 12), ncols=4, nrows=2, sharex=True, sharey=True)
+
+    states = sorted(list(states_initials.keys()))
+    
+    # dictionary for mapping between plot type and variable name
+    factor_dict = {
+        "micro": "micro_factor", 
+        "macro": "macro_factor",
+        "susceptibility": "sus_dep_factor"
+    }
+    
+    pos = 0
+    for i, state in enumerate(states):
+
+        df_state = df.loc[df.sub_region_1 == state]
+        df_state = df_state.loc[df_state.is_third_wave == 1]
+
+        data_factor = samples[
+            [
+                "macro_level_data[" + str(j + 1) + "]"
+                for j in range(
+                    pos,
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_third_wave.sum(),
+                )
+            ]
+        ].values.T
+        
+        inferred_factor = samples[
+            [
+                "macro_level_inferred[" + str(j + 1) + "]"
+                for j in range(
+                    pos,
+                    pos
+                    + df.loc[
+                        df.state == states_initials[state]
+                    ].is_third_wave.sum(),
+                )
+            ]
+        ].values.T
+        pos = (
+            pos
+            + df.loc[
+                df.state == states_initials[state]
+            ].is_third_wave.sum()
+        )   
+        
+        df_data = pd.DataFrame(data_factor.T)
+        df_inferred = pd.DataFrame(inferred_factor.T)
+        
+        # df_hat.to_csv('mu_hat_' + state + '.csv')
+        ax[i // 4, i % 4].plot(df_state.date, df_data.quantile(0.5, axis=0), color="C0")
+        ax[i // 4, i % 4].fill_between(
+            df_state.date,
+            df_data.quantile(0.25, axis=0),
+            df_data.quantile(0.75, axis=0),
+            color="C0",
+            alpha=0.3,
+        )
+        ax[i // 4, i % 4].fill_between(
+            df_state.date,
+            df_data.quantile(0.05, axis=0),
+            df_data.quantile(0.95, axis=0),
+            color="C0",
+            alpha=0.3,
+        )
+        
+        ax[i // 4, i % 4].plot(df_state.date, df_inferred.quantile(0.5, axis=0), color="C1")
+        ax[i // 4, i % 4].fill_between(
+            df_state.date,
+            df_inferred.quantile(0.25, axis=0),
+            df_inferred.quantile(0.75, axis=0),
+            color="C1",
+            alpha=0.3,
+        )
+        ax[i // 4, i % 4].fill_between(
+            df_state.date,
+            df_inferred.quantile(0.05, axis=0),
+            df_inferred.quantile(0.95, axis=0),
+            color="C1",
             alpha=0.3,
         )
         ax[i // 4, i % 4].set_title(state)
@@ -731,14 +816,6 @@ def remove_sus_with_waning_from_Reff(strain, data_date):
         parse_dates=["INFECTION_DATES"],
     )
 
-    # read in assumed CA
-    CA = pd.read_csv(
-        "results/" 
-        + "CA_" 
-        + data_date.strftime("%Y-%m-%d") 
-        + ".csv"
-    )
-
     # read in cases by infection dates
     cases = pd.read_csv(
         "results/" 
@@ -761,7 +838,7 @@ def remove_sus_with_waning_from_Reff(strain, data_date):
         + data_date.strftime("%Y-%m-%d") 
         + ".csv"
     )
-    sus_dep_factors = samples[["phi[" + str(i + 1) + "]" for i in range(4)]][:2000]
+    sus_dep_factors = samples[["phi[" + str(i + 1) + "]" for i in range(6)]][:2000]
     
     sus_dep_factors.to_csv(
         "results/" 
@@ -771,18 +848,17 @@ def remove_sus_with_waning_from_Reff(strain, data_date):
         + ".csv"
     )
     
-    sus_dep_factors = sus_dep_factors.iloc[:,:4].to_numpy()
+    sus_dep_factors = sus_dep_factors.iloc[:,:6].to_numpy()
 
     states = sorted(["NSW", "QLD", "SA", "VIC", "TAS", "WA", "ACT", "NT"])
 
     # init a dataframe to hold the Reff samples without susceptible depletion
     df_Reff_adjusted = pd.DataFrame()
     df_cases_adjusted = pd.DataFrame()
-    df_scaling_factor = pd.DataFrame()
 
     for state in states:
         # filter cases by the state and after March 2020 
-        cases_state = cases.loc[cases.STATE == state]
+        cases_state = cases.loc[cases.STATE == state, :].copy()
         dates_complete = pd.DataFrame(
             pd.date_range(
                 start=df_Reff.INFECTION_DATES.min(), 
@@ -795,44 +871,50 @@ def remove_sus_with_waning_from_Reff(strain, data_date):
         cases_state.fillna(0, inplace=True)
         cases_state.loc[cases_state.date_inferred <= "2021-06-25", "local_scaled"] = 0
         
-        # need to take a rolling sum over the last period. This will go up to and including a 
+        t_horizons = [14, 28, 42, 72, 102, 132]
+        # take a rolling sum over each period in t_horizons. This will go up to and including a 
         # a given row and so we subtract the original daily infections to account for that
-        for t_horizon in range(30, 150, 30):
-            cases_state["local_scaled_" + str(t_horizon)] = (
-                cases_state["local_scaled"]
+        for t_horizon in t_horizons:
+            cases_state.loc[:, "local_scaled_" + str(t_horizon)] = (
+                cases_state.loc[:, "local_scaled"]
                 .rolling(t_horizon, min_periods=1)
                 .sum()
             )    
         
         # to get cases in (30, 60), (60, 90) etc. we need to subtract the cases in the previous 
-        # window
-        for t_horizon in range(120, 30, -30):
-            cases_state["local_scaled_" + str(t_horizon)] = (
-                cases_state["local_scaled_" + str(t_horizon)]
-                - cases_state["local_scaled_" + str(t_horizon - 30)]
+        # window. do this by reversing the array and then differencing columns 
+        t_horizons.reverse()
+        
+        for i in range(len(t_horizons) - 1):
+            cases_state.loc[:, "local_scaled_" + str(t_horizons[i])] = (
+                cases_state.loc[:, "local_scaled_" + str(t_horizons[i])]
+                - cases_state.loc[:, "local_scaled_" + str(t_horizons[i + 1])]
             )
         
         df_cases_adjusted = pd.concat((df_cases_adjusted, cases_state), axis=0)
         
-        # case arrays need to be for each period
-        cases_state_30 = np.tile(cases_state.local_scaled_30.to_numpy(), (2000, 1)).T
-        cases_state_60 = np.tile(cases_state.local_scaled_60.to_numpy(), (2000, 1)).T
-        cases_state_90 = np.tile(cases_state.local_scaled_90.to_numpy(), (2000, 1)).T
-        cases_state_120 = np.tile(cases_state.local_scaled_120.to_numpy(), (2000, 1)).T
+        # case arrays are for each period considered 
+        cases_state_14 = np.tile(cases_state.local_scaled_14.to_numpy(), (2000, 1)).T
+        cases_state_28 = np.tile(cases_state.local_scaled_28.to_numpy(), (2000, 1)).T
+        cases_state_42 = np.tile(cases_state.local_scaled_42.to_numpy(), (2000, 1)).T
+        cases_state_72 = np.tile(cases_state.local_scaled_72.to_numpy(), (2000, 1)).T
+        cases_state_102 = np.tile(cases_state.local_scaled_102.to_numpy(), (2000, 1)).T
+        cases_state_132 = np.tile(cases_state.local_scaled_132.to_numpy(), (2000, 1)).T
         
         # invert the susceptible depletion factor for the model
         psi = (
-            sus_dep_factors[:,3] * cases_state_30 / pop_sizes[state] 
-            + sus_dep_factors[:,2] * cases_state_60 / pop_sizes[state]
-            + sus_dep_factors[:,1] * cases_state_90 / pop_sizes[state]
-            + sus_dep_factors[:,0] * cases_state_120 / pop_sizes[state]
+            sus_dep_factors[:, 5] * cases_state_14 / pop_sizes[state] 
+            + sus_dep_factors[:, 4] * cases_state_28 / pop_sizes[state]
+            + sus_dep_factors[:, 3] * cases_state_42 / pop_sizes[state]
+            + sus_dep_factors[:, 2] * cases_state_72 / pop_sizes[state]
+            + sus_dep_factors[:, 1] * cases_state_102 / pop_sizes[state]
+            + sus_dep_factors[:, 0] * cases_state_132 / pop_sizes[state]
         )
         scaling_factor = 1 / (1 - psi)
 
-        df_Reff_state = df_Reff.loc[df_Reff.STATE == state]
+        df_Reff_state = df_Reff.loc[df_Reff.STATE == state, :].copy()
         df_Reff_state.iloc[:, :-2] = df_Reff_state.iloc[:, :-2] * scaling_factor
         df_Reff_adjusted = pd.concat((df_Reff_adjusted, df_Reff_state), axis=0)
-        
 
     # save the unscaled Reff
     df_Reff_adjusted.to_csv(

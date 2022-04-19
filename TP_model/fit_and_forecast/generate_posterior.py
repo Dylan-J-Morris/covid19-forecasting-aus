@@ -278,30 +278,28 @@ def get_data_for_posterior(data_date):
     ######### Read in Google mobility results #########
     sys.path.insert(0, "../")
 
-    df_google = read_in_google(moving=True)
-    df = df_google.merge(
-        df_Reff[
-            [
-                "date",
-                "state",
-                "mean",
-                "lower",
-                "upper",
-                "top",
-                "bottom",
-                "std",
-                "mean_omicron",
-                "lower_omicron",
-                "upper_omicron",
-                "top_omicron",
-                "bottom_omicron",
-                "std_omicron",
-                "rho",
-                "rho_moving",
-                "local",
-                "imported",
-            ]
-        ],
+    df_google = read_in_google(moving=True, moving_window=7)
+    # df_google = read_in_google(moving=False)
+    df = df_google.merge(df_Reff[[
+            "date",
+            "state",
+            "mean",
+            "lower",
+            "upper",
+            "top",
+            "bottom",
+            "std",
+            "mean_omicron",
+            "lower_omicron",
+            "upper_omicron",
+            "top_omicron",
+            "bottom_omicron",
+            "std_omicron",
+            "rho",
+            "rho_moving",
+            "local",
+            "imported",
+        ]],
         on=["date", "state"],
         how="inner",
     )
@@ -330,13 +328,17 @@ def get_data_for_posterior(data_date):
     }
 
     # Second wave inputs
-    sec_states = sorted(["NSW"])
+    sec_states = sorted([
+        "NSW", 
+        # "VIC",
+    ])
     sec_start_date = "2020-06-01"
     sec_end_date = "2021-01-19"
 
     # choose dates for each state for sec wave
     sec_date_range = {
-        "NSW": pd.date_range(start=sec_start_date, end="2021-01-19").values,
+        "NSW": pd.date_range(start="2020-06-01", end="2021-01-19").values,
+        # "VIC": pd.date_range(start="2020-06-01", end="2020-10-28").values,
     }
 
     # Third wave inputs
@@ -345,20 +347,17 @@ def get_data_for_posterior(data_date):
     # and not symptom onset dates
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
-    # a different fitting end date to handle data issues with any particular states
-    third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)
-
     # choose dates for each state for third wave
     # Note that as we now consider the third wave for ACT, we include it in 
     # the third wave fitting only!
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
-        "NSW": pd.date_range(start=third_start_date, end=third_end_date).values,
-        "NT": pd.date_range(start="2021-12-01", end=third_end_date).values,
+        "NSW": pd.date_range(start="2021-06-25", end=third_end_date).values,
+        "NT": pd.date_range(start="2021-12-20", end=third_end_date).values,
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
-        "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
+        "SA": pd.date_range(start="2021-12-10", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
-        "VIC": pd.date_range(start="2021-08-01", end=third_end_date).values,
+        "VIC": pd.date_range(start="2021-07-10", end=third_end_date).values,
         "WA": pd.date_range(start="2022-01-01", end=third_end_date).values,
     }
 
@@ -381,7 +380,7 @@ def get_data_for_posterior(data_date):
     # predictors.extend(['driving_7days','transit_7days','walking_7days','pc'])
 
     # remove residential to see if it improves fit
-    predictors.remove("residential_7days")
+    # predictors.remove("residential_7days")
 
     df["post_policy"] = (df.date >= ban).astype(int)
 
@@ -660,7 +659,7 @@ def get_data_for_posterior(data_date):
     input_data = {
         "j_total": len(states_to_fit_all_waves),
         
-        "N": dfX.loc[dfX.state == first_states[0]].shape[0],
+        "N_first": dfX.loc[dfX.state == first_states[0]].shape[0],
         "K": len(predictors),
         "j_first": len(first_states),
         "Reff": data_by_state["mean"].values,
@@ -796,7 +795,6 @@ def run_stan(
     os.makedirs(figs_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
 
-    # to run the inference set run_inference to True in params
     # path to the stan model 
     # basic model with a switchover between Reffs 
     # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_switchover.stan"
@@ -851,11 +849,11 @@ def run_stan(
         + ".csv"
     )
     
-    # save a huge summary file
+    # save a summary file for all parameters; this involves ESS and ESS/s as well as summary stats
     fit_summary = fit.summary()
     fit_summary.to_csv(filename)
     
-    # now save a small summary to easily view
+    # now save a small summary to easily view key parameters
     pars_of_interest = ["bet[" + str(i + 1) + "]" for i in range(5)]
     pars_of_interest = pars_of_interest + ["R_Li[" + str(i + 1) + "]" for i in range(8)]
     pars_of_interest = pars_of_interest + [
@@ -868,7 +866,9 @@ def run_stan(
         "voc_effect_delta",
         "voc_effect_omicron",
     ]
-    pars_of_interest = pars_of_interest + ["phi[" + str(i + 1) + "]" for i in range(4)]
+    pars_of_interest = pars_of_interest + [
+        col for col in df_fit if "phi" in col and "simplex" not in col
+    ]
     
     # save a summary for ease of viewing
     # output a set of diagnostics
@@ -1121,38 +1121,36 @@ def plot_and_save_posterior_samples(data_date):
     }
 
     # Second wave inputs
-    # sec_states = sorted(['NSW', 'VIC'])
-    sec_states = sorted(["NSW"])
+    sec_states = sorted([
+        'NSW', 
+        # 'VIC',
+    ])
     sec_start_date = "2020-06-01"
     sec_end_date = "2021-01-19"
 
     # choose dates for each state for sec wave
     sec_date_range = {
-        "NSW": pd.date_range(start=sec_start_date, end="2021-01-19").values,
-        # 'VIC': pd.date_range(start=sec_start_date, end='2020-10-28').values,
+        "NSW": pd.date_range(start="2020-06-01", end="2021-01-19").values,
+        # "VIC": pd.date_range(start="2020-06-01", end="2020-10-28").values,
     }
 
     # Third wave inputs
     third_states = sorted(["NSW", "VIC", "ACT", "QLD", "SA", "TAS", "NT", "WA"])
-    # third_states = sorted(['NSW', 'VIC', 'ACT', 'QLD', 'SA', 'NT'])
     # Subtract the truncation days to avoid right truncation as we consider infection dates
     # and not symptom onset dates
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
 
-    # to handle SA data issues
-    # third_end_date_diff = data_date - pd.Timedelta(days=18 + 7 + 7)a
-
     # choose dates for each state for third wave
-    # Note that as we now consider the third wave for ACT, we include it in the third 
-    # wave fitting only!
+    # Note that as we now consider the third wave for ACT, we include it in 
+    # the third wave fitting only!
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
-        "NSW": pd.date_range(start=third_start_date, end=third_end_date).values,
-        "NT": pd.date_range(start="2021-12-01", end=third_end_date).values,
+        "NSW": pd.date_range(start="2021-06-25", end=third_end_date).values,
+        "NT": pd.date_range(start="2021-12-20", end=third_end_date).values,
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
-        "SA": pd.date_range(start="2021-11-25", end=third_end_date).values,
+        "SA": pd.date_range(start="2021-12-10", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
-        "VIC": pd.date_range(start="2021-08-01", end=third_end_date).values,
+        "VIC": pd.date_range(start="2021-07-10", end=third_end_date).values,
         "WA": pd.date_range(start="2022-01-01", end=third_end_date).values,
     }
 
@@ -1175,7 +1173,7 @@ def plot_and_save_posterior_samples(data_date):
     # predictors.extend(['driving_7days','transit_7days','walking_7days','pc'])
 
     # remove residential to see if it improves fit
-    predictors.remove("residential_7days")
+    # predictors.remove("residential_7days")
 
     df["post_policy"] = (df.date >= ban).astype(int)
 
@@ -1841,6 +1839,7 @@ def plot_and_save_posterior_samples(data_date):
             "Parks",
             "Transit Stations",
             "Workplaces",
+            "Residential",
         ]
     )
     ax2.tick_params("x", rotation=15)
@@ -2022,6 +2021,36 @@ def plot_and_save_posterior_samples(data_date):
     )
 
     if df3X.shape[0] > 0:
+        df["is_third_wave"] = 0
+        for state in third_states:
+            df.loc[df.state == state, "is_third_wave"] = (
+                df.loc[df.state == state]
+                .date.isin(third_date_range[state])
+                .astype(int)
+                .values
+            )
+
+        # plot only if there is third phase data - have to have third_phase=True
+        ax4 = macro_factor_plots(
+            samples_mov_gamma,
+            df.loc[(df.date >= third_start_date) & (df.date <= third_end_date)],
+        )  # by states....
+
+        for ax in ax4:
+            for a in ax:
+                a.set_ylim((0, 1.25))
+                # a.set_xlim((start_date,end_date))
+
+        plt.savefig(
+            figs_dir + data_date.strftime("%Y-%m-%d") + "macro_factor_comp.png",
+            dpi=144,
+        )
+
+        # remove plots from memory
+        fig.clear()
+        plt.close(fig)
+        
+        
         df["is_third_wave"] = 0
         for state in third_states:
             df.loc[df.state == state, "is_third_wave"] = (
@@ -2260,7 +2289,7 @@ def plot_and_save_posterior_samples(data_date):
         "voc_effect_delta",
         "voc_effect_omicron",
     ]
-    var_to_csv = var_to_csv + ["phi[" + str(i + 1) + "]" for i in range(4)]
+    var_to_csv = var_to_csv + [col for col in samples_mov_gamma if "phi" in col]
     var_to_csv = (      
         var_to_csv
         + predictors
@@ -2330,6 +2359,7 @@ if __name__ == "__main__":
     If we are running the script here (which is always) then this ensures things run appropriately.
     """
     data_date = argv[1]
+    
     try:
         run_flag = int(argv[2])
     except:

@@ -89,8 +89,9 @@ pop_sizes = {
 def get_p_detect_old_assumptions(end_date):
     """
     Apply a scaling to the daily reported cases by accounting for a ~75% detection probability pre
-    15/12/2021 and 0.5 following that. To improve the transition, we assume that detection 
-    probability decreases from 0.75 to 0.5 over 7 days beginning 9/12/2021.
+    15/12/2021 and 0.5 following that. We apply the scaling from 10/12/2021 as this corresponds to 
+    infection times and not symptom onsets. 10/12/2021 is approx 1 mean incubation period before 
+    reporting began to break down.
     """
     
     # CA is related to detection of actual cases but our fitting works with infection dates. 
