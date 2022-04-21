@@ -55,15 +55,14 @@ function plot_all_forecasts(
         D = Matrix{Int}(D)
         
         onset_dates = sim_all_states[sim_all_states.state .== state, "onset date"]
+        # onset_dates = Date.(onset_dates, dateformat"m yyyy")
         df_D_summary = summarise_forecast_for_plotting(D)
 
         local_cases = local_case_dict[state][dates .>= onset_dates[1]]
         # boolean for correct case dates 
         case_dates_ind = [d ∈ onset_dates ? true : false for d in case_dates]
 
-        onset_dates_lims = Dates.value.(
-            [onset_dates[1], onset_dates[end]]
-        )
+        onset_dates_lims = Dates.value.([onset_dates[1], onset_dates[end]])
         
         if confidence_level == "50" || confidence_level == "both"
             plot!(

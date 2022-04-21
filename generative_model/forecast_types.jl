@@ -7,7 +7,6 @@ struct Features
     """
     # constraints for the simulation 
     max_forecast_cases::Int
-    cases_pre_forecast::Int
     N::Int
     T_observed::Int
     T_end::Int
@@ -18,8 +17,8 @@ struct Features
     idxs_limits::Vector{UnitRange{Int64}}
     state::String
     # truncations for the various bits and pieces
-    reff_change_time::Int
     omicron_start_day::Int
+    omicron_only_day::Int
 end
 
 
@@ -44,8 +43,8 @@ mutable struct Realisation
         separately (and not in a struct) as the arrays are large. 
         """
         
-        Z = zeros(Int, sim_duration + 35, 3)
-        Z_historical = zeros(Int, sim_duration + 35)
+        Z = zeros(Int, sim_duration + 30, 3)
+        Z_historical = zeros(Int, sim_duration + 30)
         D = zeros(Int, sim_duration, 3)
         U = zeros(Int, sim_duration, 3)
         
@@ -75,8 +74,8 @@ mutable struct Results
         separately (and not in a struct) as the arrays are large. 
         """
         
-        Z = zeros(Int, sim_duration + 35, 3, nsims)
-        Z_historical = zeros(Int, sim_duration + 35, nsims)
+        Z = zeros(Int, sim_duration + 30, 3, nsims)
+        Z_historical = zeros(Int, sim_duration + 30, nsims)
         D = zeros(Int, sim_duration, 3, nsims)
         U = zeros(Int, sim_duration, 3, nsims)
         

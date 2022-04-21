@@ -246,39 +246,70 @@ transformed data {
     vector<lower=0,upper=1>[total_N_p_sec] prop_masks_sec;
     vector<lower=0,upper=1>[total_N_p_third] prop_masks_third;
     
-    int pos; 
+    int pos_n; 
     
     for (i in 1:j_first) {
         for (n in 1:N_first) {
-            prop_md[n,i] = (1 + count_md[i][n]) / (1 + respond_md[i][n] - count_md[i][n]);
-            prop_masks[n,i] = (1 + count_masks[i][n]) / (1 + respond_masks[i][n] - count_masks[i][n]);
+            if (respond_md[i][n] > 0){
+                prop_md[n,i] = fmin(1.0, count_md[i][n] / respond_md[i][n]);
+            } else {
+                prop_md[n,i] = 0.0;
+            }
+            
+            if (respond_masks[i][n] > 0) {
+                prop_masks[n,i] = fmin(1.0, count_masks[i][n] / respond_masks[i][n]);
+            } else {
+                prop_masks[n,i] = 0.0;
+            }
         }
     }
     
     for (i in 1:j_sec) {
         if (i == 1) {
-            pos = 1;
+            pos_n = 1;
         } else {
-            pos = pos_starts_sec[i-1] + 1;
+            pos_n = pos_starts_sec[i-1] + 1;
         }
         for (n in 1:N_sec) {
             if (include_in_sec[i][n] == 1) {
-                prop_md_sec[pos] = (1 + count_md_sec[i][n]) / (1 + respond_md_sec[i][n] - count_md_sec[i][n]);
-                prop_masks_sec[pos] = (1 + count_masks_sec[i][n]) / (1 + respond_masks_sec[i][n] - count_masks_sec[i][n]);
+                if (respond_md_sec[i][n] > 0){
+                    prop_md_sec[pos_n] = fmin(1.0, count_md_sec[i][n] / respond_md_sec[i][n]);
+                } else {
+                    prop_md_sec[pos_n] = 0.0;
+                }
+                
+                if (respond_masks_sec[i][n] > 0) {
+                    prop_masks_sec[pos_n] = fmin(1.0, count_masks_sec[i][n] / respond_masks_sec[i][n]);
+                } else {
+                    prop_masks_sec[pos_n] = 0.0;
+                }
+                
+                pos_n += 1;
             }
         }
     }
     
     for (i in 1:j_third) {
         if (i == 1) {
-            pos = 1;
+            pos_n = 1;
         } else {
-            pos = pos_starts_third[i-1] + 1;
+            pos_n = pos_starts_third[i-1] + 1;
         }
         for (n in 1:N_third) {
             if (include_in_third[i][n] == 1) {
-                prop_md_third[pos] = (1 + count_md_third[i][n]) / (1 + respond_md_third[i][n] - count_md_third[i][n]);
-                prop_masks_third[pos] = (1 + count_masks_third[i][n]) / (1 + respond_masks_third[i][n] - count_masks_third[i][n]);
+                if (respond_md_third[i][n] > 0){
+                    prop_md_third[pos_n] = fmin(1.0, count_md_third[i][n] / respond_md_third[i][n]);
+                } else {
+                    prop_md_third[pos_n] = 0.0;
+                }
+                
+                if (respond_masks_third[i][n] > 0) {
+                    prop_masks_third[pos_n] = fmin(1.0, count_masks_third[i][n] / respond_masks_third[i][n]);
+                } else {
+                    prop_masks_third[pos_n] = 0.0;
+                }
+                
+                pos_n += 1;
             }
         }
     }
@@ -587,7 +618,7 @@ transformed parameters {
                         tau[map_to_state_index_third[i]], 
                         r[map_to_state_index_third[i]], 
                         m0[map_to_state_index_third[i]],
-                        m1[map_to_state_index_third[i]]
+                        1.0
                     );
                     
                     voc_ve_prod = (
@@ -689,7 +720,7 @@ model {
     tau_raw ~ normal(0, 1);
     
     // assume final proportion of ~97%
-    m1 ~ beta(5 * 97, 5 * 3);
+    // m1 ~ beta(5 * 97, 5 * 3);
     
     // gives full priors of 1 + Gamma() for each VoC effect
     additive_voc_effect_alpha ~ gamma(square(0.4) / 0.05, 0.4 / 0.05);

@@ -87,6 +87,14 @@ let
             names_to_plot_keep[i] = false
         elseif length(name) >= length("masks") && name[1:length("masks")] == "masks"
             names_to_plot_keep[i] = false
+        elseif length(name) >= length("sus") && name[1:length("sus")] == "sus"
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("micro") && name[1:length("micro")] == "micro"
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("macro") && name[1:length("macro")] == "macro"
+            names_to_plot_keep[i] = false
+        elseif length(name) >= length("mob") && name[1:length("mob")] == "mob"
+            names_to_plot_keep[i] = false
         end 
     end
     

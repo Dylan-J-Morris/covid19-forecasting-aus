@@ -236,28 +236,96 @@ function import_cases_model!(
 	
 end
 
-function calculate_historical_infected(
-    forecast, 
-    local_cases,
-    day, 
-    N;
-    adjust_TP = false, 
-)
 
-    Z_historical = forecast.sim_realisation.Z_historical
-    T_observed = forecast.sim_features.T_observed
-    cases_pre_forecast = forecast.sim_features.cases_pre_forecast
+# function calculate_sus_dep_factor(
+#     susceptible_depletion_sim, 
+#     Z_historical, 
+#     day, 
+#     N,
+# )
     
-    cases = 0
-    cases_pre_omicron = 0
-    cases_after_omicron = 0
+#     ψ = 0.0
     
-    τ = min(map_day_to_index_Z(day), size(Z_historical, 1))
-    cases = sum(@view Z_historical[begin:τ])
+#     for (i, τ) in enumerate((30, 60, 90, 120))
+#         # guard clauses for when we do not have enough observations to consider the longer term 
+#         # effects (in other words, all the infections are relatively recent)
+#         map_day_to_index_Z(day) < 30 && continue
+        
+#         # Get starting and ending index. Start must be at least the beginning of the array and end 
+#         # must be at least the forecast length.
+#         τ_start = max(map_day_to_index_Z(day) - (τ - 1), 1)
+#         τ_end = min(map_day_to_index_Z(day) - (τ - 30), size(Z_historical, 1))
+        
+#         # sum infections over the time period of interest
+#         infections = sum(@view Z_historical[τ_start:τ_end])
+        
+#         # we index from 4 - 1 as the largest reduction occurs as a result of recent infections 
+#         prop_inf = min(1.0, infections / N)
+#         ψ += susceptible_depletion_sim[5 - i] * prop_inf
+#     end
     
-    return cases 
+#     scale_factor = max(0.0, 1.0 - ψ)
+    
+#     return scale_factor
+
+# end
+
+function calculate_sus_dep_factor(
+    susceptible_depletion_sim, 
+    Z_historical, 
+    day, 
+    N,
+)
+    
+    ψ = 0.0
+    
+    τ_horizons_start = (0, 14, 28, 42, 72, 102)
+    τ_horizons_end = (0, 13, 27, 41, 71, 101, 131)
+    
+    for i in 1:length(τ_horizons_start)
+        # guard clause to ensure we have a reasonable number of observations to calculate the 
+        # contribution to ψ from period i 
+        map_day_to_index_Z(day) <= τ_horizons_start[i] && continue
+        
+        # Get starting and ending index. Start must be at least the beginning of the array and end 
+        # must be at least the forecast length.
+        τ_start = max(map_day_to_index_Z(day) - τ_horizons_end[i + 1], 1)
+        τ_end = min(map_day_to_index_Z(day) - τ_horizons_start[i], size(Z_historical, 1))
+        
+        # sum infections over the time period of interest
+        infections = sum(@view Z_historical[τ_start:τ_end])
+        
+        # we index from 4 - 1 as the largest reduction occurs as a result of recent infections 
+        prop_inf = min(1.0, infections / N)
+        ψ += susceptible_depletion_sim[7 - i] * prop_inf
+    end
+    
+    scale_factor = max(0.0, 1.0 - ψ)
+    
+    return scale_factor
 
 end
+
+
+# function calculate_sus_dep_factor(
+#     susceptible_depletion_sim, 
+#     Z_historical, 
+#     day, 
+#     N,
+# )
+    
+#     ψ = 0.0
+    
+#     τ_end = map_day_to_index_Z(day)
+    
+#     infections = sum(@view Z_historical[begin:τ_end])
+#     ψ = susceptible_depletion_sim * infections / N
+    
+#     scale_factor = max(0.0, 1.0 - ψ)
+    
+#     return scale_factor
+
+# end
 
 
 function sigmoid(t, prop_pars)
@@ -289,9 +357,9 @@ function sample_offspring!(
     D = forecast.sim_realisation.D
     U = forecast.sim_realisation.U
     omicron_start_day = forecast.sim_features.omicron_start_day 
+    omicron_only_day = forecast.sim_features.omicron_only_day 
     T_observed = forecast.sim_features.T_observed
     state = forecast.sim_features.state
-    reff_change_time = forecast.sim_features.reff_change_time
     
     # extract the CAR related quantities 
     p_detect = forecast.sim_constants.p_detect
@@ -300,7 +368,6 @@ function sample_offspring!(
     p_detect_given_asymp = forecast.sim_constants.p_detect_given_asymp[map_day_to_index_Z(day)]
     
     # extract fixed simulation values
-    cases_pre_forecast = forecast.sim_features.cases_pre_forecast
     N = forecast.sim_features.N
     
     # pointer to the current day's infections 
@@ -309,18 +376,6 @@ function sample_offspring!(
     total_parents = sum(Z_tmp)
     
     if total_parents > 0
-        # if we are adjusting the TP, we use the Reff up until the last 30 days and then we
-        # need to scale the TP afterwards. The Reff inherently features the depletion of 
-        # susceptibles in its calculation (of sorts) and so can be considered the "true" 
-        # factor 
-        total_infected = calculate_historical_infected(
-            forecast, 
-            local_cases, 
-            day,  
-            N,
-            adjust_TP = adjust_TP,
-        )
-        
         (S_parents, A_parents, I_parents) = Z_tmp
         
         # sum up the number local infections on the current day
@@ -333,7 +388,8 @@ function sample_offspring!(
         A_parents_omicron = 0
         I_parents_omicron = 0
         
-        if day >= omicron_start_day
+        if day >= omicron_start_day && day < omicron_only_day    
+            # prior to 2022-02-01, there is some probability of non-Omicron (Delta) cases
             # number of days into the omicron wave
             t_omicron = day - omicron_start_day 
             prop_omicron = sigmoid(t_omicron, prop_pars)
@@ -341,6 +397,11 @@ function sample_offspring!(
             S_parents_omicron = rand(Binomial(S_parents, prop_omicron))
             A_parents_omicron = rand(Binomial(A_parents, prop_omicron))
             I_parents_omicron = rand(Binomial(I_parents, prop_omicron))
+        elseif day >= omicron_only_day 
+            # after 2022-02-01 everything is just Omicron 
+            S_parents_omicron = S_parents
+            A_parents_omicron = A_parents
+            I_parents_omicron = I_parents
         end
         
         # put the number of parents in a tuple to iterate over 
@@ -353,26 +414,30 @@ function sample_offspring!(
             I_parents_omicron,
         )
         
+        # adjust the TP/Reff by susceptible depletion based off the current simulation state
+        scale_factor = calculate_sus_dep_factor(
+            susceptible_depletion_sim,
+            Z_historical,
+            day,  
+            N,
+        )
+        
         for (i, n_parents) in enumerate(num_parents)  
             # a guard clause for skipping the current iteration
             n_parents == 0 && continue 
             
             # reset counters
-            num_offspring = 0
             TP_parent = 0.0 
             k = 0.0
-            
-            # α_s = forecast.sim_constants.α_s[map_day_to_index_Z(day)]
-            # α_a = forecast.sim_constants.α_a[map_day_to_index_Z(day)]
+            # relative infectiousness of asymptomatic
+            γ = 0.5
             
             # essentially a (gross) switch statement 
             if i == 1
-                γ = 0.5
                 α_s = 1 / (p_symp + γ * (1 - p_symp))
                 TP_parent = TP.TP_local_delta_parent * α_s
                 k = 0.15
             elseif i == 2
-                γ = 0.5
                 α_s = 1 / (p_symp + γ * (1 - p_symp))
                 α_a = γ * α_s
                 TP_parent = TP.TP_local_delta_parent * α_a
@@ -381,13 +446,11 @@ function sample_offspring!(
                 TP_parent = TP.TP_import_delta_parent
                 k = 0.15
             elseif i == 4
-                γ = 0.5
                 α_s = 1 / (p_symp + γ * (1 - p_symp))
                 α_a = γ * α_s
                 TP_parent = TP.TP_local_omicron_parent * α_s
                 k = 0.5
             elseif i == 5
-                γ = 0.5
                 α_s = 1 / (p_symp + γ * (1 - p_symp))
                 α_a = γ * α_s
                 TP_parent = TP.TP_local_omicron_parent * α_a
@@ -397,44 +460,18 @@ function sample_offspring!(
                 k = 0.6
             end
             
-            if (adjust_TP && day <= reff_change_time) 
-                # When using the Reff we need to back out the inferred effect of susceptible 
-                # depletion to remain consistent with TP. If the Reff is given by 
-                # Reff = Reff' * ϕ 
-                # where ϕ is the inferred susceptible depletion term, we can back it out to get
-                # Reff'.
-                
-                # Calculate the "true" number of cases by multiplying the observed cases by 
-                # 1/p(detect) for assumed CA 
-                local_cases_idx = 1:map_day_to_index_cases(day - 5)
-                p_detect_idx = map_day_to_index_p(0):map_day_to_index_p(day - 5)
-                total_infected_actual = @views sum(
-                    local_cases[local_cases_idx] ./ p_detect[p_detect_idx]
-                )
-                # this is the same model as used in the fitting
-                proportion_infected = min(1, total_infected_actual / N)
-                scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
-                # divide out the susceptible depeletion factor from Reff
-                TP_parent = TP_parent / scale_factor
-                
-                # now multiply the effect back in based off the actual cases in the current 
-                # simulation
-                proportion_infected = min(1, total_infected / N)
-                scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
-                TP_parent = TP_parent * scale_factor
-            elseif (adjust_TP && day >= reff_change_time) || !adjust_TP
-                # when using the TP, we just adjust by the susceptible depletion term
-                proportion_infected = min(1, total_infected / N)
-                scale_factor = max(0, 1 - susceptible_depletion_sim * proportion_infected)
-                TP_parent = TP_parent * scale_factor 
-            end
+            # scale the TP by depletion of susceptibles
+            # println("Day: ", day) 
+            # println("Scale factor: ", scale_factor)
+            TP_parent = max(0, TP_parent * scale_factor)
             
-            num_offspring += sample_negative_binomial_limit(TP_parent * n_parents, k * n_parents)
+            TP_parent == 0 && continue
+            
+            num_offspring = sample_negative_binomial_limit(TP_parent * n_parents, k * n_parents)
             
             if num_offspring > 0            
                 is_omicron = false
                 
-                # set the appropriate detection probabilities based on the point in the forecast
                 if i in 1:3
                     is_omicron = false
                 elseif i in 4:6
@@ -579,6 +616,7 @@ end
 
 
 function clean_up_sim_results(
+    Z_historical_results,
     D_results,
     U_results, 
     good_sims, 
@@ -588,7 +626,13 @@ function clean_up_sim_results(
     processed format. We also account for the effect of susceptible depletion in the TP 
     here so that the output includes the adjusted TP. 
     """
+    # return (
+    #     Z_historical_results,
+    #     D_results,
+    #     U_results,
+    # )
     return (
+        Z_historical_results[:, 1:good_sims - 1], 
         D_results[:, :, 1:good_sims - 1], 
         U_results[:, :, 1:good_sims - 1], 
     )
@@ -601,7 +645,6 @@ function simulate_branching_process(
     nsims, 
     local_cases, 
     import_cases, 
-    cases_pre_forecast,
     forecast_start_date, 
     date, 
     state; 
@@ -640,7 +683,6 @@ function simulate_branching_process(
     sim_features = get_simulation_limits(
         local_cases, 
         forecast_start_date,
-        cases_pre_forecast, 
         TP_indices, 
         N, 
         state, 
@@ -695,6 +737,7 @@ function simulate_branching_process(
     # a counter for the good sims, will terminate if good_sims > 2000
     good_sims = 1
     
+    Z_results = forecast.sim_results.Z
     D_results = forecast.sim_results.D
     U_results = forecast.sim_results.U
     Z_historical_results = forecast.sim_results.Z_historical
@@ -702,7 +745,8 @@ function simulate_branching_process(
     @showprogress for sim in 1:nsims
         # sample the TP/susceptible_depletion for this sim
         TP_ind = sim % num_TP == 0 ? num_TP : sim % num_TP
-        susceptible_depletion_sim = susceptible_depletion[TP_ind]
+        susceptible_depletion_sim = susceptible_depletion[TP_ind, :]
+        # susceptible_depletion_sim = susceptible_depletion[TP_ind]
     
         # reset boolean flags 
         bad_sim = false
@@ -742,8 +786,8 @@ function simulate_branching_process(
             # get the sampled parameters on a given day
             prop_pars_day = (
                 m0 = omicron_prop_pars["m0"][TP_ind], 
-                # m1 = omicron_prop_pars["m1"][TP_ind], 
-                m1 = 1.0,
+                m1 = omicron_prop_pars["m1"][TP_ind], 
+                # m1 = 1.0,
                 r = omicron_prop_pars["r"][TP_ind], 
                 tau = omicron_prop_pars["tau"][TP_ind], 
             )
@@ -794,6 +838,7 @@ function simulate_branching_process(
         end
         
         if !bad_sim
+            Z_historical_results[:, good_sims] .= forecast.sim_realisation.Z_historical
             D_results[:, :, good_sims] .= forecast.sim_realisation.D
             U_results[:, :, good_sims] .= forecast.sim_realisation.U
             good_sims += 1
@@ -810,6 +855,7 @@ function simulate_branching_process(
     println("##########")    
     
     results = clean_up_sim_results(
+        Z_historical_results, 
         D_results,
         U_results,
         good_sims, 

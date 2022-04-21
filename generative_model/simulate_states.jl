@@ -16,7 +16,6 @@ function simulate_single_state(
     nsims, 
     run_simulation; 
     truncation_days = 7,
-    p_detect_omicron = 0.5,
     adjust_TP = false, 
 )
     """
@@ -53,26 +52,21 @@ function simulate_single_state(
         N = jurisdiction_assumptions.pop_sizes[state]
 
         # get the observed cases 
-        cases_pre_forecast = sum(local_case_dict[state][dates .< forecast_start_date])
         local_cases = local_case_dict[state][dates .>= forecast_start_date]
         import_cases = import_case_dict[state]
         # cutoff the last bit of the local cases
         local_cases = local_cases[begin:end - truncation_days + 1]
         import_cases = import_cases[begin:end - truncation_days + 1]
         
-        (D, U) = simulate_branching_process(
+        (D, U, Z) = simulate_branching_process(
             D0, 
             N, 
             nsims, 
             local_cases, 
             import_cases, 
-            cases_pre_forecast,
             forecast_start_date, 
             file_date, 
-            jurisdiction_assumptions.omicron_start_date, 
-            jurisdiction_assumptions.omicron_dominant_date, 
             state,
-            p_detect_omicron = p_detect_omicron,
             adjust_TP = adjust_TP, 
         )
         

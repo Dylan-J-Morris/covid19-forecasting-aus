@@ -155,10 +155,8 @@ transformed data {
     int idx_end;
     
     for (i in 1:j_third) {
-        for (n in 1:N_third) {
-            // scale up the cases by the assumed CAR
-            CA_scaled_local_third[n] = ceil(local_third[n,i] * CA_scaling_factor[n,i]);    
-        }
+        // scale up the cases by the assumed CAR
+        CA_scaled_local_third = ceil(local_third[:,i] .* CA_scaling_factor[:,i]);
         
         denom = pop_size_array[map_to_state_index_third[i]];
         
@@ -217,28 +215,52 @@ transformed data {
 
     // compute the shape and scale for the likelihood 
     for (i in 1:j_first) {
-        for (n in 1:N_first) {
-            a_mu_hat[n,i] = square(Reff[n,i]) / sigma2[n,i];
-            b_mu_hat[n,i] = Reff[n,i] / sigma2[n,i];
-        }
+        a_mu_hat[:,i] = square(Reff[:,i]) ./ sigma2[:,i];
+        b_mu_hat[:,i] = Reff[:,i] ./ sigma2[:,i];
     }
     
     for (i in 1:j_sec) {
+        a_mu_hat_sec[:,i] = square(Reff_sec[:,i]) ./ sigma2_sec[:,i];
+        b_mu_hat_sec[:,i] = Reff_sec[:,i] ./ sigma2_sec[:,i];
+    }
+    
+    for (i in 1:j_third) {
+        a_mu_hat_third[:,i] = square(Reff_third[:,i]) ./ sigma2_third[:,i];
+        b_mu_hat_third[:,i] = Reff_third[:,i] ./ sigma2_third[:,i];
+        a_mu_hat_omicron[:,i] = square(Reff_omicron[:,i]) ./ sigma2_omicron[:,i];
+        b_mu_hat_omicron[:,i] = Reff_omicron[:,i] ./ sigma2_omicron[:,i];
+    }
+    
+    real N_first_weeks = ceil(N_first / 7); 
+    real total_N_p_sec_weeks; 
+    real total_N_p_third_weeks; 
+    
+    int pos_ww; 
+    int pos_cc; 
+    
+    for (i in 1:j_sec) {
+        if (i == 1) {
+            pos_cc = 1;
+            pos_ww = 1;
+        } else {
+            pos_cc = pos_starts_sec[i-1] + 1;
+            pos_ww = (pos_starts_sec[i-1] / 7) + 1;
+        }
+        
         for (n in 1:N_sec) {
-            a_mu_hat_sec[n,i] = square(Reff_sec[n,i]) / sigma2_sec[n,i];
-            b_mu_hat_sec[n,i] = Reff_sec[n,i] / sigma2_sec[n,i];
+            if (include_in_sec[i][n] == 1) {
+                if (pos_cc % 7 == 1) {
+                    pos_ww += 1
+                    
+                }
+                pos_cc ++ 1
+            }
         }
     }
     
     for (i in 1:j_third) {
-        for (n in 1:N_third) {
-            a_mu_hat_third[n,i] = square(Reff_third[n,i]) / sigma2_third[n,i];
-            b_mu_hat_third[n,i] = Reff_third[n,i] / sigma2_third[n,i];
-            a_mu_hat_omicron[n,i] = square(Reff_omicron[n,i]) / sigma2_omicron[n,i];
-            b_mu_hat_omicron[n,i] = Reff_omicron[n,i] / sigma2_omicron[n,i];
-        }
+
     }
-    
 }
 
 parameters {
@@ -254,13 +276,13 @@ parameters {
     // vector[total_N_p_sec * K] mob_sec_noisy_raw;
     // vector[total_N_p_third * K] mob_third_noisy_raw;
     
-    matrix<lower=0,upper=1>[N_first,j_first] prop_md;
-    vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec;
-    vector<lower=0,upper=1>[total_N_p_third] prop_md_third;
+    matrix<lower=0,upper=1>[N_first_weeks,j_first] prop_md_week;
+    vector<lower=0,upper=1>[total_N_p_sec_weeks] prop_md_week_sec;
+    vector<lower=0,upper=1>[total_N_p_third_weeks] prop_md_week_third;
     
-    matrix<lower=0,upper=1>[N_first,j_first] prop_masks;
-    vector<lower=0,upper=1>[total_N_p_sec] prop_masks_sec;
-    vector<lower=0,upper=1>[total_N_p_third] prop_masks_third;
+    matrix<lower=0,upper=1>[N_first_weeks,j_first] prop_masks_week;
+    vector<lower=0,upper=1>[total_N_p_sec_weeks] prop_masks_week_sec;
+    vector<lower=0,upper=1>[total_N_p_third_weeks] prop_masks_week_third;
     
     // import baseline R_I
     real<lower=0> R_I0;
@@ -374,6 +396,70 @@ transformed parameters {
     matrix[N_first,j_first] masks;
     vector[total_N_p_sec] masks_sec;
     vector[total_N_p_third] masks_third;
+    
+    matrix<lower=0,upper=1>[N_first,j_first] prop_md;
+    vector<lower=0,upper=1>[total_N_p_sec] prop_md_sec;
+    vector<lower=0,upper=1>[total_N_p_third] prop_md_third;
+    
+    matrix<lower=0,upper=1>[N_first,j_first] prop_masks;
+    vector<lower=0,upper=1>[total_N_p_sec] prop_masks_sec;
+    vector<lower=0,upper=1>[total_N_p_third] prop_masks_third;
+    
+    for (i in 1:j_first) {
+        int pos_w = 1; 
+        for (n in 1:N_first) {
+            prop_md[n,i] = prop_md_week[pos_w,i]; 
+            prop_masks[n,i] = prop_masks_week[pos_w,i]; 
+            if (n % 7 == 0) 
+                pos_w += 1;
+        }
+    }
+    
+    for (i in 1:j_sec) {
+        int pos_w = 1; 
+        int pos = 1;
+        
+        if (i == 1) {
+            pos = 1;
+            pos_w = 1;
+        } else {
+            pos = pos_starts_sec[i-1] + 1;
+            pos_w = (pos_starts_sec[i-1] / 7) + 1;
+        }
+        
+        for (n in 1:N_sec) {
+            if (include_in_sec[i][n] == 1) {
+                prop_md_sec[pos] = prop_md_sec_week[pos_w,i]; 
+                prop_masks_sec[pos] = prop_masks_sec_week[pos_w]; 
+                if (pos % 7 == 0) 
+                    pos_w += 1;
+                pos += 1;
+            }
+        }
+    }
+    
+    for (i in 1:j_third) {
+        int pos_w = 1; 
+        int pos = 1;
+        
+        if (i == 1) {
+            pos = 1;
+            pos_w = 1;
+        } else {
+            pos = pos_starts_third[i-1] + 1;
+            pos_w = (pos_starts_third[i-1] / 7) + 1;
+        }
+        
+        for (n in 1:N_third) {
+            if (include_in_third[i][n] == 1) {
+                prop_md_third[pos] = prop_md_third_week[pos_w]; 
+                prop_masks_third[pos] = prop_masks_third_week[pos_w]; 
+                if (n % 7 == 0) 
+                    pos_w += 1;
+                pos += 1;
+            }
+        }
+    }
     
     // array[j_first] matrix[N_first,K] mob_noisy;
     // vector[total_N_p_sec * K] mob_sec_noisy;
@@ -541,14 +627,10 @@ transformed parameters {
                     n_omicron = n - omicron_start_day;
                     prop_omicron = sigmoid(
                         n_omicron, 
-                        // tau[map_to_state_index_third[i]], 
-                        // r[map_to_state_index_third[i]], 
-                        // m0[map_to_state_index_third[i]],
-                        // m1[map_to_state_index_third[i]]
-                        tau[i], 
-                        r[i], 
-                        m0[i],
-                        m1[i]
+                        tau[map_to_state_index_third[i]], 
+                        r[map_to_state_index_third[i]], 
+                        m0[map_to_state_index_third[i]],
+                        m1[map_to_state_index_third[i]]
                     );
                     
                     voc_ve_prod = (
@@ -640,7 +722,7 @@ model {
     r ~ gamma(square(r_mean) / r_sig, r_mean / r_sig);
     
     for (i in 1:j_third){
-        if (i == 8 || i == 6) {
+        if (i == 8 || i == 6 || i == 3) {
             m0[i] ~ beta(5, 5);
         } else {
             m0[i] ~ beta(5, 95);
@@ -679,59 +761,75 @@ model {
     sig ~ exponential(100);
     R_Li ~ gamma(square(R_L) / sig, R_L / sig);
 
+    int pos_w = 1;
+
     // first wave model
     for (i in 1:j_first) { 
+        
         for (n in 1:N_first) {
-            prop_md[n,i] ~ beta(1 + count_md[i][n], 1 + respond_md[i][n] - count_md[i][n]);
-            
-            prop_masks[n,i] ~ beta(
-                1 + count_masks[i][n], 
-                1 + respond_masks[i][n] - count_masks[i][n]
-            );
-            
-            brho[n,i] ~ beta(1 + imported[n,i], 1 + local[n,i]);
-            
-            // likelihood
-            mu_hat[n,i] ~ gamma(a_mu_hat[n,i], b_mu_hat[n,i]);
-        }
+            if (n % 7 == 1) {
+                prop_md_week[pos_w,i] ~ beta(
+                    1 + count_md[i][n], 
+                    1 + respond_md[i][n] - count_md[i][n]
+                );
+                prop_masks_week[pos_w,i] ~ beta(
+                    1 + count_masks[i][n], 
+                    1 + respond_masks[i][n] - count_masks[i][n]
+                );    
+                pos_w += 1
+            }
+        }                  
+        
+        brho[:,i] ~ beta(0.5 + imported[:,i], 0.5 + local[:,i]);
+        
+        // likelihood
+        mu_hat[:,i] ~ gamma(a_mu_hat[:,i], b_mu_hat[:,i]);
     }
 
     // second wave model
     for (i in 1:j_sec){
+        pos_idxs = 1;
+        
         if (i == 1){
-            pos = 1;
+            pos2_start = 1;
+            pos2_end = pos_starts_sec[i];
+            pos_w = 1; 
         } else {
-            pos = pos_starts_sec[i-1] + 1;
+            pos2_start = pos_starts_sec[i-1] + 1;
+            pos2_end = pos_starts_sec[i];
+            pos_w = (pos_starts_sec[i - 1] / 7) + 1;
         }
         
         // create an array for indexing the proportion terms
         for (n in 1:N_sec){ 
             if (include_in_sec[i][n] == 1) {
-                prop_md_sec[pos] ~ beta(
-                    1 + count_md_sec[i][n], 
-                    1 + respond_md_sec[i][n] - count_md_sec[i][n]
-                );
-                
-                prop_masks_sec[pos] ~ beta(
-                    1 + count_masks_sec[i][n], 
-                    1 + respond_masks_sec[i][n] - count_masks_sec[i][n]
-                );
-                
-                brho_sec[pos] ~ beta(
-                    1 + imported_sec[n,i], 
-                    1 + local_sec[n,i]
-                );
-
-                // likelihood
-                mu_hat_sec[pos] ~ gamma(
-                    a_mu_hat_sec[n,i], 
-                    b_mu_hat_sec[n,i]
-                );
-                
-                pos += 1;
+                if (pos_idxs % 7 == 1) {
+                    prop_md_week_sec[pos_w] ~ beta(
+                        1 + count_md_sec[i][n], 
+                        1 + respond_md_sec[i][n] - count_md_sec[i][n]
+                    );
+                    
+                    prop_masks_week_sec[pos_w] ~ beta(
+                        1 + count_masks_sec[i][n], 
+                        1 + respond_masks_sec[i][n] - count_masks_sec[i][n]
+                    );
+                    pos_w += 1;
+                }
+                idxs_sec[pos_idxs] = n;
+                pos_idxs += 1;  
             }
         }
         
+        brho_sec[pos2_start:pos2_end] ~ beta(
+            0.5 + imported_sec[idxs_sec[1:pos_idxs-1],i], 
+            0.5 + local_sec[idxs_sec[1:pos_idxs-1],i]
+        );
+
+        // likelihood
+        mu_hat_sec[pos2_start:pos2_end] ~ gamma(
+            a_mu_hat_sec[idxs_sec[1:pos_idxs-1],i], 
+            b_mu_hat_sec[idxs_sec[1:pos_idxs-1],i]
+        );
     }
     
     // VE model 
@@ -847,10 +945,63 @@ model {
         }
     }
     
+    // third wave model
+    for (i in 1:j_third){
+        pos_idxs = 1;
+        
+        if (i == 1){
+            pos2_start = 1;
+            pos2_end = pos_starts_third[i];
+            pos_w = 1;
+        } else {
+            pos2_start = pos_starts_third[i-1] + 1;
+            pos2_end = pos_starts_third[i];
+            pos_w = (pos_starts_sec[i - 1] / 7) + 1;
+        }
+        
+        // create an array for indexing parameters, this will contain the 
+        // days, n, that the wave is happening (i.e. idxs_third[1] is the first
+        // day for the jurisdictions 3rd wave fitting).
+        for (n in 1:N_third){ 
+            if (include_in_third[i][n] == 1) {
+                if (pos_idxs % 7 == 1) {
+                    prop_md_week_third[pos_w] ~ beta(
+                        1 + count_md_third[i][n], 
+                        1 + respond_md_third[i][n] - count_md_third[i][n]
+                    );
+                    
+                    prop_masks_week_third[pos_w] ~ beta(
+                        1 + count_masks_third[i][n], 
+                        1 + respond_masks_third[i][n] - count_masks_third[i][n]
+                    );
+                    pos_w += 1;
+                }
+                
+                idxs_third[pos_idxs] = n;
+                pos_idxs += 1;  
+            }
+        }
+        
+        prop_md_third[pos2_start:pos2_end] ~ beta(
+            0.5 + count_md_third[i][idxs_third[1:pos_idxs-1]], 
+            0.5 + respond_md_third[i][idxs_third[1:pos_idxs-1]]
+                - count_md_third[i][idxs_third[1:pos_idxs-1]]
+        );
+        
+        prop_masks_third[pos2_start:pos2_end] ~ beta(
+            1 + count_masks_third[i][idxs_third[1:pos_idxs-1]], 
+            1 + respond_masks_third[i][idxs_third[1:pos_idxs-1]]
+                - count_masks_third[i][idxs_third[1:pos_idxs-1]]
+        );
+        
+        brho_third[pos2_start:pos2_end] ~ beta(
+            0.5 + imported_third[idxs_third[1:pos_idxs-1],i], 
+            0.5 + local_third[idxs_third[1:pos_idxs-1],i]
+        );
+    }
     
     int Reff_switchover_day;
     
-    // third wave model
     for (i in 1:j_third){
         if (i == 1){
             pos = 1;
@@ -858,46 +1009,29 @@ model {
             pos = pos_starts_third[i-1] + 1;
         }
         
-        // if (i == 8) {
-        //     Reff_switchover_day = omicron_start_day + 70;
-        // } else {
-        //     Reff_switchover_day = omicron_start_day + 15;
-        // }
+        if (i == 8) {
+            Reff_switchover_day = omicron_start_day + 75;
+        } else {
+            Reff_switchover_day = omicron_start_day + 15;
+        }
         
-        Reff_switchover_day = omicron_start_day + 15;
-        
-        // create an array for indexing parameters, this will contain the 
-        // days, n, that the wave is happening (i.e. idxs_third[1] is the first
-        // day for the jurisdictions 3rd wave fitting).
-        for (n in 1:N_third){ 
-            if (include_in_third[i][n] == 1) {
-                prop_md_third[pos] ~ beta(
-                    1 + count_md_third[i][n], 
-                    1 + respond_md_third[i][n] - count_md_third[i][n]
-                );
-                
-                prop_masks_third[pos] ~ beta(
-                    1 + count_masks_third[i][n], 
-                    1 + respond_masks_third[i][n] - count_masks_third[i][n]
-                );
-                
-                brho_third[pos] ~ beta(
-                    1 + imported_third[n,i], 
-                    1 + local_third[n,i]
-                );
-                
+        for (n in 1:N_third){
+            if (include_in_third[i][n] == 1){
                 if (n < Reff_switchover_day) {
                     mu_hat_third[pos] ~ gamma(
                         a_mu_hat_third[n,i], 
                         b_mu_hat_third[n,i]
                     );
+                    
+                    pos += 1;
                 } else {
                     mu_hat_third[pos] ~ gamma(
                         a_mu_hat_omicron[n,i], 
                         b_mu_hat_omicron[n,i]
                     );
+                    
+                    pos += 1;
                 }
-                pos += 1;
             }
         }
     }

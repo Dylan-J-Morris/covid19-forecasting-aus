@@ -64,7 +64,10 @@ end
 function sample_inf_time_omicron()
     
     c = (
-        0.40689440196911647, 0.669715658845875, 0.8215038873109877, 0.90524088112286, 0.9502907431513508, 0.9741453945637667, 0.9866391638086626, 0.9931304454487997, 0.9964824676651625, 0.9982050685138709, 0.999086857187352, 0.9995367845137373, 0.9997657357194057, 0.9998819717796519, 0.9999408662716314, 0.9999706552739388, 0.9999856997137064, 0.9999932874197702, 0.9999971097019844, 0.9999990330876355, 1.0
+        0.4068944,  0.66971566, 0.82150389, 0.90524088, 0.95029074,
+        0.97414539, 0.98663916, 0.99313045, 0.99648247, 0.99820507, 0.99908686,
+        0.99953678, 0.99976574, 0.99988197, 0.99994087, 0.99997066, 0.9999857,
+        0.99999329, 0.99999711, 0.99999903, 1.0
     )
     rn = rand()
     
@@ -218,13 +221,13 @@ function read_in_TP(
     
     # read in the reff file
     TP_file_name = "results/" * date * "/"
-    
+        
     if adjust_TP 
         TP_file_name = TP_file_name * "soc_mob_R_adjusted_" * strain * date * ".csv"        
     else
         TP_file_name = TP_file_name * "soc_mob_R_" * strain * date * ".csv"
     end
-    
+
     # drop the first column 
     df = CSV.read(TP_file_name, DataFrame, drop = [1])
     # extract the unique states
@@ -239,7 +242,7 @@ function read_in_TP(
         Matrix(_)[:]
     # create a vector of the indices
     TP_dict_local["t_indices"] = collect(1:length(TP_dict_local["date"]))
-    
+
     TP_dict_import = Dict{String, Array}() 
     # get the dates 
     TP_dict_import["date"] = @pipe df |>
@@ -250,6 +253,25 @@ function read_in_TP(
     # create a vector of the indices
     TP_dict_import["t_indices"] = collect(1:length(TP_dict_import["date"]))
 
+    # read in the posterior draws 
+    samples = CSV.read("results/" * date * "/posterior_sample_" * date * ".csv", DataFrame)
+    R_I = samples.R_I 
+    R_I_omicron = samples.R_I
+    voc_effect = zeros(size(R_I))
+
+    if strain == "Delta"
+        voc_effect .= samples.voc_effect_delta
+    else
+        voc_effect .= samples.voc_effect_omicron
+    end
+
+    R_I_omicron = R_I_omicron .* voc_effect
+
+    # initialise an import matrix to use for each loop
+    TP_import_matrix = zeros(length(TP_dict_import["t_indices"]), 2000)
+
+    omicron_start_date = Dates.Date("2021-11-15")
+
     for state in unique_states 
         # filter by state and RL and keep only TP trajectories 
         df_state_matrix = @pipe df |>
@@ -258,13 +280,13 @@ function read_in_TP(
             select(_, Not(1:8)) |>
             Matrix(_)
         TP_dict_local[state] = df_state_matrix
-        # filter by state and RL and keep only TP trajectories 
-        df_state_matrix = @pipe df |>
-            filter(:state => ==(state), _) |> 
-            filter(:type => ==("R_I"), _) |>
-            select(_, Not(1:8)) |>
-            Matrix(_)
-        TP_dict_import[state] = df_state_matrix
+        
+        # fill the pre-Omicron R_I
+        TP_import_matrix[TP_dict_import["date"] .< omicron_start_date, :] .= R_I[1:2000]'
+        # fill the post-Omicron R_I
+        TP_import_matrix[TP_dict_import["date"] .>= omicron_start_date, :] .= R_I_omicron[1:2000]'
+        # add to the TP dict
+        TP_dict_import[state] = TP_import_matrix
     end
     
     return (TP_dict_local, TP_dict_import)
@@ -319,7 +341,8 @@ function read_in_susceptible_depletion(file_date)
         file_date * 
         ".csv"
     
-    susceptible_depletion = Vector(CSV.read(file_name, DataFrame, drop = [1],)[:, 1])
+    # susceptible_depletion = Vector(CSV.read(file_name, DataFrame, drop = [1],)[:, 1])
+    susceptible_depletion = Matrix(CSV.read(file_name, DataFrame, drop = [1],))
     
     return susceptible_depletion
     
@@ -344,8 +367,8 @@ function read_in_prop_omicron(file_date, state)
         ".csv"
     
     # these vars are used to calculate the omicron proportion
-    # prop_vars = ("m0", "m1", "r", "tau")
-    prop_vars = ("m0", "r", "tau")
+    prop_vars = ("m0", "m1", "r", "tau")
+    # prop_vars = ("m0", "r", "tau")
     # create vector of vectors to store the various parameter samples
     res = Dict{String, Vector{Float64}}()
     

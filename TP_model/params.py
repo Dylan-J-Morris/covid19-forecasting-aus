@@ -174,8 +174,7 @@ def get_all_p_detect(end_date, num_days):
     return p_detect
 
 
-def get_all_p_detect_old(end_date, num_days):
-    states = sorted(["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"])
+def get_all_p_detect_old(states, end_date, num_days):
     
     p_detect = np.zeros((num_days, len(states)))
     

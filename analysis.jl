@@ -42,11 +42,44 @@ scalefontsizes(0.95)
 ##
 
 samples = CSV.read(
-    "results/2022-03-22/50_case_ascertainment/posterior_sample_2022-03-22.csv", 
+    "results/2022-04-05/posterior_sample_2022-04-05.csv", 
     DataFrame, 
 )
 
+par = "phi[1]"
+par = "prop_md_third[391]"
+par = "prop_md_third[391]"
+
+
+num_samples = nrow(samples)
+num_chains = 4
+m = num_samples ÷ num_chains
+
+par = "mu_hat_third[392]"
+par = "md_third[392]"
+par = "theta_md"
+
+fig = plot(layout = (2, 1))
+for i in 1:4
+    idx = 1 + m * (i - 1):m * i
+    plot!(fig, subplot = 1, samples[idx, par])
+    plot!(fig, subplot = 2, kde(samples[idx, par]))
+end
+display(fig)
+
+plot(samples[1:1000,par])
+plot!(samples[1001:2000,par])
+plot!(samples[2001:3000,par])
+plot!(samples[3001:4000,par])
+
+plot(kde(samples[1:1000,par]))
+plot!(kde(samples[1001:2000,par]))
+plot!(kde(samples[2001:3000,par]))
+plot!(kde(samples[3001:4000,par]))
+
 scatter(samples[!, "m1[7]"], samples[!, "r[7]"])
+
+x = [samples[!, "phi[" * string(i) * "]"] for i in range(1, 4)]
 
 
 fig = plot(layout = 12, legend = false)

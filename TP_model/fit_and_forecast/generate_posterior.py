@@ -342,7 +342,16 @@ def get_data_for_posterior(data_date):
     }
 
     # Third wave inputs
-    third_states = sorted(["NSW", "VIC", "ACT", "QLD", "SA", "TAS", "NT", "WA"])
+    third_states = sorted([
+        "NSW", 
+        "VIC", 
+        "ACT", 
+        "QLD", 
+        "SA", 
+        "TAS", 
+        # "NT", 
+        "WA",
+    ])
     # Subtract the truncation days to avoid right truncation as we consider infection dates
     # and not symptom onset dates
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -353,7 +362,7 @@ def get_data_for_posterior(data_date):
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
         "NSW": pd.date_range(start="2021-06-25", end=third_end_date).values,
-        "NT": pd.date_range(start="2021-12-20", end=third_end_date).values,
+        # "NT": pd.date_range(start="2021-12-20", end=third_end_date).values,
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
         "SA": pd.date_range(start="2021-12-10", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,
@@ -641,6 +650,7 @@ def get_data_for_posterior(data_date):
         
     
     p_detect = get_all_p_detect_old(
+        states=third_states,
         end_date=third_end_date, 
         num_days=df3X.loc[df3X.state == "NSW"].shape[0],
     )
@@ -718,9 +728,7 @@ def get_data_for_posterior(data_date):
         "include_in_sec": include_in_sec_wave,
         "include_in_third": include_in_third_wave,
         
-        "pos_starts_sec": np.cumsum(
-            [sum(x) for x in include_in_sec_wave]
-        ).astype(int).tolist(),
+        "pos_starts_sec": np.cumsum([sum(x) for x in include_in_sec_wave]).astype(int).tolist(),
         "pos_starts_third": np.cumsum(
             [sum(x) for x in include_in_third_wave]
         ).astype(int).tolist(),
@@ -731,9 +739,7 @@ def get_data_for_posterior(data_date):
         "omicron_start_day": omicron_start_day,
         "omicron_only_day": omicron_only_day,
         "include_in_omicron": include_in_omicron_wave,
-        "total_N_p_third_omicron": int(
-            sum([sum(x) for x in include_in_omicron_wave]).item()
-        ),
+        "total_N_p_third_omicron": int(sum([sum(x) for x in include_in_omicron_wave]).item()),
         "pos_starts_third_omicron": np.cumsum(
             [sum(x) for x in include_in_omicron_wave]
         ).astype(int).tolist(),
@@ -797,27 +803,26 @@ def run_stan(
 
     # path to the stan model 
     # basic model with a switchover between Reffs 
-    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_switchover.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_switchover.stan"
     
     # mixture model with basic susceptible depletion 
-    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_gamma_mix.stan"
     
     # model that has a switchover but incorporates a waning in infection acquired immunity
-    rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_switchover_waning_infection.stan"
+    rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_switchover_waning_infection.stan"
     
     # model that incorporates a waning in infection acquired immunity but is coded as a mixture
-    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_model_gamma_mix_waning_infection.stan"
+    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_gamma_mix_waning_infection.stan"
+    
+    # model that has a switchover but incorporates a waning in infection acquired immunity
+    # rho_model_gamma = "TP_model/fit_and_forecast/stan_models/TP_switchover_waning_infection_single_md.stan"
 
     # compile the stan model
     model = CmdStanModel(stan_file=rho_model_gamma)
 
-    # vb_fit = model.variational(data=input_data, require_converged=True, grad_samples=20, seed=12345)
-    # vb_vars = vb_fit.stan_variables()
-
     # obtain a posterior sample from the model conditioned on the data
     fit = model.sample(
         chains=num_chains, 
-        # inits=vb_vars,
         iter_warmup=num_warmup_samples, 
         iter_sampling=num_samples, 
         data=input_data,
@@ -1135,7 +1140,16 @@ def plot_and_save_posterior_samples(data_date):
     }
 
     # Third wave inputs
-    third_states = sorted(["NSW", "VIC", "ACT", "QLD", "SA", "TAS", "NT", "WA"])
+    third_states = sorted([
+        "NSW", 
+        "VIC", 
+        "ACT", 
+        "QLD", 
+        "SA", 
+        "TAS", 
+        # "NT", 
+        "WA",
+    ])
     # Subtract the truncation days to avoid right truncation as we consider infection dates
     # and not symptom onset dates
     third_end_date = data_date - pd.Timedelta(days=truncation_days)
@@ -1146,7 +1160,7 @@ def plot_and_save_posterior_samples(data_date):
     third_date_range = {
         "ACT": pd.date_range(start="2021-08-15", end=third_end_date).values,
         "NSW": pd.date_range(start="2021-06-25", end=third_end_date).values,
-        "NT": pd.date_range(start="2021-12-20", end=third_end_date).values,
+        # "NT": pd.date_range(start="2021-12-20", end=third_end_date).values,
         "QLD": pd.date_range(start="2021-07-30", end=third_end_date).values,
         "SA": pd.date_range(start="2021-12-10", end=third_end_date).values,
         "TAS": pd.date_range(start="2021-12-20", end=third_end_date).values,

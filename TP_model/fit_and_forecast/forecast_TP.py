@@ -1710,10 +1710,10 @@ def forecast_TP(data_date):
             row = i // 2
             col = i % 2
 
-            plot_df = df_Rhats.loc[(df_Rhats.state == state) & (df_Rhats.type == "R_L")]
+            plot_df = df_Rhats.loc[(df_Rhats.state == state) & (df_Rhats.type == "R_L")].copy()
             # split the TP into pre data date and after
-            plot_df_backcast = plot_df.loc[plot_df["date"] <= data_date]
-            plot_df_forecast = plot_df.loc[plot_df["date"] > data_date]
+            plot_df_backcast = plot_df.loc[plot_df["date"] <= data_date].copy()
+            plot_df_forecast = plot_df.loc[plot_df["date"] > data_date].copy()
             # plot the backcast TP
             ax[row, col].plot(plot_df_backcast.date, plot_df_backcast["median"], color="C0")
             ax[row, col].fill_between(
@@ -1804,10 +1804,10 @@ def forecast_TP(data_date):
             row = i // 2
             col = i % 2
 
-            plot_df = df_Rhats.loc[(df_Rhats.state == state) & (df_Rhats.type == "R_L")]
+            plot_df = df_Rhats.loc[(df_Rhats.state == state) & (df_Rhats.type == "R_L")].copy()
             # split the TP into pre data date and after
-            plot_df_backcast = plot_df.loc[plot_df["date"] <= data_date]
-            plot_df_forecast = plot_df.loc[plot_df["date"] > data_date]
+            plot_df_backcast = plot_df.loc[plot_df["date"] <= data_date].copy()
+            plot_df_forecast = plot_df.loc[plot_df["date"] > data_date].copy()
             # plot the backcast TP
             ax[row, col].plot(plot_df_backcast.date, plot_df_backcast["median"], color="C0")
             ax[row, col].fill_between(
@@ -1900,7 +1900,7 @@ def forecast_TP(data_date):
 
         for (kk, state) in enumerate(states):
             # sort df_R by date so that rows are dates. rows are dates, columns are predictors
-            df_state = df_R.loc[df_R.state == state]
+            df_state = df_R.loc[df_R.state == state].copy()
             for v in prop_omicron_vars:
                 # take right size of the values to be N by N
                 y = samples[v + "[" + str(kk + 1) + "]"].values

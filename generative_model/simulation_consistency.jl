@@ -21,14 +21,24 @@ function calculate_bounds(local_cases, τ, state)
     Cₜ = [sum(local_cases[idx]) for idx in idxs_limits]
     
     # multipliers on the n-day average
-    (ℓ, u) = (0.25, 2.5)
+    # (ℓ, u) = (0.25, 4.0)
+    (ℓ, u) = (0.1, 4.0)
     Lₜ = ceil.(Int, ℓ * Cₜ)
     Uₜ = ceil.(Int, u * Cₜ)
     
     # remove restrictions over last τ * 2 days 
-    (ℓ, u) = (0.5, 2.0)
-    Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
-    Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
+    (ℓ, u) = (0.1, 1.5)
+    Lₜ[(end - 4):end] = ceil.(Int, ℓ * Cₜ[(end - 4):end])
+    Uₜ[(end - 4):end] = ceil.(Int, u * Cₜ[(end - 4):end])
+    
+    # remove restrictions over last τ * 2 days 
+    (ℓ, u) = (0.25, 10.0)
+    Lₜ[end] = ceil.(Int, ℓ * Cₜ[end])
+    Uₜ[end] = ceil.(Int, u * Cₜ[end])
+    
+    # (ℓ, u) = (0.7, 2.0)
+    # Lₜ[end-1:end] = ceil.(Int, ℓ * Cₜ[end-1:end])
+    # Uₜ[end-1:end] = ceil.(Int, u * Cₜ[end-1:end])
     
     min_limit = τ * 50
     
@@ -61,7 +71,6 @@ end
 function get_simulation_limits(
     local_cases, 
     forecast_start_date,
-    cases_pre_forecast, 
     TP_indices, 
     N, 
     state; 
@@ -86,18 +95,17 @@ function get_simulation_limits(
     # the maximum allowable cases over the forecast period is the population size
     max_forecast_cases = N ÷ 2
     
-    reff_change_time = (
-        T_observed + data_truncation - 1 - (fitting_truncation + nowcast_truncation)
-    )
-    
     omicron_start_date = "2021-11-15"
+    omicron_only_date = "2022-02-01"
     omicron_start_day = Dates.value(
         Dates.Date(omicron_start_date) - Dates.Date(forecast_start_date)
+    )
+    omicron_only_day = Dates.value(
+        Dates.Date(omicron_only_date) - Dates.Date(forecast_start_date)
     )
     
     sim_features = Features(
         max_forecast_cases,
-        cases_pre_forecast, 
         N,
         T_observed, 
         T_end, 
@@ -106,8 +114,8 @@ function get_simulation_limits(
         max_cases, 
         idxs_limits,
         state,
-        reff_change_time,
         omicron_start_day, 
+        omicron_only_day, 
     )
     
     return sim_features
