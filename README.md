@@ -73,8 +73,10 @@ python TP_model/EpyReff/run_estimator.py $DATADATE
 python TP_model/fit_and_forecast/generate_posterior.py $DATADATE $POST_RUN_FLAG
 python TP_model/fit_and_forecast/forecast_TP.py $DATADATE
 python TP_model/fit_and_forecast/adjust_TP.py $DATADATE
-julia -t $NUM_THREADS generative_model/run_forecasts_all_states.jl $DATADATE $NSIMS
+julia -t $NUM_THREADS generative_model/run_forecasts_single_state.jl $DATADATE $STATE
 ```
+
+To run the generative model interactively, you can use `run_single_state_script.jl`. The parameters are set within this script and this has some visualisation tools but note that they may be offset slightly wrong.
 
 ## Running on a HPC that uses slurm
 Currently the model is not tested on the UoA HPC (Slurm). This is due to a recent suite of changes made to facilitate the increased case loads. We are currently working on getting the components of the model back up and appropriately running on a cluster. 
