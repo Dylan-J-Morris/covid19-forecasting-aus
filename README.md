@@ -3,7 +3,7 @@ University of Adelaide model used to forecast COVID-19 cases in Australia for th
 
 ## Data needed
 In the `data` folder, ensure you have the latest:
-* Case data (NINDSS).
+* The interim linelist (case data).
 * Up to date microdistancing survey files titled `Barometer wave XX compliance.csv` saved in the `data/md/` folder. All files up to the current wave need to be included.
 * Up to date mask wearing survey files titled `face_covering_XX_.csv` saved in the `data/face_coverings/` folder. All files up to the current wave need to be included.
 * [Google mobility indices](https://www.google.com/covid19/mobility/); use the Global CSV with the file named `Global_Mobility_Report.csv`. This is automatically downloaded when `download_google_automatically` in `params.py` is set to `True` (**Note:** this is not normally a good idea to leave on as it slows things down considerably).
@@ -16,9 +16,9 @@ The model can be broken down into two components
 1. The TP model fitting and forecasting found in `TP_model`; and, 
 2. the branching process simulation found in `generative_model`.
 
-`TP_model` contains Python scripts for running EpyReff to get an estimate of the time-varying reproduction number. This directory also contains code for fitting the TP model to the inferred $R_\text{eff}$. There is also code for forecasting mobility, micro-distancing, mask-wearing and vaccination forwards in time and combining the posterior draws with these forecasted estimates to obtain a forecast of the local (and import) TP. 
+The directory `TP_model` contains Python scripts for running EpyReff to get an estimate of the time-varying reproduction number. This directory also contains code for fitting the TP model to the inferred $R_\text{eff}$. There is also code for forecasting mobility, micro-distancing, mask-wearing and vaccination forwards in time and combining the posterior draws with these forecasted estimates to obtain a forecast of the local (and import) TP. 
 
-`generative_model` features Julia scripts for running the branching process. Using Julia provides noticeable improvements for runtime compared to Python implementations (used previously for this project and are featured in the previous repositories linked at the bottom of this file). 
+The directory `generative_model` features Julia scripts for running the branching process. Using Julia provides noticeable improvements for runtime compared to Python implementations (used previously for this project and are featured in the previous repositories linked at the bottom of this file). 
 ## Model setup and options 
 
 ### Data
