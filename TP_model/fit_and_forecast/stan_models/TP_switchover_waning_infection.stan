@@ -886,6 +886,8 @@ model {
                     1 + local_third[n,i]
                 );
                 
+                // if before December 2021, use the Delta assumptions. If after December 
+                // 2021 use the Omicron assumptions. 
                 if (n < Reff_switchover_day) {
                     mu_hat_third[pos] ~ gamma(
                         a_mu_hat_third[n,i], 
